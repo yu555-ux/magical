@@ -185,7 +185,7 @@ export default function PersonaPage() {
   const ratingGlow = ratingGlowColors[rating] || '#00f2ff';
 
   return (
-    <main className="h-full overflow-y-auto px-4 md:px-12 py-8 space-y-20 scroll-smooth">
+    <main className="h-full overflow-y-auto px-4 md:px-12 py-8 space-y-20 scroll-smooth bg-gradient-to-b from-aether-deep/95 via-aether-dark/80 to-aether-dark/60">
       {/* ============================================================
           SECTION 1 — RATINGS & ATTRIBUTES
           ============================================================ */}
