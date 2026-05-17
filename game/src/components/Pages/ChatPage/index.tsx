@@ -51,6 +51,13 @@ export default function ChatPage({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [ss.activeChat?.messages, isStreaming]);
 
+  // Auto-open options panel when streaming finishes and options exist
+  useEffect(() => {
+    if (!isStreaming && options.length > 0) {
+      setOptionsOpen(true);
+    }
+  }, [isStreaming, options.length]);
+
   // Latest assistant message & parsed data
   const latestAssistant = useMemo(() => {
     const msgs = ss.activeChat?.messages ?? [];
@@ -204,28 +211,6 @@ export default function ChatPage({
                   </motion.span>
                 )}
               </div>
-            </motion.div>
-          )}
-
-          {/* ── Options ── */}
-          {options.length > 0 && !isStreaming && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-[680px] mx-auto mt-6 space-y-2 px-5"
-            >
-              {options.map((opt, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSend(opt)}
-                  className="w-full text-left px-4 py-3 rounded border border-aether-border/20 bg-aether-dark/40 hover:border-aether-cyan/40 hover:bg-aether-cyan/[0.04] transition-all text-[14px] text-white/60 hover:text-white/85 font-display tracking-wide group"
-                >
-                  <span className="text-aether-cyan/50 font-mono text-[11px] mr-2 group-hover:text-aether-cyan/80 transition-colors">
-                    [{i + 1}]
-                  </span>
-                  {opt}
-                </button>
-              ))}
             </motion.div>
           )}
 
