@@ -38,7 +38,7 @@ export default function ChatHeader({ currentTime, location, weather, onOpenReade
       {onOpenReader && (
         <button
           onClick={onOpenReader}
-          className="relative group flex items-center gap-2 px-3 py-1.5 rounded-sm text-white/50 hover:text-aether-cyan transition-colors hover:bg-aether-cyan/[0.06]"
+          className="relative group flex items-center gap-2 px-3 py-1.5 rounded-sm text-aether-cyan/70 hover:text-white transition-colors hover:bg-aether-cyan/[0.08] shadow-[0_0_12px_rgba(0,242,255,0.25)] hover:shadow-[0_0_20px_rgba(0,242,255,0.45)]"
         >
           <BookOpen size={17} />
           {/* Tooltip */}

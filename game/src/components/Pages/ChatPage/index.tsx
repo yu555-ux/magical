@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, ChevronRight, Clock, X, Send } from 'lucide-react';
+import { ChevronDown, ChevronRight, Send, X } from 'lucide-react';
 import ChatHeader from './ChatHeader';
 import PlotReaderModal from './PlotReaderModal';
 import { useSillytavern } from '../../../hooks/useSillytavern';
@@ -18,9 +18,11 @@ export default function ChatPage({
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [thinkingOpen, setThinkingOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [readerOpen, setReaderOpen] = useState(false);
+  const [rawViewOpen, setRawViewOpen] = useState(false);
+  const [rawContent, setRawContent] = useState('');
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [location] = useState('新东京枢纽');
   const [weather] = useState({ icon: '晴', temp: 22, humidity: 45 });
@@ -73,13 +75,6 @@ export default function ChatPage({
     [rawOptions]
   );
 
-  // History messages (all messages before latest assistant, not including user either)
-  const historyMessages = useMemo(() => {
-    const msgs = ss.activeChat?.messages ?? [];
-    if (msgs.length <= 1) return [];
-    return msgs.slice(0, -1).filter(m => m.role !== 'system');
-  }, [ss.activeChat?.messages]);
-
   /* send */
   const handleSend = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
@@ -100,8 +95,6 @@ export default function ChatPage({
     }
   };
 
-  const msgCount = ss.activeChat?.messages?.length ?? 0;
-
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
       <div className="flex-1 flex flex-col w-full glass-panel border-glow relative overflow-hidden">
@@ -113,16 +106,9 @@ export default function ChatPage({
 
         <ChatHeader currentTime={currentTime} location={location} weather={weather} onOpenReader={() => setReaderOpen(true)} />
 
-        {/* ── Toolbar ── */}
-        <div className="flex items-center gap-3 px-5 py-2 border-b border-aether-border/15 shrink-0">
-          <button
-            onClick={() => setHistoryOpen(true)}
-            className="flex items-center gap-1.5 text-[11px] text-white/30 hover:text-aether-cyan transition-colors font-display tracking-wide"
-          >
-            <Clock size={13} /> 历史 ({msgCount})
-          </button>
-          <span className="flex-1" />
-          {isStreaming && (
+        {/* ── Streaming indicator ── */}
+        {isStreaming && (
+          <div className="flex items-center justify-end px-5 py-1.5 border-b border-aether-border/15 shrink-0">
             <motion.span
               animate={{ opacity: [0.4, 1, 0.4] }}
               transition={{ duration: 1, repeat: Infinity }}
@@ -130,8 +116,8 @@ export default function ChatPage({
             >
               AI 生成中...
             </motion.span>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* ── Thinking fold ── */}
         {thinking && (
@@ -198,7 +184,14 @@ export default function ChatPage({
               animate={{ opacity: 1 }}
               className="max-w-[680px] mx-auto"
             >
-              <div className="text-[15px] text-white/75 leading-[1.9] whitespace-pre-wrap font-sans tracking-[0.03em]">
+              <div
+                className="text-[15px] text-white/75 leading-[1.9] whitespace-pre-wrap font-sans tracking-[0.03em] select-none"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setRawContent(latestAssistant?.content ?? '');
+                  setCtxMenu({ x: e.clientX, y: e.clientY, visible: true });
+                }}
+              >
                 {maintext}
                 {isStreaming && (
                   <motion.span
@@ -307,63 +300,84 @@ export default function ChatPage({
         </div>
       </div>
 
-      {/* ── History Drawer ── */}
-      <AnimatePresence>
-        {historyOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setHistoryOpen(false)}
-            className="fixed inset-0 z-[120] bg-aether-dark/80 backdrop-blur-sm"
-          >
-            <motion.aside
-              initial={{ x: -320 }}
-              animate={{ x: 0 }}
-              exit={{ x: -320 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute left-0 top-0 bottom-0 w-[340px] glass-panel border-r border-aether-border/30 overflow-y-auto"
-            >
-              <div className="flex items-center justify-between px-5 py-4 border-b border-aether-border/20">
-                <h3 className="font-display font-bold text-xs text-aether-cyan tracking-[0.15em] uppercase">对话历史</h3>
-                <button onClick={() => setHistoryOpen(false)} className="text-white/30 hover:text-white/60 transition-colors">
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="p-3 space-y-1">
-                {historyMessages.length === 0 ? (
-                  <p className="text-center text-white/15 text-xs py-12">暂无历史记录</p>
-                ) : (
-                  historyMessages.map((m, i) => (
-                    <div key={m.id} className="border-b border-white/[0.04] pb-2 mb-2 last:border-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[9px] text-white/20 font-mono">#{i + 1}</span>
-                        <span className={`text-[10px] font-mono ${m.role === 'user' ? 'text-aether-blue/50' : 'text-aether-purple/50'}`}>
-                          {m.role === 'user' ? '▲ 玩家' : '▼ AI'}
-                        </span>
-                        <span className="text-[9px] text-white/15 font-mono">
-                          {new Date(m.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-white/35 leading-relaxed line-clamp-3 whitespace-pre-wrap">
-                        {m.parsed?.maintext || m.content}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.aside>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* ── Plot Reader Modal ── */}
       <PlotReaderModal
         isOpen={readerOpen}
         onClose={() => setReaderOpen(false)}
         messages={ss.activeChat?.messages ?? []}
       />
+
+      {/* ── Context menu ── */}
+      <AnimatePresence>
+        {ctxMenu.visible && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setCtxMenu({ x: 0, y: 0, visible: false })}
+            className="fixed inset-0 z-[130]"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.12 }}
+              style={{ left: ctxMenu.x, top: ctxMenu.y }}
+              className="absolute glass-panel border border-aether-cyan/30 shadow-[0_0_16px_rgba(0,242,255,0.12)] rounded overflow-hidden"
+            >
+              <button
+                onClick={() => {
+                  setCtxMenu({ x: 0, y: 0, visible: false });
+                  setRawViewOpen(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-cyan hover:bg-aether-cyan/[0.06] transition-all font-display tracking-wide whitespace-nowrap"
+              >
+                <ChevronRight size={13} />
+                查看原文
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Raw XML View Modal ── */}
+      <AnimatePresence>
+        {rawViewOpen && (
+          <div className="fixed inset-0 z-[140] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setRawViewOpen(false)}
+              className="absolute inset-0 bg-aether-dark/90 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-[720px] max-h-[80vh] glass-panel border-glow overflow-hidden flex flex-col"
+            >
+              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/40 to-transparent" />
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-aether-border/30 bg-aether-cyan/[0.03] shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2 h-2 bg-aether-cyan rounded-full" />
+                  <h3 className="font-display font-bold text-xs tracking-[0.15em] text-aether-cyan uppercase">原始输出</h3>
+                </div>
+                <button onClick={() => setRawViewOpen(false)} className="text-white/30 hover:text-aether-cyan transition-colors p-1">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-5">
+                <pre className="text-[13px] text-white/60 whitespace-pre-wrap leading-relaxed font-mono bg-aether-dark/40 border border-aether-border/15 rounded-lg p-4">
+                  {rawContent || '(无内容)'}
+                </pre>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/20 to-transparent" />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
