@@ -7,12 +7,14 @@ import {
   Map as MapIcon,
   Share2,
   Beer,
+  Settings,
 } from 'lucide-react';
 import { PageType } from '../types';
 
 interface SidebarProps {
   activePage: PageType;
   setActivePage: (page: PageType) => void;
+  onOpenSettings: () => void;
 }
 
 const navItems = [
@@ -24,7 +26,7 @@ const navItems = [
   { type: PageType.TAVERN, icon: Beer, label: '酒馆' },
 ];
 
-export default function Sidebar({ activePage, setActivePage }: SidebarProps) {
+export default function Sidebar({ activePage, setActivePage, onOpenSettings }: SidebarProps) {
   return (
     <div className="w-20 md:w-24 h-full flex flex-col bg-aether-dark/80 backdrop-blur-xl border-r border-aether-border relative z-50">
       {/* Navigation */}
@@ -88,6 +90,32 @@ export default function Sidebar({ activePage, setActivePage }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* Divider */}
+      <div className="w-8 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/30 to-transparent" />
+
+      {/* Settings button */}
+      <div className="pb-6 px-2 w-full">
+        <button
+          onClick={onOpenSettings}
+          className="w-full flex flex-col items-center gap-1.5 py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale text-white/30 hover:text-white/60"
+          id="nav-settings"
+        >
+          <motion.div
+            whileHover={{ rotate: 90 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Settings
+              size={20}
+              className="shrink-0 transition-all group-hover:drop-shadow-[0_0_3px_rgba(0,242,255,0.3)]"
+            />
+          </motion.div>
+          <span className="font-display text-xs tracking-widest font-medium leading-none">
+            设置
+          </span>
+          <div className="absolute inset-0 bg-aether-cyan/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-sm" />
+        </button>
+      </div>
 
       {/* Decorative right edge line */}
       <div className="absolute right-0 top-1/4 bottom-1/4 w-[1px] bg-gradient-to-b from-transparent via-aether-cyan/20 to-transparent" />

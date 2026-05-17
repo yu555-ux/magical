@@ -47,7 +47,9 @@
       "Bash(ls -la .env*)",
       "Bash(echo \"exit: $?\")",
       "Bash(ls -la *.db *.sqlite)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

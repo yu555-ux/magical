@@ -7,6 +7,7 @@ import WarehousePage from './components/Pages/WarehousePage';
 import MapPage from './components/Pages/MapPage';
 import SocialPage from './components/Pages/SocialPage';
 import TavernPage from './components/Pages/TavernPage';
+import SystemSettingsModal from './components/SystemSettingsModal';
 import { PageType, Notification } from './types';
 import { Toast, NotificationPanel } from './components/Feedback';
 import { Bell } from 'lucide-react';
@@ -16,6 +17,7 @@ export default function App() {
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'info' | 'warning' | 'error' | 'success' }[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+  const [showSystemSettings, setShowSystemSettings] = useState(false);
 
   // Welcome toasts
   useEffect(() => {
@@ -80,7 +82,7 @@ export default function App() {
       </div>
 
       {/* Sidebar Navigation */}
-      <Sidebar activePage={activePage} setActivePage={setActivePage} />
+      <Sidebar activePage={activePage} setActivePage={setActivePage} onOpenSettings={() => setShowSystemSettings(true)} />
 
       {/* Main Content Area */}
       <main className="flex-1 relative z-10 overflow-hidden flex flex-col">
@@ -149,6 +151,9 @@ export default function App() {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* System Settings Modal */}
+      <SystemSettingsModal isOpen={showSystemSettings} onClose={() => setShowSystemSettings(false)} />
 
       {/* Global noise/grain overlay (CSS-based) */}
       <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden opacity-[0.03]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }} />
