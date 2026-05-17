@@ -33,25 +33,19 @@ export default function ChatHeader({ variables, onOpenReader, onOpenVariables }:
     <div className="px-6 py-3.5 border-b border-aether-cyan/20 bg-aether-deep/90 flex items-center shrink-0 shadow-[0_1px_8px_rgba(0,242,255,0.03)]">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2.5">
-          <Clock size={14} className={display.inDream ? 'text-aether-purple/70' : 'text-aether-blue/70'} />
-          <span className="font-display text-[13px] text-white/60 tracking-[0.06em] whitespace-nowrap">{display.time}</span>
+          <Clock size={14} className={display.inDream ? 'text-aether-red/70' : 'text-aether-blue/70'} />
+          <span className={`font-display text-[13px] tracking-[0.06em] whitespace-nowrap ${display.inDream ? 'text-aether-gold' : 'text-white/60'}`}>{display.time}</span>
         </div>
         <div className="w-px h-4 bg-aether-border/50" />
         <div className="flex items-center gap-2">
-          <MapPin size={13} className={display.inDream ? 'text-aether-purple/70' : 'text-aether-blue/70'} />
-          <span className="font-display text-[13px] text-white/65 tracking-[0.06em] max-w-[200px] truncate">{display.location}</span>
+          <MapPin size={13} className={display.inDream ? 'text-aether-red/70' : 'text-aether-blue/70'} />
+          <span className={`font-display text-[13px] tracking-[0.06em] max-w-[200px] truncate ${display.inDream ? 'text-aether-gold' : 'text-white/65'}`}>{display.location}</span>
         </div>
         <div className="w-px h-4 bg-aether-border/50" />
         <div className="flex items-center gap-2">
-          <CloudSun size={14} className={display.inDream ? 'text-aether-purple/70' : 'text-aether-blue/70'} />
-          <span className="font-display text-[13px] text-white/55 tracking-[0.06em] max-w-[120px] truncate">{display.weather.detail}</span>
+          <CloudSun size={14} className={display.inDream ? 'text-aether-red/70' : 'text-aether-blue/70'} />
+          <span className={`font-display text-[13px] tracking-[0.06em] max-w-[120px] truncate ${display.inDream ? 'text-aether-gold' : 'text-white/55'}`}>{display.weather.detail}</span>
         </div>
-        {display.inDream && (
-          <>
-            <div className="w-px h-4 bg-aether-border/50" />
-            <span className="text-[10px] text-aether-purple/50 font-mono tracking-[0.12em]">🌙 梦境</span>
-          </>
-        )}
       </div>
 
       <div className="flex-1" />
