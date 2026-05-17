@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, ChevronRight, Clock, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, X, Send } from 'lucide-react';
 import ChatHeader from './ChatHeader';
 import { useSillytavern } from '../../../hooks/useSillytavern';
 
@@ -18,6 +18,7 @@ export default function ChatPage({
   const [isFocused, setIsFocused] = useState(false);
   const [thinkingOpen, setThinkingOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [location] = useState('新东京枢纽');
   const [weather] = useState({ icon: '晴', temp: 22, humidity: 45 });
@@ -203,57 +204,101 @@ export default function ChatPage({
             </motion.div>
           )}
 
-          {/* ── Options ── */}
-          {options.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-[680px] mx-auto mt-6 space-y-2"
-            >
-              {options.map((opt, i) => (
-                <button
-                  key={i}
-                  disabled={isStreaming}
-                  onClick={() => handleSend(opt)}
-                  className="w-full text-left px-4 py-3 rounded border border-aether-border/20 bg-aether-dark/40 hover:border-aether-cyan/40 hover:bg-aether-cyan/[0.04] transition-all text-[14px] text-white/60 hover:text-white/85 font-display tracking-wide disabled:opacity-30 disabled:cursor-not-allowed group"
-                >
-                  <span className="text-aether-cyan/50 font-mono text-[11px] mr-2 group-hover:text-aether-cyan/80 transition-colors">
-                    [{i + 1}]
-                  </span>
-                  {opt}
-                </button>
-              ))}
-            </motion.div>
-          )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* ── Input bar ── */}
-        <div className="shrink-0 bg-aether-deep/90 border-t border-aether-border/15">
-          <div className="p-3 md:p-4 flex items-center gap-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              placeholder="输入行动推进剧情..."
-              disabled={isStreaming}
-              className={`flex-1 bg-transparent px-4 py-2.5 text-[14px] text-white/75 font-display tracking-[0.06em] placeholder:text-white/20 disabled:opacity-40 focus:outline-none border transition-all ${
-                isFocused
-                  ? 'border-aether-cyan/40 shadow-[0_0_12px_rgba(0,242,255,0.06)]'
+        {/* ── Input area ── */}
+        <div className="shrink-0 bg-aether-deep/90">
+          <div className="p-3 md:p-4">
+            <div className="relative">
+              {/* Options panel — absolute positioned above input */}
+              <AnimatePresence>
+                {optionsOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute left-0 right-0 bottom-full border-x border-t bg-aether-deep/98 backdrop-blur-xl overflow-hidden border-aether-cyan/30 shadow-[0_0_24px_rgba(0,242,255,0.08)]"
+                  >
+                    {options.length > 0 ? (
+                      options.map((opt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { handleSend(opt); setOptionsOpen(false); }}
+                          disabled={isStreaming}
+                          className="w-full flex items-center gap-2 px-5 py-3 text-left border-b border-white/[0.06] hover:bg-aether-cyan/[0.05] transition-all duration-150 clickable group last:border-b-0 disabled:opacity-40"
+                        >
+                          <span className="text-[11px] text-aether-cyan/40 font-mono shrink-0">[{i + 1}]</span>
+                          <span className="text-[13px] text-white/70 font-display tracking-[0.08em] group-hover:text-aether-cyan transition-colors">
+                            {opt}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-5 py-6 text-center text-[12px] text-white/15 font-display tracking-wide">
+                        暂无可选行动 — 请自由输入
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Toggle bar */}
+              <button
+                onClick={() => { setOptionsOpen(!optionsOpen); inputRef.current?.focus(); }}
+                className={`w-full flex items-center justify-center h-5 transition-all duration-300 clickable border ${
+                  optionsOpen
+                    ? 'border-aether-cyan/50 shadow-[0_0_24px_rgba(0,242,255,0.1)] bg-aether-deep/98 backdrop-blur-xl text-aether-cyan/60 border-t-white/[0.04] rounded-b-none border-b-transparent'
+                    : isFocused
+                      ? 'border-aether-cyan/50 shadow-[0_0_24px_rgba(0,242,255,0.1)] bg-aether-cyan/[0.06] text-aether-cyan/60'
+                      : 'border-white/10 bg-aether-glass/40 text-white/25 hover:text-aether-cyan/45 hover:bg-aether-cyan/[0.03] hover:border-white/15 rounded-sm'
+                } ${options.length > 0 && !optionsOpen ? 'shadow-[0_0_12px_rgba(0,242,255,0.06)]' : ''}`}
+              >
+                <motion.div
+                  animate={{ rotate: optionsOpen ? 180 : 0 }}
+                  transition={{ type: 'spring', damping: 18, stiffness: 200 }}
+                  className="w-2.5 h-2.5 border-r border-b border-current rotate-45"
+                />
+                {options.length > 0 && !optionsOpen && (
+                  <span className="ml-2 text-[9px] font-mono text-aether-cyan/30">
+                    {options.length} 个行动选项
+                  </span>
+                )}
+              </button>
+
+              {/* Input row */}
+              <div className={`flex items-center border transition-all duration-300 ${
+                (isFocused || optionsOpen)
+                  ? 'border-aether-cyan/50 shadow-[0_0_24px_rgba(0,242,255,0.1)]'
                   : 'border-white/10 hover:border-white/15'
-              }`}
-            />
-            <button
-              onClick={() => handleSend()}
-              disabled={!input.trim() || isStreaming}
-              className="shrink-0 px-5 py-2.5 bg-aether-cyan/15 border border-aether-cyan/30 text-aether-cyan font-display text-xs tracking-widest hover:bg-aether-cyan/25 hover:shadow-[0_0_16px_rgba(0,242,255,0.2)] disabled:opacity-20 disabled:cursor-not-allowed transition-all"
-            >
-              发送
-            </button>
+              } ${optionsOpen ? 'border-t-aether-cyan/10' : ''}`}>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  placeholder="输入行动推进剧情..."
+                  disabled={isStreaming}
+                  className="flex-1 bg-transparent px-5 py-3.5 text-[14px] text-white/75 font-display tracking-[0.06em] placeholder:text-white/20 disabled:opacity-40 focus:outline-none"
+                />
+                <button
+                  onClick={() => handleSend()}
+                  disabled={!input.trim() || isStreaming}
+                  className={`shrink-0 self-stretch px-5 transition-all duration-300 clickable flex items-center ${
+                    (isFocused || optionsOpen)
+                      ? 'text-aether-cyan drop-shadow-[0_0_10px_rgba(0,242,255,0.5)]'
+                      : 'text-aether-cyan/45'
+                  } enabled:hover:text-aether-cyan enabled:hover:bg-aether-cyan/[0.04] enabled:active:scale-95 disabled:opacity-15`}
+                  title="发送"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
