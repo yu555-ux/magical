@@ -1,0 +1,8 @@
+{
+  "name": "AETHER LINK - 以太链接",
+  "description": "基于LLM交互的超能力都市RPG高端前端框架，融合《死亡搁浅》风格的蓝青视觉美学。",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

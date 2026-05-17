@@ -1,0 +1,43 @@
+- generic [ref=e3]:
+  - navigation [ref=e5]:
+    - button "主页" [ref=e6] [cursor=pointer]:
+      - img [ref=e10]
+      - generic [ref=e12]: 主页
+    - button "信息" [ref=e14] [cursor=pointer]:
+      - img [ref=e16]
+      - generic [ref=e19]: 信息
+    - button "仓库" [ref=e21] [cursor=pointer]:
+      - img [ref=e23]
+      - generic [ref=e27]: 仓库
+    - button "地图" [ref=e29] [cursor=pointer]:
+      - img [ref=e31]
+      - generic [ref=e33]: 地图
+    - button "社交" [ref=e35] [cursor=pointer]:
+      - img [ref=e37]
+      - generic [ref=e43]: 社交
+  - main [ref=e46]:
+    - generic [ref=e49]:
+      - generic [ref=e51]:
+        - generic [ref=e52]:
+          - img [ref=e53]
+          - generic [ref=e56]: 13:13
+        - generic [ref=e58]:
+          - img [ref=e59]
+          - generic [ref=e62]: 新东京枢纽
+        - generic [ref=e64]:
+          - img [ref=e65]
+          - generic [ref=e70]: 晴 · 22°C
+      - generic [ref=e74]:
+        - paragraph [ref=e78]: 神经连接已建立。我是您的执行协助系统。当前区域环境读数正常。请问有什么可以帮您？
+        - generic [ref=e80]: 13:13
+        - button "复制" [ref=e81] [cursor=pointer]:
+          - img [ref=e82]
+      - generic [ref=e87]:
+        - button [ref=e88] [cursor=pointer]
+        - generic [ref=e90]:
+          - textbox "写入信息并推进剧情..." [active] [ref=e91]: 探索周围
+          - button "发送" [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+    - button "4" [ref=e101]:
+      - img [ref=e98]
+      - generic [ref=e102]: "4"

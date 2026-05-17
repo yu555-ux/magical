@@ -1,0 +1,59 @@
+- generic [ref=e3]:
+  - navigation [ref=e5]:
+    - button "主页" [ref=e6] [cursor=pointer]:
+      - img [ref=e10]
+      - generic [ref=e12]: 主页
+    - button "信息" [ref=e14] [cursor=pointer]:
+      - img [ref=e16]
+      - generic [ref=e19]: 信息
+    - button "仓库" [ref=e21] [cursor=pointer]:
+      - img [ref=e23]
+      - generic [ref=e27]: 仓库
+    - button "地图" [ref=e29] [cursor=pointer]:
+      - img [ref=e31]
+      - generic [ref=e33]: 地图
+    - button "社交" [ref=e35] [cursor=pointer]:
+      - img [ref=e37]
+      - generic [ref=e43]: 社交
+  - main [ref=e46]:
+    - generic [ref=e107]:
+      - generic [ref=e109]:
+        - generic [ref=e110]:
+          - img [ref=e111]
+          - generic [ref=e114]: 13:02
+        - generic [ref=e116]:
+          - img [ref=e117]
+          - generic [ref=e120]: 新东京枢纽
+        - generic [ref=e122]:
+          - img [ref=e123]
+          - generic [ref=e128]: 晴 · 22°C
+      - generic [ref=e132]:
+        - paragraph [ref=e136]: 神经连接已建立。我是您的执行协助系统。当前区域环境读数正常。请问有什么可以帮您？
+        - generic [ref=e138]: 13:01
+        - button "复制" [ref=e139] [cursor=pointer]:
+          - img [ref=e140]
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - button "探索周围 扫描当前区域环境" [ref=e147] [cursor=pointer]:
+            - generic [ref=e148]: 探索周围
+            - generic [ref=e149]: 扫描当前区域环境
+          - button "查看状态 检查自身属性与装备" [ref=e150] [cursor=pointer]:
+            - generic [ref=e151]: 查看状态
+            - generic [ref=e152]: 检查自身属性与装备
+          - button "使用技能 释放以太共鸣技能" [ref=e153] [cursor=pointer]:
+            - generic [ref=e154]: 使用技能
+            - generic [ref=e155]: 释放以太共鸣技能
+          - button "检查物品 查看背包与物资" [ref=e156] [cursor=pointer]:
+            - generic [ref=e157]: 检查物品
+            - generic [ref=e158]: 查看背包与物资
+          - button "展开对话 与附近人物互动" [ref=e159] [cursor=pointer]:
+            - generic [ref=e160]: 展开对话
+            - generic [ref=e161]: 与附近人物互动
+        - button [ref=e162] [cursor=pointer]
+        - generic [ref=e164]:
+          - textbox "写入信息并推进剧情..." [active] [ref=e165]
+          - button "发送" [disabled] [ref=e166] [cursor=pointer]:
+            - img [ref=e167]
+    - button "4" [ref=e101]:
+      - img [ref=e98]
+      - generic [ref=e102]: "4"
