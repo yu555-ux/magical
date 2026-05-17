@@ -96,6 +96,8 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
   const [draft, setDraft] = useState<AppSettings | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [primaryModels, setPrimaryModels] = useState<string[]>([]);
+  const [secondaryModels, setSecondaryModels] = useState<string[]>([]);
 
   // ── lorebook list (live from DB) ──
   const [lorebookList, setLorebookList] = useState<Lorebook[]>([]);
@@ -181,6 +183,8 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
         ? { baseUrl: api.baseUrl, apiKey: api.apiKey }
         : { baseUrl: secondary.baseUrl, apiKey: secondary.apiKey };
       const { source, models, error } = await fetchModels(target);
+      if (which === 'primary') setPrimaryModels(models);
+      else setSecondaryModels(models);
       if (source === 'remote') showToast(`获取到 ${models.length} 个模型`, 'success');
       else showToast(`获取失败 (${error})，已回退常用模型列表`, 'error');
     } finally { setBusy(null); }
@@ -449,6 +453,21 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                         <InputRow label="Base URL" value={api.baseUrl} onChange={(v) => patchApi({ baseUrl: v })} placeholder="https://api.openai.com/v1" />
                         <InputRow label="API Key" type="password" value={api.apiKey} onChange={(v) => patchApi({ apiKey: v })} placeholder="sk-..." />
                         <InputRow label="Model" value={api.model} onChange={(v) => patchApi({ model: v })} placeholder="gpt-3.5-turbo" />
+                        {primaryModels.length > 0 && (
+                          <label className="block mb-3">
+                            <span className="block text-[10px] text-white/25 mb-1">选择模型 ({primaryModels.length})</span>
+                            <select
+                              onChange={(e) => { if (e.target.value) patchApi({ model: e.target.value }); }}
+                              className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-sm text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60 transition-all"
+                              defaultValue=""
+                            >
+                              <option value="" disabled>-- 点击选择 --</option>
+                              {primaryModels.map((m) => (
+                                <option key={m} value={m}>{m}</option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
                         <div className="flex gap-2 pt-2">
                           <ActionButton busy={busy === 'fetch-primary'} onClick={() => handleFetchModels('primary')} label={busy === 'fetch-primary' ? '获取中…' : '获取模型列表'} />
                           <ActionButton busy={busy === 'test-primary'} onClick={() => handleTestConnection('primary')} label={busy === 'test-primary' ? '测试中…' : '测试连通性'} variant="secondary" />
@@ -471,6 +490,21 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                             <InputRow label="Base URL" value={secondary.baseUrl} onChange={(v) => patchSecondary({ baseUrl: v, enabled: true })} placeholder="https://api.deepseek.com/v1" />
                             <InputRow label="API Key" type="password" value={secondary.apiKey} onChange={(v) => patchSecondary({ apiKey: v, enabled: true })} placeholder="sk-..." />
                             <InputRow label="Model" value={secondary.model} onChange={(v) => patchSecondary({ model: v, enabled: true })} placeholder="deepseek-chat" />
+                            {secondaryModels.length > 0 && (
+                              <label className="block mb-3">
+                                <span className="block text-[10px] text-white/25 mb-1">选择模型 ({secondaryModels.length})</span>
+                                <select
+                                  onChange={(e) => { if (e.target.value) patchSecondary({ model: e.target.value, enabled: true }); }}
+                                  className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-sm text-white/70 font-mono focus:outline-none focus:border-aether-blue/60 transition-all"
+                                  defaultValue=""
+                                >
+                                  <option value="" disabled>-- 点击选择 --</option>
+                                  {secondaryModels.map((m) => (
+                                    <option key={m} value={m}>{m}</option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
                             <div className="flex gap-3 pt-1">
                               <InputRow label="温度" value={String(secondary.temperature ?? 0.7)} onChange={(v) => patchSecondary({ temperature: Number(v) || 0.7, enabled: true })} />
                               <InputRow label="Max Tokens" value={String(secondary.maxTokens ?? 8000)} onChange={(v) => patchSecondary({ maxTokens: Number(v) || 8000, enabled: true })} />

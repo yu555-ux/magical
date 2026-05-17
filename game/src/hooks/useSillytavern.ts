@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
-import { useApiRouter } from './useApiRouter';
+import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, aggregateEvents } from '../sillytavern/variables';
 import { assemblePrompt } from '../sillytavern/prompt-assembler';
 import {
@@ -288,11 +288,16 @@ export function useSillytavern() {
     settings?.customTags ?? [...DEFAULT_TAGS],
     [...DEFAULT_OPAQUE_TAGS]
   );
-  const router = useApiRouter(settings?.api ?? DEFAULT_SETTINGS.api);
 
   const sendGameMessage = useCallback(
     async (userText: string) => {
       if (!activeChat || !settings) return;
+
+      // Always read latest API settings from DB to prevent stale empty keys
+      // (another component instance may have saved new settings)
+      const latestSettings = await getSettings();
+      const effectiveApi = latestSettings?.api ?? settings.api;
+      const effectiveSettings = latestSettings ?? settings;
 
       const userMsg: ChatMessage = {
         id: crypto.randomUUID(),
@@ -308,25 +313,55 @@ export function useSillytavern() {
       await db.chats.put(updatedChat);
       setChats((prev) => prev.map((c) => (c.id === updatedChat.id ? updatedChat : c)));
 
-      const activeLorebookIds = new Set(settings.activeLorebookIds ?? []);
+      const activeLorebookIds = new Set(effectiveSettings.activeLorebookIds ?? []);
+      const effectiveLorebooks = await getLorebooks();
+      const effectivePresets = await getPresets();
+      const activePresetId = effectiveSettings.activePresetId;
+      const activePreset = effectivePresets.find((p: any) => p.id === activePresetId) ?? effectivePresets[0];
+      if (!activePreset) throw new Error('No preset available');
+
       const { messages } = assemblePrompt({
         userInput: userText,
         history: updatedChat.messages,
-        preset: activePreset!,
-        lorebooks: lorebooks.filter((l) => activeLorebookIds.has(l.id)),
-        userName: settings.userName,
-        characterName: settings.characterName,
+        preset: activePreset,
+        lorebooks: effectiveLorebooks.filter((l: any) => activeLorebookIds.has(l.id)),
+        userName: effectiveSettings.userName,
+        characterName: effectiveSettings.characterName,
         extraVariables: updatedChat.variables,
-        formatPrompt: settings.formatPromptTemplate,
+        formatPrompt: effectiveSettings.formatPromptTemplate,
       });
 
+      // Build a fresh router with the latest API key
+      const freshRouter = createApiRouter(effectiveApi);
       parser.start();
       try {
-        await router.sendStream({
-          task: 'story',
-          messages,
-          onChunk: (delta) => parser.feed(delta),
-        });
+        const { response } = await freshRouter.call('story', { messages, stream: true });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No body');
+        const decoder = new TextDecoder();
+        let buf = '';
+        const abortController = new AbortController();
+        while (true) {
+          if (abortController.signal.aborted) { await reader.cancel(); throw new Error('aborted'); }
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const parts = buf.split('\n\n');
+          buf = parts.pop() ?? '';
+          for (const part of parts) {
+            const lines = part.split('\n').filter(l => l.startsWith('data: '));
+            for (const line of lines) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') continue;
+              try {
+                const json = JSON.parse(data);
+                const delta: string = json?.choices?.[0]?.delta?.content ?? '';
+                if (delta) parser.feed(delta);
+              } catch { /* ignore bad line */ }
+            }
+          }
+        }
       } catch (e) {
         parser.reset();
         throw e;
@@ -359,7 +394,7 @@ export function useSillytavern() {
       await db.chats.put(finalChat);
       setChats((prev) => prev.map((c) => (c.id === finalChat.id ? finalChat : c)));
     },
-    [activeChat, settings, lorebooks, activePreset, parser, router]
+    [activeChat, settings, lorebooks, activePreset, parser]
   );
 
   const jumpToFloor = useCallback(
@@ -453,7 +488,7 @@ export function useSillytavern() {
     jumpToFloor,
     regenerateLast,
     streamState: parser.state,
-    abortStream: router.abort,
+    abortStream: () => {},
     openSettings: () => setShowSettings(true),
     openLorebooks: () => setShowLorebooks(true),
     openPresets: () => setShowPresets(true),
