@@ -49,11 +49,12 @@ export default function ChatHeader({ variables, onOpenReader, onOpenVariables }:
       </div>
 
       {/* Center: countdown */}
-      <div className={`absolute left-1/2 -translate-x-1/2 flex items-center gap-2 transition-colors duration-500 ${
-        display.inDream ? 'text-aether-purple/70' : 'text-white/35'
-      }`}>
-        {display.inDream ? <Moon size={13} /> : <Hourglass size={13} className="text-white/25" />}
-        <span className={`font-display text-[13px] tracking-[0.06em] whitespace-nowrap ${display.inDream ? '' : 'text-white/35'}`}>
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+        {display.inDream
+          ? <Moon size={13} className="text-aether-purple/60" />
+          : <Hourglass size={13} className="text-white/25" />
+        }
+        <span className="font-display text-[13px] text-white/35 tracking-[0.06em] whitespace-nowrap">
           {display.countdownLabel} {display.countdown}
         </span>
       </div>
