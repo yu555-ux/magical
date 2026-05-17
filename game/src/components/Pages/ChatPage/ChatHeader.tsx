@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Clock, MapPin, CloudSun, BookOpen } from 'lucide-react';
+import { Clock, MapPin, CloudSun, BookOpen, Eye } from 'lucide-react';
 
 interface ChatHeaderProps {
   currentTime: Date;
