@@ -210,13 +210,21 @@ export default function WarehousePage() {
 
       {/* ===== Modal ===== */}
       <Modal isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} title={selectedItem?.category === '灵宝' ? '灵宝详情' : selectedItem?.category === '诡物' ? '诡物详情' : '物品详情'}>
-        {selectedItem && (
+        {selectedItem && (() => {
+          const rank = selectedItem?.等级 || '';
+          const irs = ITEM_RANK_STYLES[rank] || null;
+          return (
           <div className="space-y-6">
             <div className="flex items-start justify-between border-b border-white/10 pb-4">
               <div>
                 <h3 className="text-2xl font-display font-bold text-aether-cyan">{selectedItem.name}</h3>
                 <p className="text-[10px] font-mono text-white/30 tracking-wider mt-0.5">数量: {selectedItem?.数量 ?? 1}</p>
               </div>
+              {irs && (
+                <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${irs.border} ${irs.bg} ${irs.text} ${irs.glow}`}>
+                  {rank}
+                </span>
+              )}
             </div>
             <div className="space-y-4">
               {selectedItem?.描述 && <div><h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4><p className="text-sm text-white/80 leading-relaxed">{selectedItem.描述}</p></div>}
@@ -231,7 +239,7 @@ export default function WarehousePage() {
               )}
             </div>
           </div>
-        )}
+        )})()}
       </Modal>
     </div>
   );
