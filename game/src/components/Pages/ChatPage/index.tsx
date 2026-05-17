@@ -22,6 +22,7 @@ export default function ChatPage({
   const [readerOpen, setReaderOpen] = useState(false);
   const [rawViewOpen, setRawViewOpen] = useState(false);
   const [rawContent, setRawContent] = useState('');
+  const [editedRaw, setEditedRaw] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [location] = useState('新东京枢纽');
@@ -188,7 +189,6 @@ export default function ChatPage({
                 className="text-[15px] text-white/75 leading-[1.9] whitespace-pre-wrap font-sans tracking-[0.03em] select-none"
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  setRawContent(latestAssistant?.content ?? '');
                   setCtxMenu({ x: e.clientX, y: e.clientY, visible: true });
                 }}
               >
@@ -203,6 +203,28 @@ export default function ChatPage({
                   </motion.span>
                 )}
               </div>
+            </motion.div>
+          )}
+
+          {/* ── Options ── */}
+          {options.length > 0 && !isStreaming && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-[680px] mx-auto mt-6 space-y-2 px-5"
+            >
+              {options.map((opt, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSend(opt)}
+                  className="w-full text-left px-4 py-3 rounded border border-aether-border/20 bg-aether-dark/40 hover:border-aether-cyan/40 hover:bg-aether-cyan/[0.04] transition-all text-[14px] text-white/60 hover:text-white/85 font-display tracking-wide group"
+                >
+                  <span className="text-aether-cyan/50 font-mono text-[11px] mr-2 group-hover:text-aether-cyan/80 transition-colors">
+                    [{i + 1}]
+                  </span>
+                  {opt}
+                </button>
+              ))}
             </motion.div>
           )}
 
@@ -328,12 +350,25 @@ export default function ChatPage({
               <button
                 onClick={() => {
                   setCtxMenu({ x: 0, y: 0, visible: false });
+                  const content = latestAssistant?.content ?? '';
+                  setRawContent(content);
+                  setEditedRaw(content);
                   setRawViewOpen(true);
                 }}
-                className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-cyan hover:bg-aether-cyan/[0.06] transition-all font-display tracking-wide whitespace-nowrap"
+                className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-cyan hover:bg-aether-cyan/[0.06] transition-all font-display tracking-wide whitespace-nowrap w-full"
               >
                 <ChevronRight size={13} />
                 查看原文
+              </button>
+              <button
+                onClick={() => {
+                  setCtxMenu({ x: 0, y: 0, visible: false });
+                  ss.regenerateLast();
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-purple hover:bg-aether-purple/[0.06] transition-all font-display tracking-wide whitespace-nowrap w-full border-t border-aether-border/10"
+              >
+                <ChevronRight size={13} />
+                重 ROLL
               </button>
             </motion.div>
           </motion.div>
@@ -368,10 +403,35 @@ export default function ChatPage({
                   <X size={16} />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto p-5">
-                <pre className="text-[13px] text-white/60 whitespace-pre-wrap leading-relaxed font-mono bg-aether-dark/40 border border-aether-border/15 rounded-lg p-4">
-                  {rawContent || '(无内容)'}
-                </pre>
+              <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3">
+                <textarea
+                  value={editedRaw}
+                  onChange={(e) => setEditedRaw(e.target.value)}
+                  className="flex-1 min-h-[200px] text-[13px] text-white/70 whitespace-pre-wrap leading-relaxed font-mono bg-aether-dark/40 border border-aether-border/15 rounded-lg p-4 resize-none focus:outline-none focus:border-aether-cyan/50 focus:ring-1 focus:ring-aether-cyan/20 transition-all"
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-white/20">点击文本框可直接编辑原始输出</span>
+                  <button
+                    onClick={async () => {
+                      if (!ss.activeChat) return;
+                      const msgs = ss.activeChat.messages;
+                      const lastAssistant = [...msgs].reverse().find(m => m.role === 'assistant');
+                      if (lastAssistant) {
+                        await ss.editMessage(lastAssistant.id, editedRaw);
+                        setRawViewOpen(false);
+                        addNotification?.('已应用', '原文已修改并保存', 'success');
+                      }
+                    }}
+                    disabled={editedRaw === rawContent}
+                    className={`px-4 py-2 rounded text-xs font-display tracking-wide transition-all ${
+                      editedRaw !== rawContent
+                        ? 'bg-aether-cyan text-aether-dark font-semibold shadow-[0_0_12px_rgba(0,242,255,0.25)] hover:shadow-[0_0_20px_rgba(0,242,255,0.4)]'
+                        : 'bg-white/5 text-white/20 cursor-not-allowed'
+                    }`}
+                  >
+                    应用修改
+                  </button>
+                </div>
               </div>
               <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/20 to-transparent" />
             </motion.div>
