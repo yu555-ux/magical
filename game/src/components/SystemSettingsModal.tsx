@@ -2,14 +2,14 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Server, Zap, AlertTriangle, CheckCircle, Loader2, ChevronRight,
-  BookOpen, User, Bot, Globe, Plus, Trash2, Pencil, Upload, Sparkles, Hash, Sliders, Star,
+  BookOpen, User, Bot, Globe, Plus, Trash2, Pencil, Upload, Sparkles, Hash, Sliders, Star, Download,
 } from 'lucide-react';
 import { useSillytavern } from '../hooks/useSillytavern';
 import type { AppSettings, ApiSettings, Lorebook, ChatPreset } from '../sillytavern/types';
 import { DEFAULT_SETTINGS, createDefaultPreset } from '../sillytavern/types';
 import { fetchModels, testConnection } from '../sillytavern/api-tools';
 import { getDatabase } from '../sillytavern/database';
-import { importMultipleLorebooks, renameLorebook } from '../sillytavern/importer';
+import { importMultipleLorebooks, renameLorebook, exportToJson, exportLorebook, exportPreset, importPreset } from '../sillytavern/importer';
 
 const db = getDatabase();
 
@@ -227,6 +227,12 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
     showToast(`世界书 "${lb.name}" 已删除`, 'success');
   };
 
+  const handleExportLorebook = (lb: Lorebook) => {
+    const data = exportLorebook(lb);
+    exportToJson(data, `${lb.name}.json`);
+    showToast(`世界书 "${lb.name}" 已导出`, 'success');
+  };
+
   const handleImportJson = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
@@ -281,6 +287,35 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
     await ss.updatePreset({ ...preset, name: v });
     showToast(`已重命名为 "${v}"`, 'success');
   };
+
+  const handleExportPreset = (preset: ChatPreset) => {
+    const data = exportPreset(preset);
+    exportToJson(data, `${preset.name}.json`);
+    showToast(`预设 "${preset.name}" 已导出`, 'success');
+  };
+
+  const handleImportPreset = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const imported = importPreset(data);
+      const preset: ChatPreset = {
+        ...imported,
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      await ss.addPreset(preset);
+      showToast(`预设 "${preset.name}" 已导入`, 'success');
+    } catch (err) {
+      showToast('导入失败: 文件格式无效', 'error');
+    }
+    e.target.value = '';
+  };
+
+  const presetFileRef = useRef<HTMLInputElement>(null);
 
   const openPresetEdit = (preset: ChatPreset) => {
     setExpandedPresetId(expandedPresetId === preset.id ? null : preset.id);
@@ -561,6 +596,16 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                     <button
                                       onClick={(ev) => {
                                         ev.stopPropagation();
+                                        handleExportLorebook(lb);
+                                      }}
+                                      className="p-1.5 rounded text-white/25 hover:text-aether-green hover:bg-aether-green/10 transition-all"
+                                      title="导出"
+                                    >
+                                      <Download size={13} />
+                                    </button>
+                                    <button
+                                      onClick={(ev) => {
+                                        ev.stopPropagation();
                                         handleRenameLorebook(lb);
                                       }}
                                       className="p-1.5 rounded text-white/25 hover:text-aether-cyan hover:bg-aether-cyan/10 transition-all"
@@ -658,6 +703,10 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                       >
                         <Plus size={14} /> 新建预设
                       </button>
+                      <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-aether-border/30 text-white/50 hover:text-white/80 hover:border-aether-purple/40 text-xs tracking-wide cursor-pointer transition-all font-display">
+                        <Upload size={14} /> 导入预设
+                        <input ref={presetFileRef} type="file" accept=".json" className="hidden" onChange={handleImportPreset} />
+                      </label>
                     </div>
 
                     {/* List */}
@@ -733,6 +782,16 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                         <Star size={13} />
                                       </button>
                                     )}
+                                    <button
+                                      onClick={(ev) => {
+                                        ev.stopPropagation();
+                                        handleExportPreset(preset);
+                                      }}
+                                      className="p-1.5 rounded text-white/25 hover:text-aether-green hover:bg-aether-green/10 transition-all"
+                                      title="导出"
+                                    >
+                                      <Download size={13} />
+                                    </button>
                                     <button
                                       onClick={(ev) => { ev.stopPropagation(); handleRenamePreset(preset); }}
                                       className="p-1.5 rounded text-white/25 hover:text-aether-cyan hover:bg-aether-cyan/10 transition-all"
