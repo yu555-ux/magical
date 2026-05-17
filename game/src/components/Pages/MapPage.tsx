@@ -467,17 +467,6 @@ function PointInfoCard({
           </p>
         </div>
       </div>
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={onNavigate}
-          className="w-full py-2.5 border border-aether-cyan/50 text-[10px] text-aether-cyan font-display tracking-[0.3em] uppercase hover:bg-aether-cyan/10 hover:shadow-[0_0_20px_rgba(0,242,255,0.1)] transition-all"
-        >
-          开始导航
-        </motion.button>
-      </div>
-
-      {/* Close button */}
       <button
         onClick={onClose}
         className="absolute top-3 right-3 p-1 text-white/30 hover:text-aether-cyan transition-colors clickable text-xs"
