@@ -51,13 +51,6 @@ export default function ChatPage({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [ss.activeChat?.messages, isStreaming]);
 
-  // Auto-open options panel when streaming finishes and options exist
-  useEffect(() => {
-    if (!isStreaming && options.length > 0) {
-      setOptionsOpen(true);
-    }
-  }, [isStreaming, options.length]);
-
   // Latest assistant message & parsed data
   const latestAssistant = useMemo(() => {
     const msgs = ss.activeChat?.messages ?? [];
@@ -83,6 +76,13 @@ export default function ChatPage({
     () => rawOptions.map(cleanOption).slice(0, 5),
     [rawOptions]
   );
+
+  // Auto-open options panel when streaming finishes and options exist
+  useEffect(() => {
+    if (!isStreaming && options.length > 0) {
+      setOptionsOpen(true);
+    }
+  }, [isStreaming, options.length]);
 
   /* send */
   const handleSend = useCallback(async (text?: string) => {
