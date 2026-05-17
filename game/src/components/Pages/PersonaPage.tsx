@@ -174,40 +174,38 @@ export default function PersonaPage() {
         className="space-y-8"
       >
         {/* heading row */}
-        <div className="flex flex-wrap items-end justify-between gap-4 border-l-4 border-aether-cyan pl-6">
+        <div className="border-l-4 border-aether-cyan pl-6 space-y-3">
           <div className="flex items-center gap-4">
-            <span className="font-display text-3xl md:text-4xl font-black tracking-tighter text-white/90 italic">
+            <span className="font-display text-3xl md:text-4xl font-black tracking-tighter text-white/90">
               个体评级
             </span>
             <motion.span
               animate={{ boxShadow: ['0 0 10px rgba(0,242,255,0.3)', '0 0 28px rgba(0,242,255,0.7)', '0 0 10px rgba(0,242,255,0.3)'] }}
               transition={{ duration: 2.4, repeat: Infinity }}
-              className="inline-block px-4 py-1 bg-gradient-to-br from-aether-cyan/20 to-aether-blue/20 border border-aether-cyan/60 text-aether-cyan font-display font-black text-3xl md:text-4xl tracking-tighter"
+              className="inline-block px-4 py-1 bg-gradient-to-br from-aether-cyan/20 to-aether-blue/20 border border-aether-cyan/60 text-aether-cyan font-display font-black text-3xl md:text-4xl tracking-tighter italic"
             >
               {rating}
             </motion.span>
           </div>
-          {/* age */}
-          <div className="flex items-center gap-2 text-white/30">
-            <span className="text-[10px] font-mono tracking-[0.12em] uppercase">AGE</span>
-            <span className="font-display text-lg font-bold text-white/50">{age}</span>
-          </div>
+          <p className="text-sm text-white/40 font-display tracking-wide">
+            {age}岁
+          </p>
         </div>
 
         {/* currency strip */}
         <div className="flex flex-wrap gap-x-8 gap-y-2 py-3 px-5 border border-white/[0.06] bg-aether-dark/30">
           {money && (
-            <div className="flex items-center gap-2.5">
-              <span className="text-[11px] text-white/40 font-mono tracking-wide">{money?.单位 || '元'}</span>
+            <div className="flex items-center gap-1.5">
               <span className="font-display text-sm font-bold text-white/80 tabular-nums">
                 <AnimatedCounter value={money?.数值 ?? 0} />
               </span>
+              <span className="text-[11px] text-white/40 font-mono tracking-wide">{money?.单位 || '元'}</span>
             </div>
           )}
           {超凡资源 && Object.entries(超凡资源 as Record<string, number>).map(([k, v]) => (
-            <div key={k} className="flex items-center gap-2.5">
+            <div key={k} className="flex items-center gap-1.5">
               <span className="text-[11px] text-white/40 font-mono tracking-wide">{k}</span>
-              <span className="font-display text-sm font-bold text-aether-gold tabular-nums">
+              <span className={`font-display text-sm font-bold tabular-nums ${k === '尸气' ? 'text-aether-red' : 'text-aether-gold'}`}>
                 <AnimatedCounter value={v as number} />
               </span>
             </div>
