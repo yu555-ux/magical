@@ -739,10 +739,22 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                 )}
 
                                 <div className="flex items-center gap-3 px-4 py-3">
-                                  {/* Star */}
-                                  <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 ${isActive ? 'text-aether-gold' : 'text-white/15'}`}>
+                                  {/* Star — click to toggle activation */}
+                                  <button
+                                    onClick={(ev) => {
+                                      ev.stopPropagation();
+                                      if (isActive) {
+                                        ss.updateSettings({ activePresetId: null });
+                                        showToast('已取消激活', 'success');
+                                      } else {
+                                        handleActivatePreset(preset.id);
+                                      }
+                                    }}
+                                    className={`flex items-center justify-center w-5 h-5 flex-shrink-0 transition-all clickable press-scale ${isActive ? 'text-aether-gold hover:text-aether-gold/70' : 'text-white/15 hover:text-aether-gold/60'}`}
+                                    title={isActive ? '点击取消激活' : '点击激活'}
+                                  >
                                     <Star size={isActive ? 16 : 14} fill={isActive ? 'currentColor' : 'none'} />
-                                  </div>
+                                  </button>
 
                                   {/* Info */}
                                   <div
@@ -773,15 +785,6 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
 
                                   {/* Actions */}
                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
-                                    {!isActive && (
-                                      <button
-                                        onClick={(ev) => { ev.stopPropagation(); handleActivatePreset(preset.id); }}
-                                        className="p-1.5 rounded text-white/25 hover:text-aether-purple hover:bg-aether-purple/10 transition-all"
-                                        title="激活"
-                                      >
-                                        <Star size={13} />
-                                      </button>
-                                    )}
                                     <button
                                       onClick={(ev) => {
                                         ev.stopPropagation();
