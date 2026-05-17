@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Server, Zap, AlertTriangle, CheckCircle, Loader2, ChevronRight,
-  BookOpen, User, Bot, Globe, Plus, Trash2, Pencil, Upload, Sparkles, Hash,
+  BookOpen, User, Bot, Globe, Plus, Trash2, Pencil, Upload, Sparkles, Hash, Sliders, Star,
 } from 'lucide-react';
 import { useSillytavern } from '../hooks/useSillytavern';
-import type { AppSettings, ApiSettings, Lorebook } from '../sillytavern/types';
-import { DEFAULT_SETTINGS } from '../sillytavern/types';
+import type { AppSettings, ApiSettings, Lorebook, ChatPreset } from '../sillytavern/types';
+import { DEFAULT_SETTINGS, createDefaultPreset } from '../sillytavern/types';
 import { fetchModels, testConnection } from '../sillytavern/api-tools';
 import { getDatabase } from '../sillytavern/database';
 import { importMultipleLorebooks, renameLorebook } from '../sillytavern/importer';
@@ -14,11 +14,12 @@ import { importMultipleLorebooks, renameLorebook } from '../sillytavern/importer
 const db = getDatabase();
 
 /* ─────────── Tabs ─────────── */
-type TabId = 'api' | 'lorebook' | 'identity';
+type TabId = 'api' | 'lorebook' | 'preset' | 'identity';
 interface Tab { id: TabId; label: string; icon: any; }
 const TABS: Tab[] = [
   { id: 'api', label: 'API 配置', icon: Server },
   { id: 'lorebook', label: '世界书配置', icon: BookOpen },
+  { id: 'preset', label: '预设配置', icon: Sliders },
   { id: 'identity', label: '玩家身份', icon: User },
 ];
 
@@ -100,6 +101,13 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
   const [lorebookList, setLorebookList] = useState<Lorebook[]>([]);
   const [lorebookActiveIds, setLorebookActiveIds] = useState<Set<string>>(new Set());
   const [expandedLorebookId, setExpandedLorebookId] = useState<string | null>(null);
+
+  // ── preset ──
+  const [expandedPresetId, setExpandedPresetId] = useState<string | null>(null);
+  const [presetMainDraft, setPresetMainDraft] = useState<string>('');
+  const [presetTempDraft, setPresetTempDraft] = useState<number>(0.8);
+  const [presetMaxTokensDraft, setPresetMaxTokensDraft] = useState<number>(2048);
+  const [presetDirty, setPresetDirty] = useState(false);
 
   useEffect(() => {
     if (isOpen && ss.initialized) {
@@ -243,6 +251,58 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
     setLorebookList(await db.lorebooks.toArray());
     if (successes.length) showToast(`成功导入 ${successes.length} 本世界书`, 'success');
     e.target.value = '';
+  };
+
+  // ── preset handlers ──
+  const handleCreatePreset = async () => {
+    const name = prompt('新预设名称', '新预设');
+    if (!name) return;
+    try {
+      await ss.addPresetFromDefault(name);
+      showToast(`预设 "${name}" 已创建`, 'success');
+    } catch { showToast('创建预设失败', 'error'); }
+  };
+
+  const handleActivatePreset = async (presetId: string) => {
+    await ss.updateSettings({ activePresetId: presetId });
+    showToast('预设已激活', 'success');
+  };
+
+  const handleDeletePreset = async (preset: ChatPreset) => {
+    if (!confirm(`删除预设 "${preset.name}"？`)) return;
+    await ss.deletePreset(preset.id);
+    if (expandedPresetId === preset.id) setExpandedPresetId(null);
+    showToast(`预设 "${preset.name}" 已删除`, 'success');
+  };
+
+  const handleRenamePreset = async (preset: ChatPreset) => {
+    const v = prompt('新名称', preset.name);
+    if (!v || v === preset.name) return;
+    await ss.updatePreset({ ...preset, name: v });
+    showToast(`已重命名为 "${v}"`, 'success');
+  };
+
+  const openPresetEdit = (preset: ChatPreset) => {
+    setExpandedPresetId(expandedPresetId === preset.id ? null : preset.id);
+    setPresetMainDraft(preset.settings.main ?? '');
+    setPresetTempDraft(preset.settings.temp_openai ?? 0.8);
+    setPresetMaxTokensDraft(preset.settings.openai_max_tokens ?? 2048);
+    setPresetDirty(false);
+  };
+
+  const handleSavePresetEdits = async (preset: ChatPreset) => {
+    const updated: ChatPreset = {
+      ...preset,
+      settings: {
+        ...preset.settings,
+        main: presetMainDraft,
+        temp_openai: presetTempDraft,
+        openai_max_tokens: presetMaxTokensDraft,
+      },
+    };
+    await ss.updatePreset(updated);
+    setPresetDirty(false);
+    showToast('预设已更新', 'success');
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -575,6 +635,194 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                           </div>
                                         ))
                                       )}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ═══════════ PRESET ═══════════ */}
+                {tab === 'preset' && (
+                  <div className="p-5 space-y-4">
+                    {/* Action bar */}
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={handleCreatePreset}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-aether-cyan text-aether-dark text-xs font-semibold tracking-wide hover:bg-white transition-all font-display"
+                      >
+                        <Plus size={14} /> 新建预设
+                      </button>
+                    </div>
+
+                    {/* List */}
+                    {ss.presets.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="w-16 h-16 rounded-full bg-aether-cyan/5 border border-aether-border/20 flex items-center justify-center mb-4">
+                          <Sliders size={28} className="text-white/15" />
+                        </div>
+                        <p className="text-white/25 text-sm font-display tracking-wide mb-1">暂无预设</p>
+                        <p className="text-white/10 text-xs">点击「新建预设」创建采样参数配置</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {ss.presets.map((preset) => {
+                          const isActive = ss.settings?.activePresetId === preset.id;
+                          const isExpanded = expandedPresetId === preset.id;
+                          return (
+                            <React.Fragment key={preset.id}>
+                              <motion.div
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className={`relative rounded-lg border transition-all group cursor-pointer ${
+                                  isActive
+                                    ? 'border-aether-purple/40 bg-aether-purple/[0.05] shadow-[0_0_12px_rgba(168,85,247,0.06)]'
+                                    : 'border-aether-border/20 bg-aether-dark/30 hover:border-aether-border/40'
+                                }`}
+                              >
+                                {isActive && (
+                                  <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-aether-purple rounded-r-full shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
+                                )}
+
+                                <div className="flex items-center gap-3 px-4 py-3">
+                                  {/* Star */}
+                                  <div className={`flex items-center justify-center w-5 h-5 flex-shrink-0 ${isActive ? 'text-aether-gold' : 'text-white/15'}`}>
+                                    <Star size={isActive ? 16 : 14} fill={isActive ? 'currentColor' : 'none'} />
+                                  </div>
+
+                                  {/* Info */}
+                                  <div
+                                    className="flex-1 min-w-0"
+                                    onClick={() => openPresetEdit(preset)}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-sm font-display font-medium tracking-wide truncate ${isActive ? 'text-white/80' : 'text-white/50'}`}>
+                                        {preset.name}
+                                      </span>
+                                      {isActive && (
+                                        <span className="text-[9px] bg-aether-purple/20 text-aether-purple px-1.5 py-0.5 rounded-full font-mono">激活中</span>
+                                      )}
+                                      <motion.span
+                                        animate={{ rotate: isExpanded ? 90 : 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="text-white/20"
+                                      >
+                                        <ChevronRight size={14} />
+                                      </motion.span>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-0.5 text-[10px] text-white/20 font-mono">
+                                      <span>temp: {preset.settings.temp_openai ?? 0.8}</span>
+                                      <span>max_tokens: {preset.settings.openai_max_tokens ?? 2048}</span>
+                                      <span>top_p: {preset.settings.top_p_openai ?? 0.9}</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Actions */}
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                                    {!isActive && (
+                                      <button
+                                        onClick={(ev) => { ev.stopPropagation(); handleActivatePreset(preset.id); }}
+                                        className="p-1.5 rounded text-white/25 hover:text-aether-purple hover:bg-aether-purple/10 transition-all"
+                                        title="激活"
+                                      >
+                                        <Star size={13} />
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={(ev) => { ev.stopPropagation(); handleRenamePreset(preset); }}
+                                      className="p-1.5 rounded text-white/25 hover:text-aether-cyan hover:bg-aether-cyan/10 transition-all"
+                                      title="重命名"
+                                    >
+                                      <Pencil size={13} />
+                                    </button>
+                                    <button
+                                      onClick={(ev) => { ev.stopPropagation(); handleDeletePreset(preset); }}
+                                      className="p-1.5 rounded text-white/25 hover:text-aether-red hover:bg-aether-red/10 transition-all"
+                                      title="删除"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                </div>
+                              </motion.div>
+
+                              {/* Expanded preset editor */}
+                              <AnimatePresence initial={false}>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="ml-8 mr-2 mb-3 space-y-3 border-l border-aether-border/20 pl-4 pt-2">
+                                      {/* Sampling */}
+                                      <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
+                                        <h4 className="text-[11px] font-display font-semibold text-white/40 uppercase tracking-wider mb-3">采样参数</h4>
+                                        <div className="flex flex-wrap gap-3">
+                                          <label className="flex-1 min-w-[120px]">
+                                            <span className="block text-[10px] text-white/30 mb-1">Temperature</span>
+                                            <input
+                                              type="number" step={0.05} min={0} max={2}
+                                              value={presetTempDraft}
+                                              onChange={(e) => { setPresetTempDraft(Number(e.target.value)); setPresetDirty(true); }}
+                                              className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1.5 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-purple/60"
+                                            />
+                                          </label>
+                                          <label className="flex-1 min-w-[120px]">
+                                            <span className="block text-[10px] text-white/30 mb-1">Max Tokens</span>
+                                            <input
+                                              type="number" step={64} min={32} max={32768}
+                                              value={presetMaxTokensDraft}
+                                              onChange={(e) => { setPresetMaxTokensDraft(Number(e.target.value)); setPresetDirty(true); }}
+                                              className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1.5 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-purple/60"
+                                            />
+                                          </label>
+                                          <label className="flex-1 min-w-[120px]">
+                                            <span className="block text-[10px] text-white/30 mb-1">Top P</span>
+                                            <input
+                                              type="text" readOnly
+                                              value={preset.settings.top_p_openai ?? 0.9}
+                                              className="w-full bg-aether-dark/30 border border-aether-border/10 rounded px-2 py-1.5 text-xs text-white/40 font-mono cursor-default"
+                                            />
+                                          </label>
+                                        </div>
+                                      </div>
+
+                                      {/* Main prompt */}
+                                      <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
+                                        <h4 className="text-[11px] font-display font-semibold text-white/40 uppercase tracking-wider mb-3">Main Prompt</h4>
+                                        <textarea
+                                          value={presetMainDraft}
+                                          onChange={(e) => { setPresetMainDraft(e.target.value); setPresetDirty(true); }}
+                                          rows={4}
+                                          className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono"
+                                        />
+                                        <p className="text-[9px] text-white/15 mt-1">
+                                          支持宏：{`{{user}}`} {`{{char}}`} {`{{original}}`} {`{{变量名}}`}
+                                        </p>
+                                      </div>
+
+                                      {/* Save */}
+                                      <div className="flex justify-end">
+                                        <button
+                                          onClick={() => handleSavePresetEdits(preset)}
+                                          disabled={!presetDirty}
+                                          className={`px-4 py-1.5 rounded text-xs font-display tracking-wide transition-all ${
+                                            presetDirty
+                                              ? 'bg-aether-purple text-white shadow-[0_0_12px_rgba(168,85,247,0.3)] hover:shadow-[0_0_20px_rgba(168,85,247,0.5)]'
+                                              : 'bg-white/5 text-white/20 cursor-not-allowed'
+                                          }`}
+                                        >
+                                          保存修改
+                                        </button>
+                                      </div>
                                     </div>
                                   </motion.div>
                                 )}
