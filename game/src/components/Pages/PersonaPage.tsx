@@ -176,6 +176,14 @@ export default function PersonaPage() {
     微尘: { text: 'text-gray-400',  border: 'border-gray-400/40',  glow: 'shadow-[0_0_8px_rgba(156,163,175,0.2)]',  bg: 'bg-gray-400/10' },
   };
 
+  // Rating color derivation
+  const ratingStyle = SKILL_RANK_STYLES[rating] || SKILL_RANK_STYLES['微尘'];
+  const ratingGlowColors: Record<string, string> = {
+    灭世: '#ef4444', 夷地: '#fb7185', 覆国: '#f472b6', 摧城: '#fb923c', 撼地: '#fcd34d',
+    磐岩: '#facc15', 凝石: '#4ade80', 聚砂: '#c084fc', 微尘: '#9ca3af',
+  };
+  const ratingGlow = ratingGlowColors[rating] || '#00f2ff';
+
   return (
     <main className="h-full overflow-y-auto px-4 md:px-12 py-8 space-y-20 scroll-smooth">
       {/* ============================================================
@@ -195,11 +203,16 @@ export default function PersonaPage() {
               个体评级
             </span>
             <motion.span
-              animate={{ boxShadow: ['0 0 10px rgba(0,242,255,0.3)', '0 0 28px rgba(0,242,255,0.7)', '0 0 10px rgba(0,242,255,0.3)'] }}
+              animate={{ boxShadow: [
+                `0 0 10px ${ratingGlow}40`,
+                `0 0 28px ${ratingGlow}90`,
+                `0 0 10px ${ratingGlow}40`,
+              ] }}
               transition={{ duration: 2.4, repeat: Infinity }}
-              className="inline-block px-5 py-1.5 bg-gradient-to-br from-aether-cyan/20 to-aether-blue/20 border border-aether-cyan/60 text-aether-cyan font-display font-black text-3xl md:text-4xl tracking-tighter italic min-w-[80px] text-center"
+              style={{ borderColor: `${ratingGlow}60` }}
+              className={`inline-block px-6 py-1.5 border ${ratingStyle.text} ${ratingStyle.bg} font-display font-black text-3xl md:text-4xl tracking-tighter italic min-w-[80px] text-center rounded-lg skew-x-[-6deg]`}
             >
-              {rating}
+              <span className="inline-block skew-x-[6deg]">{rating}</span>
             </motion.span>
           </div>
           <p className="text-sm text-white/40 font-display tracking-wide">
@@ -285,20 +298,25 @@ export default function PersonaPage() {
                   transition={{ type: 'spring', damping: 15, stiffness: 250 }}
                   className="relative p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
                 >
-                  <div className="absolute top-3 right-3">
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    <div className="relative group" title={`${skillData?.熟练度 ?? 0} / 999`}>
+                      <span className="inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border border-aether-blue/40 bg-aether-blue/10 text-aether-blue cursor-default">
+                        {getStage(skillData?.熟练度 ?? 0)}
+                      </span>
+                      <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-mono tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        {skillData?.熟练度 ?? 0} / 999
+                      </span>
+                    </div>
                     <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
                       {rank}
                     </span>
                   </div>
-                  <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-20">
+                  <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-28">
                     {skillName}
                   </h3>
-                  <div className="mt-2 flex items-center gap-3 text-[10px]">
-                    <span className="text-aether-blue/50 font-mono">{getStage(skillData?.熟练度 ?? 0)} · {skillData?.熟练度 ?? 0}/999</span>
-                    {skillData?.消耗能量 > 0 && (
-                      <span className="text-aether-cyan/50 font-mono">消耗 {skillData.消耗能量} 能量</span>
-                    )}
-                  </div>
+                  <p className="text-[11px] font-mono text-aether-cyan/50 tracking-wider mt-1">
+                    消耗 {skillData?.消耗能量 ?? 0} 能量
+                  </p>
                   <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
                     {skillData?.描述 || ''}
                   </p>
