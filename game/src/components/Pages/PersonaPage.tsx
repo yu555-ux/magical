@@ -161,6 +161,18 @@ export default function PersonaPage() {
 
   const PROFICIENCY_STAGES = ['初窥', '粗浅', '掌握', '熟练', '小成', '入门', '精进', '深谙', '登峰', '造极'];
   const getStage = (proficiency: number) => PROFICIENCY_STAGES[Math.min(Math.floor(proficiency / 100), 9)];
+  const PROFICIENCY_STYLES: Record<string, { text: string; border: string; glow: string; bg: string }> = {
+    初窥: { text: 'text-gray-400',   border: 'border-gray-400/40',   glow: 'shadow-[0_0_8px_rgba(156,163,175,0.2)]',   bg: 'bg-gray-400/10' },
+    粗浅: { text: 'text-stone-400',  border: 'border-stone-400/45',  glow: 'shadow-[0_0_9px_rgba(168,162,158,0.25)]',  bg: 'bg-stone-400/10' },
+    掌握: { text: 'text-teal-400',   border: 'border-teal-400/45',   glow: 'shadow-[0_0_10px_rgba(45,212,191,0.3)]',   bg: 'bg-teal-400/10' },
+    熟练: { text: 'text-cyan-400',   border: 'border-cyan-400/45',   glow: 'shadow-[0_0_10px_rgba(34,211,238,0.3)]',   bg: 'bg-cyan-400/10' },
+    小成: { text: 'text-sky-400',    border: 'border-sky-400/50',    glow: 'shadow-[0_0_11px_rgba(56,189,248,0.35)]',  bg: 'bg-sky-400/10' },
+    入门: { text: 'text-blue-400',   border: 'border-blue-400/50',   glow: 'shadow-[0_0_12px_rgba(96,165,250,0.35)]',  bg: 'bg-blue-400/10' },
+    精进: { text: 'text-indigo-400', border: 'border-indigo-400/50', glow: 'shadow-[0_0_13px_rgba(129,140,248,0.4)]',bg: 'bg-indigo-400/10' },
+    深谙: { text: 'text-purple-400', border: 'border-purple-400/50', glow: 'shadow-[0_0_14px_rgba(168,85,247,0.4)]', bg: 'bg-purple-400/10' },
+    登峰: { text: 'text-amber-300',  border: 'border-amber-400/50',  glow: 'shadow-[0_0_15px_rgba(251,191,36,0.45)]', bg: 'bg-amber-400/10' },
+    造极: { text: 'text-orange-400', border: 'border-orange-400/50', glow: 'shadow-[0_0_16px_rgba(251,146,60,0.5)]', bg: 'bg-orange-400/10' },
+  };
 
   const SKILL_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string }> = {
     灭世: { text: 'text-red-400',   border: 'border-red-400/50',   glow: 'shadow-[0_0_16px_rgba(239,68,68,0.4)]',   bg: 'bg-red-400/10' },
@@ -205,26 +217,23 @@ export default function PersonaPage() {
       >
         {/* heading row */}
         <div className="border-l-4 border-aether-cyan pl-6 space-y-3">
-          <div className="flex items-center gap-4">
-            <span className="font-display text-3xl md:text-4xl font-black tracking-tighter text-white/90">
-              个人信息
-            </span>
-            <motion.span
-              animate={{ boxShadow: [
-                `0 0 10px ${ratingGlow}40`,
-                `0 0 28px ${ratingGlow}90`,
-                `0 0 10px ${ratingGlow}40`,
-              ] }}
-              transition={{ duration: 2.4, repeat: Infinity }}
-              style={{ borderColor: `${ratingGlow}60` }}
-              className={`inline-block px-6 py-1.5 border ${ratingStyle.text} ${ratingStyle.bg} font-display font-black text-3xl md:text-4xl tracking-tighter italic min-w-[80px] text-center rounded-lg skew-x-[-6deg]`}
-            >
-              <span className="inline-block skew-x-[6deg]">{rating}</span>
-            </motion.span>
-          </div>
+          <span className="font-display text-3xl md:text-4xl font-black tracking-tighter text-white/90">
+            个人信息
+          </span>
           <p className="text-sm text-white/40 font-display tracking-wide">
             {age}岁
           </p>
+          <motion.p
+            animate={{ textShadow: [
+              `0 0 10px ${ratingGlow}60`,
+              `0 0 28px ${ratingGlow}`,
+              `0 0 10px ${ratingGlow}60`,
+            ] }}
+            transition={{ duration: 2.4, repeat: Infinity }}
+            className={`font-display font-black text-2xl tracking-tighter italic ${ratingStyle.text}`}
+          >
+            {rating}
+          </motion.p>
         </div>
 
         {/* stat bars */}
@@ -261,13 +270,6 @@ export default function PersonaPage() {
           ))}
         </div>
       </motion.section>
-
-      {/* divider */}
-      <div className="flex items-center gap-4 opacity-30">
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent" />
-        <Diamond size={12} className="text-aether-cyan rotate-45" />
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent" />
-      </div>
 
       {/* ============================================================
           SECTION 2 — SKILLS
@@ -306,14 +308,19 @@ export default function PersonaPage() {
                   className="relative p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
                 >
                   <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                    <div className="relative group" title={`${skillData?.熟练度 ?? 0} / 999`}>
-                      <span className="inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border border-aether-blue/40 bg-aether-blue/10 text-aether-blue cursor-default">
-                        {getStage(skillData?.熟练度 ?? 0)}
-                      </span>
-                      <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-mono tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        {skillData?.熟练度 ?? 0} / 999
-                      </span>
-                    </div>
+                    {(() => {
+                      const stage = getStage(skillData?.熟练度 ?? 0);
+                      const ps = PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥'];
+                      return (
+                      <div className="relative group" title={`${skillData?.熟练度 ?? 0} / 999`}>
+                        <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${ps.border} ${ps.bg} ${ps.text} ${ps.glow}`}>
+                          {stage}
+                        </span>
+                        <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-mono tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          {skillData?.熟练度 ?? 0} / 999
+                        </span>
+                      </div>
+                    )})()}
                     <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
                       {rank}
                     </span>
@@ -333,13 +340,6 @@ export default function PersonaPage() {
           </div>
         )}
       </motion.section>
-
-      {/* divider */}
-      <div className="flex items-center gap-4 opacity-30">
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent" />
-        <Diamond size={12} className="text-aether-cyan rotate-45" />
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent" />
-      </div>
 
       {/* ============================================================
           SECTION 3 — 所持物品
@@ -380,16 +380,16 @@ export default function PersonaPage() {
                     transition={{ type: 'spring', damping: 15, stiffness: 250 }}
                     className="relative p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
                   >
-                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    <div className="absolute top-3 right-3">
                       {irs && (
                         <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${irs.border} ${irs.bg} ${irs.text} ${irs.glow}`}>
                           {rank}
                         </span>
                       )}
-                      <span className="text-[10px] font-mono text-white/25">x{qty}</span>
                     </div>
-                    <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-20 truncate">
+                    <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-16 truncate">
                       {itemName}
+                      <span className="text-[10px] font-mono text-white/25 ml-2">×{qty}</span>
                     </h3>
                     <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
                       {itemData?.描述 || ''}
@@ -424,7 +424,7 @@ export default function PersonaPage() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="relative group" title={`${prof} / 999`}>
-                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border border-aether-blue/40 bg-aether-blue/10 text-aether-blue cursor-default">
+                  <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).border} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).bg} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).text} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).glow}`}>
                     {stage}
                   </span>
                   <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-mono tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
