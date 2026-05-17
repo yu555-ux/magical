@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '../Feedback';
 import type { Skill, Item } from '../../types';
+import { getDatabase } from '../../sillytavern/database';
 
 /* ==============================================================
    TYPE / CONSTANT HELPERS
@@ -117,11 +118,25 @@ function AttrCard({ name, value, accent }: { name: string; value: number; accent
 /* ==============================================================
    MAIN COMPONENT
    ============================================================== */
-export default function PersonaPage({ variables }: { variables?: Record<string, any> }) {
+export default function PersonaPage() {
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [protagonist, setProtagonist] = useState<Record<string, any>>({});
 
-  const protagonist = variables?.主角 ?? {};
+  // Read latest chat variables directly from IndexedDB
+  useEffect(() => {
+    const db = getDatabase();
+    const refresh = async () => {
+      try {
+        const chats = await db.chats.toArray();
+        const latest = chats[chats.length - 1];
+        setProtagonist(latest?.variables?.主角 ?? {});
+      } catch { /* DB not ready yet */ }
+    };
+    refresh();
+    const interval = setInterval(refresh, 2000);
+    return () => clearInterval(interval);
+  }, []);
   const body = protagonist?.身体属性 ?? {};
   const bars = [
     { name: '生命', current: body?.生命?.当前 ?? 0, max: body?.生命?.上限 ?? 100, color: 'bg-red-500' },

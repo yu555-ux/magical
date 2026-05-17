@@ -11,10 +11,8 @@ import SystemSettingsModal from './components/SystemSettingsModal';
 import { PageType, Notification } from './types';
 import { Toast, NotificationPanel } from './components/Feedback';
 import { Bell } from 'lucide-react';
-import { useSillytavern } from './hooks/useSillytavern';
 
 export default function App() {
-  const ss = useSillytavern();
   const [activePage, setActivePage] = useState<PageType>(PageType.HOME);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'info' | 'warning' | 'error' | 'success' }[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -60,7 +58,7 @@ export default function App() {
       case PageType.HOME:
         return <ChatPage key="home" addNotification={addNotification} />;
       case PageType.PERSONA:
-        return <PersonaPage key="persona" variables={ss.activeChat?.variables} />;
+        return <PersonaPage key="persona" />;
       case PageType.WAREHOUSE:
         return <WarehousePage key="warehouse" />;
       case PageType.MAP:
