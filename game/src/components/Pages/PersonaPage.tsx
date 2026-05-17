@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   MOCK_SKILLS,
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '../Feedback';
 import type { Skill, Item } from '../../types';
-import { useSillytavern } from '../../hooks/useSillytavern';
+import { getDatabase } from '../../sillytavern/database';
 
 /* ==============================================================
    TYPE / CONSTANT HELPERS
@@ -119,12 +119,22 @@ function AttrCard({ name, value, accent }: { name: string; value: number; accent
    MAIN COMPONENT
    ============================================================== */
 export default function PersonaPage() {
-  const ss = useSillytavern();
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [vars, setVars] = useState<Record<string, any>>({});
 
-  // Derive data from variables
-  const vars = ss.activeChat?.variables?.主角 ?? {};
+  // Lightweight read from DB — avoids full useSillytavern hook overhead
+  useEffect(() => {
+    const db = getDatabase();
+    const refresh = async () => {
+      const chats = await db.chats.toArray();
+      const active = chats[chats.length - 1]; // latest chat
+      setVars(active?.variables?.主角 ?? {});
+    };
+    refresh();
+    const interval = setInterval(refresh, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const body = vars?.身体属性 ?? {};
   const bars = [
