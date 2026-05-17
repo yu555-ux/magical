@@ -9,12 +9,12 @@ type CatFilter = '全部' | '灵宝' | '诡物' | '物品';
 type WarehouseItem = { name: string; category: string; data: any };
 
 const ITEM_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string; card: string }> = {
-  灭世: { text: 'text-red-400',   border: 'border-red-400/40',   glow: 'shadow-[0_0_20px_rgba(239,68,68,0.45)]',    bg: 'bg-red-400/8',    card: 'border-red-400/30 bg-red-400/[0.05] shadow-[0_0_16px_rgba(239,68,68,0.2)]' },
-  绝域: { text: 'text-rose-400',  border: 'border-rose-400/40',  glow: 'shadow-[0_0_18px_rgba(251,113,133,0.4)]',  bg: 'bg-rose-400/8',   card: 'border-rose-400/30 bg-rose-400/[0.05] shadow-[0_0_14px_rgba(251,113,133,0.18)]' },
-  倾国: { text: 'text-pink-400',  border: 'border-pink-400/40',  glow: 'shadow-[0_0_16px_rgba(244,114,182,0.35)]',  bg: 'bg-pink-400/8',   card: 'border-pink-400/28 bg-pink-400/[0.04] shadow-[0_0_12px_rgba(244,114,182,0.16)]' },
-  祸城: { text: 'text-orange-400',border: 'border-orange-400/40',glow: 'shadow-[0_0_14px_rgba(251,146,60,0.35)]',  bg: 'bg-orange-400/8', card: 'border-orange-400/28 bg-orange-400/[0.04] shadow-[0_0_10px_rgba(251,146,60,0.14)]' },
-  凶煞: { text: 'text-amber-300', border: 'border-amber-400/35', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.3)]',   bg: 'bg-amber-400/8',  card: 'border-amber-400/25 bg-amber-400/[0.04] shadow-[0_0_8px_rgba(251,191,36,0.12)]' },
-  微末: { text: 'text-gray-400',  border: 'border-gray-400/30',  glow: 'shadow-[0_0_6px_rgba(156,163,175,0.15)]',   bg: 'bg-gray-400/5',   card: 'border-gray-400/20 bg-gray-400/[0.02]' },
+  灭世: { text: 'text-red-500',   border: 'border-red-500/60',   glow: 'shadow-[0_0_24px_rgba(239,68,68,0.6)]',    bg: 'bg-red-500/12',   card: 'border-red-500/50 bg-red-500/[0.08] shadow-[0_0_24px_rgba(239,68,68,0.35)]' },
+  绝域: { text: 'text-fuchsia-400',border: 'border-fuchsia-400/50',glow: 'shadow-[0_0_18px_rgba(217,70,219,0.45)]',bg: 'bg-fuchsia-400/10',card: 'border-fuchsia-400/40 bg-fuchsia-400/[0.06] shadow-[0_0_16px_rgba(217,70,219,0.25)]' },
+  倾国: { text: 'text-violet-400',border: 'border-violet-400/50',glow: 'shadow-[0_0_14px_rgba(167,139,250,0.4)]',bg: 'bg-violet-400/10',card: 'border-violet-400/35 bg-violet-400/[0.05] shadow-[0_0_14px_rgba(167,139,250,0.2)]' },
+  祸城: { text: 'text-orange-400',border: 'border-orange-400/50',glow: 'shadow-[0_0_14px_rgba(251,146,60,0.4)]', bg: 'bg-orange-400/10',card: 'border-orange-400/35 bg-orange-400/[0.05] shadow-[0_0_12px_rgba(251,146,60,0.22)]' },
+  凶煞: { text: 'text-amber-400', border: 'border-amber-400/50', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.35)]',bg: 'bg-amber-400/10', card: 'border-amber-400/30 bg-amber-400/[0.04] shadow-[0_0_10px_rgba(251,191,36,0.18)]' },
+  微末: { text: 'text-slate-400', border: 'border-slate-400/30', glow: 'shadow-[0_0_6px_rgba(148,163,184,0.15)]',bg: 'bg-slate-400/5',  card: 'border-slate-400/20 bg-slate-400/[0.02]' },
 };
 
 const CATEGORY_STYLES: Record<string, { border: string; bg: string; text: string }> = {

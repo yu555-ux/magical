@@ -425,80 +425,48 @@ function PointInfoCard({
   const colors = POINT_COLORS[point.type];
   const danger = getDangerLevel(point.type);
 
-  // Compute a readable final position (clamped to viewport)
-  const cardW = 288; // w-72
-  const cardH = 380; // approximate height
+  const cardW = 288;
+  const cardH = 340;
   const margin = 20;
-
-  // We'll use fixed positioning relative to the viewport, and animate
-  // from the click origin to a clamped comfortable position.
   const targetX = Math.max(margin, Math.min(origin.x - cardW / 2, window.innerWidth - cardW - margin));
   const targetY = Math.max(margin, Math.min(origin.y - cardH / 2, window.innerHeight - cardH - margin));
 
   return (
     <motion.div
-      initial={{
-        opacity: 0,
-        scale: 0.85,
-        x: origin.x - cardW / 2,
-        y: origin.y - cardH / 2,
-      }}
-      animate={{
-        opacity: 1,
-        scale: 1,
-        x: targetX,
-        y: targetY,
-      }}
-      exit={{
-        opacity: 0,
-        scale: 0.85,
-        x: origin.x - cardW / 2,
-        y: origin.y - cardH / 2,
-      }}
+      initial={{ opacity: 0, scale: 0.85, x: origin.x - cardW / 2, y: origin.y - cardH / 2 }}
+      animate={{ opacity: 1, scale: 1, x: targetX, y: targetY }}
+      exit={{ opacity: 0, scale: 0.85, x: origin.x - cardW / 2, y: origin.y - cardH / 2 }}
       transition={{ type: 'spring', damping: 26, stiffness: 280, mass: 0.8 }}
       onClick={(e) => e.stopPropagation()}
-      className="fixed z-30 w-72 glass-panel overflow-hidden"
-      style={{ borderLeft: `3px solid ${colors.primary}` }}
+      className="fixed z-30 w-72 glass-panel border-glow overflow-hidden"
     >
-      {/* Card header */}
-      <div className="p-4 pb-3 border-b border-aether-border/10">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="font-display font-bold text-base text-aether-cyan uppercase tracking-wider truncate mr-2">
-            {point.name}
-          </h3>
+      {/* Top accent line */}
+      <div className="h-[2px]" style={{ backgroundColor: colors.primary }} />
+
+      {/* Header */}
+      <div className="px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.primary, boxShadow: `0 0 8px ${colors.glow}` }} />
+          <span className={`text-[9px] font-mono tracking-[0.12em] uppercase ${colors.text}`}>{point.type}</span>
+          <span className={`ml-auto text-[9px] font-mono font-bold ${danger.color}`}>{danger.label}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div
-            className="w-[10px] h-[10px] rotate-45 shrink-0"
-            style={{ backgroundColor: colors.primary }}
-          />
-          <span className={`text-[9px] font-mono tracking-wider ${colors.text}`}>
-            {point.type}
-          </span>
-          <span className="text-[7px] text-white/20 font-mono ml-auto">
-            ID: {point.id}
-          </span>
-        </div>
+        <h3 className="font-display font-bold text-lg text-aether-cyan tracking-wide">{point.name}</h3>
       </div>
 
-      {/* Card body */}
-      <div className="p-4 space-y-3">
-        {/* Stats */}
+      {/* Body */}
+      <div className="px-4 pb-4 space-y-3">
         <div className="grid grid-cols-2 gap-2">
-          <MiniStat label="特征类型" value={point.type} className={colors.text} />
-          <MiniStat label="危险评级" value={danger.label} className={danger.color} />
-          <MiniStat label="坐标" value={`${point.x}, ${point.y}`} className="text-aether-cyan/70" />
-          <MiniStat label="覆盖面积" value={`~${Math.floor(Math.random() * 50 + 10)} km²`} className="text-aether-cyan/70" />
+          <MiniStat label="X 坐标" value={String(point.x)} className="text-aether-cyan/60" />
+          <MiniStat label="Y 坐标" value={String(point.y)} className="text-aether-cyan/60" />
+          <MiniStat label="类型" value={point.type} className={colors.text} />
+          <MiniStat label="威胁评估" value={danger.label} className={danger.color} />
         </div>
-
-        {/* Description */}
-        <div className="relative pt-3 border-t border-white/5">
-          <p className="text-[10px] text-white/50 italic leading-relaxed font-mono">
+        <div className="p-3 bg-white/[0.02] border border-white/[0.05] rounded">
+          <p className="text-[10px] text-white/40 leading-relaxed font-mono tracking-wide">
             &ldquo;以太波动检测结果显示该区域存在大量未知的历史残留。建议携带基础防护服。&rdquo;
           </p>
         </div>
-
-        {/* Action button */}
+      </div>
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
