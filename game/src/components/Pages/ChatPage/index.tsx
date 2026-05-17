@@ -27,8 +27,6 @@ export default function ChatPage({
   const [rawContent, setRawContent] = useState('');
   const [editedRaw, setEditedRaw] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
-  const [currentTime, setCurrentTime] = useState(new Date());
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -38,12 +36,6 @@ export default function ChatPage({
       ss.createChat('新对话');
     }
   }, [ss.initialized, ss.activeChat]);
-
-  /* live clock */
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   /* auto-scroll */
   const isStreaming = ss.streamState.isStreaming;
@@ -108,7 +100,6 @@ export default function ChatPage({
         <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-aether-cyan/20 pointer-events-none z-20" />
 
         <ChatHeader
-          currentTime={currentTime}
           variables={ss.activeChat?.variables}
           onOpenReader={() => setReaderOpen(true)}
           onOpenVariables={() => setVarViewerOpen(true)}

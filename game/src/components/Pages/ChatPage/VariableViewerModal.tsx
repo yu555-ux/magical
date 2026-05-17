@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronDown, ChevronRight, Eye, Pencil, Check, Trash2, Plus } from 'lucide-react';
 
@@ -43,6 +43,17 @@ export default function VariableViewerModal({ isOpen, onClose, variables, onSave
     target[editing.key] = isNaN(num) ? editing.value : editing.value === 'true' ? true : editing.value === 'false' ? false : num;
     onSave(next);
     setEditing(null);
+  };
+
+  const toggleBool = (path: string[], key: string) => {
+    const next = JSON.parse(JSON.stringify(variables));
+    let target = next;
+    for (const seg of path) {
+      if (!target[seg]) target[seg] = {};
+      target = target[seg];
+    }
+    target[key] = !target[key];
+    onSave(next);
   };
 
   const deleteKey = (path: string[], key: string) => {
@@ -122,6 +133,7 @@ export default function VariableViewerModal({ isOpen, onClose, variables, onSave
               onSaveEdit={saveEdit}
               onDelete={deleteKey}
               onAdd={addKey}
+              onToggleBool={toggleBool}
               hiddenKeys={HIDDEN_KEYS}
             />
           </div>
@@ -135,7 +147,7 @@ export default function VariableViewerModal({ isOpen, onClose, variables, onSave
 
 /* ────── Tree Node ────── */
 function TreeNode({
-  data, path, depth, expandedPaths, onToggle, editing, onStartEdit, onSaveEdit, onDelete, onAdd, hiddenKeys,
+  data, path, depth, expandedPaths, onToggle, editing, onStartEdit, onSaveEdit, onDelete, onAdd, onToggleBool, hiddenKeys,
 }: {
   data: Record<string, any>;
   path: string[];
@@ -147,6 +159,7 @@ function TreeNode({
   onSaveEdit: () => void;
   onDelete: (path: string[], key: string) => void;
   onAdd: (path: string[]) => void;
+  onToggleBool: (path: string[], key: string) => void;
   hiddenKeys: Set<string>;
 }) {
   const entries = Object.entries(data).filter(([k]) => !hiddenKeys.has(k));
@@ -180,30 +193,43 @@ function TreeNode({
 
               {/* Value (non-object) */}
               {!isObject && (
-                isEditing ? (
-                  <div className="flex items-center gap-1 flex-1">
-                    <input
-                      autoFocus
-                      value={editing?.value ?? ''}
-                      onChange={(e) => onStartEdit(path, key, e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onStartEdit(path, key, String(value)); }}
-                      className="flex-1 bg-aether-dark border border-aether-cyan/40 rounded px-2 py-0.5 text-[12px] text-white/80 font-mono focus:outline-none"
-                    />
-                    <button onClick={onSaveEdit} className="p-0.5 text-aether-green hover:text-white"><Check size={12} /></button>
-                  </div>
-                ) : (
-                  <span
-                    className={`text-[12px] ml-2 font-mono cursor-pointer truncate ${
-                      value === true ? 'text-aether-green' :
-                      value === false ? 'text-aether-red/70' :
-                      typeof value === 'number' ? 'text-aether-gold' :
-                      'text-white/60'
+                typeof value === 'boolean' ? (
+                  /* Boolean toggle */
+                  <button
+                    onClick={() => onToggleBool(path, key)}
+                    className={`relative ml-2 w-8 h-4 rounded-full transition-colors ${
+                      value ? 'bg-aether-green/40 border border-aether-green/50' : 'bg-white/10 border border-white/15'
                     }`}
-                    onClick={() => onStartEdit(path, key, value)}
-                    title="点击编辑"
                   >
-                    {String(value)}
-                  </span>
+                    <motion.div
+                      animate={{ x: value ? 14 : 2 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      className={`absolute top-0.5 w-3 h-3 rounded-full ${value ? 'bg-aether-green' : 'bg-white/30'}`}
+                    />
+                  </button>
+                ) : (
+                  isEditing ? (
+                    <div className="flex items-center gap-1 flex-1">
+                      <input
+                        autoFocus
+                        value={editing?.value ?? ''}
+                        onChange={(e) => onStartEdit(path, key, e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') onSaveEdit(); if (e.key === 'Escape') onStartEdit(path, key, String(value)); }}
+                        className="flex-1 bg-aether-dark border border-aether-cyan/40 rounded px-2 py-0.5 text-[12px] text-white/80 font-mono focus:outline-none"
+                      />
+                      <button onClick={onSaveEdit} className="p-0.5 text-aether-green hover:text-white"><Check size={12} /></button>
+                    </div>
+                  ) : (
+                    <span
+                      className={`text-[12px] ml-2 font-mono cursor-pointer truncate ${
+                        typeof value === 'number' ? 'text-aether-gold' : 'text-white/60'
+                      }`}
+                      onClick={() => onStartEdit(path, key, value)}
+                      title="点击编辑"
+                    >
+                      {String(value)}
+                    </span>
+                  )
                 )
               )}
 
@@ -234,6 +260,7 @@ function TreeNode({
                   onSaveEdit={onSaveEdit}
                   onDelete={onDelete}
                   onAdd={onAdd}
+                  onToggleBool={onToggleBool}
                   hiddenKeys={hiddenKeys}
                 />
                 <button
