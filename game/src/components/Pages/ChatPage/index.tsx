@@ -77,12 +77,6 @@ export default function ChatPage({
     [rawOptions]
   );
 
-  // Auto-open options panel when streaming finishes and options exist
-  useEffect(() => {
-    if (!isStreaming && options.length > 0) {
-      setOptionsOpen(true);
-    }
-  }, [isStreaming, options.length]);
 
   /* send */
   const handleSend = useCallback(async (text?: string) => {
@@ -262,7 +256,9 @@ export default function ChatPage({
                     ? 'border-aether-cyan/50 shadow-[0_0_24px_rgba(0,242,255,0.1)] bg-aether-deep/98 backdrop-blur-xl text-aether-cyan/60 border-t-white/[0.04] rounded-b-none border-b-transparent'
                     : isFocused
                       ? 'border-aether-cyan/50 shadow-[0_0_24px_rgba(0,242,255,0.1)] bg-aether-cyan/[0.06] text-aether-cyan/60'
-                      : 'border-white/10 bg-aether-glass/40 text-white/25 hover:text-aether-cyan/45 hover:bg-aether-cyan/[0.03] hover:border-white/15 rounded-sm'
+                      : options.length > 0
+                        ? 'border-aether-cyan/40 bg-aether-cyan/[0.04] text-aether-cyan/50 shadow-[0_0_10px_rgba(0,242,255,0.1)] animate-glow-breathe'
+                        : 'border-white/10 bg-aether-glass/40 text-white/25 hover:text-aether-cyan/45 hover:bg-aether-cyan/[0.03] hover:border-white/15 rounded-sm'
                 }`}
               >
                 <motion.div
