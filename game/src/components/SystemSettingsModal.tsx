@@ -226,12 +226,15 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
     );
     const { successes, failures } = importMultipleLorebooks(inputs);
     for (const s of successes) {
-      await db.lorebooks.add({
+      const name = s.lorebook.name !== '导入的世界书' ? s.lorebook.name : s.fileName.replace(/\.json$/i, '');
+      const book: Lorebook = {
         ...s.lorebook,
+        name,
         id: crypto.randomUUID(),
         createdAt: Date.now(),
         updatedAt: Date.now(),
-      } as Lorebook);
+      };
+      await ss.addLorebook(book);
     }
     if (failures.length) {
       showToast(`${failures.length} 个文件导入失败`, 'error');
