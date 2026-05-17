@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
-  MOCK_SKILLS,
   MOCK_ITEMS,
 } from '../../mockData';
 import {
@@ -10,7 +9,7 @@ import {
   Diamond,
 } from 'lucide-react';
 import { Modal } from '../Feedback';
-import type { Skill, Item } from '../../types';
+import type { Item } from '../../types';
 import { getDatabase } from '../../sillytavern/database';
 
 /* ==============================================================
@@ -119,7 +118,7 @@ function AttrCard({ name, value, accent }: { name: string; value: number; accent
    MAIN COMPONENT
    ============================================================== */
 export default function PersonaPage() {
-  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<any>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [protagonist, setProtagonist] = useState<Record<string, any>>({});
 
@@ -160,6 +159,19 @@ export default function PersonaPage() {
 
   const money = protagonist?.资源?.金钱;
   const 超凡资源 = protagonist?.资源?.超凡资源;
+  const skills = protagonist?.技能 ?? {};
+
+  const SKILL_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string }> = {
+    灭世: { text: 'text-red-400',   border: 'border-red-400/50',   glow: 'shadow-[0_0_16px_rgba(239,68,68,0.4)]',   bg: 'bg-red-400/10' },
+    夷地: { text: 'text-rose-400',  border: 'border-rose-400/50',  glow: 'shadow-[0_0_14px_rgba(251,113,133,0.4)]', bg: 'bg-rose-400/10' },
+    覆国: { text: 'text-pink-400',  border: 'border-pink-400/50',  glow: 'shadow-[0_0_14px_rgba(244,114,182,0.4)]', bg: 'bg-pink-400/10' },
+    摧城: { text: 'text-orange-400',border: 'border-orange-400/50',glow: 'shadow-[0_0_13px_rgba(251,146,60,0.4)]', bg: 'bg-orange-400/10' },
+    撼地: { text: 'text-amber-300', border: 'border-amber-400/50', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.35)]',bg: 'bg-amber-400/10' },
+    磐岩: { text: 'text-yellow-400',border: 'border-yellow-400/50',glow: 'shadow-[0_0_11px_rgba(250,204,21,0.35)]',bg: 'bg-yellow-400/10' },
+    凝石: { text: 'text-green-400', border: 'border-green-400/50', glow: 'shadow-[0_0_10px_rgba(74,222,128,0.3)]', bg: 'bg-green-400/10' },
+    聚砂: { text: 'text-purple-400',border: 'border-purple-400/50',glow: 'shadow-[0_0_12px_rgba(168,85,247,0.35)]',bg: 'bg-purple-400/10' },
+    微尘: { text: 'text-gray-400',  border: 'border-gray-400/40',  glow: 'shadow-[0_0_8px_rgba(156,163,175,0.2)]',  bg: 'bg-gray-400/10' },
+  };
 
   return (
     <main className="h-full overflow-y-auto px-4 md:px-12 py-8 space-y-20 scroll-smooth">
@@ -182,7 +194,7 @@ export default function PersonaPage() {
             <motion.span
               animate={{ boxShadow: ['0 0 10px rgba(0,242,255,0.3)', '0 0 28px rgba(0,242,255,0.7)', '0 0 10px rgba(0,242,255,0.3)'] }}
               transition={{ duration: 2.4, repeat: Infinity }}
-              className="inline-block px-4 py-1 bg-gradient-to-br from-aether-cyan/20 to-aether-blue/20 border border-aether-cyan/60 text-aether-cyan font-display font-black text-3xl md:text-4xl tracking-tighter italic"
+              className="inline-block px-5 py-1.5 bg-gradient-to-br from-aether-cyan/20 to-aether-blue/20 border border-aether-cyan/60 text-aether-cyan font-display font-black text-3xl md:text-4xl tracking-tighter italic min-w-[80px] text-center"
             >
               {rating}
             </motion.span>
@@ -235,7 +247,7 @@ export default function PersonaPage() {
       </div>
 
       {/* ============================================================
-          SECTION 2 — SKILLS (still mock for now)
+          SECTION 2 — SKILLS
           ============================================================ */}
       <motion.section
         initial={{ opacity: 0, y: 24 }}
@@ -252,29 +264,46 @@ export default function PersonaPage() {
           <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {MOCK_SKILLS.map((skill) => {
-            const rs = RANK_STYLES[skill.rank] || RANK_STYLES.C;
-            return (
-              <motion.button
-                key={skill.id}
-                onClick={() => setSelectedSkill(skill)}
-                whileHover={{ y: -4 }}
-                transition={{ type: 'spring', damping: 15, stiffness: 250 }}
-                className="relative p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
-              >
-                <div className="absolute top-3 right-3">
-                  <span className={`inline-flex items-center justify-center w-9 h-9 text-sm font-black font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>{skill.rank}</span>
-                </div>
-                <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-12">{skill.name}</h3>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className={`text-[9px] px-2 py-0.5 font-mono uppercase tracking-wider ${skill.type === '主动' ? 'text-aether-cyan border border-aether-cyan/30 bg-aether-cyan/10' : 'text-aether-blue border border-aether-blue/30 bg-aether-blue/10'}`}>{skill.type}</span>
-                </div>
-                <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">{skill.description}</p>
-              </motion.button>
-            );
-          })}
-        </div>
+        {Object.keys(skills).length === 0 ? (
+          <div className="p-12 border border-dashed border-aether-border/30 flex flex-col items-center justify-center text-center gap-3">
+            <Database size={32} className="text-white/10" />
+            <p className="text-xs text-white/30 font-display tracking-wider">暂无技能</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Object.entries(skills).map(([skillName, skillData]: [string, any]) => {
+              const rank = skillData?.等级 || '微尘';
+              const rs = SKILL_RANK_STYLES[rank] || SKILL_RANK_STYLES['微尘'];
+              return (
+                <motion.button
+                  key={skillName}
+                  onClick={() => setSelectedSkill({ name: skillName, ...skillData })}
+                  whileHover={{ y: -4 }}
+                  transition={{ type: 'spring', damping: 15, stiffness: 250 }}
+                  className="relative p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
+                >
+                  <div className="absolute top-3 right-3">
+                    <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
+                      {rank}
+                    </span>
+                  </div>
+                  <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-20">
+                    {skillName}
+                  </h3>
+                  <div className="mt-2 flex items-center gap-3 text-[10px]">
+                    <span className="text-aether-blue/50 font-mono">熟练 {skillData?.熟练度 ?? 0}/999</span>
+                    {skillData?.消耗能量 > 0 && (
+                      <span className="text-aether-cyan/50 font-mono">消耗 {skillData.消耗能量} 能量</span>
+                    )}
+                  </div>
+                  <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
+                    {skillData?.描述 || ''}
+                  </p>
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
       </motion.section>
 
       {/* divider */}
@@ -339,28 +368,65 @@ export default function PersonaPage() {
           MODALS
           ============================================================== */}
       <Modal isOpen={!!selectedSkill} onClose={() => setSelectedSkill(null)} title="技能详情">
-        {selectedSkill && (
+        {selectedSkill && (() => {
+          const rank = selectedSkill?.等级 || '微尘';
+          const rs = SKILL_RANK_STYLES[rank] || SKILL_RANK_STYLES['微尘'];
+          const branches = selectedSkill?.分支 || {};
+          return (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div>
                 <h3 className="text-2xl font-display font-bold text-aether-cyan">{selectedSkill.name}</h3>
-                <p className="text-[10px] font-mono text-white/30 tracking-wider mt-0.5">{selectedSkill.id.toUpperCase()}</p>
+                <p className="text-[10px] font-mono text-white/30 tracking-wider mt-0.5">熟练度 {selectedSkill?.熟练度 ?? 0} / 999</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`px-3 py-1 text-xs font-bold font-display border ${RANK_STYLES[selectedSkill.rank]?.border} ${RANK_STYLES[selectedSkill.rank]?.text} ${RANK_STYLES[selectedSkill.rank]?.bg}`}>{selectedSkill.rank} 级机能</span>
-                <span className={`text-[9px] px-2 py-1 font-mono uppercase tracking-wider ${selectedSkill.type === '主动' ? 'text-aether-cyan border border-aether-cyan/30 bg-aether-cyan/10' : 'text-aether-blue border border-aether-blue/30 bg-aether-blue/10'}`}>{selectedSkill.type}</span>
-              </div>
+              <span className={`px-3 py-1 text-xs font-bold font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>{rank}</span>
             </div>
             <div className="space-y-4">
-              <div><h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4><p className="text-sm text-white/80 leading-relaxed">"{selectedSkill.description}"</p></div>
-              <div className="p-4 bg-aether-cyan/[0.05] border-l-2 border-aether-cyan"><h4 className="text-[10px] text-aether-cyan uppercase tracking-widest mb-1 font-mono">战术效果</h4><p className="text-sm font-medium tracking-wide text-white/90">{selectedSkill.effect}</p></div>
+              {selectedSkill?.描述 && (
+                <div>
+                  <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4>
+                  <p className="text-sm text-white/80 leading-relaxed">{selectedSkill.描述}</p>
+                </div>
+              )}
+              {selectedSkill?.使用要求 && (
+                <div className="p-4 bg-aether-cyan/[0.05] border-l-2 border-aether-cyan">
+                  <h4 className="text-[10px] text-aether-cyan uppercase tracking-widest mb-1 font-mono">使用要求</h4>
+                  <p className="text-sm font-medium tracking-wide text-white/90">{selectedSkill.使用要求}</p>
+                </div>
+              )}
+              {selectedSkill?.副作用 && (
+                <div className="p-4 bg-aether-red/[0.05] border-l-2 border-aether-red">
+                  <h4 className="text-[10px] text-aether-red uppercase tracking-widest mb-1 font-mono">副作用</h4>
+                  <p className="text-sm tracking-wide text-aether-red/80">{selectedSkill.副作用}</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 text-[10px] font-mono">
-                <div className="p-3 bg-black/40 border border-white/5"><span className="text-aether-blue/60 uppercase tracking-wider">技能类型</span><p className="text-white/70 mt-0.5">{selectedSkill.type === '主动' ? '主动释放' : '常驻被动'}</p></div>
-                <div className="p-3 bg-black/40 border border-white/5"><span className="text-aether-blue/60 uppercase tracking-wider">机能等级</span><p className={`mt-0.5 font-bold ${RANK_STYLES[selectedSkill.rank]?.text || 'text-white/70'}`}>{selectedSkill.rank}</p></div>
+                <div className="p-3 bg-black/40 border border-white/5">
+                  <span className="text-aether-blue/60 uppercase tracking-wider">消耗能量</span>
+                  <p className="text-white/70 mt-0.5">{selectedSkill?.消耗能量 ?? 0}</p>
+                </div>
+                <div className="p-3 bg-black/40 border border-white/5">
+                  <span className="text-aether-blue/60 uppercase tracking-wider">等级</span>
+                  <p className={`mt-0.5 font-bold ${rs.text}`}>{rank}</p>
+                </div>
               </div>
+              {Object.keys(branches).length > 0 && (
+                <div>
+                  <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-3 font-mono">分支</h4>
+                  <div className="space-y-3">
+                    {Object.entries(branches).map(([bName, bData]: [string, any]) => (
+                      <div key={bName} className="p-3 bg-black/40 border border-white/5">
+                        <h5 className="text-xs font-display font-bold text-white/70 mb-1">{bName}</h5>
+                        {bData?.描述 && <p className="text-[11px] text-white/50 leading-relaxed mb-1">{bData.描述}</p>}
+                        {bData?.效果 && <p className="text-[11px] text-aether-cyan/70 leading-relaxed">{bData.效果}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        )})()}
       </Modal>
 
       <Modal isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} title="物资详情">
