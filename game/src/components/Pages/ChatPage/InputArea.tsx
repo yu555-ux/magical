@@ -13,9 +13,10 @@ interface InputAreaProps {
   optionsOpen: boolean;
   setOptionsOpen: (v: boolean) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  aiOptions?: string[];
 }
 
-const QUICK_OPTIONS = [
+const FALLBACK_OPTIONS = [
   { label: '探索周围', hint: '扫描当前区域环境' },
   { label: '查看状态', hint: '检查自身属性与装备' },
   { label: '使用技能', hint: '释放以太共鸣技能' },
@@ -34,34 +35,44 @@ export default function InputArea({
   optionsOpen,
   setOptionsOpen,
   inputRef,
+  aiOptions,
 }: InputAreaProps) {
+  const hasAiOptions = aiOptions && aiOptions.length > 0;
+  const displayOptions = hasAiOptions
+    ? aiOptions.map((o) => ({ label: o, hint: '' }))
+    : FALLBACK_OPTIONS;
+
   return (
     <div className="bg-aether-deep/90 shrink-0">
       <div className="p-3 md:p-4">
         <div className="relative">
-          {/* Options panel — absolute positioned above input */}
+          {/* Options panel */}
           <div className={`absolute left-0 right-0 bottom-full border-x border-t bg-aether-deep/98 backdrop-blur-xl overflow-hidden transition-all duration-200 ${
             optionsOpen
               ? 'opacity-100 visible border-aether-cyan/30 shadow-[0_0_24px_rgba(0,242,255,0.08)]'
               : 'opacity-0 invisible border-white/[0.08]'
           }`}>
-            {QUICK_OPTIONS.map((opt) => (
+            {displayOptions.map((opt) => (
               <button
                 key={opt.label}
                 onClick={() => { setInput(opt.label); setOptionsOpen(false); inputRef.current?.focus(); }}
                 className="w-full flex items-center justify-between px-5 py-3 text-left border-b border-white/[0.06] hover:bg-aether-cyan/[0.05] transition-all duration-150 clickable group last:border-b-0"
               >
                 <span className="text-[13px] text-white/70 font-display tracking-[0.08em] group-hover:text-aether-cyan transition-colors duration-150">
-                  {opt.label}
+                  {hasAiOptions ? `${opt.label}` : opt.label}
                 </span>
-                <span className="text-[10px] text-white/25 font-sans group-hover:text-white/45 transition-colors duration-150">
-                  {opt.hint}
-                </span>
+                {opt.hint ? (
+                  <span className="text-[10px] text-white/25 font-sans group-hover:text-white/45 transition-colors duration-150">
+                    {opt.hint}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-aether-cyan/25 font-mono">AI</span>
+                )}
               </button>
             ))}
           </div>
 
-          {/* Toggle bar — always visible boundary between options and input */}
+          {/* Toggle bar */}
           <button
             onClick={() => { setOptionsOpen(!optionsOpen); inputRef.current?.focus(); }}
             className={`w-full flex items-center justify-center h-5 transition-all duration-300 clickable border ${
@@ -79,7 +90,7 @@ export default function InputArea({
             />
           </button>
 
-          {/* Input row — separate visual block */}
+          {/* Input row */}
           <div className={`flex items-center border transition-all duration-300 ${
             (isFocused || optionsOpen)
               ? 'border-aether-cyan/50 shadow-[0_0_24px_rgba(0,242,255,0.1)]'
