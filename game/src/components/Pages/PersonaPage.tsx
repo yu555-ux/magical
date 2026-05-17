@@ -144,7 +144,7 @@ export default function PersonaPage({ variables }: { variables?: Record<string, 
   const age: number = protagonist?.年龄 ?? 0;
 
   const money = protagonist?.资源?.金钱;
-  const超凡资源 = protagonist?.资源?.超凡资源;
+  const 超凡资源 = protagonist?.资源?.超凡资源;
 
   return (
     <main className="h-full overflow-y-auto px-4 md:px-12 py-8 space-y-20 scroll-smooth">
