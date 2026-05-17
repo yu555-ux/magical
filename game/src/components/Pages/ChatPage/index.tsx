@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, ChevronRight, Send, X } from 'lucide-react';
 import ChatHeader from './ChatHeader';
 import PlotReaderModal from './PlotReaderModal';
+import VariableViewerModal from './VariableViewerModal';
 import { useSillytavern } from '../../../hooks/useSillytavern';
 
 export default function ChatPage({
@@ -20,14 +21,13 @@ export default function ChatPage({
   const [thinkingOpen, setThinkingOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [readerOpen, setReaderOpen] = useState(false);
+  const [varViewerOpen, setVarViewerOpen] = useState(false);
   const [rawViewOpen, setRawViewOpen] = useState(false);
   const [rawViewPos, setRawViewPos] = useState({ x: 0, y: 0 });
   const [rawContent, setRawContent] = useState('');
   const [editedRaw, setEditedRaw] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [location] = useState('新东京枢纽');
-  const [weather] = useState({ icon: '晴', temp: 22, humidity: 45 });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -107,7 +107,12 @@ export default function ChatPage({
         <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-aether-cyan/20 pointer-events-none z-20" />
         <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-aether-cyan/20 pointer-events-none z-20" />
 
-        <ChatHeader currentTime={currentTime} location={location} weather={weather} onOpenReader={() => setReaderOpen(true)} />
+        <ChatHeader
+          currentTime={currentTime}
+          variables={ss.activeChat?.variables}
+          onOpenReader={() => setReaderOpen(true)}
+          onOpenVariables={() => setVarViewerOpen(true)}
+        />
 
         {/* ── Streaming indicator ── */}
         {isStreaming && (
@@ -309,6 +314,14 @@ export default function ChatPage({
         isOpen={readerOpen}
         onClose={() => setReaderOpen(false)}
         messages={ss.activeChat?.messages ?? []}
+      />
+
+      {/* ── Variable Viewer Modal ── */}
+      <VariableViewerModal
+        isOpen={varViewerOpen}
+        onClose={() => setVarViewerOpen(false)}
+        variables={ss.activeChat?.variables ?? {}}
+        onSave={(vars) => ss.setChatVariables(vars)}
       />
 
       {/* ── Context menu ── */}
