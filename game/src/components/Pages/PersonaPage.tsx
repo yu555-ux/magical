@@ -1,15 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
-  MOCK_ITEMS,
-} from '../../mockData';
-import {
   Shield,
   Database,
   Diamond,
+  Package,
 } from 'lucide-react';
 import { Modal } from '../Feedback';
-import type { Item } from '../../types';
 import { getDatabase } from '../../sillytavern/database';
 
 /* ==============================================================
@@ -119,7 +116,7 @@ function AttrCard({ name, value, accent }: { name: string; value: number; accent
    ============================================================== */
 export default function PersonaPage() {
   const [selectedSkill, setSelectedSkill] = useState<any>(null);
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
   const [protagonist, setProtagonist] = useState<Record<string, any>>({});
 
   // Read latest chat variables directly from IndexedDB
@@ -159,6 +156,7 @@ export default function PersonaPage() {
 
   const money = protagonist?.资源?.金钱;
   const 超凡资源 = protagonist?.资源?.超凡资源;
+  const 奇物 = protagonist?.奇物 ?? {};
   const skills = protagonist?.技能 ?? {};
 
   const PROFICIENCY_STAGES = ['初窥', '粗浅', '掌握', '熟练', '小成', '入门', '精进', '深谙', '登峰', '造极'];
@@ -174,6 +172,15 @@ export default function PersonaPage() {
     凝石: { text: 'text-green-400', border: 'border-green-400/50', glow: 'shadow-[0_0_10px_rgba(74,222,128,0.3)]', bg: 'bg-green-400/10' },
     聚砂: { text: 'text-purple-400',border: 'border-purple-400/50',glow: 'shadow-[0_0_12px_rgba(168,85,247,0.35)]',bg: 'bg-purple-400/10' },
     微尘: { text: 'text-gray-400',  border: 'border-gray-400/40',  glow: 'shadow-[0_0_8px_rgba(156,163,175,0.2)]',  bg: 'bg-gray-400/10' },
+  };
+
+  const ITEM_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string }> = {
+    灭世: { text: 'text-red-400',   border: 'border-red-400/50',   glow: 'shadow-[0_0_16px_rgba(239,68,68,0.4)]',   bg: 'bg-red-400/10' },
+    绝域: { text: 'text-rose-400',  border: 'border-rose-400/50',  glow: 'shadow-[0_0_14px_rgba(251,113,133,0.4)]', bg: 'bg-rose-400/10' },
+    倾国: { text: 'text-pink-400',  border: 'border-pink-400/50',  glow: 'shadow-[0_0_14px_rgba(244,114,182,0.4)]', bg: 'bg-pink-400/10' },
+    祸城: { text: 'text-orange-400',border: 'border-orange-400/50',glow: 'shadow-[0_0_13px_rgba(251,146,60,0.4)]', bg: 'bg-orange-400/10' },
+    凶煞: { text: 'text-amber-300', border: 'border-amber-400/50', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.35)]',bg: 'bg-amber-400/10' },
+    微末: { text: 'text-gray-400',  border: 'border-gray-400/40',  glow: 'shadow-[0_0_8px_rgba(156,163,175,0.2)]',  bg: 'bg-gray-400/10' },
   };
 
   // Rating color derivation
@@ -200,24 +207,40 @@ export default function PersonaPage() {
         <div className="border-l-4 border-aether-cyan pl-6 space-y-3">
           <div className="flex items-center gap-4">
             <span className="font-display text-3xl md:text-4xl font-black tracking-tighter text-white/90">
-              个体评级
+              个人信息
             </span>
-            <motion.span
-              animate={{ boxShadow: [
-                `0 0 10px ${ratingGlow}40`,
-                `0 0 28px ${ratingGlow}90`,
-                `0 0 10px ${ratingGlow}40`,
-              ] }}
-              transition={{ duration: 2.4, repeat: Infinity }}
-              style={{ borderColor: `${ratingGlow}60` }}
-              className={`inline-block px-6 py-1.5 border ${ratingStyle.text} ${ratingStyle.bg} font-display font-black text-3xl md:text-4xl tracking-tighter italic min-w-[80px] text-center rounded-lg skew-x-[-6deg]`}
-            >
-              <span className="inline-block skew-x-[6deg]">{rating}</span>
-            </motion.span>
           </div>
           <p className="text-sm text-white/40 font-display tracking-wide">
             {age}岁
           </p>
+        </div>
+
+        {/* stat bars */}
+        <div className="space-y-4 w-full">
+          {bars.map((bar, i) => (
+            <React.Fragment key={bar.name}><StatBar label={bar.name} current={bar.current} max={bar.max} color={bar.color} delay={0.2 + i * 0.1} /></React.Fragment>
+          ))}
+        </div>
+
+        {/* Rating + attribute cards */}
+        <div className="flex gap-4">
+          <motion.div
+            animate={{ boxShadow: [
+              `0 0 10px ${ratingGlow}40`,
+              `0 0 28px ${ratingGlow}90`,
+              `0 0 10px ${ratingGlow}40`,
+            ] }}
+            transition={{ duration: 2.4, repeat: Infinity }}
+            style={{ borderColor: `${ratingGlow}60` }}
+            className={`shrink-0 w-24 h-24 flex items-center justify-center border ${ratingStyle.text} ${ratingStyle.bg} rounded-xl`}
+          >
+            <span className={`font-display font-black text-2xl tracking-tighter italic ${ratingStyle.text}`}>{rating}</span>
+          </motion.div>
+          <div className="flex-1 grid grid-cols-3 gap-3">
+            {stats.map((stat) => (
+              <React.Fragment key={stat.name}><AttrCard name={stat.name} value={stat.value} accent={stat.accent} /></React.Fragment>
+            ))}
+          </div>
         </div>
 
         {/* currency strip */}
@@ -237,20 +260,6 @@ export default function PersonaPage() {
                 <AnimatedCounter value={v as number} />
               </span>
             </div>
-          ))}
-        </div>
-
-        {/* stat bars */}
-        <div className="space-y-4 w-full">
-          {bars.map((bar, i) => (
-            <React.Fragment key={bar.name}><StatBar label={bar.name} current={bar.current} max={bar.max} color={bar.color} delay={0.2 + i * 0.1} /></React.Fragment>
-          ))}
-        </div>
-
-        {/* attribute cards — 2 rows × 3 cols */}
-        <div className="grid grid-cols-3 gap-3 w-full mt-2">
-          {stats.map((stat) => (
-            <React.Fragment key={stat.name}><AttrCard name={stat.name} value={stat.value} accent={stat.accent} /></React.Fragment>
           ))}
         </div>
       </motion.section>
@@ -335,55 +344,72 @@ export default function PersonaPage() {
       </div>
 
       {/* ============================================================
-          SECTION 3 — EQUIPMENT (still mock for now)
+          SECTION 3 — 所持物品
           ============================================================ */}
-      <motion.section
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-80px' }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="space-y-6 pb-20"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-8 h-8 border border-aether-cyan/40 flex items-center justify-center shrink-0">
-            <Shield size={16} className="text-aether-cyan" />
+      {(['灵宝', '诡物', '物品'] as const).map((category) => {
+        const items = 奇物?.[category] ?? {};
+        const keys = Object.keys(items);
+        if (keys.length === 0) return null;
+        const catLabel = category;
+        const CatIcon = category === '灵宝' ? Diamond : category === '诡物' ? Shield : Package;
+        return (
+        <React.Fragment key={category}>
+          <div className="flex items-center gap-4 opacity-30">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent" />
+            <Diamond size={12} className="text-aether-cyan rotate-45" />
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent" />
           </div>
-          <h2 className="font-display text-xl tracking-widest uppercase text-white/90">当前装备</h2>
-          <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
-        </div>
 
-        {MOCK_ITEMS.length === 0 ? (
-          <div className="p-12 border border-dashed border-aether-border/30 flex flex-col items-center justify-center text-center gap-3">
-            <Shield size={32} className="text-white/10" />
-            <p className="text-xs text-white/30 font-display tracking-wider">暂无装备物品</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {MOCK_ITEMS.slice(0, 3).map((item) => {
-              const rarity = RARITY_STYLES[item.rarity] || RARITY_STYLES.普通;
-              return (
-                <motion.button
-                  key={item.id}
-                  onClick={() => setSelectedItem(item)}
-                  whileHover={{ y: -3 }}
-                  transition={{ type: 'spring', damping: 15, stiffness: 250 }}
-                  className="relative p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
-                >
-                  <div className="absolute top-3 right-3">
-                    <span className={`shrink-0 text-[9px] font-bold font-mono uppercase tracking-wider px-2 py-0.5 border ${rarity.border} ${rarity.text}`}>{item.rarity}</span>
-                  </div>
-                  <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-16 truncate">{item.name}</h3>
-                  <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">{item.description}</p>
-                  <div className="mt-3 pt-3 border-t border-aether-border/20 flex items-center gap-4">
-                    <span className="text-[10px] font-mono text-aether-blue/50 tracking-wide">{item.category}</span>
-                    <span className="text-[10px] font-mono text-white/25">x{item.quantity}</span>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
-        )}
-      </motion.section>
+          <motion.section
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="space-y-6 pb-8"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 border border-aether-cyan/40 flex items-center justify-center shrink-0">
+                <CatIcon size={16} className="text-aether-cyan" />
+              </div>
+              <h2 className="font-display text-xl tracking-widest uppercase text-white/90">{catLabel}</h2>
+              <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {Object.entries(items).map(([itemName, itemData]: [string, any]) => {
+                const rank = itemData?.等级 || '';
+                const irs = ITEM_RANK_STYLES[rank] || null;
+                const qty = itemData?.数量 ?? 1;
+                return (
+                  <motion.button
+                    key={itemName}
+                    onClick={() => setSelectedItem({ name: itemName, category, ...itemData })}
+                    whileHover={{ y: -4 }}
+                    transition={{ type: 'spring', damping: 15, stiffness: 250 }}
+                    className="relative p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
+                  >
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                      {irs && (
+                        <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${irs.border} ${irs.bg} ${irs.text} ${irs.glow}`}>
+                          {rank}
+                        </span>
+                      )}
+                      <span className="text-[10px] font-mono text-white/25">x{qty}</span>
+                    </div>
+                    <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-20 truncate">
+                      {itemName}
+                    </h3>
+                    <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
+                      {itemData?.描述 || ''}
+                    </p>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.section>
+        </React.Fragment>
+        );
+      })}
 
       {/* ==============================================================
           MODALS
@@ -420,22 +446,13 @@ export default function PersonaPage() {
             </div>
             <div className="space-y-4">
               {selectedSkill?.描述 && (
-                <div>
-                  <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4>
-                  <p className="text-sm text-white/80 leading-relaxed">{selectedSkill.描述}</p>
-                </div>
+                <div><h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4><p className="text-sm text-white/80 leading-relaxed">{selectedSkill.描述}</p></div>
               )}
               {selectedSkill?.使用要求 && (
-                <div className="p-4 bg-aether-cyan/[0.05] border-l-2 border-aether-cyan">
-                  <h4 className="text-[10px] text-aether-cyan uppercase tracking-widest mb-1 font-mono">使用要求</h4>
-                  <p className="text-sm font-medium tracking-wide text-white/90">{selectedSkill.使用要求}</p>
-                </div>
+                <div className="p-4 bg-aether-cyan/[0.05] border-l-2 border-aether-cyan"><h4 className="text-[10px] text-aether-cyan uppercase tracking-widest mb-1 font-mono">使用要求</h4><p className="text-sm font-medium tracking-wide text-white/90">{selectedSkill.使用要求}</p></div>
               )}
               {selectedSkill?.副作用 && (
-                <div className="p-4 bg-aether-red/[0.05] border-l-2 border-aether-red">
-                  <h4 className="text-[10px] text-aether-red uppercase tracking-widest mb-1 font-mono">副作用</h4>
-                  <p className="text-sm tracking-wide text-aether-red/80">{selectedSkill.副作用}</p>
-                </div>
+                <div className="p-4 bg-aether-red/[0.05] border-l-2 border-aether-red"><h4 className="text-[10px] text-aether-red uppercase tracking-widest mb-1 font-mono">副作用</h4><p className="text-sm tracking-wide text-aether-red/80">{selectedSkill.副作用}</p></div>
               )}
               {Object.keys(branches).length > 0 && (
                 <div>
@@ -456,25 +473,69 @@ export default function PersonaPage() {
         )})()}
       </Modal>
 
-      <Modal isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} title="物资详情">
-        {selectedItem && (
+      <Modal isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} title={selectedItem?.category === '灵宝' ? '灵宝详情' : selectedItem?.category === '诡物' ? '诡物详情' : '物品详情'}>
+        {selectedItem && (() => {
+          const rank = selectedItem?.等级 || '';
+          const irs = ITEM_RANK_STYLES[rank] || null;
+          return (
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div className="flex items-start justify-between border-b border-white/10 pb-4">
               <div>
                 <h3 className="text-2xl font-display font-bold text-aether-cyan">{selectedItem.name}</h3>
-                <p className="text-[10px] font-mono text-white/30 tracking-wider mt-0.5">{selectedItem.id.toUpperCase()} / 数量: {selectedItem.quantity}</p>
+                <p className="text-[10px] font-mono text-white/30 tracking-wider mt-0.5">数量: {selectedItem?.数量 ?? 1}</p>
               </div>
-              <span className={`text-xs font-bold font-mono uppercase px-3 py-1 border ${RARITY_STYLES[selectedItem.rarity]?.border || 'border-white/20'} ${RARITY_STYLES[selectedItem.rarity]?.text || 'text-white/70'}`}>{selectedItem.rarity}</span>
+              {irs && (
+                <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${irs.border} ${irs.bg} ${irs.text} ${irs.glow}`}>
+                  {rank}
+                </span>
+              )}
             </div>
-            <p className="text-sm text-white/80 leading-relaxed italic">"{selectedItem.description}"</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-black/40 border border-white/10"><span className="text-[9px] uppercase text-aether-blue font-mono tracking-wider block mb-1">种类</span><span className="text-sm text-white/80 font-display">{selectedItem.category}</span></div>
-              <div className="p-3 bg-black/40 border border-white/10"><span className="text-[9px] uppercase text-aether-blue font-mono tracking-wider block mb-1">品质</span><span className={`text-sm font-bold font-display ${RARITY_STYLES[selectedItem.rarity]?.text || 'text-white/70'}`}>{selectedItem.rarity}</span></div>
-              <div className="p-3 bg-black/40 border border-white/10"><span className="text-[9px] uppercase text-aether-blue font-mono tracking-wider block mb-1">持有数量</span><span className="text-sm text-white/80 font-display">x{selectedItem.quantity}</span></div>
-              <div className="p-3 bg-black/40 border border-white/10"><span className="text-[9px] uppercase text-aether-blue font-mono tracking-wider block mb-1">耐久度</span><span className="text-sm text-white/80 font-display">100%</span></div>
+            <div className="space-y-4">
+              {selectedItem?.描述 && (
+                <div><h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4><p className="text-sm text-white/80 leading-relaxed">{selectedItem.描述}</p></div>
+              )}
+              {selectedItem?.效果 && Object.keys(selectedItem.效果).length > 0 && (
+                <div>
+                  <h4 className="text-[10px] text-aether-green uppercase tracking-widest mb-3 font-mono">效果</h4>
+                  <div className="space-y-2">
+                    {Object.entries(selectedItem.效果 as Record<string, string>).map(([k, v]) => (
+                      <div key={k} className="p-3 bg-aether-green/[0.04] border border-aether-green/20">
+                        <h5 className="text-[11px] font-display font-bold text-aether-green/70 mb-1">{k}</h5>
+                        <p className="text-[11px] text-white/60 leading-relaxed">{v}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedItem?.规则 && Object.keys(selectedItem.规则).length > 0 && (
+                <div>
+                  <h4 className="text-[10px] text-aether-purple uppercase tracking-widest mb-3 font-mono">规则</h4>
+                  <div className="space-y-2">
+                    {Object.entries(selectedItem.规则 as Record<string, string>).map(([k, v]) => (
+                      <div key={k} className="p-3 bg-aether-purple/[0.04] border border-aether-purple/20">
+                        <h5 className="text-[11px] font-display font-bold text-aether-purple/70 mb-1">{k}</h5>
+                        <p className="text-[11px] text-white/60 leading-relaxed">{v}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedItem?.副作用 && Object.keys(selectedItem.副作用).length > 0 && (
+                <div>
+                  <h4 className="text-[10px] text-aether-red uppercase tracking-widest mb-3 font-mono">副作用</h4>
+                  <div className="space-y-2">
+                    {Object.entries(selectedItem.副作用 as Record<string, string>).map(([k, v]) => (
+                      <div key={k} className="p-3 bg-aether-red/[0.04] border border-aether-red/20">
+                        <h5 className="text-[11px] font-display font-bold text-aether-red/70 mb-1">{k}</h5>
+                        <p className="text-[11px] text-white/60 leading-relaxed">{v}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        )})()}
       </Modal>
     </main>
   );
