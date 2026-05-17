@@ -27,46 +27,69 @@ function getDisplayData(vars: Record<string, any> | undefined) {
 export default function ChatHeader({ variables, onOpenReader, onOpenVariables }: ChatHeaderProps) {
   const display = useMemo(() => getDisplayData(variables), [variables]);
 
-  const iconClass = (base: string) =>
-    display.inDream ? `${base} text-aether-red/70` : `${base} text-aether-blue/70`;
+  const realmColor = display.inDream ? 'aether-red' : 'aether-blue';
+  const iconClass = display.inDream ? 'text-aether-red/60' : 'text-aether-blue/60';
 
   return (
-    <div className="px-6 py-3.5 border-b border-aether-cyan/20 bg-aether-deep/90 flex items-center shrink-0 shadow-[0_1px_8px_rgba(0,242,255,0.03)] relative">
-      {/* Left: time / location / weather */}
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2.5">
-          <Clock size={14} className={iconClass('')} />
-          <span className="font-display text-[13px] text-white/60 tracking-[0.06em] whitespace-nowrap">{display.time}</span>
-        </div>
-        <div className="w-px h-4 bg-aether-border/50" />
+    <div className="px-6 py-3 border-b border-aether-cyan/[0.12] bg-gradient-to-b from-aether-deep/95 to-aether-deep/80 flex items-center shrink-0 relative overflow-hidden">
+      {/* Subtle top glow line */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/10 to-transparent" />
+
+      {/* ── Left: info group ── */}
+      <div className="flex items-center gap-5">
+        {/* Time */}
         <div className="flex items-center gap-2">
-          <MapPin size={13} className={iconClass('')} />
-          <span className="font-display text-[13px] text-white/65 tracking-[0.06em] max-w-[200px] truncate">{display.location}</span>
+          <div className={`p-1 rounded ${display.inDream ? 'bg-aether-red/[0.06]' : 'bg-aether-blue/[0.05]'}`}>
+            <Clock size={13} className={iconClass} />
+          </div>
+          <span className="font-display text-[13px] text-white/55 tracking-[0.05em] whitespace-nowrap select-none">
+            {display.time}
+          </span>
         </div>
-        <div className="w-px h-4 bg-aether-border/50" />
+
+        <div className="w-px h-3 bg-white/[0.06]" />
+
+        {/* Location */}
         <div className="flex items-center gap-2">
-          <CloudSun size={14} className={iconClass('')} />
-          <span className="font-display text-[13px] text-white/55 tracking-[0.06em] max-w-[120px] truncate">{display.weather}</span>
+          <div className={`p-1 rounded ${display.inDream ? 'bg-aether-red/[0.06]' : 'bg-aether-blue/[0.05]'}`}>
+            <MapPin size={13} className={iconClass} />
+          </div>
+          <span className="font-display text-[13px] text-white/60 tracking-[0.04em] max-w-[180px] truncate select-none">
+            {display.location}
+          </span>
+        </div>
+
+        <div className="w-px h-3 bg-white/[0.06]" />
+
+        {/* Weather */}
+        <div className="flex items-center gap-2">
+          <div className={`p-1 rounded ${display.inDream ? 'bg-aether-red/[0.06]' : 'bg-aether-blue/[0.05]'}`}>
+            <CloudSun size={13} className={iconClass} />
+          </div>
+          <span className="font-display text-[13px] text-white/50 tracking-[0.04em] max-w-[100px] truncate select-none">
+            {display.weather}
+          </span>
         </div>
       </div>
 
-      {/* Center: countdown */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-        <Hourglass size={13} className="text-white/25" />
-        <span className="font-display text-[13px] text-white/35 tracking-[0.06em] whitespace-nowrap">
-          {display.countdownLabel} {display.countdown}
-        </span>
+      {/* ── Center: countdown pill ── */}
+      <div className="absolute left-1/2 -translate-x-1/2">
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.06]">
+          <Hourglass size={11} className="text-white/20" />
+          <span className="text-[10px] text-white/20 font-display tracking-[0.12em] uppercase">{display.countdownLabel}</span>
+          <span className="font-mono text-[12px] text-white/40 tracking-[0.04em]">{display.countdown}</span>
+        </div>
       </div>
 
-      {/* Right: buttons */}
-      <div className="flex items-center gap-2 ml-auto">
+      {/* ── Right: buttons ── */}
+      <div className="flex items-center gap-1 ml-auto">
         {onOpenVariables && (
           <button
             onClick={onOpenVariables}
-            className="relative group flex items-center gap-2 px-3 py-1.5 rounded-sm text-white/35 hover:text-aether-cyan transition-colors hover:bg-aether-cyan/[0.04]"
+            className="relative group flex items-center justify-center w-8 h-8 rounded-sm text-white/30 hover:text-aether-cyan hover:bg-aether-cyan/[0.04] transition-all"
           >
-            <Eye size={17} />
-            <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <Eye size={16} />
+            <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
               变量
             </span>
           </button>
@@ -75,10 +98,10 @@ export default function ChatHeader({ variables, onOpenReader, onOpenVariables }:
         {onOpenReader && (
           <button
             onClick={onOpenReader}
-            className="relative group flex items-center gap-2 px-3 py-1.5 rounded-sm text-white/50 hover:text-aether-cyan transition-colors hover:bg-aether-cyan/[0.06]"
+            className="relative group flex items-center justify-center w-8 h-8 rounded-sm text-white/40 hover:text-aether-cyan hover:bg-aether-cyan/[0.04] transition-all"
           >
-            <BookOpen size={17} />
-            <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <BookOpen size={16} />
+            <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
               阅读
             </span>
           </button>
