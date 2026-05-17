@@ -30,6 +30,7 @@ import {
 } from '../sillytavern/database';
 import { createDefaultLorebook } from '../sillytavern/editor-utils';
 import { createDefaultPreset } from '../sillytavern/types';
+import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 
 const db = getDatabase();
 
@@ -100,7 +101,7 @@ export function useSillytavern() {
         userName: settings?.userName ?? DEFAULT_SETTINGS.userName,
         presetId: options?.presetId ?? settings?.activePresetId ?? null,
         lorebookIds: options?.lorebookIds ?? settings?.activeLorebookIds ?? [],
-        variables: {},
+        variables: JSON.parse(JSON.stringify(DEFAULT_WORLD_VARS)),
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };

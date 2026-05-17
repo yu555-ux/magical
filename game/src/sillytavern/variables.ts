@@ -26,11 +26,25 @@ export function mergeVariables(
   return { ...base, ...updates };
 }
 
-export function formatVariablesForPrompt(variables: Record<string, string | number>): string {
-  const entries = Object.entries(variables);
-  if (entries.length === 0) return '';
-  const lines = entries.map(([k, v]) => `${k}: ${v}`);
+export function formatVariablesForPrompt(variables: Record<string, any>): string {
+  if (!variables || Object.keys(variables).length === 0) return '';
+  const lines: string[] = [];
+  treeFormat(variables, lines, 0);
   return `[当前状态]\n${lines.join('\n')}`;
+}
+
+function treeFormat(obj: Record<string, any>, lines: string[], depth: number) {
+  const indent = '  '.repeat(depth);
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      lines.push(`${indent}${key}:`);
+      treeFormat(value, lines, depth + 1);
+    } else if (Array.isArray(value)) {
+      lines.push(`${indent}${key}: [${value.join(', ')}]`);
+    } else {
+      lines.push(`${indent}${key}: ${value}`);
+    }
+  }
 }
 
 export const USER_ROLE = 'user' as const;
