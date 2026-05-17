@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, ChevronRight, Clock, X, Send } from 'lucide-react';
 import ChatHeader from './ChatHeader';
+import PlotReaderModal from './PlotReaderModal';
 import { useSillytavern } from '../../../hooks/useSillytavern';
 
 export default function ChatPage({
@@ -19,6 +20,7 @@ export default function ChatPage({
   const [thinkingOpen, setThinkingOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [readerOpen, setReaderOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [location] = useState('新东京枢纽');
   const [weather] = useState({ icon: '晴', temp: 22, humidity: 45 });
@@ -109,7 +111,7 @@ export default function ChatPage({
         <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-aether-cyan/20 pointer-events-none z-20" />
         <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-aether-cyan/20 pointer-events-none z-20" />
 
-        <ChatHeader currentTime={currentTime} location={location} weather={weather} />
+        <ChatHeader currentTime={currentTime} location={location} weather={weather} onOpenReader={() => setReaderOpen(true)} />
 
         {/* ── Toolbar ── */}
         <div className="flex items-center gap-3 px-5 py-2 border-b border-aether-border/15 shrink-0">
@@ -355,6 +357,13 @@ export default function ChatPage({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Plot Reader Modal ── */}
+      <PlotReaderModal
+        isOpen={readerOpen}
+        onClose={() => setReaderOpen(false)}
+        messages={ss.activeChat?.messages ?? []}
+      />
     </div>
   );
 }
