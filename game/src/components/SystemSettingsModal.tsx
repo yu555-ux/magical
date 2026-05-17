@@ -99,6 +99,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
   // ── lorebook list (live from DB) ──
   const [lorebookList, setLorebookList] = useState<Lorebook[]>([]);
   const [lorebookActiveIds, setLorebookActiveIds] = useState<Set<string>>(new Set());
+  const [expandedLorebookId, setExpandedLorebookId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && ss.initialized) {
@@ -423,78 +424,162 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                       <div className="space-y-2">
                         {lorebookList.map((lb) => {
                           const isActive = lorebookActiveIds.has(lb.id);
+                          const isExpanded = expandedLorebookId === lb.id;
                           return (
-                            <motion.div
-                              key={lb.id}
-                              initial={{ opacity: 0, y: 4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className={`relative flex items-center gap-3 px-4 py-3 rounded-lg border transition-all group ${
-                                isActive
-                                  ? 'border-aether-cyan/30 bg-aether-cyan/[0.04] shadow-[0_0_12px_rgba(0,242,255,0.04)]'
-                                  : 'border-aether-border/20 bg-aether-dark/30 hover:border-aether-border/40'
-                              }`}
-                            >
-                              {/* Active indicator */}
-                              {isActive && (
-                                <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-aether-cyan rounded-r-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
-                              )}
-
-                              {/* Checkbox */}
-                              <button
-                                onClick={() => {
-                                  ss.toggleLorebook(lb.id);
-                                  setLorebookActiveIds((prev) => {
-                                    const next = new Set(prev);
-                                    next.has(lb.id) ? next.delete(lb.id) : next.add(lb.id);
-                                    return next;
-                                  });
-                                }}
-                                className={`relative w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                            <React.Fragment key={lb.id}>
+                              <motion.div
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className={`relative rounded-lg border transition-all group cursor-pointer ${
                                   isActive
-                                    ? 'border-aether-cyan bg-aether-cyan/20 shadow-[0_0_8px_rgba(0,242,255,0.3)]'
-                                    : 'border-white/15 bg-transparent group-hover:border-white/30'
+                                    ? 'border-aether-cyan/30 bg-aether-cyan/[0.04] shadow-[0_0_12px_rgba(0,242,255,0.04)]'
+                                    : 'border-aether-border/20 bg-aether-dark/30 hover:border-aether-border/40'
                                 }`}
                               >
+                                {/* Active indicator */}
                                 {isActive && (
-                                  <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    className="w-2.5 h-2.5 bg-aether-cyan rounded-sm"
-                                  />
+                                  <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-aether-cyan rounded-r-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
                                 )}
-                              </button>
 
-                              {/* Info */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-sm font-display font-medium tracking-wide truncate ${isActive ? 'text-white/80' : 'text-white/50'}`}>
-                                    {lb.name}
-                                  </span>
-                                  <StatPill count={lb.entries.length} />
+                                <div className="flex items-center gap-3 px-4 py-3">
+                                  {/* Checkbox */}
+                                  <button
+                                    onClick={(ev) => {
+                                      ev.stopPropagation();
+                                      ss.toggleLorebook(lb.id);
+                                      setLorebookActiveIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.has(lb.id) ? next.delete(lb.id) : next.add(lb.id);
+                                        return next;
+                                      });
+                                    }}
+                                    className={`relative w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                      isActive
+                                        ? 'border-aether-cyan bg-aether-cyan/20 shadow-[0_0_8px_rgba(0,242,255,0.3)]'
+                                        : 'border-white/15 bg-transparent group-hover:border-white/30'
+                                    }`}
+                                  >
+                                    {isActive && (
+                                      <motion.div
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        className="w-2.5 h-2.5 bg-aether-cyan rounded-sm"
+                                      />
+                                    )}
+                                  </button>
+
+                                  {/* Info */}
+                                  <div
+                                    className="flex-1 min-w-0"
+                                    onClick={() => setExpandedLorebookId(isExpanded ? null : lb.id)}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-sm font-display font-medium tracking-wide truncate ${isActive ? 'text-white/80' : 'text-white/50'}`}>
+                                        {lb.name}
+                                      </span>
+                                      <StatPill count={lb.entries.length} />
+                                      <motion.span
+                                        animate={{ rotate: isExpanded ? 90 : 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="text-white/20"
+                                      >
+                                        <ChevronRight size={14} />
+                                      </motion.span>
+                                    </div>
+                                    {lb.description && (
+                                      <p className="text-[11px] text-white/25 truncate mt-0.5">{lb.description}</p>
+                                    )}
+                                    {!isExpanded && lb.entries.length > 0 && (
+                                      <p className="text-[10px] text-white/15 mt-1 truncate">
+                                        {lb.entries.slice(0, 3).map(e => e.comment || e.content.slice(0, 20)).join(' · ')}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {/* Actions (hover reveal) */}
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                                    <button
+                                      onClick={(ev) => {
+                                        ev.stopPropagation();
+                                        handleRenameLorebook(lb);
+                                      }}
+                                      className="p-1.5 rounded text-white/25 hover:text-aether-cyan hover:bg-aether-cyan/10 transition-all"
+                                      title="重命名"
+                                    >
+                                      <Pencil size={13} />
+                                    </button>
+                                    <button
+                                      onClick={(ev) => {
+                                        ev.stopPropagation();
+                                        handleDeleteLorebook(lb);
+                                      }}
+                                      className="p-1.5 rounded text-white/25 hover:text-aether-red hover:bg-aether-red/10 transition-all"
+                                      title="删除"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
                                 </div>
-                                {lb.description && (
-                                  <p className="text-[11px] text-white/25 truncate mt-0.5">{lb.description}</p>
-                                )}
-                              </div>
+                              </motion.div>
 
-                              {/* Actions (hover reveal) */}
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={() => handleRenameLorebook(lb)}
-                                  className="p-1.5 rounded text-white/25 hover:text-aether-cyan hover:bg-aether-cyan/10 transition-all"
-                                  title="重命名"
-                                >
-                                  <Pencil size={13} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteLorebook(lb)}
-                                  className="p-1.5 rounded text-white/25 hover:text-aether-red hover:bg-aether-red/10 transition-all"
-                                  title="删除"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </div>
-                            </motion.div>
+                              {/* Expanded entries */}
+                              <AnimatePresence initial={false}>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="ml-8 mr-2 mb-3 space-y-2 border-l border-aether-border/20 pl-4 pt-2">
+                                      {lb.entries.length === 0 ? (
+                                        <p className="text-[12px] text-white/20 py-4 text-center">暂无条目</p>
+                                      ) : (
+                                        lb.entries.map((entry, idx) => (
+                                          <div
+                                            key={entry.id}
+                                            className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3 hover:border-aether-border/30 transition-all"
+                                          >
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <span className="text-[10px] text-white/20 font-mono">#{idx + 1}</span>
+                                              <span className="text-[13px] font-display font-medium text-white/60 truncate flex-1">
+                                                {entry.comment || entry.content.slice(0, 40) || '(未命名)'}
+                                              </span>
+                                              {entry.constant && (
+                                                <span className="text-[9px] bg-aether-purple/20 text-aether-purple px-1.5 py-0.5 rounded-full font-mono">常驻</span>
+                                              )}
+                                              {entry.selective && (
+                                                <span className="text-[9px] bg-aether-blue/20 text-aether-blue px-1.5 py-0.5 rounded-full font-mono">选择性</span>
+                                              )}
+                                              {entry.useProbability && (
+                                                <span className="text-[9px] bg-aether-gold/20 text-aether-gold px-1.5 py-0.5 rounded-full font-mono">{entry.probability}%</span>
+                                              )}
+                                            </div>
+                                            {entry.keys.length > 0 && (
+                                              <div className="flex flex-wrap gap-1 mb-2">
+                                                {entry.keys.map((k, i) => (
+                                                  <span key={i} className="text-[10px] bg-aether-cyan/10 text-aether-cyan/70 border border-aether-cyan/20 px-1.5 py-0.5 rounded font-mono">
+                                                    {k}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            )}
+                                            <p className="text-[12px] text-white/35 leading-relaxed line-clamp-4 whitespace-pre-wrap">
+                                              {entry.content}
+                                            </p>
+                                            <div className="flex items-center gap-3 mt-2 text-[10px] text-white/15">
+                                              <span>位置: {entry.position}</span>
+                                              <span>优先级: {entry.order}</span>
+                                            </div>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </React.Fragment>
                           );
                         })}
                       </div>
