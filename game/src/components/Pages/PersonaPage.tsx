@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
   MOCK_SKILLS,
@@ -148,7 +148,7 @@ export default function PersonaPage() {
   const age: number = vars?.年龄 ?? 0;
 
   const money = vars?.资源?.金钱;
-  const超凡 = vars?.资源?.超凡资源;
+  const超凡资源 = vars?.资源?.超凡资源;
 
   return (
     <main className="h-full overflow-y-auto px-4 md:px-12 py-8 space-y-20 scroll-smooth">
@@ -193,7 +193,7 @@ export default function PersonaPage() {
               </span>
             </div>
           )}
-          {超凡 && Object.entries(超凡 as Record<string, number>).map(([k, v]) => (
+          {超凡资源 && Object.entries(超凡资源 as Record<string, number>).map(([k, v]) => (
             <div key={k} className="flex items-center gap-2.5">
               <span className="text-[11px] text-white/40 font-mono tracking-wide">{k}</span>
               <span className="font-display text-sm font-bold text-aether-gold tabular-nums">
@@ -206,14 +206,14 @@ export default function PersonaPage() {
         {/* stat bars */}
         <div className="space-y-4 w-full">
           {bars.map((bar, i) => (
-            <StatBar key={bar.name} label={bar.name} current={bar.current} max={bar.max} color={bar.color} delay={0.2 + i * 0.1} />
+            <React.Fragment key={bar.name}><StatBar label={bar.name} current={bar.current} max={bar.max} color={bar.color} delay={0.2 + i * 0.1} /></React.Fragment>
           ))}
         </div>
 
         {/* attribute cards — 2 rows × 3 cols */}
         <div className="grid grid-cols-3 gap-3 w-full mt-2">
           {stats.map((stat) => (
-            <AttrCard key={stat.name} name={stat.name} value={stat.value} accent={stat.accent} />
+            <React.Fragment key={stat.name}><AttrCard name={stat.name} value={stat.value} accent={stat.accent} /></React.Fragment>
           ))}
         </div>
       </motion.section>
