@@ -161,6 +161,9 @@ export default function PersonaPage() {
   const 超凡资源 = protagonist?.资源?.超凡资源;
   const skills = protagonist?.技能 ?? {};
 
+  const PROFICIENCY_STAGES = ['初窥', '粗浅', '掌握', '熟练', '小成', '入门', '精进', '深谙', '登峰', '造极'];
+  const getStage = (proficiency: number) => PROFICIENCY_STAGES[Math.min(Math.floor(proficiency / 100), 9)];
+
   const SKILL_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string }> = {
     灭世: { text: 'text-red-400',   border: 'border-red-400/50',   glow: 'shadow-[0_0_16px_rgba(239,68,68,0.4)]',   bg: 'bg-red-400/10' },
     夷地: { text: 'text-rose-400',  border: 'border-rose-400/50',  glow: 'shadow-[0_0_14px_rgba(251,113,133,0.4)]', bg: 'bg-rose-400/10' },
@@ -291,7 +294,7 @@ export default function PersonaPage() {
                     {skillName}
                   </h3>
                   <div className="mt-2 flex items-center gap-3 text-[10px]">
-                    <span className="text-aether-blue/50 font-mono">熟练 {skillData?.熟练度 ?? 0}/999</span>
+                    <span className="text-aether-blue/50 font-mono">{getStage(skillData?.熟练度 ?? 0)} · {skillData?.熟练度 ?? 0}/999</span>
                     {skillData?.消耗能量 > 0 && (
                       <span className="text-aether-cyan/50 font-mono">消耗 {skillData.消耗能量} 能量</span>
                     )}
@@ -372,14 +375,30 @@ export default function PersonaPage() {
           const rank = selectedSkill?.等级 || '微尘';
           const rs = SKILL_RANK_STYLES[rank] || SKILL_RANK_STYLES['微尘'];
           const branches = selectedSkill?.分支 || {};
+          const prof = selectedSkill?.熟练度 ?? 0;
+          const stage = getStage(prof);
           return (
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div className="flex items-start justify-between border-b border-white/10 pb-4">
               <div>
                 <h3 className="text-2xl font-display font-bold text-aether-cyan">{selectedSkill.name}</h3>
-                <p className="text-[10px] font-mono text-white/30 tracking-wider mt-0.5">熟练度 {selectedSkill?.熟练度 ?? 0} / 999</p>
+                <p className="text-[11px] font-mono text-aether-cyan/50 tracking-wider mt-1">
+                  消耗 {selectedSkill?.消耗能量 ?? 0} 能量
+                </p>
               </div>
-              <span className={`px-3 py-1 text-xs font-bold font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>{rank}</span>
+              <div className="flex items-center gap-2">
+                <div className="relative group" title={`${prof} / 999`}>
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border border-aether-blue/40 bg-aether-blue/10 text-aether-blue cursor-default">
+                    {stage}
+                  </span>
+                  <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-mono tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    {prof} / 999
+                  </span>
+                </div>
+                <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
+                  {rank}
+                </span>
+              </div>
             </div>
             <div className="space-y-4">
               {selectedSkill?.描述 && (
@@ -400,16 +419,6 @@ export default function PersonaPage() {
                   <p className="text-sm tracking-wide text-aether-red/80">{selectedSkill.副作用}</p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3 text-[10px] font-mono">
-                <div className="p-3 bg-black/40 border border-white/5">
-                  <span className="text-aether-blue/60 uppercase tracking-wider">消耗能量</span>
-                  <p className="text-white/70 mt-0.5">{selectedSkill?.消耗能量 ?? 0}</p>
-                </div>
-                <div className="p-3 bg-black/40 border border-white/5">
-                  <span className="text-aether-blue/60 uppercase tracking-wider">等级</span>
-                  <p className={`mt-0.5 font-bold ${rs.text}`}>{rank}</p>
-                </div>
-              </div>
               {Object.keys(branches).length > 0 && (
                 <div>
                   <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-3 font-mono">分支</h4>
