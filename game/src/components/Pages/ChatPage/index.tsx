@@ -64,7 +64,7 @@ export default function ChatPage({
     : (latestAssistant?.parsed?.maintext ?? latestAssistant?.content ?? '');
 
   // Clean and cap options: strip "N|" prefix, limit to 5
-  const cleanOption = (raw: string) => raw.replace(/^\d+\s*[||｜]\s*/, '');
+  const cleanOption = (raw: string) => raw.replace(/^[^|｜]*[|｜]\s*/, '');
   const rawOptions = isStreaming
     ? ss.streamState.options
     : (latestAssistant?.parsed?.options ?? []);
