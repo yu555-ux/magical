@@ -46,9 +46,6 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             <div className="p-6 max-h-[70vh] overflow-y-auto">
               {children}
             </div>
-            <div className="absolute bottom-0 right-0 p-1 opacity-20">
-              <Info size={40} className="text-aether-cyan" />
-            </div>
           </motion.div>
         </div>
       )}
