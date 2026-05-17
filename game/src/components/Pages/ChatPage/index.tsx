@@ -60,9 +60,16 @@ export default function ChatPage({
   const maintext = isStreaming
     ? ss.streamState.maintext
     : (latestAssistant?.parsed?.maintext ?? latestAssistant?.content ?? '');
-  const options = isStreaming
+
+  // Clean and cap options: strip "N|" prefix, limit to 5
+  const cleanOption = (raw: string) => raw.replace(/^\d+\s*[||｜]\s*/, '');
+  const rawOptions = isStreaming
     ? ss.streamState.options
     : (latestAssistant?.parsed?.options ?? []);
+  const options = useMemo(
+    () => rawOptions.map(cleanOption).slice(0, 5),
+    [rawOptions]
+  );
 
   // History messages (all messages before latest assistant, not including user either)
   const historyMessages = useMemo(() => {
@@ -253,18 +260,13 @@ export default function ChatPage({
                     : isFocused
                       ? 'border-aether-cyan/50 shadow-[0_0_24px_rgba(0,242,255,0.1)] bg-aether-cyan/[0.06] text-aether-cyan/60'
                       : 'border-white/10 bg-aether-glass/40 text-white/25 hover:text-aether-cyan/45 hover:bg-aether-cyan/[0.03] hover:border-white/15 rounded-sm'
-                } ${options.length > 0 && !optionsOpen ? 'shadow-[0_0_12px_rgba(0,242,255,0.06)]' : ''}`}
+                }`}
               >
                 <motion.div
                   animate={{ rotate: optionsOpen ? 180 : 0 }}
                   transition={{ type: 'spring', damping: 18, stiffness: 200 }}
                   className="w-2.5 h-2.5 border-r border-b border-current rotate-45"
                 />
-                {options.length > 0 && !optionsOpen && (
-                  <span className="ml-2 text-[9px] font-mono text-aether-cyan/30">
-                    {options.length} 个行动选项
-                  </span>
-                )}
               </button>
 
               {/* Input row */}
