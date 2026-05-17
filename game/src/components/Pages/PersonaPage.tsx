@@ -217,12 +217,12 @@ export default function PersonaPage() {
       >
         {/* heading row */}
         <div className="border-l-4 border-aether-cyan pl-6 space-y-3">
-          <span className="font-display text-3xl md:text-4xl font-black tracking-tighter text-white/90">
-            个人信息
-          </span>
-          <p className="text-sm text-white/40 font-display tracking-wide">
-            {age}岁
-          </p>
+          <div className="flex items-baseline gap-2">
+            <span className="font-display text-3xl md:text-4xl font-black tracking-tighter text-white/90">
+              个人信息
+            </span>
+            <span className="text-sm text-white/30 font-display italic tracking-wide">({age}岁)</span>
+          </div>
           <motion.p
             animate={{ textShadow: [
               `0 0 10px ${ratingGlow}60`,
@@ -313,7 +313,7 @@ export default function PersonaPage() {
                       const ps = PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥'];
                       return (
                       <div className="relative group" title={`${skillData?.熟练度 ?? 0} / 999`}>
-                        <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${ps.border} ${ps.bg} ${ps.text} ${ps.glow}`}>
+                        <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${ps.border} ${ps.bg} ${ps.text} ${ps.glow}`}>
                           {stage}
                         </span>
                         <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-mono tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -321,7 +321,7 @@ export default function PersonaPage() {
                         </span>
                       </div>
                     )})()}
-                    <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
+                    <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
                       {rank}
                     </span>
                   </div>
@@ -424,14 +424,14 @@ export default function PersonaPage() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="relative group" title={`${prof} / 999`}>
-                  <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).border} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).bg} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).text} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).glow}`}>
+                  <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).border} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).bg} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).text} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).glow}`}>
                     {stage}
                   </span>
                   <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-mono tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                     {prof} / 999
                   </span>
                 </div>
-                <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
+                <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
                   {rank}
                 </span>
               </div>
