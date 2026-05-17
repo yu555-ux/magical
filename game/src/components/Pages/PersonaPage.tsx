@@ -349,7 +349,7 @@ export default function PersonaPage() {
         const keys = Object.keys(items);
         if (keys.length === 0) return null;
         const catLabel = category;
-        const CatIcon = category === '灵宝' ? Diamond : category === '诡物' ? Shield : Package;
+        const CatIcon = category === '灵宝' ? Diamond : category === '诡物' ? Skull : Package;
         return (
         <React.Fragment key={category}>
           <motion.section
