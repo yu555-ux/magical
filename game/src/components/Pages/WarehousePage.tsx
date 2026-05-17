@@ -8,10 +8,19 @@ type ViewMode = 'grid' | 'list';
 type CatFilter = '全部' | '灵宝' | '诡物' | '物品';
 type WarehouseItem = { name: string; category: string; data: any };
 
+const ITEM_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string; card: string }> = {
+  灭世: { text: 'text-red-400',   border: 'border-red-400/40',   glow: 'shadow-[0_0_20px_rgba(239,68,68,0.45)]',    bg: 'bg-red-400/8',    card: 'border-red-400/30 bg-red-400/[0.05] shadow-[0_0_16px_rgba(239,68,68,0.2)]' },
+  绝域: { text: 'text-rose-400',  border: 'border-rose-400/40',  glow: 'shadow-[0_0_18px_rgba(251,113,133,0.4)]',  bg: 'bg-rose-400/8',   card: 'border-rose-400/30 bg-rose-400/[0.05] shadow-[0_0_14px_rgba(251,113,133,0.18)]' },
+  倾国: { text: 'text-pink-400',  border: 'border-pink-400/40',  glow: 'shadow-[0_0_16px_rgba(244,114,182,0.35)]',  bg: 'bg-pink-400/8',   card: 'border-pink-400/28 bg-pink-400/[0.04] shadow-[0_0_12px_rgba(244,114,182,0.16)]' },
+  祸城: { text: 'text-orange-400',border: 'border-orange-400/40',glow: 'shadow-[0_0_14px_rgba(251,146,60,0.35)]',  bg: 'bg-orange-400/8', card: 'border-orange-400/28 bg-orange-400/[0.04] shadow-[0_0_10px_rgba(251,146,60,0.14)]' },
+  凶煞: { text: 'text-amber-300', border: 'border-amber-400/35', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.3)]',   bg: 'bg-amber-400/8',  card: 'border-amber-400/25 bg-amber-400/[0.04] shadow-[0_0_8px_rgba(251,191,36,0.12)]' },
+  微末: { text: 'text-gray-400',  border: 'border-gray-400/30',  glow: 'shadow-[0_0_6px_rgba(156,163,175,0.15)]',   bg: 'bg-gray-400/5',   card: 'border-gray-400/20 bg-gray-400/[0.02]' },
+};
+
 const CATEGORY_STYLES: Record<string, { border: string; bg: string; text: string }> = {
   灵宝: { border: 'border-aether-cyan/30 hover:border-aether-cyan/50', bg: 'bg-aether-cyan/[0.03]', text: 'text-aether-cyan' },
   诡物: { border: 'border-aether-purple/30 hover:border-aether-purple/50', bg: 'bg-aether-purple/[0.03]', text: 'text-aether-purple' },
-  物品: { border: 'border-aether-gold/20 hover:border-aether-gold/40', bg: 'bg-aether-gold/[0.02]', text: 'text-aether-gold' },
+  物品: { border: 'border-white/[0.06] hover:border-white/[0.12]', bg: 'bg-white/[0.01]', text: 'text-white/60' },
 };
 
 const CatIcon = (cat: string) => cat === '灵宝' ? Diamond : cat === '诡物' ? Skull : Package;
@@ -66,7 +75,7 @@ export default function WarehousePage() {
         className="glass-panel p-3 md:p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between"
       >
         <div>
-          <h2 className="font-display text-lg md:text-xl tracking-[0.2em] text-aether-cyan cyan-glow leading-tight">仓库</h2>
+          <h2 className="font-display text-lg md:text-xl tracking-[0.2em] text-aether-cyan cyan-glow leading-tight">奇物收藏</h2>
           <p className="text-[9px] font-mono text-aether-blue/60 tracking-tight mt-0.5">共 {totalCount} 件</p>
         </div>
 
@@ -142,22 +151,26 @@ export default function WarehousePage() {
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map(item => {
+              const isItem = item.category === '物品';
+              const rank = item.data?.等级 || '';
+              const irs = ITEM_RANK_STYLES[rank] || null;
               const cs = CATEGORY_STYLES[item.category] || CATEGORY_STYLES['物品'];
+              const cardStyle = isItem
+                ? `border ${cs.border} ${cs.bg}`
+                : irs ? `border ${irs.card}` : `border ${cs.border} ${cs.bg}`;
+              const nameColor = isItem ? cs.text : (irs?.text || cs.text);
               return (
                 <motion.button
                   key={item.name}
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
                   whileHover={{ y: -3 }}
-                  className={`relative p-5 glass-panel text-left group transition-colors overflow-hidden clickable border ${cs.border} ${cs.bg}`}
+                  className={`relative p-5 text-left group transition-all overflow-hidden clickable ${cardStyle} hover:brightness-110`}
                 >
-                  <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none opacity-[0.04]">
-                    {(() => { const I = CatIcon(item.category); return <I size={64} className="absolute -top-2 -right-2" />; })()}
-                  </div>
-                  <h3 className={`font-display font-bold text-lg group-hover:text-aether-cyan transition-colors pr-4 truncate ${cs.text}`}>
+                  <h3 className={`font-display font-bold text-lg group-hover:text-aether-cyan transition-colors pr-4 truncate ${nameColor}`}>
                     {item.name}
                     <span className="text-[10px] font-mono text-white/25 ml-2">×{item.data?.数量 ?? 1}</span>
                   </h3>
-                  <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">{item.data?.描述 || ''}</p>
+                  <p className="mt-3 text-xs text-white/45 leading-relaxed line-clamp-2 group-hover:text-white/65 transition-colors">{item.data?.描述 || ''}</p>
                 </motion.button>
               );
             })}
@@ -165,17 +178,24 @@ export default function WarehousePage() {
         ) : (
           <div className="space-y-1.5">
             {filtered.map(item => {
+              const isItem = item.category === '物品';
+              const rank = item.data?.等级 || '';
+              const irs = ITEM_RANK_STYLES[rank] || null;
               const cs = CATEGORY_STYLES[item.category] || CATEGORY_STYLES['物品'];
+              const rowStyle = isItem
+                ? `border ${cs.border} ${cs.bg}`
+                : irs ? `border ${irs.card}` : `border ${cs.border} ${cs.bg}`;
+              const nameColor = isItem ? cs.text : (irs?.text || cs.text);
               return (
                 <motion.button
                   key={item.name}
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
-                  className={`w-full flex items-center gap-4 px-4 py-3 text-left transition-colors clickable border ${cs.border} ${cs.bg}`}
+                  className={`w-full flex items-center gap-4 px-4 py-3 text-left transition-all clickable hover:brightness-110 ${rowStyle}`}
                 >
                   {(() => { const I = CatIcon(item.category); return <I size={16} className="text-white/15 shrink-0" />; })()}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={`font-display font-bold text-sm truncate ${cs.text}`}>{item.name}</span>
+                      <span className={`font-display font-bold text-sm truncate ${nameColor}`}>{item.name}</span>
                       <span className="text-[10px] font-mono text-white/20">×{item.data?.数量 ?? 1}</span>
                     </div>
                     <p className="text-[11px] text-white/30 truncate mt-0.5">{item.data?.描述 || ''}</p>
