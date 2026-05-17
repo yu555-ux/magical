@@ -159,6 +159,9 @@ export interface AppSettings {
   customTags: string[];
   formatPromptTemplate: string;
   thinkingDisplay: 'fold' | 'hide' | 'inline';
+  playerTitle?: string;
+  characterDescription?: string;
+  scenario?: string;
 }
 
 export const DEFAULT_FORMAT_PROMPT = `你必须严格按照以下 XML 标签格式输出回复，不要使用 Markdown 包裹：
