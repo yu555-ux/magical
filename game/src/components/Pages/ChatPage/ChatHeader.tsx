@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Clock, MapPin, CloudSun, BookOpen, Eye, Hourglass } from 'lucide-react';
+import { Clock, MapPin, CloudSun, BookOpen, Eye, Hourglass, Sparkles } from 'lucide-react';
 
 interface ChatHeaderProps {
   variables?: Record<string, any>;
@@ -27,58 +27,55 @@ function getDisplayData(vars: Record<string, any> | undefined) {
 export default function ChatHeader({ variables, onOpenReader, onOpenVariables }: ChatHeaderProps) {
   const display = useMemo(() => getDisplayData(variables), [variables]);
 
-  const realmColor = display.inDream ? 'aether-red' : 'aether-blue';
-  const iconClass = display.inDream ? 'text-aether-red/60' : 'text-aether-blue/60';
-
   return (
-    <div className="px-6 py-3 border-b border-aether-cyan/[0.12] bg-gradient-to-b from-aether-deep/95 to-aether-deep/80 flex items-center shrink-0 relative overflow-hidden">
-      {/* Subtle top glow line */}
-      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/10 to-transparent" />
-
+    <div className={`px-6 py-3 border-b border-aether-cyan/20 shrink-0 relative overflow-hidden transition-colors duration-700 ${
+      display.inDream
+        ? 'bg-gradient-to-r from-aether-purple/[0.06] via-aether-deep/90 to-aether-deep/90'
+        : 'bg-aether-deep/90'
+    }`}>
       {/* ── Left: info group ── */}
       <div className="flex items-center gap-5">
-        {/* Time */}
-        <div className="flex items-center gap-2">
-          <div className={`p-1 rounded ${display.inDream ? 'bg-aether-red/[0.06]' : 'bg-aether-blue/[0.05]'}`}>
-            <Clock size={13} className={iconClass} />
-          </div>
-          <span className="font-display text-[13px] text-white/55 tracking-[0.05em] whitespace-nowrap select-none">
-            {display.time}
-          </span>
+        {/* Dream/Reality indicator pill */}
+        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-display tracking-[0.1em] border transition-colors duration-700 ${
+          display.inDream
+            ? 'text-aether-purple/70 border-aether-purple/25 bg-aether-purple/[0.06]'
+            : 'text-aether-blue/50 border-aether-blue/15 bg-aether-blue/[0.04]'
+        }`}>
+          {display.inDream ? <Sparkles size={10} /> : <Clock size={10} />}
+          {display.inDream ? '梦境' : '现世'}
         </div>
 
-        <div className="w-px h-3 bg-white/[0.06]" />
+        <div className="w-px h-4 bg-aether-border/40" />
+
+        {/* Time */}
+        <div className="flex items-center gap-2">
+          <Clock size={14} className="text-aether-blue/60" />
+          <span className="font-display text-[13px] text-white/55 tracking-[0.05em] whitespace-nowrap">{display.time}</span>
+        </div>
+
+        <div className="w-px h-4 bg-aether-border/40" />
 
         {/* Location */}
         <div className="flex items-center gap-2">
-          <div className={`p-1 rounded ${display.inDream ? 'bg-aether-red/[0.06]' : 'bg-aether-blue/[0.05]'}`}>
-            <MapPin size={13} className={iconClass} />
-          </div>
-          <span className="font-display text-[13px] text-white/60 tracking-[0.04em] max-w-[180px] truncate select-none">
-            {display.location}
-          </span>
+          <MapPin size={13} className="text-aether-blue/60" />
+          <span className="font-display text-[13px] text-white/60 tracking-[0.04em] max-w-[200px] truncate">{display.location}</span>
         </div>
 
-        <div className="w-px h-3 bg-white/[0.06]" />
+        <div className="w-px h-4 bg-aether-border/40" />
 
         {/* Weather */}
         <div className="flex items-center gap-2">
-          <div className={`p-1 rounded ${display.inDream ? 'bg-aether-red/[0.06]' : 'bg-aether-blue/[0.05]'}`}>
-            <CloudSun size={13} className={iconClass} />
-          </div>
-          <span className="font-display text-[13px] text-white/50 tracking-[0.04em] max-w-[100px] truncate select-none">
-            {display.weather}
-          </span>
+          <CloudSun size={14} className="text-aether-blue/60" />
+          <span className="font-display text-[13px] text-white/50 tracking-[0.04em] max-w-[120px] truncate">{display.weather}</span>
         </div>
       </div>
 
-      {/* ── Center: countdown pill ── */}
-      <div className="absolute left-1/2 -translate-x-1/2">
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.06]">
-          <Hourglass size={11} className="text-white/20" />
-          <span className="text-[10px] text-white/20 font-display tracking-[0.12em] uppercase">{display.countdownLabel}</span>
-          <span className="font-mono text-[12px] text-white/40 tracking-[0.04em]">{display.countdown}</span>
-        </div>
+      {/* ── Center: countdown ── */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+        <Hourglass size={13} className="text-white/25" />
+        <span className="font-display text-[13px] text-white/35 tracking-[0.06em] whitespace-nowrap">
+          {display.countdownLabel} {display.countdown}
+        </span>
       </div>
 
       {/* ── Right: buttons ── */}
