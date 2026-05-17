@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { Modal } from '../Feedback';
 import type { Skill, Item } from '../../types';
-import { getDatabase } from '../../sillytavern/database';
 
 /* ==============================================================
    TYPE / CONSTANT HELPERS
@@ -118,33 +117,20 @@ function AttrCard({ name, value, accent }: { name: string; value: number; accent
 /* ==============================================================
    MAIN COMPONENT
    ============================================================== */
-export default function PersonaPage() {
+export default function PersonaPage({ variables }: { variables?: Record<string, any> }) {
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [vars, setVars] = useState<Record<string, any>>({});
 
-  // Lightweight read from DB — avoids full useSillytavern hook overhead
-  useEffect(() => {
-    const db = getDatabase();
-    const refresh = async () => {
-      const chats = await db.chats.toArray();
-      const active = chats[chats.length - 1]; // latest chat
-      setVars(active?.variables?.主角 ?? {});
-    };
-    refresh();
-    const interval = setInterval(refresh, 2000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const body = vars?.身体属性 ?? {};
+  const protagonist = variables?.主角 ?? {};
+  const body = protagonist?.身体属性 ?? {};
   const bars = [
     { name: '生命', current: body?.生命?.当前 ?? 0, max: body?.生命?.上限 ?? 100, color: 'bg-red-500' },
     { name: '能量', current: body?.能量?.当前 ?? 0, max: body?.能量?.上限 ?? 100, color: 'bg-cyan-400' },
     { name: 'SAN',  current: body?.SAN?.当前 ?? 0,  max: body?.SAN?.上限 ?? 100,  color: 'bg-aether-green' },
   ];
 
-  const base = vars?.基础属性 ?? {};
-  const spec = vars?.特殊属性 ?? {};
+  const base = protagonist?.基础属性 ?? {};
+  const spec = protagonist?.特殊属性 ?? {};
   const stats = [
     { name: '力量', value: base?.力量 ?? 0, accent: 'text-white group-hover:text-aether-cyan' },
     { name: '体质', value: base?.体质 ?? 0, accent: 'text-white group-hover:text-aether-cyan' },
@@ -154,11 +140,11 @@ export default function PersonaPage() {
     { name: '魅力', value: spec?.魅力 ?? 0, accent: 'text-purple-400 group-hover:text-purple-300' },
   ];
 
-  const rating: string = vars?.评级 || '--';
-  const age: number = vars?.年龄 ?? 0;
+  const rating: string = protagonist?.评级 || '--';
+  const age: number = protagonist?.年龄 ?? 0;
 
-  const money = vars?.资源?.金钱;
-  const超凡资源 = vars?.资源?.超凡资源;
+  const money = protagonist?.资源?.金钱;
+  const超凡资源 = protagonist?.资源?.超凡资源;
 
   return (
     <main className="h-full overflow-y-auto px-4 md:px-12 py-8 space-y-20 scroll-smooth">
