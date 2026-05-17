@@ -141,7 +141,7 @@ export const DEFAULT_WORLD_VARS: Record<string, any> = {
         },
       },
     },
-    奇物: {
+    持有物品: {
       灵宝: {
         以太谐振器: {
           等级: '微末',

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
-  Shield,
+  Skull,
   Database,
   Diamond,
   Package,
@@ -156,7 +156,7 @@ export default function PersonaPage() {
 
   const money = protagonist?.资源?.金钱;
   const 超凡资源 = protagonist?.资源?.超凡资源;
-  const 奇物 = protagonist?.奇物 ?? {};
+  const 持有物品 = protagonist?.持有物品 ?? {};
   const skills = protagonist?.技能 ?? {};
 
   const PROFICIENCY_STAGES = ['初窥', '粗浅', '掌握', '熟练', '小成', '入门', '精进', '深谙', '登峰', '造极'];
@@ -209,6 +209,18 @@ export default function PersonaPage() {
             <span className="font-display text-3xl md:text-4xl font-black tracking-tighter text-white/90">
               个人信息
             </span>
+            <motion.span
+              animate={{ boxShadow: [
+                `0 0 10px ${ratingGlow}40`,
+                `0 0 28px ${ratingGlow}90`,
+                `0 0 10px ${ratingGlow}40`,
+              ] }}
+              transition={{ duration: 2.4, repeat: Infinity }}
+              style={{ borderColor: `${ratingGlow}60` }}
+              className={`inline-block px-6 py-1.5 border ${ratingStyle.text} ${ratingStyle.bg} font-display font-black text-3xl md:text-4xl tracking-tighter italic min-w-[80px] text-center rounded-lg skew-x-[-6deg]`}
+            >
+              <span className="inline-block skew-x-[6deg]">{rating}</span>
+            </motion.span>
           </div>
           <p className="text-sm text-white/40 font-display tracking-wide">
             {age}岁
@@ -222,25 +234,11 @@ export default function PersonaPage() {
           ))}
         </div>
 
-        {/* Rating + attribute cards */}
-        <div className="flex gap-4">
-          <motion.div
-            animate={{ boxShadow: [
-              `0 0 10px ${ratingGlow}40`,
-              `0 0 28px ${ratingGlow}90`,
-              `0 0 10px ${ratingGlow}40`,
-            ] }}
-            transition={{ duration: 2.4, repeat: Infinity }}
-            style={{ borderColor: `${ratingGlow}60` }}
-            className={`shrink-0 w-24 h-24 flex items-center justify-center border ${ratingStyle.text} ${ratingStyle.bg} rounded-xl`}
-          >
-            <span className={`font-display font-black text-2xl tracking-tighter italic ${ratingStyle.text}`}>{rating}</span>
-          </motion.div>
-          <div className="flex-1 grid grid-cols-3 gap-3">
-            {stats.map((stat) => (
-              <React.Fragment key={stat.name}><AttrCard name={stat.name} value={stat.value} accent={stat.accent} /></React.Fragment>
-            ))}
-          </div>
+        {/* attribute cards — 2 rows × 3 cols */}
+        <div className="grid grid-cols-3 gap-3 w-full mt-2">
+          {stats.map((stat) => (
+            <React.Fragment key={stat.name}><AttrCard name={stat.name} value={stat.value} accent={stat.accent} /></React.Fragment>
+          ))}
         </div>
 
         {/* currency strip */}
@@ -285,7 +283,7 @@ export default function PersonaPage() {
           <div className="w-8 h-8 border border-aether-cyan/40 flex items-center justify-center shrink-0">
             <Database size={16} className="text-aether-cyan" />
           </div>
-          <h2 className="font-display text-xl tracking-widest uppercase text-white/90">掌握技能</h2>
+          <h2 className="font-display text-xl tracking-widest uppercase text-white/90">技能</h2>
           <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
         </div>
 
@@ -347,19 +345,13 @@ export default function PersonaPage() {
           SECTION 3 — 所持物品
           ============================================================ */}
       {(['灵宝', '诡物', '物品'] as const).map((category) => {
-        const items = 奇物?.[category] ?? {};
+        const items = 持有物品?.[category] ?? {};
         const keys = Object.keys(items);
         if (keys.length === 0) return null;
         const catLabel = category;
         const CatIcon = category === '灵宝' ? Diamond : category === '诡物' ? Shield : Package;
         return (
         <React.Fragment key={category}>
-          <div className="flex items-center gap-4 opacity-30">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent" />
-            <Diamond size={12} className="text-aether-cyan rotate-45" />
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent" />
-          </div>
-
           <motion.section
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
