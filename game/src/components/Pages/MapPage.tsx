@@ -152,7 +152,12 @@ function flattenTree(nodes: MapLocationRender[], parentPath: string[], parentNam
 export default function MapPage() {
   const mapTree = useMemo(() => {
     const raw = DEFAULT_WORLD_VARS.地图;
-    return adaptMapTree(raw as Record<string, any>);
+    const adapted = adaptMapTree(raw as Record<string, any>);
+    // 蓝星 IS the infinite background — use its children as the top-level view
+    if (adapted.length === 1 && adapted[0].key === '蓝星') {
+      return adapted[0].children;
+    }
+    return adapted;
   }, []);
 
   // Flat list for global search
@@ -363,19 +368,27 @@ export default function MapPage() {
       {/* ===== Search ===== */}
       <div className="absolute top-6 right-6 z-20">
         <div className="relative">
-          <div className="glass-panel flex items-center gap-1.5 px-3 py-1.5">
-            <Search size={12} className="text-aether-cyan/40 shrink-0" />
+          <div
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg border"
+            style={{
+              background: 'rgba(6,8,14,0.95)',
+              borderColor: searchOpen && searchQuery ? 'rgba(0,242,255,0.3)' : 'rgba(255,255,255,0.08)',
+              boxShadow: searchOpen && searchQuery ? '0 0 16px rgba(0,242,255,0.08)' : 'none',
+              transition: 'border-color 0.3s, box-shadow 0.3s',
+            }}
+          >
+            <Search size={14} className="text-aether-cyan/50 shrink-0" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
               onFocus={() => setSearchOpen(true)}
               placeholder="搜索全部地图..."
-              className="bg-transparent text-[11px] font-mono text-white/70 placeholder:text-white/20 outline-none w-32 focus:w-44 transition-all duration-300"
+              className="bg-transparent text-[12px] font-mono text-white/80 placeholder:text-white/20 outline-none w-44 focus:w-56 transition-all duration-300"
             />
             {searchQuery && (
-              <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }} className="text-white/20 hover:text-white/50 transition-colors">
-                <X size={11} />
+              <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }} className="text-white/20 hover:text-white/60 transition-colors">
+                <X size={13} />
               </button>
             )}
           </div>
@@ -387,7 +400,7 @@ export default function MapPage() {
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className="absolute top-full right-0 mt-1.5 w-72 max-h-72 overflow-y-auto custom-scrollbar rounded-lg border"
+                className="absolute top-full right-0 mt-2 w-80 max-h-80 overflow-y-auto custom-scrollbar rounded-lg border"
                 style={{
                   background: 'rgba(8,10,16,0.98)',
                   borderColor: 'rgba(0,242,255,0.12)',

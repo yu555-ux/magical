@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronDown, ChevronRight, Eye, Pencil, Check, Trash2, Plus } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Eye, Pencil, Check, Trash2, Plus, Search } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -9,14 +9,58 @@ interface Props {
   onSave: (vars: Record<string, any>) => void;
 }
 
-// Hide these fields from the viewer (managed internally)
 const HIDDEN_KEYS = new Set<string>();
 
 type EditTarget = { path: string[]; key: string; value: string } | null;
 
+/* ===== Flatten for search ===== */
+interface FlatVarEntry {
+  path: string[];
+  key: string;
+  value: any;
+}
+
+function flattenVars(obj: Record<string, any>, parentPath: string[]): FlatVarEntry[] {
+  const result: FlatVarEntry[] = [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (HIDDEN_KEYS.has(k)) continue;
+    const p = [...parentPath, k];
+    result.push({ path: parentPath, key: k, value: v });
+    if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+      result.push(...flattenVars(v, p));
+    }
+  }
+  return result;
+}
+
 export default function VariableViewerModal({ isOpen, onClose, variables, onSave }: Props) {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set(['世界']));
   const [editing, setEditing] = useState<EditTarget>(null);
+  const [search, setSearch] = useState('');
+
+  // Flattened list for search
+  const flatList = useMemo(() => flattenVars(variables, []), [variables]);
+
+  const searchResults = useMemo(() => {
+    if (!search.trim()) return null;
+    const q = search.trim().toLowerCase();
+    return flatList.filter((e) => e.key.toLowerCase().includes(q)).slice(0, 30);
+  }, [flatList, search]);
+
+  // On search result click: expand all ancestor paths and scroll to the key
+  const handleSearchSelect = (entry: FlatVarEntry) => {
+    const newExpanded = new Set(expandedPaths);
+    // Expand all ancestor paths
+    for (let i = 0; i < entry.path.length; i++) {
+      newExpanded.add(entry.path.slice(0, i + 1).join('.'));
+    }
+    // Also expand the entry itself if it's an object
+    if (entry.value !== null && typeof entry.value === 'object' && !Array.isArray(entry.value)) {
+      newExpanded.add([...entry.path, entry.key].join('.'));
+    }
+    setExpandedPaths(newExpanded);
+    setSearch('');
+  };
 
   const toggleExpand = (path: string) => {
     setExpandedPaths(prev => {
@@ -102,7 +146,7 @@ export default function VariableViewerModal({ isOpen, onClose, variables, onSave
           animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[560px] max-h-[80vh] glass-panel border-glow overflow-hidden flex flex-col"
+          className="relative w-full max-w-[600px] max-h-[82vh] glass-panel border-glow overflow-hidden flex flex-col"
         >
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/40 to-transparent" />
 
@@ -120,22 +164,83 @@ export default function VariableViewerModal({ isOpen, onClose, variables, onSave
             </button>
           </div>
 
+          {/* Search bar */}
+          <div className="shrink-0 px-5 pt-3 pb-2">
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border transition-all"
+              style={{
+                background: 'rgba(6,8,14,0.6)',
+                borderColor: search ? 'rgba(0,242,255,0.3)' : 'rgba(255,255,255,0.06)',
+                boxShadow: search ? '0 0 12px rgba(0,242,255,0.06)' : 'none',
+              }}
+            >
+              <Search size={14} className="text-aether-cyan/40 shrink-0" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="搜索变量名..."
+                className="bg-transparent text-[12px] font-mono text-white/70 placeholder:text-white/20 outline-none flex-1"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="text-white/20 hover:text-white/50 transition-colors">
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5">
-            <TreeNode
-              data={variables}
-              path={[]}
-              depth={0}
-              expandedPaths={expandedPaths}
-              onToggle={toggleExpand}
-              editing={editing}
-              onStartEdit={startEdit}
-              onSaveEdit={saveEdit}
-              onDelete={deleteKey}
-              onAdd={addKey}
-              onToggleBool={toggleBool}
-              hiddenKeys={HIDDEN_KEYS}
-            />
+          <div className="flex-1 overflow-y-auto px-5 pb-5">
+            {searchResults ? (
+              /* Search results — flat list with paths */
+              searchResults.length === 0 ? (
+                <p className="text-[11px] text-white/20 font-mono text-center py-8">
+                  未找到匹配 "{search}" 的变量
+                </p>
+              ) : (
+                <div className="space-y-0.5 pt-1">
+                  {searchResults.map((entry) => (
+                    <button
+                      key={[...entry.path, entry.key].join('.')}
+                      onClick={() => handleSearchSelect(entry)}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-white/[0.04] transition-colors flex items-center gap-2.5 group"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-aether-cyan/40 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[12px] font-mono text-white/70 font-semibold">{entry.key}</span>
+                        {entry.path.length > 0 && (
+                          <span className="text-[9px] font-mono text-white/20 ml-2">
+                            {entry.path.join(' › ')}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-mono text-white/30 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {typeof entry.value === 'object' && entry.value !== null && !Array.isArray(entry.value)
+                          ? '{…}'
+                          : String(entry.value).slice(0, 20)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : (
+              /* Normal tree view */
+              <TreeNode
+                data={variables}
+                path={[]}
+                depth={0}
+                expandedPaths={expandedPaths}
+                onToggle={toggleExpand}
+                editing={editing}
+                onStartEdit={startEdit}
+                onSaveEdit={saveEdit}
+                onDelete={deleteKey}
+                onAdd={addKey}
+                onToggleBool={toggleBool}
+                hiddenKeys={HIDDEN_KEYS}
+              />
+            )}
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/20 to-transparent" />
@@ -194,7 +299,6 @@ function TreeNode({
               {/* Value (non-object) */}
               {!isObject && (
                 typeof value === 'boolean' ? (
-                  /* Boolean toggle */
                   <button
                     onClick={() => onToggleBool(path, key)}
                     className={`relative ml-2 w-8 h-4 rounded-full transition-colors ${
