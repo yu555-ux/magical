@@ -247,6 +247,7 @@ export default function SocialPage() {
           <AnimatePresence>
             {hoveredNode && hoverProfile && (
               <motion.div
+                key={hoveredNode.id}
                 initial={{ opacity: 0, y: 10, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.94 }}
                 transition={{ type: 'spring', damping: 22, stiffness: 340, mass: 0.6 }}
                 className="absolute z-50 pointer-events-none"
@@ -272,16 +273,15 @@ export default function SocialPage() {
                       {hoveredNode.name}
                     </p>
 
-                    {/* Affection / Friendliness bar */}
-                    <div className="space-y-1.5 mb-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-mono text-white/28 tracking-[0.08em] uppercase">
-                          {isFemaleHover ? '好感' : '友善'}
-                        </span>
-                        <span className="text-[12px] font-mono font-bold tracking-tight" style={{ color: isFemaleHover ? affStage!.color : NODE_COLOR }}>
-                          {hoverAffection}
-                        </span>
+                    {/* Affection — stage name as hero */}
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-[9px] font-mono text-white/28 tracking-[0.08em] uppercase">{isFemaleHover ? '好感' : '友善'}</span>
+                        {affStage && (
+                          <span className="text-lg font-display font-bold tracking-wider" style={{ color: affStage.color, textShadow: `0 0 14px ${affStage.color}25` }}>{affStage.name}</span>
+                        )}
                       </div>
+                      <span className="text-[10px] font-mono tracking-tight" style={{ color: isFemaleHover ? affStage!.color : NODE_COLOR, opacity: 0.5 }}>{hoverAffection}</span>
                       <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
                         <motion.div
                           initial={{ width: 0 }} animate={{ width: `${Math.abs(hoverAffection) / 200 * 100}%` }}
@@ -289,20 +289,16 @@ export default function SocialPage() {
                           className="h-full rounded-full"
                           style={{ background: `linear-gradient(90deg, ${isFemaleHover ? affStage!.color : NODE_COLOR}60, ${isFemaleHover ? affStage!.color : NODE_COLOR})`, boxShadow: `0 0 6px ${isFemaleHover ? affStage!.color : NODE_COLOR}30` }} />
                       </div>
-                      {affStage && (
-                        <span className="text-[9px] font-mono tracking-[0.06em]" style={{ color: affStage.color, opacity: 0.7 }}>{affStage.name}</span>
-                      )}
                     </div>
 
-                    {/* Corruption bar (female only) */}
+                    {/* Corruption — stage name as hero (female only) */}
                     {isFemaleHover && hoverCorruption !== undefined && (
-                      <div className="space-y-1.5 pt-2 border-t border-white/[0.04]">
-                        <div className="flex items-center justify-between">
+                      <div className="space-y-2 pt-2 border-t border-white/[0.04]">
+                        <div className="flex items-baseline justify-between gap-2">
                           <span className="text-[9px] font-mono text-white/28 tracking-[0.08em] uppercase">堕落</span>
-                          <span className="text-[12px] font-mono font-bold tracking-tight" style={{ color: corrStage!.color }}>
-                            {hoverCorruption}
-                          </span>
+                          <span className="text-lg font-display font-bold tracking-wider" style={{ color: corrStage!.color, textShadow: `0 0 14px ${corrStage!.color}25` }}>{corrStage!.name}</span>
                         </div>
+                        <span className="text-[10px] font-mono tracking-tight" style={{ color: corrStage!.color, opacity: 0.5 }}>{hoverCorruption}</span>
                         <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
                           <motion.div
                             initial={{ width: 0 }} animate={{ width: `${hoverCorruption / 500 * 100}%` }}
@@ -310,7 +306,6 @@ export default function SocialPage() {
                             className="h-full rounded-full"
                             style={{ background: `linear-gradient(90deg, ${corrStage!.color}50, ${corrStage!.color})`, boxShadow: `0 0 6px ${corrStage!.color}25` }} />
                         </div>
-                        <span className="text-[9px] font-mono tracking-[0.06em]" style={{ color: corrStage!.color, opacity: 0.7 }}>{corrStage!.name}</span>
                       </div>
                     )}
                   </div>
