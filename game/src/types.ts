@@ -4,7 +4,6 @@ export enum PageType {
   WAREHOUSE = 'WAREHOUSE',
   MAP = 'MAP',
   SOCIAL = 'SOCIAL',
-  TAVERN = 'TAVERN',
 }
 
 export interface Attribute {

@@ -6,7 +6,6 @@ import PersonaPage from './components/Pages/PersonaPage';
 import WarehousePage from './components/Pages/WarehousePage';
 import MapPage from './components/Pages/MapPage';
 import SocialPage from './components/Pages/SocialPage';
-import TavernPage from './components/Pages/TavernPage';
 import SystemSettingsModal from './components/SystemSettingsModal';
 import { PageType, Notification } from './types';
 import { Toast, NotificationPanel } from './components/Feedback';
@@ -65,8 +64,6 @@ export default function App() {
         return <MapPage key="map" />;
       case PageType.SOCIAL:
         return <SocialPage key="social" />;
-      case PageType.TAVERN:
-        return <TavernPage key="tavern" />;
       default:
         return <ChatPage key="default" addNotification={addNotification} />;
     }

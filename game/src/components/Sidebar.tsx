@@ -6,7 +6,6 @@ import {
   Package,
   Map as MapIcon,
   Share2,
-  Beer,
   Settings,
 } from 'lucide-react';
 import { PageType } from '../types';
@@ -23,7 +22,6 @@ const navItems = [
   { type: PageType.WAREHOUSE, icon: Package, label: '仓库' },
   { type: PageType.MAP, icon: MapIcon, label: '地图' },
   { type: PageType.SOCIAL, icon: Share2, label: '社交' },
-  { type: PageType.TAVERN, icon: Beer, label: '酒馆' },
 ];
 
 export default function Sidebar({ activePage, setActivePage, onOpenSettings }: SidebarProps) {
