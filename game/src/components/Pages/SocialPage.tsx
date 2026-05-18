@@ -19,16 +19,6 @@ const TYPE_VISUALS: Record<RelationType, TypeVisuals> = {
   '未知': { text: 'text-white/50', border: 'border-white/20', bg: 'bg-white/5', glow: '' },
 };
 
-// ─── Helpers ────────────────────────────────────────────────────
-
-function getVisuals(node: SocialNode): TypeVisuals {
-  return TYPE_VISUALS[node.type as RelationType] || TYPE_VISUALS['未知'];
-}
-function getLevelColor(level: number): string {
-  if (level >= 70) return 'bg-aether-cyan';
-  if (level >= 40) return 'bg-aether-blue';
-  return 'bg-red-500';
-}
 function inferType(rel: string): RelationType {
   if (/母|父|姐|妹|兄|弟|家|亲/.test(rel)) return '盟友';
   if (/敌|仇|恨|杀/.test(rel)) return '敌对';
@@ -40,14 +30,26 @@ function getLevelHint(rel: string): number {
   return 50;
 }
 
-const NODE_COLORS = ['#00f2ff', '#a78bfa', '#f59e0b', '#f472b6'];
+const NODE_COLORS = ['#00f2ff', '#a78bfa'];
 
-/* ===== Live-data node type ===== */
+// ─── Helpers ────────────────────────────────────────────────────
+
+function getVisuals(node: SocialNode): TypeVisuals {
+  return TYPE_VISUALS[node.type as RelationType] || TYPE_VISUALS['未知'];
+}
+function getLevelColor(level: number): string {
+  if (level >= 70) return 'bg-aether-cyan';
+  if (level >= 40) return 'bg-aether-blue';
+  return 'bg-red-500';
+}
+
+// ─── Live-data types ────────────────────────────────────────────
+
 interface LiveNode {
   id: string; name: string; relation: string; type: RelationType; level: number;
   x: number; y: number; size: number; color: string;
 }
-interface LiveEdge { from: string; to: string; label: string; stroke: string; opacity: number }
+interface LiveEdge { from: string; to: string; stroke: string; opacity: number }
 
 // ─── Component ─────────────────────────────────────────────────
 
@@ -63,7 +65,7 @@ export default function SocialPage() {
   const graphRef = useRef<HTMLDivElement>(null);
   const [graphBounds, setGraphBounds] = useState({ width: 800, height: 600 });
 
-  // ── Container size ──
+  // ── Measure container ──
   useEffect(() => {
     const el = graphRef.current; if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -75,66 +77,70 @@ export default function SocialPage() {
     obs.observe(el); return () => obs.disconnect();
   }, []);
 
-  // ── Animation phases: 0 = avatars, 1 = lines ──
+  // ── Animation: avatars first, then lines ──
   useEffect(() => {
     setAnimPhase(0);
     const t = setTimeout(() => setAnimPhase(1), 900);
     return () => clearTimeout(t);
   }, [socialData]);
 
-  // ── Build nodes & edges from live social data ──
+  // ── Layout (exactly like original MOCK_SOCIAL) ──
   const centerX = graphBounds.width / 2;
   const centerY = graphBounds.height / 2;
+  const radiusX = Math.min(graphBounds.width * 0.35, 280);
+  const radiusY = Math.min(graphBounds.height * 0.28, 190);
 
-  const { nodes, edges } = useMemo(() => {
-    const entries = Object.entries(socialData).slice(0, 6); // max 6 people
-    if (entries.length === 0) return { nodes: [] as LiveNode[], edges: [] as LiveEdge[] };
-
-    const rx = Math.min(graphBounds.width * 0.30, 220);
-    const ry = Math.min(graphBounds.height * 0.25, 160);
-
-    const nodeList: LiveNode[] = entries.map(([name, data], i) => {
+  const nodesWithPositions = useMemo((): LiveNode[] => {
+    const entries = Object.entries(socialData);
+    if (entries.length === 0) return [];
+    return entries.map(([name, data], i) => {
       const angle = (i / entries.length) * Math.PI * 2 - Math.PI / 2;
+      const level = getLevelHint(data.关系);
       return {
         id: name, name,
-        relation: data.关系, type: inferType(data.关系), level: getLevelHint(data.关系),
-        x: Math.cos(angle) * rx + centerX, y: Math.sin(angle) * ry + centerY,
-        size: 44 + (getLevelHint(data.关系) / 100) * 18, color: NODE_COLORS[i % NODE_COLORS.length],
+        relation: data.关系,
+        type: inferType(data.关系),
+        level,
+        x: Math.cos(angle) * radiusX + centerX,
+        y: Math.sin(angle) * radiusY + centerY,
+        size: 42 + (level / 100) * 20,
+        color: NODE_COLORS[i % NODE_COLORS.length],
       };
     });
+  }, [socialData, radiusX, radiusY, centerX, centerY]);
 
-    const nameSet = new Set(nodeList.map((n) => n.name));
-    const edgeList: LiveEdge[] = [];
-    for (const [name, data] of entries) {
-      edgeList.push({ from: '我', to: name, label: data.关系, stroke: '#00f2ff', opacity: 0.5 });
+  // Position lookup map (exactly like original positionMap)
+  const positionMap = useMemo(() => {
+    const map = new Map<string, { x: number; y: number }>();
+    nodesWithPositions.forEach((n) => map.set(n.id, { x: n.x, y: n.y }));
+    return map;
+  }, [nodesWithPositions]);
+
+  // ── Edges: 我→person + person↔person (社交圈) ──
+  const edgeData = useMemo((): LiveEdge[] => {
+    const edges: LiveEdge[] = [];
+    const nameSet = new Set(nodesWithPositions.map((n) => n.name));
+    for (const [name, data] of Object.entries(socialData)) {
+      edges.push({ from: '我', to: name, stroke: '#00f2ff', opacity: 0.45 });
       if (data.社交圈) {
-        for (const [friend, rel] of Object.entries(data.社交圈)) {
+        for (const [friend] of Object.entries(data.社交圈)) {
           if (!nameSet.has(friend)) continue;
-          if (!edgeList.some((e) => (e.from === name && e.to === friend) || (e.from === friend && e.to === name))) {
-            edgeList.push({ from: name, to: friend, label: rel, stroke: '#a78bfa', opacity: 0.4 });
-          }
+          const dup = edges.find((e) => (e.from === name && e.to === friend) || (e.from === friend && e.to === name));
+          if (!dup) edges.push({ from: name, to: friend, stroke: '#a78bfa', opacity: 0.5 });
         }
       }
     }
-    return { nodes: nodeList, edges: edgeList };
-  }, [socialData, graphBounds, centerX, centerY]);
+    return edges;
+  }, [socialData, nodesWithPositions]);
 
-  const getPos = (id: string) => {
-    if (id === '我') return { x: centerX, y: centerY };
-    const n = nodes.find((x) => x.id === id);
-    return n ? { x: n.x, y: n.y } : null;
-  };
-
-  // For modal compatibility
-  const selNodeSn = selectedNode ? {
-    id: selectedNode.id,
-    name: selectedNode.name,
-    relation: selectedNode.relation,
-    type: selectedNode.type,
-    level: selectedNode.level,
+  // ── Modal ──
+  const selNodeSn: SocialNode | null = selectedNode ? {
+    id: selectedNode.id, name: selectedNode.name,
+    relation: selectedNode.relation, type: selectedNode.type, level: selectedNode.level,
   } as SocialNode : null;
   const selVisuals = selNodeSn ? getVisuals(selNodeSn) : null;
 
+  // ── Render ──
   return (
     <div className="h-full flex flex-col p-4 md:p-8 space-y-6 relative">
       {/* ─── Header ─── */}
@@ -155,35 +161,58 @@ export default function SocialPage() {
         className="flex-1 relative glass-panel border-glow overflow-hidden bg-aether-dark/30"
         style={{ backgroundImage: 'radial-gradient(circle, rgba(0,242,255,0.06) 1px, transparent 1px)', backgroundSize: '30px 30px' }}
       >
+        {/* ─── Nodes + Edges Layer ─── */}
         <div className="absolute inset-0" style={{ zIndex: 2 }}>
-          {/* ===== Phase 1: Connection lines + labels ===== */}
+
+          {/* ===== Phase 1: Connection lines (exact original style + animation) ===== */}
           <AnimatePresence>
             {animPhase >= 1 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className="absolute inset-0">
-                {edges.map((edge, i) => {
-                  const p1 = getPos(edge.from), p2 = getPos(edge.to);
+                {edgeData.map((edge, i) => {
+                  const p1 = edge.from === '我' ? { x: centerX, y: centerY } : positionMap.get(edge.from);
+                  const p2 = positionMap.get(edge.to);
                   if (!p1 || !p2) return null;
-                  const dx = p2.x - p1.x, dy = p2.y - p1.y;
-                  const len = Math.sqrt(dx * dx + dy * dy);
-                  const ang = Math.atan2(dy, dx) * (180 / Math.PI);
+                  const dx = p2.x - p1.x;
+                  const dy = p2.y - p1.y;
+                  const length = Math.sqrt(dx * dx + dy * dy);
+                  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
                   return (
-                    <React.Fragment key={`${edge.from}-${edge.to}`}>
-                      {/* Line — original solid style + animated width */}
-                      <motion.div className="absolute pointer-events-none"
-                        style={{ left: p1.x, top: p1.y, height: 2.5, background: edge.stroke, opacity: edge.opacity, transform: `rotate(${ang}deg)`, transformOrigin: '0 50%', borderRadius: '2px' }}
-                        initial={{ width: 0 }} animate={{ width: len }} transition={{ duration: 0.5, delay: i * 0.12, ease: 'easeOut' }} />
-                    </React.Fragment>
+                    <motion.div
+                      key={`edge-${i}`}
+                      className="absolute pointer-events-none"
+                      style={{
+                        left: p1.x,
+                        top: p1.y,
+                        height: 2.5,
+                        background: edge.stroke,
+                        opacity: edge.opacity,
+                        transform: `rotate(${angle}deg)`,
+                        transformOrigin: '0 50%',
+                        borderRadius: '2px',
+                      }}
+                      initial={{ width: 0 }}
+                      animate={{ width: length }}
+                      transition={{ duration: 0.5, delay: i * 0.15, ease: 'easeOut' }}
+                    />
                   );
                 })}
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* ===== Center "我" node ===== */}
+          {/* ── Centre: "我" node (EXACT copy of original positioning) ── */}
           <motion.div
-            initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 0.15 }}
-            className="absolute pointer-events-none" style={{ left: centerX, top: centerY, transform: 'translate(-50%, -50%)' }}>
+            className="absolute pointer-events-none"
+            style={{
+              left: centerX,
+              top: centerY,
+              marginLeft: -50,
+              marginTop: -50,
+            }}
+          >
             <div className="relative flex items-center justify-center">
               <div className="absolute w-24 h-24 rounded-full" style={{ boxShadow: '0 0 40px rgba(0,242,255,0.12)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
               <div className="w-20 h-20 rounded-full bg-aether-dark/90 border-2 border-aether-cyan flex items-center justify-center shadow-[0_0_30px_rgba(0,242,255,0.3)] backdrop-blur-sm relative">
@@ -192,24 +221,29 @@ export default function SocialPage() {
             </div>
           </motion.div>
 
-          {/* ===== Phase 0: Character nodes ===== */}
-          {nodes.map((node, i) => {
+          {/* ── Phase 0: Character nodes (exact original style, no name labels) ── */}
+          {nodesWithPositions.map((node, i) => {
             const v = TYPE_VISUALS[node.type];
-            const fontSize = Math.max(14, node.size * 0.32);
+            const fontSize = Math.max(13, node.size * 0.35);
             return (
               <motion.button
                 key={node.id}
-                initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
                 transition={{ type: 'spring', damping: 14, stiffness: 200, delay: 0.3 + i * 0.15 }}
-                style={{ position: 'absolute', left: node.x - node.size / 2, top: node.y - node.size / 2, width: node.size, height: node.size }}
-                onClick={() => setSelectedNode(node)} className="clickable group" aria-label={`选择 ${node.name}`}>
+                style={{
+                  position: 'absolute',
+                  left: node.x - node.size / 2,
+                  top: node.y - node.size / 2,
+                  width: node.size,
+                  height: node.size,
+                }}
+                onClick={() => setSelectedNode(node)}
+                className="clickable group"
+                aria-label={`选择 ${node.name}`}
+              >
                 <div className={`w-full h-full rounded-full border-2 bg-aether-dark/80 backdrop-blur-sm flex items-center justify-center transition-all duration-300 hover:scale-110 ${v.border} ${v.glow} hover-glow`}>
                   <span className={`font-display font-bold ${v.text}`} style={{ fontSize }}>{node.name[0]}</span>
-                </div>
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 pointer-events-none">
-                  <span className="text-[10px] font-mono text-white/35 tracking-wider whitespace-nowrap transition-all duration-300 group-hover:text-white/70">
-                    {node.name}
-                  </span>
                 </div>
               </motion.button>
             );
@@ -217,11 +251,10 @@ export default function SocialPage() {
         </div>
       </div>
 
-      {/* ─── Detail Modal (original design) ─── */}
+      {/* ─── Detail Modal ─── */}
       <Modal isOpen={!!selectedNode} onClose={() => setSelectedNode(null)} title="个体共鸣档案">
         {selNodeSn && selVisuals && (
           <div className="space-y-6">
-            {/* Avatar + Name row */}
             <div className="flex items-center gap-6">
               <div className={`relative w-20 h-20 rounded-full border-2 flex items-center justify-center text-3xl font-bold font-display shrink-0 ${selVisuals.border} ${selVisuals.text} ${selVisuals.glow}`}>
                 {selNodeSn.name[0]}
@@ -229,9 +262,7 @@ export default function SocialPage() {
               <div className="min-w-0">
                 <div className="flex items-center flex-wrap gap-3">
                   <h3 className="text-2xl font-display font-bold text-white truncate">{selNodeSn.name}</h3>
-                  <span className={`text-[9px] px-2 py-0.5 rounded-sm font-mono tracking-wider uppercase shrink-0 ${selVisuals.bg} ${selVisuals.text} border ${selVisuals.border}`}>
-                    {selNodeSn.type}
-                  </span>
+                  <span className={`text-[9px] px-2 py-0.5 rounded-sm font-mono tracking-wider uppercase shrink-0 ${selVisuals.bg} ${selVisuals.text} border ${selVisuals.border}`}>{selNodeSn.type}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-2">
                   <Share2 size={12} className="text-aether-blue shrink-0" />
@@ -240,7 +271,6 @@ export default function SocialPage() {
               </div>
             </div>
 
-            {/* Resonance bar */}
             <div className="space-y-2">
               <div className="flex justify-between text-[10px] text-aether-blue font-mono tracking-wider">
                 <span className="uppercase flex items-center gap-1.5"><Activity size={10} className="text-aether-blue" />共鸣度</span>
@@ -253,7 +283,6 @@ export default function SocialPage() {
               </div>
             </div>
 
-            {/* Stat cards */}
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-aether-cyan/[0.04] border border-aether-cyan/20 rounded-sm hover:bg-aether-cyan/[0.06] transition-colors">
                 <Heart size={16} className="text-aether-cyan mb-2" />
@@ -269,7 +298,6 @@ export default function SocialPage() {
               </div>
             </div>
 
-            {/* Background */}
             <div className="pt-4 border-t border-white/5">
               <h4 className="text-[10px] text-aether-blue font-mono tracking-wider uppercase mb-3 flex items-center gap-1.5">
                 <Radio size={10} />社交档案
