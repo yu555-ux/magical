@@ -1137,7 +1137,7 @@ export const DEFAULT_WORLD_VARS: Record<string, any> = {
                                   },
                                 },
                               },
-                            },,
+                            },
                         },
                       },
                     },
