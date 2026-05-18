@@ -55,20 +55,3 @@ export function findNode(
   return current ?? null;
 }
 
-/**
- * Build an array of [key, node] for each level of the path — used for breadcrumbs.
- */
-export function pathNodes(
-  tree: MapLocationRender[],
-  path: string[],
-): { key: string; name: string }[] {
-  const result: { key: string; name: string }[] = [];
-  let list = tree;
-  for (const seg of path) {
-    const node = list.find((n) => n.key === seg);
-    if (!node) break;
-    result.push({ key: node.key, name: node.name });
-    list = node.children;
-  }
-  return result;
-}

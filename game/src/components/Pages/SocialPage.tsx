@@ -18,40 +18,7 @@ const TYPE_VISUALS: Record<RelationType, TypeVisuals> = {
 
 const NODE_COLOR = '#00f2ff';
 
-/* ===== Affection / Corruption stages ===== */
-const AFFECTION_STAGES = [
-  { min: -200, max: -150, name: '厌恶', color: '#ef4444' },
-  { min: -150, max: -100, name: '敌视', color: '#f97316' },
-  { min: -100, max: -50,  name: '冷淡', color: '#9ca3af' },
-  { min: -50,  max: 0,    name: '平淡', color: '#eab308' },
-  { min: 0,    max: 50,   name: '友善', color: '#22c55e' },
-  { min: 50,   max: 100,  name: '亲密', color: '#3b82f6' },
-  { min: 100,  max: 150,  name: '倾心', color: '#a78bfa' },
-  { min: 150,  max: 200,  name: '挚爱', color: '#f472b6' },
-];
-
-const CORRUPTION_STAGES = [
-  { min: 0,   max: 100, name: '纯洁', color: '#22c55e' },
-  { min: 100, max: 200, name: '动摇', color: '#eab308' },
-  { min: 200, max: 300, name: '微骚', color: '#f97316' },
-  { min: 300, max: 400, name: '淫靡', color: '#ef4444' },
-  { min: 400, max: 500, name: '欲奴', color: '#a855f7' },
-];
-
-const FRIENDLINESS_STAGES = [
-  { min: -200, max: -150, name: '敌视', color: '#ef4444' },
-  { min: -150, max: -100, name: '厌恶', color: '#f97316' },
-  { min: -100, max: -50,  name: '疏远', color: '#9ca3af' },
-  { min: -50,  max: 0,    name: '平淡', color: '#eab308' },
-  { min: 0,    max: 50,   name: '友善', color: '#22c55e' },
-  { min: 50,   max: 100,  name: '信任', color: '#3b82f6' },
-  { min: 100,  max: 150,  name: '知己', color: '#a78bfa' },
-  { min: 150,  max: 200,  name: '生死之交', color: '#f472b6' },
-];
-
-function getAffectionStage(v: number) { return AFFECTION_STAGES.find((s) => v >= s.min && v <= s.max) ?? AFFECTION_STAGES[3]; }
-function getFriendlinessStage(v: number) { return FRIENDLINESS_STAGES.find((s) => v >= s.min && v <= s.max) ?? FRIENDLINESS_STAGES[3]; }
-function getCorruptionStage(v: number) { return CORRUPTION_STAGES.find((s) => v >= s.min && v <= s.max) ?? CORRUPTION_STAGES[0]; }
+import { getAffectionStage, getFriendlinessStage, getCorruptionStage } from '../../sillytavern/social-stages';
 
 /* ===== Helpers ===== */
 function inferType(rel: string): RelationType {
