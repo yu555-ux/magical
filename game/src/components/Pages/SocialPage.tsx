@@ -127,12 +127,18 @@ export default function SocialPage() {
     });
     if (entries.length === 0) return [];
     return entries.map(([name, data], i) => {
-      const angle = (-90 + i * 120) * (Math.PI / 180);
+      const n = entries.length;
+      const angle = (-90 + i * (360 / n)) * (Math.PI / 180);
       const level = getLevelHint(data.关系);
+      // Affection/friendliness: higher value = closer to center
+      const profile = findCharProfile(charData, name);
+      const aff = profile ? (profile.好感值 ?? profile.友善值 ?? 0) : 0;
+      const distFactor = 1.35 - ((aff + 200) / 400) * 0.85; // 0.5 (close at +200) to 1.35 (far at -200)
+      const r = orbitR * distFactor;
       return {
         id: name, name, relation: data.关系, type: inferType(data.关系), level,
-        x: Math.cos(angle) * orbitR + cx,
-        y: Math.sin(angle) * orbitR + cy,
+        x: Math.cos(angle) * r + cx,
+        y: Math.sin(angle) * r + cy,
         size: 48 + (level / 100) * 18,
       };
     });

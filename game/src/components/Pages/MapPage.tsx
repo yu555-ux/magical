@@ -7,7 +7,6 @@ import {
 import { MapLocationRender, MapAnomaly } from '../../types';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 import { adaptMapTree, findNode } from '../../sillytavern/mapDataAdapter';
-import { useSillytavern } from '../../hooks/useSillytavern';
 
 /* ===== Rating / anomaly color config ===== */
 interface RatingColorSet { text: string; border: string; glow: string; bg: string; bar: string }
@@ -103,10 +102,8 @@ function flattenTree(nodes: MapLocationRender[], parentPath: string[], parentNam
    MAP PAGE
    ============================================================ */
 export default function MapPage() {
-  // --- Live variables (fallback to default) ---
-  const ss = useSillytavern();
-  const liveVars = ss.activeChat?.variables;
-  const mapData = (liveVars?.['地图'] ?? DEFAULT_WORLD_VARS.地图) as Record<string, any>;
+  // Always use defaults — the map is a reference structure, not chat-specific state
+  const mapData = DEFAULT_WORLD_VARS.地图 as Record<string, any>;
 
   // Build the full tree (all worlds at top level)
   const mapTree = useMemo(() => {
