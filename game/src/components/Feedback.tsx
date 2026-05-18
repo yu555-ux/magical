@@ -31,10 +31,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             className="relative w-full max-w-lg glass-panel overflow-hidden border-glow"
           >
             <div className="flex items-center justify-between p-4 border-b border-aether-border/30 bg-aether-cyan/5">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-aether-cyan animate-pulse" />
-                <h3 className="font-display font-bold text-sm tracking-widest text-aether-cyan uppercase">{title}</h3>
-              </div>
+              <h3 className="font-display font-bold text-sm tracking-widest text-aether-cyan uppercase">{title}</h3>
               <button
                 onClick={onClose}
                 className="text-white/40 hover:text-aether-cyan transition-colors p-1 clickable press-scale"

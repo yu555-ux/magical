@@ -20,33 +20,33 @@ const NODE_COLOR = '#00f2ff';
 
 /* ===== Affection / Corruption stages ===== */
 const AFFECTION_STAGES = [
-  { min: -200, max: -120, name: '厌恶', color: '#ef4444' },
-  { min: -120, max: -40,  name: '敌视', color: '#f97316' },
-  { min: -40,  max: 0,    name: '冷淡', color: '#9ca3af' },
-  { min: 0,    max: 40,   name: '平淡', color: '#eab308' },
-  { min: 40,   max: 120,  name: '友善', color: '#22c55e' },
-  { min: 120,  max: 160,  name: '亲密', color: '#3b82f6' },
-  { min: 160,  max: 190,  name: '倾心', color: '#a78bfa' },
-  { min: 190,  max: 200,  name: '挚爱', color: '#f472b6' },
+  { min: -200, max: -150, name: '厌恶', color: '#ef4444' },
+  { min: -150, max: -100, name: '敌视', color: '#f97316' },
+  { min: -100, max: -50,  name: '冷淡', color: '#9ca3af' },
+  { min: -50,  max: 0,    name: '平淡', color: '#eab308' },
+  { min: 0,    max: 50,   name: '友善', color: '#22c55e' },
+  { min: 50,   max: 100,  name: '亲密', color: '#3b82f6' },
+  { min: 100,  max: 150,  name: '倾心', color: '#a78bfa' },
+  { min: 150,  max: 200,  name: '挚爱', color: '#f472b6' },
 ];
 
 const CORRUPTION_STAGES = [
-  { min: 0,   max: 50,  name: '纯洁', color: '#22c55e' },
-  { min: 50,  max: 100, name: '动摇', color: '#eab308' },
-  { min: 100, max: 200, name: '微骚', color: '#f97316' },
-  { min: 200, max: 350, name: '淫靡', color: '#ef4444' },
-  { min: 350, max: 500, name: '欲奴', color: '#a855f7' },
+  { min: 0,   max: 100, name: '纯洁', color: '#22c55e' },
+  { min: 100, max: 200, name: '动摇', color: '#eab308' },
+  { min: 200, max: 300, name: '微骚', color: '#f97316' },
+  { min: 300, max: 400, name: '淫靡', color: '#ef4444' },
+  { min: 400, max: 500, name: '欲奴', color: '#a855f7' },
 ];
 
 const FRIENDLINESS_STAGES = [
-  { min: -200, max: -120, name: '敌视', color: '#ef4444' },
-  { min: -120, max: -40,  name: '厌恶', color: '#f97316' },
-  { min: -40,  max: 0,    name: '疏远', color: '#9ca3af' },
-  { min: 0,    max: 40,   name: '平淡', color: '#eab308' },
-  { min: 40,   max: 120,  name: '友善', color: '#22c55e' },
-  { min: 120,  max: 160,  name: '信任', color: '#3b82f6' },
-  { min: 160,  max: 190,  name: '知己', color: '#a78bfa' },
-  { min: 190,  max: 200,  name: '生死之交', color: '#f472b6' },
+  { min: -200, max: -150, name: '敌视', color: '#ef4444' },
+  { min: -150, max: -100, name: '厌恶', color: '#f97316' },
+  { min: -100, max: -50,  name: '疏远', color: '#9ca3af' },
+  { min: -50,  max: 0,    name: '平淡', color: '#eab308' },
+  { min: 0,    max: 50,   name: '友善', color: '#22c55e' },
+  { min: 50,   max: 100,  name: '信任', color: '#3b82f6' },
+  { min: 100,  max: 150,  name: '知己', color: '#a78bfa' },
+  { min: 150,  max: 200,  name: '生死之交', color: '#f472b6' },
 ];
 
 function getAffectionStage(v: number) { return AFFECTION_STAGES.find((s) => v >= s.min && v <= s.max) ?? AFFECTION_STAGES[3]; }
@@ -78,7 +78,7 @@ function findCharProfile(chars: any, name: string): any | null {
 
 /* ===== Local types ===== */
 interface LiveNode { id: string; name: string; relation: string; type: RelationType; level: number; x: number; y: number; size: number }
-interface LiveEdge { from: string; to: string; stroke: string; opacity: number; dash?: boolean }
+interface LiveEdge { from: string; to: string; label: string; stroke: string; opacity: number; dash?: boolean }
 
 /* ============================================================
    SOCIAL PAGE
@@ -142,12 +142,12 @@ export default function SocialPage() {
     const edges: LiveEdge[] = [];
     const nameSet = new Set(nodesWithPositions.map((n) => n.name));
     for (const [name, data] of Object.entries(socialData)) {
-      edges.push({ from: '我', to: name, stroke: NODE_COLOR, opacity: 0.4 });
+      edges.push({ from: '我', to: name, label: data.关系, stroke: NODE_COLOR, opacity: 0.4 });
       if (data.社交圈) {
-        for (const [friend] of Object.entries(data.社交圈)) {
+        for (const [friend, rel] of Object.entries(data.社交圈)) {
           if (!nameSet.has(friend)) continue;
           const dup = edges.find((e) => (e.from === name && e.to === friend) || (e.from === friend && e.to === name));
-          if (!dup) edges.push({ from: name, to: friend, stroke: '#a78bfa', opacity: 0.3, dash: true });
+          if (!dup) edges.push({ from: name, to: friend, label: rel, stroke: '#a78bfa', opacity: 0.3, dash: true });
         }
       }
     }
@@ -202,17 +202,35 @@ export default function SocialPage() {
                   const dx = p2.x - p1.x, dy = p2.y - p1.y;
                   const len = Math.sqrt(dx * dx + dy * dy);
                   const ang = Math.atan2(dy, dx) * (180 / Math.PI);
+                  const mx = p1.x + dx / 2, my = p1.y + dy / 2;
+                  const labelAng = dx < 0 ? ang + 180 : ang;
                   return (
-                    <motion.div key={`e-${i}`} className="absolute pointer-events-none"
-                      style={{
-                        left: p1.x, top: p1.y, height: 3,
-                        background: edge.dash
-                          ? `repeating-linear-gradient(90deg, ${edge.stroke} 0, ${edge.stroke} 6px, transparent 6px, transparent 10px)`
-                          : edge.stroke,
-                        opacity: edge.opacity, transform: `rotate(${ang}deg)`, transformOrigin: '0 50%', borderRadius: '2px',
-                      }}
-                      initial={{ width: 0 }} animate={{ width: len }}
-                      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} />
+                    <React.Fragment key={`e-${i}`}>
+                      <motion.div className="absolute pointer-events-none"
+                        style={{
+                          left: p1.x, top: p1.y, height: 3,
+                          background: edge.dash
+                            ? `repeating-linear-gradient(90deg, ${edge.stroke} 0, ${edge.stroke} 6px, transparent 6px, transparent 10px)`
+                            : edge.stroke,
+                          opacity: edge.opacity, transform: `rotate(${ang}deg)`, transformOrigin: '0 50%', borderRadius: '2px',
+                        }}
+                        initial={{ width: 0 }} animate={{ width: len }}
+                        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} />
+                      {/* Label along the line */}
+                      <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, delay: 0.4 }}
+                        className="absolute pointer-events-none"
+                        style={{
+                          left: mx, top: my,
+                          transform: `translate(-50%, -50%) rotate(${labelAng}deg)`,
+                        }}>
+                        <span className="text-[9px] font-mono tracking-wider whitespace-nowrap"
+                          style={{ color: edge.stroke, opacity: 0.6, textShadow: `0 0 4px ${edge.stroke}30` }}>
+                          {edge.label}
+                        </span>
+                      </motion.div>
+                    </React.Fragment>
                   );
                 })}
               </motion.div>
