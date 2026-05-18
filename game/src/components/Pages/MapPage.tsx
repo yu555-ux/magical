@@ -383,8 +383,18 @@ export default function MapPage() {
 
         <AnimatePresence mode="wait">
           <motion.div key={navPath.join('/')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }} className="absolute inset-0">
-            {currentChildren.map((point) => {
-              const { sx, sy } = worldToScreen(point.cx, point.cy, viewport);
+            {currentChildren.map((point, idx) => {
+              // World-level: arrange worlds in a row, evenly spaced
+              let sx: number, sy: number;
+              if (navDepth === 0) {
+                const count = currentChildren.length;
+                const spacing = CANVAS_W / (count + 1);
+                sx = spacing * (idx + 1);
+                sy = CANVAS_H / 2;
+              } else {
+                const pos = worldToScreen(point.cx, point.cy, viewport);
+                sx = pos.sx; sy = pos.sy;
+              }
               if (sx < -60 || sx > CANVAS_W + 60 || sy < -60 || sy > CANVAS_H + 60) return null;
               return (
                 <PointMarker key={point.key} point={point} depth={navDepth}
