@@ -351,8 +351,8 @@ export default function SocialPage() {
                 </div>
                 <span className="text-[10px] font-mono" style={{ color: selIsFemale ? selAffStage!.color : NODE_COLOR, opacity: 0.7 }}>{selAffection}</span>
                 <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: `${selIsFemale ? selAffStage!.color : NODE_COLOR}10` }}>
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${Math.abs(selAffection) / 200 * 100}%` }} transition={{ duration: 0.7, ease: 'easeOut' }}
-                    className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${selIsFemale ? selAffStage!.color : NODE_COLOR}80, ${selIsFemale ? selAffStage!.color : NODE_COLOR})` }} />
+                  <div
+                    className="h-full rounded-full" style={{ width: `${Math.abs(selAffection) / 200 * 100}%`, background: `linear-gradient(90deg, ${selIsFemale ? selAffStage!.color : NODE_COLOR}80, ${selIsFemale ? selAffStage!.color : NODE_COLOR})` }} />
                 </div>
               </div>
               {selIsFemale && selCorruption !== undefined && (
@@ -363,8 +363,8 @@ export default function SocialPage() {
                   </div>
                   <span className="text-[10px] font-mono" style={{ color: selCorrStage!.color, opacity: 0.7 }}>{selCorruption}</span>
                   <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: `${selCorrStage!.color}10` }}>
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${selCorruption / 500 * 100}%` }} transition={{ duration: 0.7, ease: 'easeOut' }}
-                      className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${selCorrStage!.color}80, ${selCorrStage!.color})` }} />
+                    <div
+                      className="h-full rounded-full" style={{ width: `${selCorruption / 500 * 100}%`, background: `linear-gradient(90deg, ${selCorrStage!.color}80, ${selCorrStage!.color})` }} />
                   </div>
                 </div>
               )}
@@ -383,12 +383,12 @@ export default function SocialPage() {
             {/* ── Status effects ── */}
             {Object.keys(selProfile.状态).length > 0 && (
               <div className="space-y-1.5">
-                <span className="text-[9px] font-mono text-white/30 tracking-[0.12em] uppercase">状态效果</span>
+                <span className="text-[9px] font-mono text-white/40 tracking-[0.12em] uppercase">状态效果</span>
                 {Object.entries(selProfile.状态).map(([name, s]) => (
                   <div key={name} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.04] bg-white/[0.01]">
                     <div className="w-1 h-1 rounded-full bg-aether-cyan/50 shrink-0" />
-                    <span className="text-[11px] font-mono text-white/65">{name}</span>
-                    <span className="ml-auto text-[9px] font-mono text-white/35">{s.描述} · {s.持续时间}</span>
+                    <span className="text-[11px] font-mono text-white/80">{name}</span>
+                    <span className="ml-auto text-[9px] font-mono text-white/50">{s.描述} · {s.持续时间}</span>
                   </div>
                 ))}
               </div>
@@ -430,8 +430,8 @@ export default function SocialPage() {
 function InfoRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="flex items-start gap-3 px-3 py-2 rounded-lg border border-white/[0.03] bg-white/[0.005]">
-      <span className="text-[9px] font-mono text-white/40 tracking-[0.1em] uppercase shrink-0 w-8 pt-0.5">{label}</span>
-      <span className={`text-[11px] font-mono leading-relaxed ${muted ? 'text-white/55 italic' : 'text-white/70'}`}>{value}</span>
+      <span className="text-[9px] font-mono text-white/50 tracking-[0.1em] uppercase shrink-0 w-8 pt-0.5">{label}</span>
+      <span className={`text-[11px] font-mono leading-relaxed ${muted ? 'text-white/65 italic' : 'text-white/85'}`}>{value}</span>
     </div>
   );
 }
