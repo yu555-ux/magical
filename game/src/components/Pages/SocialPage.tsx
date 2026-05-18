@@ -17,8 +17,32 @@ const TYPE_VISUALS: Record<RelationType, TypeVisuals> = {
   '未知': { text: 'text-white/50', border: 'border-white/20', bg: 'bg-white/5', glow: '' },
 };
 
-const NODE_COLORS = ['#00f2ff', '#a78bfa', '#f59e0b', '#f472b6', '#22c55e', '#3b82f6'];
+const NODE_COLOR = '#00f2ff';
 
+/* ===== Affection / Corruption stages ===== */
+const AFFECTION_STAGES = [
+  { min: -200, max: -120, name: '厌恶', color: '#ef4444' },
+  { min: -120, max: -40,  name: '敌视', color: '#f97316' },
+  { min: -40,  max: 0,    name: '冷淡', color: '#9ca3af' },
+  { min: 0,    max: 40,   name: '平淡', color: '#eab308' },
+  { min: 40,   max: 120,  name: '友善', color: '#22c55e' },
+  { min: 120,  max: 160,  name: '亲密', color: '#3b82f6' },
+  { min: 160,  max: 190,  name: '倾心', color: '#a78bfa' },
+  { min: 190,  max: 200,  name: '挚爱', color: '#f472b6' },
+];
+
+const CORRUPTION_STAGES = [
+  { min: 0,   max: 50,  name: '纯洁', color: '#22c55e' },
+  { min: 50,  max: 100, name: '动摇', color: '#eab308' },
+  { min: 100, max: 200, name: '微骚', color: '#f97316' },
+  { min: 200, max: 350, name: '淫靡', color: '#ef4444' },
+  { min: 350, max: 500, name: '欲奴', color: '#a855f7' },
+];
+
+function getAffectionStage(v: number) { return AFFECTION_STAGES.find((s) => v >= s.min && v <= s.max) ?? AFFECTION_STAGES[3]; }
+function getCorruptionStage(v: number) { return CORRUPTION_STAGES.find((s) => v >= s.min && v <= s.max) ?? CORRUPTION_STAGES[0]; }
+
+/* ===== Helpers ===== */
 function inferType(rel: string): RelationType {
   if (/母|父|姐|妹|兄|弟|家|亲/.test(rel)) return '盟友';
   if (/敌|仇|恨|杀/.test(rel)) return '敌对';
@@ -32,8 +56,19 @@ function getLevelHint(rel: string): number {
 function getVisuals(node: SocialNode): TypeVisuals { return TYPE_VISUALS[node.type] || TYPE_VISUALS['未知']; }
 function getLevelColor(l: number): string { if (l >= 70) return 'bg-aether-cyan'; if (l >= 40) return 'bg-aether-blue'; return 'bg-red-500'; }
 
+function findCharProfile(chars: any, name: string): any | null {
+  for (const [, groups] of Object.entries(chars)) {
+    if (!groups || typeof groups !== 'object') continue;
+    for (const [, members] of Object.entries(groups as Record<string, any>)) {
+      if (!members || typeof members !== 'object') continue;
+      if (members[name]) return members[name];
+    }
+  }
+  return null;
+}
+
 /* ===== Local types ===== */
-interface LiveNode { id: string; name: string; relation: string; type: RelationType; level: number; x: number; y: number; size: number; color: string }
+interface LiveNode { id: string; name: string; relation: string; type: RelationType; level: number; x: number; y: number; size: number }
 interface LiveEdge { from: string; to: string; stroke: string; opacity: number; dash?: boolean }
 
 /* ============================================================
@@ -45,8 +80,10 @@ export default function SocialPage() {
   const defaults = DEFAULT_WORLD_VARS as any;
   const socialData: Record<string, { 关系: string; 社交圈?: Record<string, string> }> =
     liveVars?.['主角']?.['社交'] ?? defaults.主角?.社交 ?? {};
+  const charData: Record<string, any> = liveVars?.['主要人物'] ?? defaults.主要人物 ?? {};
 
   const [selectedNode, setSelectedNode] = useState<LiveNode | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<LiveNode | null>(null);
   const [animPhase, setAnimPhase] = useState(0);
   const graphRef = useRef<HTMLDivElement>(null);
   const [graphBounds, setGraphBounds] = useState({ width: 800, height: 600 });
@@ -70,20 +107,17 @@ export default function SocialPage() {
   const cy = graphBounds.height / 2;
   const orbitR = Math.min(graphBounds.width, graphBounds.height) * 0.30;
 
-  // 120-degree spacing, starting from top (-90°)
   const nodesWithPositions = useMemo((): LiveNode[] => {
     const entries = Object.entries(socialData);
     if (entries.length === 0) return [];
     return entries.map(([name, data], i) => {
-      // Start at -90° (top), space 120° apart
       const angle = (-90 + i * 120) * (Math.PI / 180);
       const level = getLevelHint(data.关系);
       return {
-        id: name, name, relation: data.关系, type: inferType(data.関係), level,
+        id: name, name, relation: data.关系, type: inferType(data.关系), level,
         x: Math.cos(angle) * orbitR + cx,
         y: Math.sin(angle) * orbitR + cy,
         size: 48 + (level / 100) * 18,
-        color: NODE_COLORS[i % NODE_COLORS.length],
       };
     });
   }, [socialData, orbitR, cx, cy]);
@@ -98,12 +132,12 @@ export default function SocialPage() {
     const edges: LiveEdge[] = [];
     const nameSet = new Set(nodesWithPositions.map((n) => n.name));
     for (const [name, data] of Object.entries(socialData)) {
-      edges.push({ from: '我', to: name, stroke: '#00f2ff', opacity: 0.4 });
+      edges.push({ from: '我', to: name, stroke: NODE_COLOR, opacity: 0.4 });
       if (data.社交圈) {
         for (const [friend] of Object.entries(data.社交圈)) {
           if (!nameSet.has(friend)) continue;
           const dup = edges.find((e) => (e.from === name && e.to === friend) || (e.from === friend && e.to === name));
-          if (!dup) edges.push({ from: name, to: friend, stroke: '#a78bfa', opacity: 0.35, dash: true });
+          if (!dup) edges.push({ from: name, to: friend, stroke: '#a78bfa', opacity: 0.3, dash: true });
         }
       }
     }
@@ -112,9 +146,17 @@ export default function SocialPage() {
 
   const getPos = (id: string) => id === '我' ? { x: cx, y: cy } : (posMap.get(id) ?? null);
 
-  // Modal
+  // ── Modal ──
   const selSn: SocialNode | null = selectedNode ? { id: selectedNode.id, name: selectedNode.name, relation: selectedNode.relation, type: selectedNode.type, level: selectedNode.level } as SocialNode : null;
   const selV = selSn ? getVisuals(selSn) : null;
+
+  // ── Hover tooltip data ──
+  const hoverProfile = hoveredNode ? findCharProfile(charData, hoveredNode.name) : null;
+  const hoverAffection = hoverProfile ? (hoverProfile.好感值 ?? hoverProfile.友善值 ?? 0) : 0;
+  const hoverCorruption = hoverProfile?.堕落值 ?? 0;
+  const isFemaleHover = hoverProfile && hoverProfile.好感值 !== undefined;
+  const affStage = isFemaleHover ? getAffectionStage(hoverAffection) : null;
+  const corrStage = isFemaleHover ? getCorruptionStage(hoverCorruption) : null;
 
   const isTopLevel = animPhase >= 1;
 
@@ -130,7 +172,6 @@ export default function SocialPage() {
       {/* ── Graph ── */}
       <div ref={graphRef} className="flex-1 relative overflow-hidden rounded-xl border border-white/[0.04]"
         style={{ background: 'radial-gradient(ellipse at center, rgba(0,242,255,0.04) 0%, transparent 65%), rgba(3,5,10,0.7)' }}>
-        {/* Atmosphere */}
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-aether-cyan/[0.02] to-transparent" />
         <CornerMark tl /><CornerMark tr /><CornerMark bl /><CornerMark br />
@@ -149,11 +190,11 @@ export default function SocialPage() {
                   return (
                     <motion.div key={`e-${i}`} className="absolute pointer-events-none"
                       style={{
-                        left: p1.x, top: p1.y, height: 1.5,
+                        left: p1.x, top: p1.y, height: 3,
                         background: edge.dash
                           ? `repeating-linear-gradient(90deg, ${edge.stroke} 0, ${edge.stroke} 6px, transparent 6px, transparent 10px)`
                           : edge.stroke,
-                        opacity: edge.opacity, transform: `rotate(${ang}deg)`, transformOrigin: '0 50%', borderRadius: '1px',
+                        opacity: edge.opacity, transform: `rotate(${ang}deg)`, transformOrigin: '0 50%', borderRadius: '2px',
                       }}
                       initial={{ width: 0 }} animate={{ width: len }}
                       transition={{ duration: 0.55, delay: i * 0.2, ease: [0.22, 1, 0.36, 1] }} />
@@ -163,7 +204,7 @@ export default function SocialPage() {
             )}
           </AnimatePresence>
 
-          {/* ===== Orbit rings (centered at cx,cy — independent of 我 node) ===== */}
+          {/* ===== Orbit rings ===== */}
           <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: 'translate(-50%, -50%)' }}>
             <div className="rounded-full border border-aether-cyan/[0.06]" style={{ width: orbitR * 2, height: orbitR * 2 }} />
           </div>
@@ -171,41 +212,84 @@ export default function SocialPage() {
             <div className="rounded-full border border-aether-cyan/[0.04]" style={{ width: orbitR * 1.3, height: orbitR * 1.3 }} />
           </div>
 
-          {/* ===== Centre "我" — wrapper for positioning, inner for animation ===== */}
+          {/* ===== Centre "我" ===== */}
           <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: 'translate(-50%, -50%)' }}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
+            <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
               transition={{ type: 'spring', damping: 10, stiffness: 160, delay: 0.1 }}>
-              {/* Glow aura */}
               <div className="absolute rounded-full" style={{ width: 120, height: 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
-              {/* Core circle */}
               <div className="relative w-20 h-20 rounded-full flex items-center justify-center border-2 border-aether-cyan"
-                style={{ background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: '0 0 36px rgba(0,242,255,0.25), 0 0 80px rgba(0,242,255,0.08)' }}>
-                <span className="font-display text-2xl font-bold text-aether-cyan select-none" style={{ textShadow: '0 0 16px rgba(0,242,255,0.5)' }}>我</span>
+                style={{ background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: `0 0 36px ${NODE_COLOR}40, 0 0 80px ${NODE_COLOR}12` }}>
+                <span className="font-display text-2xl font-bold text-aether-cyan select-none" style={{ textShadow: `0 0 16px ${NODE_COLOR}80` }}>我</span>
               </div>
             </motion.div>
           </div>
 
           {/* ===== Character nodes (Phase 0) ===== */}
-          {nodesWithPositions.map((node, i) => {
-            const v = TYPE_VISUALS[node.type];
-            return (
-              <motion.button key={node.id}
-                initial={{ opacity: 0, scale: 0, y: -20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ type: 'spring', damping: 13, stiffness: 180, delay: 0.25 + i * 0.2 }}
-                style={{ position: 'absolute', left: node.x - node.size / 2, top: node.y - node.size / 2, width: node.size, height: node.size }}
-                onClick={() => setSelectedNode(node)} className="clickable group z-10" aria-label={node.name}>
-                {/* Hover ring */}
-                <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500"
-                  style={{ margin: '-10px', boxShadow: `0 0 32px ${node.color}30`, background: `${node.color}04`, borderRadius: '50%' }} />
-                {/* Node circle */}
-                <div className="w-full h-full rounded-full border-2 flex items-center justify-center transition-all duration-400 group-hover:scale-110"
-                  style={{ borderColor: `${node.color}80`, background: 'linear-gradient(135deg, rgba(6,12,20,0.92), rgba(3,6,12,0.95))', boxShadow: `0 0 18px ${node.color}20` }}>
-                  <span className="font-display font-bold select-none" style={{ fontSize: Math.max(14, node.size * 0.3), color: node.color, textShadow: `0 0 8px ${node.color}35` }}>{node.name[0]}</span>
+          {nodesWithPositions.map((node, i) => (
+            <motion.button key={node.id}
+              initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', damping: 13, stiffness: 180, delay: 0.25 + i * 0.2 }}
+              style={{ position: 'absolute', left: node.x - node.size / 2, top: node.y - node.size / 2, width: node.size, height: node.size }}
+              onClick={() => setSelectedNode(node)}
+              onMouseEnter={() => setHoveredNode(node)}
+              onMouseLeave={() => setHoveredNode(null)}
+              className="clickable group z-10" aria-label={node.name}>
+              <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500"
+                style={{ margin: '-10px', boxShadow: `0 0 32px ${NODE_COLOR}30`, background: `${NODE_COLOR}04`, borderRadius: '50%' }} />
+              <div className="w-full h-full rounded-full border-2 flex items-center justify-center transition-all duration-400 group-hover:scale-110"
+                style={{ borderColor: `${NODE_COLOR}80`, background: 'linear-gradient(135deg, rgba(6,12,20,0.92), rgba(3,6,12,0.95))', boxShadow: `0 0 18px ${NODE_COLOR}20` }}>
+                <span className="font-display font-bold select-none" style={{ fontSize: Math.max(14, node.size * 0.3), color: NODE_COLOR, textShadow: `0 0 8px ${NODE_COLOR}35` }}>{node.name[0]}</span>
+              </div>
+            </motion.button>
+          ))}
+
+          {/* ===== Hover Tooltip ===== */}
+          <AnimatePresence>
+            {hoveredNode && hoverProfile && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="absolute z-50 pointer-events-none"
+                style={{
+                  left: hoveredNode.x,
+                  top: hoveredNode.y + hoveredNode.size / 2 + 12,
+                  transform: 'translate(-50%, 0)',
+                }}>
+                <div className="glass-panel px-4 py-3 min-w-[160px] border border-aether-cyan/20 shadow-[0_0_20px_rgba(0,0,0,0.6)]">
+                  {/* Name */}
+                  <p className="text-sm font-display font-bold text-white/90 mb-2">{hoveredNode.name}</p>
+
+                  {/* Affection / Friendliness */}
+                  <div className="space-y-0.5 mb-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[9px] font-mono text-white/35">
+                        {isFemaleHover ? '好感值' : '友善值'}
+                      </span>
+                      <span className="text-[11px] font-mono font-bold" style={{ color: isFemaleHover ? affStage!.color : '#00f2ff' }}>
+                        {hoverAffection > 0 ? '+' : ''}{hoverAffection}
+                      </span>
+                    </div>
+                    {affStage && (
+                      <span className="text-[9px] font-mono tracking-wider" style={{ color: affStage.color }}>{affStage.name}</span>
+                    )}
+                  </div>
+
+                  {/* Corruption (female only) */}
+                  {isFemaleHover && hoverCorruption !== undefined && (
+                    <div className="space-y-0.5 pt-2 border-t border-white/[0.06]">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[9px] font-mono text-white/35">堕落值</span>
+                        <span className="text-[11px] font-mono font-bold" style={{ color: corrStage!.color }}>
+                          {hoverCorruption}
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-mono tracking-wider" style={{ color: corrStage!.color }}>{corrStage!.name}</span>
+                    </div>
+                  )}
                 </div>
-              </motion.button>
-            );
-          })}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -277,7 +361,6 @@ export default function SocialPage() {
   );
 }
 
-/* ===== Corner marks ===== */
 function CornerMark(p: { tl?: boolean; tr?: boolean; bl?: boolean; br?: boolean }) {
   const isTop = !!(p.tl || p.tr), isLeft = !!(p.tl || p.bl);
   return (
