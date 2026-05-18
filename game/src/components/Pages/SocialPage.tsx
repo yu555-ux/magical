@@ -197,7 +197,7 @@ export default function SocialPage() {
                         opacity: edge.opacity, transform: `rotate(${ang}deg)`, transformOrigin: '0 50%', borderRadius: '2px',
                       }}
                       initial={{ width: 0 }} animate={{ width: len }}
-                      transition={{ duration: 0.55, delay: i * 0.2, ease: [0.22, 1, 0.36, 1] }} />
+                      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} />
                   );
                 })}
               </motion.div>
@@ -278,7 +278,7 @@ export default function SocialPage() {
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="text-[9px] font-mono text-white/28 tracking-[0.08em] uppercase">{isFemaleHover ? '好感' : '友善'}</span>
                         {affStage && (
-                          <span className="text-lg font-display font-bold tracking-wider" style={{ color: affStage.color, textShadow: `0 0 14px ${affStage.color}25` }}>{affStage.name}</span>
+                          <span className="text-xl font-display font-bold italic tracking-[0.12em]" style={{ color: affStage.color, textShadow: `0 0 20px ${affStage.color}40, 0 0 40px ${affStage.color}15` }}>{affStage.name}</span>
                         )}
                       </div>
                       <span className="text-[10px] font-mono tracking-tight" style={{ color: isFemaleHover ? affStage!.color : NODE_COLOR, opacity: 0.5 }}>{hoverAffection}</span>
@@ -296,7 +296,7 @@ export default function SocialPage() {
                       <div className="space-y-2 pt-2 border-t border-white/[0.04]">
                         <div className="flex items-baseline justify-between gap-2">
                           <span className="text-[9px] font-mono text-white/28 tracking-[0.08em] uppercase">堕落</span>
-                          <span className="text-lg font-display font-bold tracking-wider" style={{ color: corrStage!.color, textShadow: `0 0 14px ${corrStage!.color}25` }}>{corrStage!.name}</span>
+                          <span className="text-xl font-display font-bold italic tracking-[0.12em]" style={{ color: corrStage!.color, textShadow: `0 0 20px ${corrStage!.color}40, 0 0 40px ${corrStage!.color}15` }}>{corrStage!.name}</span>
                         </div>
                         <span className="text-[10px] font-mono tracking-tight" style={{ color: corrStage!.color, opacity: 0.5 }}>{hoverCorruption}</span>
                         <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
