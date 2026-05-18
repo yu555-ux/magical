@@ -1,89 +1,23 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Activity, MapPin, MessageCircle, Heart, HeartCrack } from 'lucide-react';
+import { Users, Activity, MapPin, MessageCircle, Heart } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { useSillytavern } from '../../hooks/useSillytavern';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 
 /* ===== Types ===== */
 interface CharacterProfile {
-  检索词?: string[];
-  梦境NPC?: boolean;
-  年龄: number;
-  身份: string;
-  评级?: string;
-  好感值?: number;
-  友善值?: number;
-  堕落值?: number;
-  当前位置: string;
-  当前行动: string;
-  当前想法: string;
+  检索词?: string[]; 梦境NPC?: boolean; 年龄: number; 身份: string; 评级?: string;
+  好感值?: number; 友善值?: number; 堕落值?: number;
+  当前位置: string; 当前行动: string; 当前想法: string;
   状态: Record<string, { 描述: string; 持续时间: string }>;
 }
+interface SocialPersonData { 关系: string; 社交圈?: Record<string, string> }
+interface SocialNodeRender { id: string; name: string; relation: string; type: string; level: number; x: number; y: number; size: number; color: string }
+interface SocialEdgeRender { from: string; to: string; label: string; stroke: string; opacity: number }
 
-interface SocialPersonData {
-  关系: string;
-  社交圈?: Record<string, string>;
-}
-
-interface SocialNodeRender {
-  id: string;
-  name: string;
-  relation: string;
-  type: '盟友' | '中立' | '敌对' | '未知';
-  level: number;
-  x: number;
-  y: number;
-  size: number;
-  color: string;
-}
-
-interface SocialEdgeRender {
-  from: string;
-  to: string;
-  label: string;
-  stroke: string;
-  opacity: number;
-}
-
-/* ===== Color palette ===== */
+/* ===== Constants ===== */
 const NODE_COLORS = ['#00f2ff', '#a78bfa', '#f59e0b', '#f472b6', '#22c55e', '#3b82f6', '#14b8a6', '#ef4444'];
-
-/* ===== Helpers ===== */
-function inferType(relation: string): '盟友' | '中立' | '敌对' | '未知' {
-  if (/母|父|姐|妹|兄|弟|家|亲/.test(relation)) return '盟友';
-  if (/敌|仇|恨|杀/.test(relation)) return '敌对';
-  if (/同|友|识|顾/.test(relation)) return '中立';
-  return '未知';
-}
-function getLevelHint(relation: string): number {
-  if (/母|父/.test(relation)) return 90;
-  if (/姐|妹|兄|弟/.test(relation)) return 78;
-  if (/友|同/.test(relation)) return 55;
-  return 30;
-}
-
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
-}
-
-/* ===== Lookup ===== */
-function findCharacter(
-  chars: any, name: string,
-): { profile: CharacterProfile; category: string } | null {
-  for (const [gender, groups] of Object.entries(chars)) {
-    if (!groups || typeof groups !== 'object') continue;
-    for (const [group, members] of Object.entries(groups as Record<string, any>)) {
-      if (!members || typeof members !== 'object') continue;
-      if (members[name]) {
-        return { profile: members[name] as CharacterProfile, category: `${gender}·${group}` };
-      }
-    }
-  }
-  return null;
-}
-
-/* ===== Rating badge colors ===== */
 const RATING_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   '灭世': { bg: 'bg-red-500/15', text: 'text-red-400', border: 'border-red-500/50' },
   '夷地': { bg: 'bg-red-400/10', text: 'text-red-400/80', border: 'border-red-400/30' },
@@ -96,13 +30,29 @@ const RATING_STYLES: Record<string, { bg: string; text: string; border: string }
   '微尘': { bg: 'bg-slate-400/8', text: 'text-slate-400', border: 'border-slate-400/20' },
 };
 
+/* ===== Helpers ===== */
+function inferType(rel: string) {
+  if (/母|父|姐|妹|兄|弟|家|亲/.test(rel)) return '盟友';
+  if (/敌|仇|恨|杀/.test(rel)) return '敌对';
+  if (/同|友|识|顾/.test(rel)) return '中立';
+  return '未知';
+}
+function getLevelHint(rel: string) { if (/母|父/.test(rel)) return 90; if (/姐|妹|兄|弟/.test(rel)) return 78; if (/友|同/.test(rel)) return 55; return 30; }
+function clamp(v: number, a: number, b: number) { return Math.max(a, Math.min(b, v)); }
+function findCharacter(chars: any, name: string): { profile: CharacterProfile; category: string } | null {
+  for (const [gender, groups] of Object.entries(chars)) {
+    if (!groups || typeof groups !== 'object') continue;
+    for (const [group, members] of Object.entries(groups as Record<string, any>)) {
+      if (!members || typeof members !== 'object') continue;
+      if (members[name]) return { profile: members[name] as CharacterProfile, category: `${gender}·${group}` };
+    }
+  }
+  return null;
+}
+
 function RatingBadge({ rating }: { rating: string }) {
   const s = RATING_STYLES[rating] ?? RATING_STYLES['微尘'];
-  return (
-    <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${s.bg} ${s.text} ${s.border} tracking-wider`}>
-      {rating}
-    </span>
-  );
+  return <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border tracking-wider ${s.bg} ${s.text} ${s.border}`}>{rating}</span>;
 }
 
 /* ============================================================
@@ -112,11 +62,8 @@ export default function SocialPage() {
   const ss = useSillytavern();
   const liveVars = ss.activeChat?.variables;
   const defaults = DEFAULT_WORLD_VARS as any;
-
-  const socialData: Record<string, SocialPersonData> =
-    liveVars?.['主角']?.['社交'] ?? defaults.主角?.社交 ?? {};
-  const characterData: Record<string, any> =
-    liveVars?.['主要人物'] ?? defaults.主要人物 ?? {};
+  const socialData: Record<string, SocialPersonData> = liveVars?.['主角']?.['社交'] ?? defaults.主角?.社交 ?? {};
+  const characterData: Record<string, any> = liveVars?.['主要人物'] ?? defaults.主要人物 ?? {};
 
   const [selectedNode, setSelectedNode] = useState<SocialNodeRender | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
@@ -124,80 +71,50 @@ export default function SocialPage() {
   const graphRef = useRef<HTMLDivElement>(null);
   const [graphBounds, setGraphBounds] = useState({ width: 800, height: 600 });
 
-  // ── Container size ──
   useEffect(() => {
-    const el = graphRef.current;
-    if (!el) return;
+    const el = graphRef.current; if (!el) return;
     const rect = el.getBoundingClientRect();
     setGraphBounds({ width: rect.width, height: rect.height });
-    const obs = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-      setGraphBounds((prev) => (prev.width !== width || prev.height !== height ? { width, height } : prev));
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
+    const obs = new ResizeObserver((e) => { const { width, height } = e[0].contentRect; setGraphBounds((p) => (p.width !== width || p.height !== height ? { width, height } : p)); });
+    obs.observe(el); return () => obs.disconnect();
   }, []);
 
-  // ── Animation phases ──
   useEffect(() => {
-    setAnimPhase(0);
-    const t1 = setTimeout(() => setAnimPhase(1), 800);
-    const t2 = setTimeout(() => setAnimPhase(2), 1800);
+    setAnimPhase(0); const t1 = setTimeout(() => setAnimPhase(1), 800); const t2 = setTimeout(() => setAnimPhase(2), 1800);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [socialData]);
 
-  // ── Build nodes & edges ──
   const { nodes, edges } = useMemo(() => {
     const entries = Object.entries(socialData);
     if (entries.length === 0) return { nodes: [] as SocialNodeRender[], edges: [] as SocialEdgeRender[] };
-
-    const cx = graphBounds.width / 2;
-    const cy = graphBounds.height / 2;
-    const rx = Math.min(graphBounds.width * 0.30, 240);
-    const ry = Math.min(graphBounds.height * 0.25, 170);
+    const cx = graphBounds.width / 2, cy = graphBounds.height / 2;
+    const rx = Math.min(graphBounds.width * 0.32, 260), ry = Math.min(graphBounds.height * 0.28, 200);
 
     const nodeList: SocialNodeRender[] = entries.map(([name, data], i) => {
       const angle = (i / entries.length) * Math.PI * 2 - Math.PI / 2;
       return {
-        id: name, name,
-        relation: data.关系,
-        type: inferType(data.关系),
-        level: getLevelHint(data.关系),
-        x: Math.cos(angle) * rx + cx,
-        y: Math.sin(angle) * ry + cy,
-        size: 44 + Math.random() * 8,
-        color: NODE_COLORS[i % NODE_COLORS.length],
+        id: name, name, relation: data.关系, type: inferType(data.关系), level: getLevelHint(data.关系),
+        x: Math.cos(angle) * rx + cx, y: Math.sin(angle) * ry + cy,
+        size: 48 + (getLevelHint(data.关系) / 100) * 16, color: NODE_COLORS[i % NODE_COLORS.length],
       };
     });
 
     const nameSet = new Set(nodeList.map((n) => n.name));
     const edgeList: SocialEdgeRender[] = [];
     for (const [name, data] of entries) {
-      edgeList.push({ from: '我', to: name, label: data.关系, stroke: '#00f2ff', opacity: 0.55 });
-      if (data.社交圈) {
-        for (const [friend, rel] of Object.entries(data.社交圈)) {
-          if (!nameSet.has(friend)) continue;
-          const dup = edgeList.find((e) =>
-            (e.from === name && e.to === friend) || (e.from === friend && e.to === name),
-          );
-          if (!dup) edgeList.push({ from: name, to: friend, label: rel, stroke: '#a78bfa', opacity: 0.45 });
-        }
+      edgeList.push({ from: '我', to: name, label: data.关系, stroke: '#00f2ff', opacity: 0.5 });
+      if (data.社交圈) for (const [friend, rel] of Object.entries(data.社交圈)) {
+        if (!nameSet.has(friend)) continue;
+        if (!edgeList.some((e) => (e.from === name && e.to === friend) || (e.from === friend && e.to === name)))
+          edgeList.push({ from: name, to: friend, label: rel, stroke: '#a78bfa', opacity: 0.4 });
       }
     }
-
     return { nodes: nodeList, edges: edgeList };
   }, [socialData, graphBounds]);
 
-  const cx = graphBounds.width / 2;
-  const cy = graphBounds.height / 2;
+  const cx = graphBounds.width / 2, cy = graphBounds.height / 2;
+  const getPos = (id: string) => id === '我' ? { x: cx, y: cy } : (() => { const n = nodes.find((x) => x.id === id); return n ? { x: n.x, y: n.y } : null; })();
 
-  const getPos = (id: string) => {
-    if (id === '我') return { x: cx, y: cy };
-    const n = nodes.find((x) => x.id === id);
-    return n ? { x: n.x, y: n.y } : null;
-  };
-
-  // ── Lookup selected character profile & social info ──
   const charResult = selectedNode ? findCharacter(characterData, selectedNode.name) : null;
   const charProfile = charResult?.profile ?? null;
   const charCategory = charResult?.category ?? '';
@@ -206,26 +123,23 @@ export default function SocialPage() {
   const isFemale = charCategory.startsWith('女性');
 
   return (
-    <div className="h-full flex flex-col p-4 md:p-8 space-y-6 relative">
+    <div className="h-full flex flex-col p-3 md:p-6 space-y-4 relative">
       {/* ── Header ── */}
-      <div className="relative z-10 glass-panel p-5">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-aether-cyan/10 border border-aether-cyan/30 rounded-full flex items-center justify-center shrink-0">
-            <Users className="text-aether-cyan" size={20} />
-          </div>
-          <div>
-            <h2 className="font-display text-xl tracking-[0.15em] text-aether-cyan">社交关系</h2>
-            <p className="text-[10px] text-white/30 font-mono tracking-wider mt-0.5">{nodes.length} 位关联人物</p>
-          </div>
-        </div>
+      <div className="relative z-10 flex items-center gap-2.5 px-1">
+        <div className="w-1 h-4 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.4)]" />
+        <h2 className="font-display text-base tracking-[0.12em] text-aether-cyan/90">社交关系</h2>
+        <span className="text-[10px] font-mono text-white/20 ml-1">{nodes.length}人</span>
       </div>
 
       {/* ── Graph ── */}
-      <div
-        ref={graphRef}
-        className="flex-1 relative glass-panel border-glow overflow-hidden bg-aether-dark/30"
-        style={{ backgroundImage: 'radial-gradient(circle, rgba(0,242,255,0.06) 1px, transparent 1px)', backgroundSize: '30px 30px' }}
-      >
+      <div ref={graphRef} className="flex-1 relative overflow-hidden rounded-lg border border-white/[0.04]"
+        style={{ background: 'radial-gradient(ellipse at center, rgba(0,242,255,0.04) 0%, transparent 70%), rgba(3,5,10,0.6)' }}>
+        {/* Atmospheric layers */}
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aether-cyan/15 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-aether-cyan/10 to-transparent" />
+        <CornerMark position="tl" /><CornerMark position="tr" /><CornerMark position="bl" /><CornerMark position="br" />
+
         <div className="absolute inset-0" style={{ zIndex: 2 }}>
           {/* Phase 2: Lines */}
           <AnimatePresence>
@@ -235,22 +149,21 @@ export default function SocialPage() {
                   const p1 = getPos(edge.from), p2 = getPos(edge.to);
                   if (!p1 || !p2) return null;
                   const dx = p2.x - p1.x, dy = p2.y - p1.y;
-                  const length = Math.sqrt(dx * dx + dy * dy);
-                  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                  const len = Math.sqrt(dx * dx + dy * dy);
+                  const ang = Math.atan2(dy, dx) * (180 / Math.PI);
                   const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
-                  const ek = `${edge.from}-${edge.to}`;
-                  const hov = hoveredEdge === ek;
+                  const ek = `${edge.from}-${edge.to}`, hov = hoveredEdge === ek;
                   return (
                     <React.Fragment key={ek}>
                       <motion.div className="absolute pointer-events-none"
-                        style={{ left: p1.x, top: p1.y, width: 0, height: 2, background: edge.stroke, opacity: edge.opacity, transform: `rotate(${angle}deg)`, transformOrigin: '0 50%', borderRadius: '2px' }}
-                        animate={{ width: length }} transition={{ duration: 0.6, delay: i * 0.08, ease: 'easeOut' }} />
+                        style={{ left: p1.x, top: p1.y, width: 0, height: 1.5, background: `linear-gradient(90deg, ${edge.stroke}40, ${edge.stroke})`, opacity: edge.opacity, transform: `rotate(${ang}deg)`, transformOrigin: '0 50%', borderRadius: '1px' }}
+                        animate={{ width: len }} transition={{ duration: 0.6, delay: i * 0.08, ease: 'easeOut' }} />
                       {animPhase >= 2 && (
-                        <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: hov ? 1 : 0.8, scale: 1 }} transition={{ duration: 0.35, delay: i * 0.06 }}
-                          className="absolute pointer-events-auto cursor-default" style={{ left: mx, top: my, transform: 'translate(-50%, -50%)' }}
+                        <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: hov ? 1 : 0.75, scale: 1 }} transition={{ duration: 0.3, delay: i * 0.06 }}
+                          className="absolute cursor-default" style={{ left: mx, top: my, transform: 'translate(-50%, -50%)' }}
                           onMouseEnter={() => setHoveredEdge(ek)} onMouseLeave={() => setHoveredEdge(null)}>
-                          <span className="block text-[10px] font-mono tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap transition-all duration-200"
-                            style={{ color: edge.stroke, backgroundColor: `${edge.stroke}10`, border: `1px solid ${edge.stroke}30`, boxShadow: hov ? `0 0 10px ${edge.stroke}20` : 'none' }}>{edge.label}</span>
+                          <span className="block text-[9px] font-mono tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap backdrop-blur-sm transition-all duration-200"
+                            style={{ color: edge.stroke, backgroundColor: `${edge.stroke}12`, border: `1px solid ${edge.stroke}25`, boxShadow: hov ? `0 0 12px ${edge.stroke}20` : 'none' }}>{edge.label}</span>
                         </motion.div>
                       )}
                     </React.Fragment>
@@ -261,30 +174,36 @@ export default function SocialPage() {
           </AnimatePresence>
 
           {/* Center "我" */}
-          <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 0.2 }}
-            className="absolute pointer-events-none" style={{ left: cx - 50, top: cy - 50 }}>
-            <div className="relative flex items-center justify-center">
-              <div className="absolute w-24 h-24 rounded-full" style={{ boxShadow: '0 0 40px rgba(0,242,255,0.12)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
-              <div className="w-20 h-20 rounded-full bg-aether-dark/90 border-2 border-aether-cyan flex items-center justify-center shadow-[0_0_30px_rgba(0,242,255,0.3)] backdrop-blur-sm relative z-10">
-                <span className="font-display text-2xl font-bold text-aether-cyan" style={{ textShadow: '0 0 12px rgba(0,242,255,0.6)' }}>我</span>
+          <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', damping: 12, stiffness: 180, delay: 0.15 }}
+            className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: 'translate(-50%, -50%)' }}>
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full" style={{ margin: '-30px', boxShadow: '0 0 60px rgba(0,242,255,0.08)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
+              <div className="absolute inset-0 rounded-full" style={{ margin: '-12px', border: '1px solid rgba(0,242,255,0.12)', animation: 'pulse-ring 4s ease-in-out infinite' }} />
+              <div className="w-18 h-18 rounded-full flex items-center justify-center border-2 border-aether-cyan shadow-[0_0_28px_rgba(0,242,255,0.35)]"
+                style={{ width: 72, height: 72, background: 'linear-gradient(135deg, rgba(0,20,30,0.9), rgba(0,5,10,0.95))' }}>
+                <span className="font-display text-2xl font-bold text-aether-cyan" style={{ textShadow: '0 0 14px rgba(0,242,255,0.5)' }}>我</span>
               </div>
             </div>
           </motion.div>
 
-          {/* Phase 1: Avatars */}
+          {/* Phase 1: Character nodes */}
           {nodes.map((node, i) => (
             <motion.button key={node.id}
               initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', damping: 14, stiffness: 220, delay: 0.3 + i * 0.1 }}
-              style={{ position: 'absolute', left: node.x - node.size / 2, top: node.y - node.size / 2, width: node.size, height: node.size }}
-              onClick={() => setSelectedNode(node)} className="clickable group" aria-label={`选择 ${node.name}`}>
-              <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ boxShadow: `0 0 20px ${node.color}40` }} />
-              <div className="w-full h-full rounded-full border-2 bg-aether-dark/85 backdrop-blur-sm flex items-center justify-center transition-all duration-300 group-hover:scale-115"
-                style={{ borderColor: `${node.color}99`, boxShadow: `0 0 12px ${node.color}30` }}>
-                <span className="font-display font-bold" style={{ fontSize: Math.max(13, node.size * 0.32), color: node.color }}>{node.name[0]}</span>
+              transition={{ type: 'spring', damping: 14, stiffness: 200, delay: 0.3 + i * 0.12 }}
+              style={{ position: 'absolute', left: node.x, top: node.y, transform: 'translate(-50%, -50%)', width: node.size, height: node.size }}
+              onClick={() => setSelectedNode(node)} className="clickable group z-10" aria-label={node.name}>
+              {/* Hover glow */}
+              <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-400"
+                style={{ margin: '-8px', boxShadow: `0 0 28px ${node.color}35`, background: `${node.color}06`, borderRadius: '50%' }} />
+              {/* Node circle */}
+              <div className="w-full h-full rounded-full border-2 flex items-center justify-center transition-all duration-300 group-hover:scale-110"
+                style={{ borderColor: `${node.color}99`, background: 'rgba(4,8,16,0.9)', boxShadow: `0 0 14px ${node.color}25` }}>
+                <span className="font-display font-bold select-none" style={{ fontSize: Math.max(14, node.size * 0.3), color: node.color, textShadow: `0 0 8px ${node.color}40` }}>{node.name[0]}</span>
               </div>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 pointer-events-none">
-                <span className="text-[10px] font-mono text-white/35 tracking-wider whitespace-nowrap transition-all duration-300 group-hover:text-white/70">{node.name}</span>
+              {/* Name label */}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 pointer-events-none">
+                <span className="text-[10px] font-mono text-white/30 tracking-wider whitespace-nowrap transition-all duration-300 group-hover:text-white/65 group-hover:drop-shadow-[0_0_5px_rgba(255,255,255,0.2)]">{node.name}</span>
               </div>
             </motion.button>
           ))}
@@ -292,140 +211,141 @@ export default function SocialPage() {
       </div>
 
       {/* ================================================================
-          REDESIGNED CHARACTER PROFILE MODAL
+          CHARACTER PROFILE MODAL
           ================================================================ */}
       <Modal isOpen={!!selectedNode} onClose={() => setSelectedNode(null)} title="">
         {selectedNode && charProfile && (
-          <div className="space-y-5" style={{ minWidth: 420, maxWidth: 500 }}>
-            {/* ── Header: Name + Identity ── */}
-            <div className="flex items-start gap-4">
-              {/* Avatar */}
-              <div className="w-16 h-16 rounded-full border-2 flex items-center justify-center text-2xl font-bold font-display shrink-0"
-                style={{ borderColor: `${selectedNode.color}80`, color: selectedNode.color, boxShadow: `0 0 16px ${selectedNode.color}30` }}>
-                {selectedNode.name[0]}
-              </div>
-              <div className="min-w-0 flex-1 pt-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-xl font-display font-bold text-white">{selectedNode.name}</h3>
-                  <span className="text-[12px] font-mono text-white/30">{charProfile.年龄}岁</span>
-                  {charProfile.梦境NPC && (
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-400/10 text-purple-300/70 border border-purple-400/25">梦境NPC</span>
-                  )}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6" style={{ minWidth: 440, maxWidth: 520 }}>
+            {/* ── Hero section ── */}
+            <div className="flex gap-5">
+              <div className="relative shrink-0">
+                <div className="absolute inset-0 rounded-full" style={{ margin: '-6px', boxShadow: `0 0 24px ${selectedNode.color}20` }} />
+                <div className="w-20 h-20 rounded-full border-2 flex items-center justify-center text-3xl font-bold font-display"
+                  style={{ borderColor: `${selectedNode.color}70`, color: selectedNode.color, background: 'linear-gradient(135deg, rgba(8,12,20,0.95), rgba(4,6,14,0.98))', boxShadow: `0 0 20px ${selectedNode.color}20` }}>
+                  {selectedNode.name[0]}
                 </div>
-                <p className="text-[12px] text-white/50 font-mono mt-1 leading-relaxed">{charProfile.身份}</p>
-                {charProfile.评级 && <div className="mt-1.5"><RatingBadge rating={charProfile.评级} /></div>}
+              </div>
+              <div className="min-w-0 pt-1">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <h3 className="text-xl font-display font-bold text-white/95 tracking-wide">{selectedNode.name}</h3>
+                  <span className="text-[12px] font-mono text-white/30 font-bold">{charProfile.年龄}岁</span>
+                  {charProfile.梦境NPC && <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-purple-400/12 text-purple-300/70 border border-purple-400/20">梦境NPC</span>}
+                  {charProfile.评级 && <RatingBadge rating={charProfile.评级} />}
+                </div>
+                <p className="text-[12px] text-white/45 font-mono leading-relaxed">{charProfile.身份}</p>
               </div>
             </div>
 
-            {/* ── Affection & Corruption bars ── */}
+            {/* ── Stats row ── */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[9px] font-mono text-white/35 tracking-wider uppercase">
-                    {isFemale ? '好感值' : '友善值'}
-                  </span>
-                  <span className={`text-[11px] font-mono font-bold ${affection >= 0 ? 'text-aether-cyan' : 'text-red-400'}`}>
-                    {affection > 0 ? '+' : ''}{affection}
-                  </span>
-                </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                  <motion.div initial={{ width: 0 }}
-                    animate={{ width: `${clamp(Math.abs(affection), 0, 200) / 2}%` }}
-                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                    className={`h-full rounded-full ${affection >= 0 ? 'bg-aether-cyan' : 'bg-red-500'}`}
-                    style={{ boxShadow: affection >= 0 ? '0 0 6px rgba(0,242,255,0.4)' : '0 0 6px rgba(239,68,68,0.4)' }} />
-                </div>
-              </div>
+              <StatBar label={isFemale ? '好感值' : '友善值'} value={affection} min={-200} max={200}
+                color={affection >= 0 ? '#00f2ff' : '#ef4444'} />
               {isFemale && charProfile.堕落值 !== undefined && (
-                <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[9px] font-mono text-white/35 tracking-wider uppercase">堕落值</span>
-                    <span className={`text-[11px] font-mono font-bold ${(charProfile.堕落值 ?? 0) > 50 ? 'text-red-400' : 'text-white/50'}`}>
-                      {charProfile.堕落值}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                    <motion.div initial={{ width: 0 }}
-                      animate={{ width: `${clamp(charProfile.堕落值 ?? 0, 0, 500) / 5}%` }}
-                      transition={{ duration: 0.8, ease: 'easeOut' }}
-                      className="h-full rounded-full bg-red-400/60"
-                      style={{ boxShadow: (charProfile.堕落值 ?? 0) > 50 ? '0 0 6px rgba(239,68,68,0.3)' : 'none' }} />
-                  </div>
-                </div>
+                <StatBar label="堕落值" value={charProfile.堕落值 ?? 0} min={0} max={500}
+                  color="#ef4444" warn={50} />
               )}
             </div>
 
-            {/* ── Location + Status ── */}
-            <div className="space-y-2 p-3 rounded-lg border border-white/[0.05] bg-white/[0.01]">
-              <div className="flex items-center gap-2 text-[10px] font-mono text-white/35">
-                <MapPin size={12} className="text-aether-cyan/40 shrink-0" />
-                <span className="text-white/55">{charProfile.当前位置}</span>
-              </div>
-              <div className="flex items-start gap-2 text-[10px] font-mono text-white/35">
-                <Activity size={12} className="text-aether-cyan/40 shrink-0 mt-0.5" />
-                <span className="text-white/55">{charProfile.当前行动}</span>
-              </div>
-              <div className="flex items-start gap-2 text-[10px] font-mono text-white/35">
-                <MessageCircle size={12} className="text-aether-cyan/40 shrink-0 mt-0.5" />
-                <span className="text-white/45 italic">{charProfile.当前想法}</span>
-              </div>
+            {/* ── Divider ── */}
+            <div className="h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+
+            {/* ── Status block ── */}
+            <div className="space-y-3">
+              <InfoLine label="位置" content={charProfile.当前位置} />
+              <InfoLine label="行动" content={charProfile.当前行动} />
+              <InfoLine label="想法" content={charProfile.当前想法} muted />
             </div>
 
             {/* ── Status effects ── */}
             {Object.keys(charProfile.状态).length > 0 && (
-              <div className="space-y-1.5">
-                <span className="text-[9px] font-mono text-white/25 tracking-wider uppercase">状态</span>
+              <div className="space-y-2">
+                <span className="text-[9px] font-mono text-white/20 tracking-[0.15em] uppercase">状态效果</span>
                 {Object.entries(charProfile.状态).map(([name, s]) => (
-                  <div key={name} className="flex items-center justify-between p-2 rounded border border-white/[0.05] bg-white/[0.01]">
-                    <span className="text-[11px] font-mono text-white/60">{name}</span>
-                    <span className="text-[9px] font-mono text-white/30">{s.描述} · {s.持续时间}</span>
+                  <div key={name} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.04] bg-white/[0.01]">
+                    <div className="w-1 h-1 rounded-full bg-aether-cyan/50 shrink-0" />
+                    <span className="text-[12px] font-mono text-white/60">{name}</span>
+                    <span className="ml-auto text-[9px] font-mono text-white/25">{s.描述} · {s.持续时间}</span>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* ── Social: relation to me ── */}
+            {/* ── Divider ── */}
+            <div className="h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+
+            {/* ── Social relation ── */}
             {charSocial && (
-              <div className="p-3 rounded-lg border border-aether-cyan/10 bg-aether-cyan/[0.02]">
-                <div className="flex items-center gap-2 mb-2">
-                  <Heart size={12} className="text-aether-cyan/50" />
-                  <span className="text-[9px] font-mono text-aether-cyan/50 tracking-wider uppercase">与我的关系</span>
+              <div className="p-4 rounded-xl border border-aether-cyan/[0.08]"
+                style={{ background: 'linear-gradient(135deg, rgba(0,242,255,0.03), rgba(0,242,255,0.01))' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Heart size={13} className="text-aether-cyan/50" />
+                  <span className="text-[9px] font-mono text-aether-cyan/50 tracking-[0.12em] uppercase">与我的关系</span>
                 </div>
-                <p className="text-[13px] font-display text-aether-cyan/80 font-bold tracking-wide">{charSocial.关系}</p>
-              </div>
-            )}
+                <p className="text-[15px] font-display text-aether-cyan/85 font-bold tracking-wider">{charSocial.关系}</p>
 
-            {/* ── Social: connections ── */}
-            {charSocial?.社交圈 && Object.keys(charSocial.社交圈).length > 0 && (
-              <div className="space-y-1.5">
-                <span className="text-[9px] font-mono text-white/25 tracking-wider uppercase">社交圈</span>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(charSocial.社交圈).map(([name, rel]) => (
-                    <div key={name} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.06] bg-white/[0.02]">
-                      <span className="text-[11px] font-display text-white/70">{name}</span>
-                      <span className="text-[9px] font-mono text-white/30">{rel}</span>
+                {charSocial.社交圈 && Object.keys(charSocial.社交圈).length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-white/[0.04]">
+                    <span className="text-[8px] font-mono text-white/20 tracking-[0.12em] uppercase">社交圈</span>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {Object.entries(charSocial.社交圈).map(([name, rel]) => (
+                        <div key={name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                          <span className="text-[11px] font-display text-white/65">{name}</span>
+                          <span className="text-[8px] font-mono text-white/25">· {rel}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
             )}
-
-            {/* ── Empty state ── */}
-            {!charProfile && (
-              <p className="text-[11px] text-white/20 font-mono text-center py-6">
-                该角色暂无详细的档案信息
-              </p>
-            )}
-          </div>
+          </motion.div>
         )}
       </Modal>
 
       <style>{`
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 0.6; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.06); }
-        }
+        @keyframes pulse-slow { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.04)} }
+        @keyframes pulse-ring { 0%,100%{opacity:.3;transform:scale(1)} 50%{opacity:.7;transform:scale(1.03)} }
       `}</style>
+    </div>
+  );
+}
+
+/* ============================================================
+   SUB-COMPONENTS
+   ============================================================ */
+
+function StatBar({ label, value, min, max, color, warn }: { label: string; value: number; min: number; max: number; color: string; warn?: number }) {
+  const pct = clamp((Math.abs(value - (min < 0 ? 0 : min))) / (max - min) * 100, 2, 100);
+  const danger = warn !== undefined && value > warn;
+  return (
+    <div className="p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.01]">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[9px] font-mono text-white/30 tracking-[0.1em] uppercase">{label}</span>
+        <span className="text-[12px] font-mono font-bold" style={{ color }}>{min < 0 && value > 0 ? '+' : ''}{value}</span>
+      </div>
+      <div className="h-2 rounded-full overflow-hidden" style={{ background: `${color}12`, border: `1px solid ${color}15` }}>
+        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.7, ease: 'easeOut' }}
+          className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${color}90, ${color})`, boxShadow: danger ? `0 0 8px ${color}40` : `0 0 4px ${color}20` }} />
+      </div>
+    </div>
+  );
+}
+
+function InfoLine({ label, content, muted }: { label: string; content: string; muted?: boolean }) {
+  return (
+    <div className="flex items-start gap-3 px-3 py-2 rounded-lg border border-white/[0.03] bg-white/[0.005]">
+      <span className="text-[9px] font-mono text-white/20 tracking-[0.1em] uppercase shrink-0 w-10 pt-0.5">{label}</span>
+      <span className={`text-[12px] font-mono leading-relaxed ${muted ? 'text-white/35 italic' : 'text-white/55'}`}>{content}</span>
+    </div>
+  );
+}
+
+function CornerMark({ position }: { position: 'tl' | 'tr' | 'bl' | 'br' }) {
+  const top = position.startsWith('t'), left = position.endsWith('l');
+  return (
+    <div className="absolute pointer-events-none" style={{ [top ? 'top' : 'bottom']: 6, [left ? 'left' : 'right']: 6, width: 14, height: 14 }}>
+      <div className="absolute bg-aether-cyan/15" style={{ [top ? 'top' : 'bottom']: 0, [left ? 'left' : 'right']: 0, height: 1, width: '100%' }} />
+      <div className="absolute bg-aether-cyan/15" style={{ [top ? 'top' : 'bottom']: 0, [left ? 'left' : 'right']: 0, width: 1, height: '100%' }} />
     </div>
   );
 }
