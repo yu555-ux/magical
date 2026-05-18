@@ -1,64 +1,42 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MOCK_MAP } from '../../mockData';
 import {
-  ZoomIn, ZoomOut, ArrowLeft
+  ZoomIn, ZoomOut, ArrowLeft, MapPin, Info, Skull, Crosshair,
 } from 'lucide-react';
-import { MapPoint } from '../../types';
+import { MapLocationRender, MapAnomaly } from '../../types';
+import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
+import { adaptMapTree, findNode } from '../../sillytavern/mapDataAdapter';
 
-/* ===== Type color config ===== */
-interface PointColorSet {
-  primary: string;
-  glow: string;
+/* ===== Rating / anomaly color config (matching WarehousePage) ===== */
+interface RatingColorSet {
   text: string;
   border: string;
+  glow: string;
   bg: string;
-  label: string;
+  bar: string;
 }
 
-const POINT_COLORS: Record<MapPoint['type'], PointColorSet> = {
-  '城市': {
-    primary: '#22c55e',
-    glow: 'rgba(34,197,94,0.6)',
-    text: 'text-green-400',
-    border: 'border-green-400',
-    bg: 'bg-green-400/20',
-    label: '低危',
-  },
-  '据点': {
-    primary: '#eab308',
-    glow: 'rgba(234,179,8,0.6)',
-    text: 'text-yellow-400',
-    border: 'border-yellow-400/70',
-    bg: 'bg-yellow-400/20',
-    label: '中危',
-  },
-  '遗迹': {
-    primary: '#00a8cc',
-    glow: 'rgba(0,168,204,0.6)',
-    text: 'text-aether-blue',
-    border: 'border-aether-blue',
-    bg: 'bg-aether-blue/20',
-    label: '高危',
-  },
-  '未知': {
-    primary: '#ef4444',
-    glow: 'rgba(239,68,68,0.6)',
-    text: 'text-red-400',
-    border: 'border-red-500/60',
-    bg: 'bg-red-500/20',
-    label: '极高危',
-  },
+const RATING_COLORS: Record<string, RatingColorSet> = {
+  '灭世': { text: 'text-red-500',   border: 'border-red-500/60',   glow: 'shadow-[0_0_24px_rgba(239,68,68,0.6)]',    bg: 'bg-red-500/12',   bar: 'bg-red-500' },
+  '绝域': { text: 'text-fuchsia-400',border: 'border-fuchsia-400/50',glow: 'shadow-[0_0_18px_rgba(217,70,219,0.45)]',bg: 'bg-fuchsia-400/10',bar: 'bg-fuchsia-400' },
+  '倾国': { text: 'text-violet-400',border: 'border-violet-400/50',glow: 'shadow-[0_0_14px_rgba(167,139,250,0.4)]',bg: 'bg-violet-400/10', bar: 'bg-violet-400' },
+  '祸城': { text: 'text-orange-400',border: 'border-orange-400/50',glow: 'shadow-[0_0_14px_rgba(251,146,60,0.4)]', bg: 'bg-orange-400/10',bar: 'bg-orange-400' },
+  '凶煞': { text: 'text-amber-400', border: 'border-amber-400/50', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.35)]',bg: 'bg-amber-400/10', bar: 'bg-amber-400' },
+  '微末': { text: 'text-slate-400', border: 'border-slate-400/30', glow: 'shadow-[0_0_6px_rgba(148,163,184,0.15)]',bg: 'bg-slate-400/5',  bar: 'bg-slate-400' },
 };
 
-function getDangerLevel(type: MapPoint['type']): { label: string; color: string } {
-  switch (type) {
-    case '未知': return { label: '极高', color: 'text-red-400' };
-    case '遗迹': return { label: '高', color: 'text-aether-blue' };
-    case '据点': return { label: '中', color: 'text-yellow-400' };
-    case '城市': return { label: '低', color: 'text-green-400' };
-  }
+function getRating(label: string): RatingColorSet {
+  return RATING_COLORS[label] ?? RATING_COLORS['微末'];
 }
+
+/* ===== Zoom limits ===== */
+const ZOOM_MIN = 0.3;
+const ZOOM_MAX = 5;
+const ZOOM_STEP = 0.15;
+
+/* ===== Canvas dimensions ===== */
+const CANVAS_W = 800;
+const CANVAS_H = 600;
 
 /* ===== Floating particles ===== */
 interface Particle {
@@ -79,34 +57,126 @@ const PARTICLES: Particle[] = Array.from({ length: 24 }, (_, i) => ({
   opacity: 0.1 + Math.random() * 0.3,
 }));
 
-/* ===== Zoom limits ===== */
-const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 3;
-const ZOOM_STEP = 0.25;
+/* ===== Viewport helpers ===== */
+interface Viewport {
+  x: number;  // world-coord of viewport left edge
+  y: number;  // world-coord of viewport top edge
+  w: number;  // world-units visible horizontally
+  h: number;  // world-units visible vertically
+}
 
-/* ===== Map canvas dimensions ===== */
-const CANVAS_W = 800;
-const CANVAS_H = 600;
+/** Fit a set of points into a viewport with padding. */
+function fitViewport(points: MapLocationRender[], paddingRatio = 0.6): Viewport {
+  if (points.length === 0) return { x: -500, y: -500, w: 1000, h: 1000 };
 
-/* ===== Map canvas reference dimensions ===== */
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const p of points) {
+    if (p.cx < minX) minX = p.cx;
+    if (p.cx > maxX) maxX = p.cx;
+    if (p.cy < minY) minY = p.cy;
+    if (p.cy > maxY) maxY = p.cy;
+  }
+
+  const dx = maxX - minX || 10;
+  const dy = maxY - minY || 10;
+  const padX = dx * paddingRatio;
+  const padY = dy * paddingRatio;
+
+  // Maintain canvas aspect ratio
+  const rawW = dx + padX * 2;
+  const rawH = dy + padY * 2;
+  const aspect = CANVAS_W / CANVAS_H;
+  let w: number, h: number;
+  if (rawW / rawH > aspect) {
+    w = rawW;
+    h = rawW / aspect;
+  } else {
+    h = rawH;
+    w = rawH * aspect;
+  }
+
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+
+  return { x: cx - w / 2, y: cy - h / 2, w, h };
+}
+
+/** World coord → screen pixel (relative to container). */
+function worldToScreen(wx: number, wy: number, vp: Viewport): { sx: number; sy: number } {
+  return {
+    sx: ((wx - vp.x) / vp.w) * CANVAS_W,
+    sy: ((wy - vp.y) / vp.h) * CANVAS_H,
+  };
+}
+
+/* ===== Point type color (for region/city markers) ===== */
+interface PointColorSet {
+  primary: string;
+  glow: string;
+  bg: string;
+}
+
+const POINT_COLORS: Record<string, PointColorSet> = {
+  region: { primary: '#00f2ff', glow: 'rgba(0,242,255,0.5)', bg: 'rgba(0,242,255,0.12)' },
+  city:   { primary: '#22c55e', glow: 'rgba(34,197,94,0.5)',  bg: 'rgba(34,197,94,0.12)' },
+  district:{ primary: '#a78bfa', glow: 'rgba(167,139,250,0.5)', bg: 'rgba(167,139,250,0.12)' },
+  block:  { primary: '#eab308', glow: 'rgba(234,179,8,0.5)',  bg: 'rgba(234,179,8,0.12)' },
+  site:   { primary: '#f472b6', glow: 'rgba(244,114,182,0.5)', bg: 'rgba(244,114,182,0.12)' },
+};
+
+/** Guess point type by depth. */
+function pointStyle(depth: number, hasChildren: boolean): PointColorSet {
+  if (depth === 0) return POINT_COLORS.region;
+  if (depth === 1) return POINT_COLORS.city;
+  if (depth === 2) return POINT_COLORS.district;
+  if (depth === 3 && hasChildren) return POINT_COLORS.block;
+  return POINT_COLORS.site;
+}
+
+/* ============================================================
+   MAP PAGE
+   ============================================================ */
 export default function MapPage() {
-  const [layerStack, setLayerStack] = useState<MapPoint[][]>([MOCK_MAP]);
-  const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null);
+  // --- Build the map tree once ---
+  const mapTree = useMemo(() => {
+    const raw = DEFAULT_WORLD_VARS.地图;
+    return adaptMapTree(raw as Record<string, any>);
+  }, []);
+
+  // --- Navigation: path segments into the tree (excluding root '蓝星' which is the canvas itself) ---
+  const [navPath, setNavPath] = useState<string[]>([]);
+
+  // --- Current node & children ---
+  const currentNode = useMemo(() => {
+    if (navPath.length === 0) return null;
+    return findNode(mapTree, navPath);
+  }, [mapTree, navPath]);
+
+  const currentChildren = useMemo(() => {
+    if (navPath.length === 0) return mapTree; // top level: 蓝星's children
+    return currentNode?.children ?? [];
+  }, [mapTree, navPath, currentNode]);
+
+  const navDepth = navPath.length;
+
+  // --- Viewport ---
+  const [viewport, setViewport] = useState<Viewport>(() => fitViewport(mapTree, 1.2));
   const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const dragMoved = useRef(false);
+
+  // Reset viewport when layer changes
+  useEffect(() => {
+    const vp = fitViewport(currentChildren, navDepth === 0 ? 1.2 : 0.6);
+    setViewport(vp);
+    setZoom(1);
+  }, [navDepth, currentChildren]);
+
+  // --- Selection & card ---
+  const [selectedPoint, setSelectedPoint] = useState<MapLocationRender | null>(null);
   const [cardOrigin, setCardOrigin] = useState<{ x: number; y: number } | null>(null);
   const [cardVisible, setCardVisible] = useState(false);
 
-  const currentLayer = layerStack[layerStack.length - 1];
-  const isSubMap = layerStack.length > 1;
-
-  // Reset card visibility when selectedPoint changes
   useEffect(() => {
-    if (selectedPoint && !selectedPoint.subPoints) {
-      // Small delay to allow mount before animating
+    if (selectedPoint && selectedPoint.children.length === 0) {
       const t = setTimeout(() => setCardVisible(true), 30);
       return () => clearTimeout(t);
     } else {
@@ -114,56 +184,67 @@ export default function MapPage() {
     }
   }, [selectedPoint]);
 
-  const handlePointClick = useCallback(
-    (point: MapPoint, e: React.MouseEvent) => {
-      e.stopPropagation();
+  // --- Pan / drag ---
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const dragViewStart = useRef<Viewport>(viewport);
+  const dragMoved = useRef(false);
 
-      setSelectedPoint(point);
-      setCardOrigin({ x: e.clientX, y: e.clientY });
-      setCardVisible(false);
-    },
-    [],
-  );
-
-  const goBack = useCallback(() => {
-    setLayerStack((prev) => {
-      if (prev.length <= 1) return prev;
-      return prev.slice(0, -1);
-    });
-    setSelectedPoint(null);
-    setCardOrigin(null);
-    setCardVisible(false);
-  }, []);
-
-  const zoomIn = useCallback(() => {
-    setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)));
-  }, []);
-
-  const zoomOut = useCallback(() => {
-    setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)));
-  }, []);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handlePanStart = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
     setIsDragging(true);
     dragMoved.current = false;
-    dragStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
-  }, [pan]);
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    dragViewStart.current = { ...viewport };
+  }, [viewport]);
 
   const handlePanMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
-    if (Math.abs(dx - pan.x) > 2 || Math.abs(dy - pan.y) > 2) {
-      dragMoved.current = true;
-    }
-    setPan({ x: dx, y: dy });
-  }, [isDragging, pan]);
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved.current = true;
 
-  const handlePanEnd = useCallback(() => {
-    setIsDragging(false);
+    const scaleX = dragViewStart.current.w / CANVAS_W;
+    const scaleY = dragViewStart.current.h / CANVAS_H;
+
+    setViewport({
+      x: dragViewStart.current.x - dx * scaleX,
+      y: dragViewStart.current.y - dy * scaleY,
+      w: dragViewStart.current.w,
+      h: dragViewStart.current.h,
+    });
+  }, [isDragging, viewport]);
+
+  const handlePanEnd = useCallback(() => setIsDragging(false), []);
+
+  // --- Point click ---
+  const handlePointClick = useCallback((point: MapLocationRender, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (point.children.length > 0) {
+      // Drill down
+      setNavPath((prev) => [...prev, point.key]);
+      setSelectedPoint(null);
+      setCardOrigin(null);
+      setCardVisible(false);
+    } else {
+      // Show info card
+      setSelectedPoint(point);
+      setCardOrigin({ x: e.clientX, y: e.clientY });
+      setCardVisible(false);
+    }
   }, []);
 
+  // --- Go back ---
+  const goBack = useCallback(() => {
+    setNavPath((prev) => (prev.length <= 1 ? [] : prev.slice(0, -1)));
+    setSelectedPoint(null);
+    setCardOrigin(null);
+    setCardVisible(false);
+  }, []);
+
+  // --- Dismiss card ---
   const dismissCard = useCallback(() => {
     if (dragMoved.current) return;
     setSelectedPoint(null);
@@ -171,14 +252,44 @@ export default function MapPage() {
     setCardVisible(false);
   }, []);
 
+  // --- Zoom ---
+  const zoomIn = useCallback(() => {
+    setZoom((z) => {
+      const next = Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2));
+      const factor = z / next;
+      setViewport((vp) => ({
+        x: vp.x + vp.w * (1 - factor) / 2,
+        y: vp.y + vp.h * (1 - factor) / 2,
+        w: vp.w * factor,
+        h: vp.h * factor,
+      }));
+      return next;
+    });
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setZoom((z) => {
+      const next = Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2));
+      const factor = z / next;
+      setViewport((vp) => ({
+        x: vp.x + vp.w * (1 - factor) / 2,
+        y: vp.y + vp.h * (1 - factor) / 2,
+        w: vp.w * factor,
+        h: vp.h * factor,
+      }));
+      return next;
+    });
+  }, []);
+
+  const isTopLevel = navPath.length === 0;
+
   return (
     <div className="h-full flex flex-col relative overflow-hidden bg-aether-deep">
 
-      {/* ===== Floating Back Button ===== */}
+      {/* ===== Back Button ===== */}
       <AnimatePresence>
-        {isSubMap && (
+        {!isTopLevel && (
           <motion.button
-            key="back-btn"
             initial={{ opacity: 0, x: -12, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: -12, scale: 0.9 }}
@@ -191,8 +302,29 @@ export default function MapPage() {
         )}
       </AnimatePresence>
 
+      {/* ===== Breadcrumb ===== */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+        <div className="glass-panel px-4 py-1.5 flex items-center gap-1.5">
+          <span className="text-[10px] font-mono text-aether-cyan/60 tracking-wider">蓝星</span>
+          {navPath.map((seg, i) => {
+            const n = i < navPath.length - 1
+              ? findNode(mapTree, navPath.slice(0, i + 1))
+              : currentNode;
+            return (
+              <React.Fragment key={seg}>
+                <span className="text-[8px] text-aether-cyan/30">/</span>
+                <span className="text-[10px] font-mono text-aether-cyan/80 tracking-wider">
+                  {n?.name ?? seg}
+                </span>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ===== Map Canvas ===== */}
       <div
+        ref={containerRef}
         className={`absolute inset-0 overflow-hidden ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handlePanStart}
         onMouseMove={handlePanMove}
@@ -200,7 +332,7 @@ export default function MapPage() {
         onMouseLeave={handlePanEnd}
         onClick={dismissCard}
       >
-        {/* Fixed frame — border + corners + subtle grid */}
+        {/* Grid + corners */}
         <div
           className="absolute inset-0 border border-aether-border/10 pointer-events-none"
           style={{
@@ -217,50 +349,42 @@ export default function MapPage() {
           <CornerBracket position="bottom-right" />
         </div>
 
-        {/* Scalable content — buildings + points (zoom & pan) */}
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: 'center center',
-            transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
-          }}
-        >
-          <div className="w-full h-full relative">
-            <BuildingLayer />
+        {/* Render points */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={navPath.join('/')}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            className="absolute inset-0"
+          >
+            {currentChildren.map((point) => {
+              const { sx, sy } = worldToScreen(point.cx, point.cy, viewport);
+              // Skip off-screen points
+              if (sx < -60 || sx > CANVAS_W + 60 || sy < -60 || sy > CANVAS_H + 60) return null;
+              return (
+                <PointMarker
+                  key={point.key}
+                  point={point}
+                  depth={navDepth}
+                  isSelected={selectedPoint?.key === point.key}
+                  style={{ left: `${(sx / CANVAS_W) * 100}%`, top: `${(sy / CANVAS_H) * 100}%` }}
+                  onClick={(e) => handlePointClick(point, e)}
+                />
+              );
+            })}
+          </motion.div>
+        </AnimatePresence>
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={layerStack.length}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.4 }}
-              >
-                {currentLayer.map((point) => (
-                  <PointMarker
-                    key={point.id}
-                    point={point}
-                    isSelected={selectedPoint?.id === point.id}
-                    onClick={(e) => handlePointClick(point, e)}
-                  />
-                ))}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* ===== Point Info Card (animated from click position) ===== */}
+        {/* ===== Info Card ===== */}
         <AnimatePresence>
-          {selectedPoint && !selectedPoint.subPoints && cardOrigin && cardVisible && (
-            <PointInfoCard
-              key={selectedPoint.id}
+          {selectedPoint && selectedPoint.children.length === 0 && cardOrigin && cardVisible && (
+            <LocationInfoCard
+              key={selectedPoint.key}
               point={selectedPoint}
               origin={cardOrigin}
               onClose={dismissCard}
-              onNavigate={() => {
-                // Placeholder for navigation action
-              }}
             />
           )}
         </AnimatePresence>
@@ -293,7 +417,16 @@ export default function MapPage() {
           </button>
         </div>
 
+        {/* Scale indicator */}
+        <div className="glass-panel px-3 py-1.5 pointer-events-auto">
+          <span className="text-[9px] font-mono text-aether-cyan/50">
+            1px ≈ {(viewport.w / CANVAS_W).toFixed(1)} km
+          </span>
+        </div>
       </div>
+
+      {/* Floating particles / atmosphere */}
+      <MapAtmosphere />
 
       <style>{`
         @keyframes float-up {
@@ -302,73 +435,42 @@ export default function MapPage() {
           85%  { opacity: 0.35; }
           100% { transform: translateY(-15vh) translateX(8px); opacity: 0; }
         }
+        @keyframes progress-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
       `}</style>
     </div>
   );
 }
 
 /* ============================================================
-   Building Outlines Layer
+   POINT MARKER
    ============================================================ */
-
-interface Building {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  variant: 'tall' | 'wide' | 'square' | 'small';
-}
-
-const BUILDINGS: Building[] = [
-  { x: 20, y: 20, w: 14, h: 16, variant: 'tall' },
-  { x: 50, y: 44, w: 16, h: 18, variant: 'tall' },
-  { x: 10, y: 62, w: 14, h: 15, variant: 'wide' },
-  { x: 70, y: 12, w: 13, h: 15, variant: 'tall' },
-  { x: 38, y: 76, w: 15, h: 14, variant: 'wide' },
-  { x: 82, y: 68, w: 10, h: 13, variant: 'square' },
-];
-
-function BuildingLayer() {
-  return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-      {BUILDINGS.map((b, i) => (
-        <rect
-          key={i}
-          x={`${b.x}%`}
-          y={`${b.y}%`}
-          width={`${b.w}%`}
-          height={`${b.h}%`}
-          fill="rgba(60,65,70,0.55)"
-          rx="0.15"
-        />
-      ))}
-    </svg>
-  );
-}
-
-/* ============================================================
-   Sub-components
-   ============================================================ */
-
-/* -------- Point Marker -------- */
 function PointMarker({
   point,
+  depth,
   isSelected,
+  style,
   onClick,
 }: {
-  point: MapPoint;
+  point: MapLocationRender;
+  depth: number;
   isSelected: boolean;
+  style: React.CSSProperties;
   onClick: (e: React.MouseEvent) => void;
 }) {
-  const colors = POINT_COLORS[point.type];
+  const colors = pointStyle(depth, point.children.length > 0);
+  const hasChildren = point.children.length > 0;
+  const size = depth === 0 ? 18 : depth === 1 ? 15 : depth === 2 ? 13 : 11;
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0, scale: 0.6 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.6 }}
       transition={{ duration: 0.3 }}
-      style={{ left: `${(point.x / CANVAS_W) * 100}%`, top: `${(point.y / CANVAS_H) * 100}%` }}
+      style={style}
       className="absolute group -translate-x-1/2 -translate-y-1/2 z-10"
     >
       <button
@@ -376,58 +478,65 @@ function PointMarker({
         className="relative flex flex-col items-center justify-center clickable"
         aria-label={point.name}
       >
-        {/* Circular marker */}
+        {/* Outer ring pulse for regions */}
+        {hasChildren && (
+          <div
+            className="absolute rounded-full animate-pulse"
+            style={{
+              width: size * 3.5,
+              height: size * 3.5,
+              border: `1px solid ${colors.primary}20`,
+              backgroundColor: colors.primary + '05',
+            }}
+          />
+        )}
+
+        {/* Marker */}
         <div
           className={`rounded-full border-2 transition-all duration-300 group-hover:scale-150 ${
-            isSelected
-              ? `${colors.bg} ${colors.border} scale-125`
-              : 'border-white/50 bg-white/10 group-hover:border-aether-cyan group-hover:bg-aether-cyan/20'
+            isSelected ? 'scale-125' : ''
           }`}
           style={{
-            width: 14,
-            height: 14,
-            ...(isSelected ? {
-              backgroundColor: colors.primary + '40',
-              borderColor: colors.primary,
-              boxShadow: `0 0 18px ${colors.glow}`,
-            } : {
-              borderColor: colors.primary + '99',
-              backgroundColor: colors.primary + '20',
-              boxShadow: `0 0 8px ${colors.glow}`,
-            }),
+            width: size,
+            height: size,
+            borderColor: isSelected ? colors.primary : colors.primary + '99',
+            backgroundColor: isSelected ? colors.primary + '40' : colors.primary + '20',
+            boxShadow: `0 0 ${size * 1.2}px ${colors.glow}`,
           }}
         />
 
-        {/* Label — dim always, bright tooltip on hover */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 pointer-events-none z-20">
+        {/* Label */}
+        <div className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 pointer-events-none z-20">
           <span className="whitespace-nowrap text-[10px] font-display tracking-widest text-white/25 transition-all duration-300 group-hover:text-white group-hover:drop-shadow-[0_0_6px_rgba(0,242,255,0.4)]">
             {point.name}
           </span>
         </div>
-
       </button>
     </motion.div>
   );
 }
 
-/* -------- Point Info Card -------- */
-function PointInfoCard({
+/* ============================================================
+   LOCATION INFO CARD (redesigned — driven by variable data)
+   ============================================================ */
+function LocationInfoCard({
   point,
   origin,
   onClose,
-  onNavigate,
 }: {
-  point: MapPoint;
+  point: MapLocationRender;
   origin: { x: number; y: number };
   onClose: () => void;
-  onNavigate: () => void;
 }) {
-  const colors = POINT_COLORS[point.type];
-  const danger = getDangerLevel(point.type);
+  const [layer, setLayer] = useState<'现实' | '梦境'>('现实');
+  const detail = layer === '现实' ? point.reality : point.dream;
+  const anomalies = Object.entries(detail.地点细节.异常);
+  const hasAnomalies = anomalies.length > 0;
+  const infoList = detail.地点细节.信息;
 
-  const cardW = 288;
-  const cardH = 340;
-  const margin = 20;
+  const cardW = 360;
+  const cardH = 520;
+  const margin = 16;
   const targetX = Math.max(margin, Math.min(origin.x - cardW / 2, window.innerWidth - cardW - margin));
   const targetY = Math.max(margin, Math.min(origin.y - cardH / 2, window.innerHeight - cardH - margin));
 
@@ -438,38 +547,96 @@ function PointInfoCard({
       exit={{ opacity: 0, scale: 0.85, x: origin.x - cardW / 2, y: origin.y - cardH / 2 }}
       transition={{ type: 'spring', damping: 26, stiffness: 280, mass: 0.8 }}
       onClick={(e) => e.stopPropagation()}
-      className="fixed z-30 w-72 glass-panel border-glow overflow-hidden"
+      className="fixed z-30 glass-panel border-glow overflow-hidden flex flex-col"
+      style={{ width: cardW, maxHeight: cardH }}
     >
-      {/* Top accent line */}
-      <div className="h-[2px]" style={{ backgroundColor: colors.primary }} />
+      {/* Top accent */}
+      <div
+        className="h-[2px] shrink-0"
+        style={{ backgroundColor: pointStyle(2, false).primary }}
+      />
 
-      {/* Header */}
-      <div className="px-4 pt-3 pb-2">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.primary, boxShadow: `0 0 8px ${colors.glow}` }} />
-          <span className={`text-[9px] font-mono tracking-[0.12em] uppercase ${colors.text}`}>{point.type}</span>
-          <span className={`ml-auto text-[9px] font-mono font-bold ${danger.color}`}>{danger.label}</span>
-        </div>
-        <h3 className="font-display font-bold text-lg text-aether-cyan tracking-wide">{point.name}</h3>
-      </div>
-
-      {/* Body */}
-      <div className="px-4 pb-4 space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <MiniStat label="X 坐标" value={String(point.x)} className="text-aether-cyan/60" />
-          <MiniStat label="Y 坐标" value={String(point.y)} className="text-aether-cyan/60" />
-          <MiniStat label="类型" value={point.type} className={colors.text} />
-          <MiniStat label="威胁评估" value={danger.label} className={danger.color} />
-        </div>
-        <div className="p-3 bg-white/[0.02] border border-white/[0.05] rounded">
-          <p className="text-[10px] text-white/40 leading-relaxed font-mono tracking-wide">
-            &ldquo;以太波动检测结果显示该区域存在大量未知的历史残留。建议携带基础防护服。&rdquo;
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {/* Header */}
+        <div className="px-5 pt-4 pb-2">
+          <div className="flex items-center gap-2 mb-1">
+            <MapPin size={12} className="text-aether-cyan/60" />
+            <span className="text-[10px] font-mono tracking-[0.15em] uppercase text-aether-cyan/50">
+              {layer === '现实' ? 'Reality' : 'Dream'}
+            </span>
+            {/* Layer toggle */}
+            <button
+              onClick={() => setLayer((l) => (l === '现实' ? '梦境' : '现实'))}
+              className={`ml-auto text-[9px] font-mono px-2 py-0.5 rounded border transition-all ${
+                layer === '现实'
+                  ? 'border-aether-cyan/30 text-aether-cyan/70 hover:border-aether-cyan/60'
+                  : 'border-purple-400/30 text-purple-300/70 hover:border-purple-400/60'
+              }`}
+            >
+              {layer === '现实' ? '切换至梦境' : '切换至现实'}
+            </button>
+          </div>
+          <h3 className="font-display font-bold text-lg text-aether-cyan tracking-wide">
+            {point.name}
+          </h3>
+          <p className="text-[11px] text-white/55 leading-relaxed mt-1.5 font-mono tracking-wide">
+            {detail.描述}
           </p>
         </div>
+
+        {/* Coordinate & info section */}
+        <div className="px-5 pb-3 space-y-3">
+          {/* Bounds */}
+          <div className="grid grid-cols-3 gap-1.5">
+            <MiniStat label="X 范围" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" />
+            <MiniStat label="Y 范围" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" />
+            <MiniStat label="Z 范围" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" />
+          </div>
+
+          {/* Info messages */}
+          {infoList.length > 0 && (
+            <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded space-y-1.5">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Info size={10} className="text-aether-cyan/40" />
+                <span className="text-[9px] font-mono text-aether-cyan/40 tracking-wider uppercase">信息</span>
+              </div>
+              {infoList.map((info, i) => (
+                <p key={i} className="text-[10px] text-white/45 leading-relaxed font-mono pl-3 border-l border-aether-cyan/15">
+                  {info}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Anomalies */}
+          {hasAnomalies && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <Skull size={10} className="text-red-400/50" />
+                <span className="text-[9px] font-mono text-red-400/50 tracking-wider uppercase">
+                  异常 {layer === '梦境' ? '(梦境)' : '(现实)'}
+                </span>
+              </div>
+              {anomalies.map(([name, anomaly]) => (
+                <AnomalyCard key={name} name={name} anomaly={anomaly} />
+              ))}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {infoList.length === 0 && !hasAnomalies && (
+            <p className="text-[10px] text-white/25 italic font-mono text-center py-4">
+              该区域暂无详细信息记录
+            </p>
+          )}
+        </div>
       </div>
+
+      {/* Close button */}
       <button
         onClick={onClose}
-        className="absolute top-3 right-3 p-1 text-white/30 hover:text-aether-cyan transition-colors clickable text-xs"
+        className="absolute top-3 right-3 p-1 text-white/30 hover:text-aether-cyan transition-colors clickable text-xs z-10"
         aria-label="关闭信息卡"
       >
         ✕
@@ -478,18 +645,108 @@ function PointInfoCard({
   );
 }
 
-function MiniStat({ label, value, className }: { label: string; value: string; className?: string }) {
+/* ============================================================
+   ANOMALY CARD
+   ============================================================ */
+function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
+  const [expanded, setExpanded] = useState(false);
+  const rating = getRating(anomaly.评级);
+  const traits = Object.entries(anomaly.特性);
+  const progress = Math.min(100, Math.max(0, anomaly.具现进度));
+
   return (
-    <div className="p-2 bg-black/30 border border-white/5">
+    <div className={`p-3 rounded border ${rating.border} ${rating.bg} transition-all`}>
+      {/* Header row */}
+      <div className="flex items-center gap-2">
+        <Crosshair size={11} className={rating.text} />
+        <span className="text-[11px] font-display font-bold text-white/80">{name}</span>
+        <span className={`ml-auto text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${rating.bg} ${rating.text} border ${rating.border}`}>
+          {anomaly.评级}
+        </span>
+      </div>
+
+      {/* Description */}
+      <p className="text-[10px] text-white/50 leading-relaxed mt-1.5 font-mono">
+        {anomaly.描述}
+      </p>
+
+      {/* Progress bar */}
+      <div className="mt-2 flex items-center gap-2">
+        <span className="text-[8px] font-mono text-white/30 whitespace-nowrap">具现进度</span>
+        <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+          <motion.div
+            className={`h-full rounded-full ${rating.bar}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+          />
+        </div>
+        <span className={`text-[9px] font-mono font-bold ${rating.text}`}>{progress}%</span>
+      </div>
+
+      {/* Traits toggle */}
+      {traits.length > 0 && (
+        <>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="mt-2 text-[9px] font-mono text-aether-cyan/50 hover:text-aether-cyan/80 transition-colors flex items-center gap-1"
+          >
+            <span className="text-[10px]">{expanded ? '▾' : '▸'}</span>
+            特性 ({traits.length})
+          </button>
+          <AnimatePresence>
+            {expanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-2 space-y-2 pl-2 border-l border-white/5">
+                  {traits.map(([traitName, trait]) => (
+                    <div key={traitName}>
+                      <p className="text-[10px] font-display text-white/60 font-bold">{traitName}</p>
+                      <p className="text-[9px] text-white/35 leading-relaxed mt-0.5">{trait.描述}</p>
+                      {trait.效果.length > 0 && (
+                        <ul className="mt-1 space-y-0.5">
+                          {trait.效果.map((eff, i) => (
+                            <li key={i} className="text-[9px] text-aether-cyan/45 font-mono pl-2">
+                              · {eff}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   MINI STAT
+   ============================================================ */
+function MiniStat({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  return (
+    <div className="p-2 bg-black/30 border border-white/5 rounded">
       <p className="text-[7px] font-mono text-white/30 tracking-wider uppercase">{label}</p>
-      <p className={`text-[11px] font-display mt-0.5 tracking-wide ${className ?? 'text-white/60'}`}>
+      <p className="text-[10px] font-display mt-0.5 tracking-wide text-white/55">
         {value}
+        {unit && <span className="text-[7px] text-white/25 ml-0.5">{unit}</span>}
       </p>
     </div>
   );
 }
 
-/* -------- Corner Bracket -------- */
+/* ============================================================
+   CORNER BRACKET
+   ============================================================ */
 function CornerBracket({ position }: { position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }) {
   const isTop = position.startsWith('top');
   const isLeft = position.endsWith('left');
@@ -505,7 +762,6 @@ function CornerBracket({ position }: { position: 'top-left' | 'top-right' | 'bot
 
   return (
     <div style={style}>
-      {/* Horizontal line */}
       <div
         className="absolute bg-aether-cyan/25"
         style={{
@@ -515,7 +771,6 @@ function CornerBracket({ position }: { position: 'top-left' | 'top-right' | 'bot
           width: '100%',
         }}
       />
-      {/* Vertical line */}
       <div
         className="absolute bg-aether-cyan/25"
         style={{
@@ -529,8 +784,10 @@ function CornerBracket({ position }: { position: 'top-left' | 'top-right' | 'bot
   );
 }
 
-/* -------- Atmospheric Background -------- */
-function MapBackground() {
+/* ============================================================
+   ATMOSPHERE
+   ============================================================ */
+function MapAtmosphere() {
   return (
     <>
       {/* Dot grid */}
@@ -560,13 +817,13 @@ function MapBackground() {
         ))}
       </div>
 
-      {/* Tech-line decorations at edges */}
+      {/* Tech-line decorations */}
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/25 to-transparent pointer-events-none" />
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/25 to-transparent pointer-events-none" />
       <div className="absolute top-0 bottom-0 left-[60px] w-[1px] bg-gradient-to-b from-transparent via-aether-cyan/8 to-transparent pointer-events-none" />
       <div className="absolute top-0 bottom-0 right-[60px] w-[1px] bg-gradient-to-b from-transparent via-aether-cyan/8 to-transparent pointer-events-none" />
 
-      {/* Fog / gradient overlays */}
+      {/* Fog overlays */}
       <div className="absolute inset-0 bg-gradient-to-b from-aether-cyan/[0.025] via-transparent to-aether-cyan/[0.015] pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aether-cyan/[0.008] to-transparent pointer-events-none" />
     </>
