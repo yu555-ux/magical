@@ -208,10 +208,11 @@ export default function SocialPage() {
                   const dx = p2.x - p1.x, dy = p2.y - p1.y;
                   const len = Math.sqrt(dx * dx + dy * dy);
                   const ang = Math.atan2(dy, dx) * (180 / Math.PI);
-                  // Midpoint + perpendicular offset for label above the line
-                  const perpX = -dy / len * 18;
-                  const perpY = dx / len * 18;
+                  // Perpendicular offset above line + rotation along line direction
+                  const perpX = -dy / len * 16;
+                  const perpY = dx / len * 16;
                   const mx = p1.x + dx / 2 + perpX, my = p1.y + dy / 2 + perpY;
+                  const labelAng = dx < 0 ? ang + 180 : ang;
                   return (
                     <React.Fragment key={`e-${i}`}>
                       <motion.div className="absolute pointer-events-none"
@@ -224,14 +225,14 @@ export default function SocialPage() {
                         }}
                         initial={{ width: 0 }} animate={{ width: len }}
                         transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} />
-                      {/* Label above the line */}
+                      {/* Label above line, rotated along direction */}
                       <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         transition={{ duration: 0.3, delay: 0.4 }}
                         className="absolute pointer-events-none"
-                        style={{ left: mx, top: my, transform: 'translate(-50%, -50%)' }}>
-                        <span className="text-[9px] font-mono tracking-wider whitespace-nowrap px-1.5 py-0.5 rounded"
-                          style={{ color: edge.stroke, background: 'rgba(3,5,10,0.7)', border: `1px solid ${edge.stroke}20` }}>
+                        style={{ left: mx, top: my, transform: `translate(-50%, -50%) rotate(${labelAng}deg)` }}>
+                        <span className="text-[9px] font-mono tracking-wider whitespace-nowrap"
+                          style={{ color: edge.stroke, textShadow: `0 0 4px ${edge.stroke}20` }}>
                           {edge.label}
                         </span>
                       </motion.div>
@@ -257,7 +258,7 @@ export default function SocialPage() {
               <div className="absolute rounded-full" style={{ width: 120, height: 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
               <div className="relative w-20 h-20 rounded-full flex items-center justify-center border-2 border-aether-cyan"
                 style={{ background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: `0 0 36px ${NODE_COLOR}40, 0 0 80px ${NODE_COLOR}12` }}>
-                <span className="font-display text-2xl font-bold text-aether-cyan select-none" style={{ textShadow: `0 0 16px ${NODE_COLOR}80` }}>{playerName[0]}</span>
+                <span className="font-display font-bold text-aether-cyan select-none whitespace-nowrap" style={{ fontSize: Math.max(11, 20 - playerName.length * 2), textShadow: `0 0 16px ${NODE_COLOR}80` }}>{playerName}</span>
               </div>
             </motion.div>
           </div>
