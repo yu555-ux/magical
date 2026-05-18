@@ -166,21 +166,12 @@ export default function SocialPage() {
                   const dx = p2.x - p1.x, dy = p2.y - p1.y;
                   const len = Math.sqrt(dx * dx + dy * dy);
                   const ang = Math.atan2(dy, dx) * (180 / Math.PI);
-                  const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
                   return (
                     <React.Fragment key={`${edge.from}-${edge.to}`}>
                       {/* Line — original solid style + animated width */}
                       <motion.div className="absolute pointer-events-none"
                         style={{ left: p1.x, top: p1.y, height: 2.5, background: edge.stroke, opacity: edge.opacity, transform: `rotate(${ang}deg)`, transformOrigin: '0 50%', borderRadius: '2px' }}
                         initial={{ width: 0 }} animate={{ width: len }} transition={{ duration: 0.5, delay: i * 0.12, ease: 'easeOut' }} />
-                      {/* Label on midpoint */}
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3, delay: 0.4 + i * 0.12 }}
-                        className="absolute cursor-default" style={{ left: mx, top: my, transform: 'translate(-50%, -50%)' }}>
-                        <span className="block text-[10px] font-mono tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap backdrop-blur-sm"
-                          style={{ color: edge.stroke, backgroundColor: `${edge.stroke}10`, border: `1px solid ${edge.stroke}25` }}>{edge.label}</span>
-                      </motion.div>
                     </React.Fragment>
                   );
                 })}
@@ -192,7 +183,7 @@ export default function SocialPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 0.15 }}
-            className="absolute pointer-events-none" style={{ left: centerX - 50, top: centerY - 50 }}>
+            className="absolute pointer-events-none" style={{ left: centerX, top: centerY, transform: 'translate(-50%, -50%)' }}>
             <div className="relative flex items-center justify-center">
               <div className="absolute w-24 h-24 rounded-full" style={{ boxShadow: '0 0 40px rgba(0,242,255,0.12)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
               <div className="w-20 h-20 rounded-full bg-aether-dark/90 border-2 border-aether-cyan flex items-center justify-center shadow-[0_0_30px_rgba(0,242,255,0.3)] backdrop-blur-sm relative">
