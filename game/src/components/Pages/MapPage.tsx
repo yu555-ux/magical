@@ -1,8 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  ZoomIn, ZoomOut, ArrowLeft, MapPin, Info, Skull, Crosshair,
-  ChevronRight, Navigation, X,
+  ZoomIn, ZoomOut, ArrowLeft, MapPin, Info, Skull, Crosshair, Search, X,
 } from 'lucide-react';
 import { MapLocationRender, MapAnomaly } from '../../types';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
@@ -146,12 +145,30 @@ export default function MapPage() {
     return findNode(mapTree, navPath);
   }, [mapTree, navPath]);
 
-  const currentChildren = useMemo(() => {
+  const allChildren = useMemo(() => {
     if (navPath.length === 0) return mapTree;
     return currentNode?.children ?? [];
   }, [mapTree, navPath, currentNode]);
 
   const navDepth = navPath.length;
+
+  // --- Search ---
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const currentChildren = useMemo(() => {
+    if (!searchQuery.trim()) return allChildren;
+    const q = searchQuery.trim().toLowerCase();
+    return allChildren.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.searchTerms.some((t) => t.toLowerCase().includes(q)),
+    );
+  }, [allChildren, searchQuery]);
+
+  // Clear search when navigating
+  useEffect(() => {
+    setSearchQuery('');
+  }, [navDepth]);
 
   const [viewport, setViewport] = useState<Viewport>(() => fitViewport(mapTree, 1.2));
   const [zoom, setZoom] = useState(1);
@@ -162,7 +179,7 @@ export default function MapPage() {
     setZoom(1);
   }, [navDepth, currentChildren]);
 
-  // --- Selection & card — now works for ALL points ---
+  // --- Selection & card ---
   const [selectedPoint, setSelectedPoint] = useState<MapLocationRender | null>(null);
   const [cardOrigin, setCardOrigin] = useState<{ x: number; y: number } | null>(null);
   const [cardVisible, setCardVisible] = useState(false);
@@ -185,7 +202,7 @@ export default function MapPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handlePanStart = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
+    if ((e.target as HTMLElement).closest('button, input')) return;
     setIsDragging(true);
     dragMoved.current = false;
     dragStart.current = { x: e.clientX, y: e.clientY };
@@ -224,6 +241,7 @@ export default function MapPage() {
     setSelectedPoint(null);
     setCardOrigin(null);
     setCardVisible(false);
+    setSearchQuery('');
   }, [selectedPoint]);
 
   // --- Go back ---
@@ -292,23 +310,54 @@ export default function MapPage() {
         )}
       </AnimatePresence>
 
-      {/* ===== Breadcrumb ===== */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-        <div className="glass-panel px-4 py-1.5 flex items-center gap-1.5">
-          <span className="text-[10px] font-mono text-aether-cyan/60 tracking-wider">蓝星</span>
-          {navPath.map((seg, i) => {
-            const n = i < navPath.length - 1
-              ? findNode(mapTree, navPath.slice(0, i + 1))
-              : currentNode;
-            return (
-              <React.Fragment key={seg}>
-                <span className="text-[8px] text-aether-cyan/30">/</span>
-                <span className="text-[10px] font-mono text-aether-cyan/80 tracking-wider">
-                  {n?.name ?? seg}
-                </span>
-              </React.Fragment>
-            );
-          })}
+      {/* ===== Breadcrumb — only shown after entering 蓝星 ===== */}
+      <AnimatePresence>
+        {!isTopLevel && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="absolute top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none"
+          >
+            <div className="glass-panel px-4 py-1.5 flex items-center gap-1.5">
+              <span className="text-[10px] font-mono text-aether-cyan/60 tracking-wider">蓝星</span>
+              {navPath.map((seg, i) => {
+                const n = i < navPath.length - 1
+                  ? findNode(mapTree, navPath.slice(0, i + 1))
+                  : currentNode;
+                return (
+                  <React.Fragment key={seg}>
+                    <span className="text-[8px] text-aether-cyan/30">/</span>
+                    <span className="text-[10px] font-mono text-aether-cyan/80 tracking-wider">
+                      {n?.name ?? seg}
+                    </span>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ===== Search ===== */}
+      <div className="absolute top-6 right-6 z-10">
+        <div className="glass-panel flex items-center gap-1.5 px-3 py-1.5">
+          <Search size={12} className="text-aether-cyan/40 shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="搜索子地图..."
+            className="bg-transparent text-[11px] font-mono text-white/70 placeholder:text-white/20 outline-none w-28 focus:w-40 transition-all duration-300"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="text-white/20 hover:text-white/50 transition-colors"
+            >
+              <X size={11} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -339,6 +388,15 @@ export default function MapPage() {
           <CornerBracket position="bottom-right" />
         </div>
 
+        {/* No-results hint */}
+        {currentChildren.length === 0 && searchQuery.trim() && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="text-[11px] font-mono text-white/15 tracking-wider">
+              未找到匹配 "{searchQuery}" 的子地图
+            </span>
+          </div>
+        )}
+
         {/* Render points */}
         <AnimatePresence mode="wait">
           <motion.div
@@ -366,7 +424,7 @@ export default function MapPage() {
           </motion.div>
         </AnimatePresence>
 
-        {/* ===== Info Card — shows for every point ===== */}
+        {/* ===== Info Card ===== */}
         <AnimatePresence>
           {selectedPoint && cardOrigin && cardVisible && (
             <LocationInfoCard
@@ -383,7 +441,7 @@ export default function MapPage() {
 
       {/* ===== Footer Controls ===== */}
       <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-2 pointer-events-none">
-        {/* Zoom controls — narrower */}
+        {/* Zoom controls */}
         <div className="glass-panel overflow-hidden pointer-events-auto flex flex-col items-center w-9">
           <button
             onClick={zoomIn}
@@ -406,13 +464,6 @@ export default function MapPage() {
           >
             <ZoomOut size={14} />
           </button>
-        </div>
-
-        {/* Scale indicator */}
-        <div className="glass-panel px-2 py-1 pointer-events-auto w-9 flex justify-center">
-          <span className="text-[8px] font-mono text-aether-cyan/40 leading-tight text-center">
-            {(viewport.w / CANVAS_W).toFixed(1)}km
-          </span>
         </div>
       </div>
 
@@ -496,7 +547,7 @@ function PointMarker({
 }
 
 /* ============================================================
-   LOCATION INFO CARD — larger, redesigned, with action buttons
+   LOCATION INFO CARD
    ============================================================ */
 function LocationInfoCard({
   point,
@@ -517,8 +568,8 @@ function LocationInfoCard({
   const hasAnomalies = anomalies.length > 0;
   const infoList = detail.地点细节.信息;
 
-  const cardW = 400;
-  const cardH = 560;
+  const cardW = 440;
+  const cardH = 600;
   const margin = 20;
   const targetX = Math.max(margin, Math.min(origin.x - cardW / 2, window.innerWidth - cardW - margin));
   const targetY = Math.max(margin, Math.min(origin.y - cardH / 2, window.innerHeight - cardH - margin));
@@ -545,18 +596,18 @@ function LocationInfoCard({
     >
       {/* ===== Header bar ===== */}
       <div
-        className="shrink-0 px-5 py-3 flex items-center gap-3 border-b"
+        className="shrink-0 px-5 py-3.5 flex items-center gap-3 border-b"
         style={{ borderColor: `${accent}15`, backgroundColor: `${accent}06` }}
       >
-        <MapPin size={14} style={{ color: accent }} />
-        <h3 className="font-display font-bold text-base text-white/90 tracking-wide flex-1 min-w-0 truncate">
+        <MapPin size={15} style={{ color: accent }} />
+        <h3 className="font-display font-bold text-lg text-white/90 tracking-wide flex-1 min-w-0 truncate">
           {point.name}
         </h3>
 
         {/* Layer toggle pill */}
         <button
           onClick={() => setLayer((l) => (l === '现实' ? '梦境' : '现实'))}
-          className="shrink-0 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border transition-all duration-300 tracking-wider"
+          className="shrink-0 text-[10px] font-mono font-bold px-3 py-1 rounded-full border transition-all duration-300 tracking-widest"
           style={{
             color: accent,
             borderColor: `${accent}40`,
@@ -580,37 +631,37 @@ function LocationInfoCard({
           className="shrink-0 p-1 rounded-full text-white/20 hover:text-white/70 hover:bg-white/10 transition-all"
           aria-label="关闭"
         >
-          <X size={14} />
+          <X size={15} />
         </button>
       </div>
 
       {/* ===== Scrollable body ===== */}
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
         {/* Description */}
-        <div className="p-3 rounded-lg border" style={{ borderColor: `${accent}12`, backgroundColor: `${accent}04` }}>
-          <p className="text-[11px] text-white/55 leading-relaxed font-mono tracking-wide">
+        <div className="p-3.5 rounded-lg border" style={{ borderColor: `${accent}12`, backgroundColor: `${accent}04` }}>
+          <p className="text-[12px] text-white/60 leading-relaxed font-mono tracking-wide">
             {detail.描述}
           </p>
         </div>
 
         {/* Coordinate grid */}
-        <div className="grid grid-cols-3 gap-1.5">
-          <MiniStat label="X" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
-          <MiniStat label="Y" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
-          <MiniStat label="Z" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" accent={accent} />
+        <div className="grid grid-cols-3 gap-2">
+          <MiniStat label="X 范围" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
+          <MiniStat label="Y 范围" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
+          <MiniStat label="Z 范围" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" accent={accent} />
         </div>
 
         {/* Info messages */}
         {infoList.length > 0 && (
-          <div className="p-3 rounded-lg border" style={{ borderColor: `${accent}15`, backgroundColor: `${accent}03` }}>
-            <div className="flex items-center gap-1.5 mb-2">
-              <Info size={10} style={{ color: `${accent}80` }} />
-              <span className="text-[9px] font-mono tracking-wider uppercase" style={{ color: `${accent}80` }}>信息</span>
+          <div className="p-3.5 rounded-lg border" style={{ borderColor: `${accent}15`, backgroundColor: `${accent}03` }}>
+            <div className="flex items-center gap-1.5 mb-2.5">
+              <Info size={11} style={{ color: `${accent}80` }} />
+              <span className="text-[10px] font-mono tracking-wider uppercase" style={{ color: `${accent}80` }}>信息</span>
             </div>
             {infoList.map((info, i) => (
               <p
                 key={i}
-                className="text-[10px] text-white/45 leading-relaxed font-mono pl-3 mb-1 last:mb-0"
+                className="text-[11px] text-white/50 leading-relaxed font-mono pl-3 mb-1.5 last:mb-0"
                 style={{ borderLeft: `2px solid ${accent}20` }}
               >
                 {info}
@@ -621,10 +672,10 @@ function LocationInfoCard({
 
         {/* Anomalies */}
         {hasAnomalies && (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <div className="flex items-center gap-1.5">
-              <Skull size={10} className="text-red-400/50" />
-              <span className="text-[9px] font-mono text-red-400/50 tracking-wider uppercase">
+              <Skull size={11} className="text-red-400/50" />
+              <span className="text-[10px] font-mono text-red-400/50 tracking-wider uppercase">
                 异常
               </span>
             </div>
@@ -636,7 +687,7 @@ function LocationInfoCard({
 
         {/* Empty state */}
         {infoList.length === 0 && !hasAnomalies && (
-          <p className="text-[10px] text-white/20 italic font-mono text-center py-4">
+          <p className="text-[11px] text-white/20 italic font-mono text-center py-4">
             该区域暂无详细信息记录
           </p>
         )}
@@ -644,22 +695,24 @@ function LocationInfoCard({
 
       {/* ===== Action buttons ===== */}
       <div
-        className="shrink-0 px-5 py-3 flex gap-3 border-t"
+        className="shrink-0 px-5 py-3.5 flex gap-3 border-t"
         style={{ borderColor: `${accent}15` }}
       >
         {hasChildren ? (
           <button
             onClick={onEnter}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-display text-sm font-bold tracking-wider transition-all duration-300"
+            className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.15em] transition-all duration-300"
             style={{
               color: accent,
               border: `1px solid ${accent}30`,
               backgroundColor: `${accent}08`,
+              fontSize: '13px',
+              letterSpacing: '0.2em',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = `${accent}18`;
               e.currentTarget.style.borderColor = `${accent}60`;
-              e.currentTarget.style.boxShadow = `0 0 20px ${accentGlow}20`;
+              e.currentTarget.style.boxShadow = `0 0 24px ${accentGlow}25`;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = `${accent}08`;
@@ -667,35 +720,37 @@ function LocationInfoCard({
               e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            <ChevronRight size={16} />
-            进入
+            进 入
           </button>
         ) : (
           <button
             disabled
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-display text-sm font-bold tracking-wider opacity-25 cursor-not-allowed"
+            className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.15em] opacity-25 cursor-not-allowed"
             style={{
               color: accent,
               border: `1px solid ${accent}15`,
               backgroundColor: `${accent}04`,
+              fontSize: '13px',
+              letterSpacing: '0.2em',
             }}
           >
-            <ChevronRight size={16} />
             已是最深层级
           </button>
         )}
 
         <button
-          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-display text-sm font-bold tracking-wider transition-all duration-300"
+          className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.15em] transition-all duration-300"
           style={{
             color: '#f59e0b',
             border: '1px solid rgba(245,158,11,0.25)',
             backgroundColor: 'rgba(245,158,11,0.06)',
+            fontSize: '13px',
+            letterSpacing: '0.2em',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.14)';
             e.currentTarget.style.borderColor = 'rgba(245,158,11,0.5)';
-            e.currentTarget.style.boxShadow = '0 0 16px rgba(245,158,11,0.15)';
+            e.currentTarget.style.boxShadow = '0 0 20px rgba(245,158,11,0.18)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.06)';
@@ -704,8 +759,7 @@ function LocationInfoCard({
           }}
           aria-label="前往"
         >
-          <Navigation size={14} />
-          前往
+          前 往
         </button>
       </div>
     </motion.div>
@@ -722,22 +776,22 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
   const progress = Math.min(100, Math.max(0, anomaly.具现进度));
 
   return (
-    <div className={`p-3 rounded-lg border ${rating.border} ${rating.bg} transition-all`}>
+    <div className={`p-3.5 rounded-lg border ${rating.border} ${rating.bg} transition-all`}>
       <div className="flex items-center gap-2">
-        <Crosshair size={11} className={rating.text} />
-        <span className="text-[11px] font-display font-bold text-white/80">{name}</span>
-        <span className={`ml-auto text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${rating.bg} ${rating.text} border ${rating.border}`}>
+        <Crosshair size={12} className={rating.text} />
+        <span className="text-[12px] font-display font-bold text-white/80">{name}</span>
+        <span className={`ml-auto text-[10px] font-mono font-bold px-2 py-0.5 rounded ${rating.bg} ${rating.text} border ${rating.border}`}>
           {anomaly.评级}
         </span>
       </div>
-      <p className="text-[10px] text-white/50 leading-relaxed mt-1.5 font-mono">
+      <p className="text-[11px] text-white/55 leading-relaxed mt-2 font-mono">
         {anomaly.描述}
       </p>
 
       {/* Progress bar */}
-      <div className="mt-2 flex items-center gap-2">
-        <span className="text-[8px] font-mono text-white/30 whitespace-nowrap">具现进度</span>
-        <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+      <div className="mt-2.5 flex items-center gap-2">
+        <span className="text-[9px] font-mono text-white/30 whitespace-nowrap">具现进度</span>
+        <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
           <motion.div
             className={`h-full rounded-full ${rating.bar}`}
             initial={{ width: 0 }}
@@ -745,16 +799,16 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
             transition={{ duration: 0.8, ease: 'easeOut' }}
           />
         </div>
-        <span className={`text-[9px] font-mono font-bold ${rating.text}`}>{progress}%</span>
+        <span className={`text-[10px] font-mono font-bold ${rating.text}`}>{progress}%</span>
       </div>
 
       {traits.length > 0 && (
         <>
           <button
             onClick={() => setExpanded(!expanded)}
-            className="mt-2 text-[9px] font-mono text-aether-cyan/50 hover:text-aether-cyan/80 transition-colors flex items-center gap-1"
+            className="mt-2.5 text-[10px] font-mono text-aether-cyan/50 hover:text-aether-cyan/80 transition-colors flex items-center gap-1"
           >
-            <span className="text-[10px]">{expanded ? '▾' : '▸'}</span>
+            <span className="text-[11px]">{expanded ? '▾' : '▸'}</span>
             特性 ({traits.length})
           </button>
           <AnimatePresence>
@@ -766,15 +820,15 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
                 transition={{ duration: 0.25 }}
                 className="overflow-hidden"
               >
-                <div className="mt-2 space-y-2 pl-2 border-l border-white/5">
+                <div className="mt-3 space-y-3 pl-3 border-l border-white/5">
                   {traits.map(([traitName, trait]) => (
                     <div key={traitName}>
-                      <p className="text-[10px] font-display text-white/60 font-bold">{traitName}</p>
-                      <p className="text-[9px] text-white/35 leading-relaxed mt-0.5">{trait.描述}</p>
+                      <p className="text-[11px] font-display text-white/65 font-bold">{traitName}</p>
+                      <p className="text-[10px] text-white/40 leading-relaxed mt-1">{trait.描述}</p>
                       {trait.效果.length > 0 && (
-                        <ul className="mt-1 space-y-0.5">
+                        <ul className="mt-1.5 space-y-0.5">
                           {trait.效果.map((eff, i) => (
-                            <li key={i} className="text-[9px] text-aether-cyan/45 font-mono pl-2">
+                            <li key={i} className="text-[10px] text-aether-cyan/50 font-mono pl-2 leading-relaxed">
                               · {eff}
                             </li>
                           ))}
@@ -798,13 +852,13 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
 function MiniStat({ label, value, unit, accent }: { label: string; value: string; unit?: string; accent: string }) {
   return (
     <div
-      className="p-2 rounded border"
+      className="p-2.5 rounded border"
       style={{ borderColor: `${accent}12`, backgroundColor: 'rgba(0,0,0,0.25)' }}
     >
-      <p className="text-[7px] font-mono text-white/25 tracking-wider uppercase">{label}</p>
-      <p className="text-[10px] font-display mt-0.5 tracking-wide text-white/50">
+      <p className="text-[8px] font-mono text-white/25 tracking-wider uppercase">{label}</p>
+      <p className="text-[11px] font-display mt-0.5 tracking-wide text-white/50">
         {value}
-        {unit && <span className="text-[7px] text-white/20 ml-0.5">{unit}</span>}
+        {unit && <span className="text-[8px] text-white/20 ml-0.5">{unit}</span>}
       </p>
     </div>
   );
