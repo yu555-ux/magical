@@ -38,7 +38,19 @@ const CORRUPTION_STAGES = [
   { min: 350, max: 500, name: '欲奴', color: '#a855f7' },
 ];
 
+const FRIENDLINESS_STAGES = [
+  { min: -200, max: -120, name: '敌视', color: '#ef4444' },
+  { min: -120, max: -40,  name: '厌恶', color: '#f97316' },
+  { min: -40,  max: 0,    name: '疏远', color: '#9ca3af' },
+  { min: 0,    max: 40,   name: '平淡', color: '#eab308' },
+  { min: 40,   max: 120,  name: '友善', color: '#22c55e' },
+  { min: 120,  max: 160,  name: '信任', color: '#3b82f6' },
+  { min: 160,  max: 190,  name: '知己', color: '#a78bfa' },
+  { min: 190,  max: 200,  name: '生死之交', color: '#f472b6' },
+];
+
 function getAffectionStage(v: number) { return AFFECTION_STAGES.find((s) => v >= s.min && v <= s.max) ?? AFFECTION_STAGES[3]; }
+function getFriendlinessStage(v: number) { return FRIENDLINESS_STAGES.find((s) => v >= s.min && v <= s.max) ?? FRIENDLINESS_STAGES[3]; }
 function getCorruptionStage(v: number) { return CORRUPTION_STAGES.find((s) => v >= s.min && v <= s.max) ?? CORRUPTION_STAGES[0]; }
 
 /* ===== Helpers ===== */
@@ -150,7 +162,7 @@ export default function SocialPage() {
   const selAffection = selProfile ? (selProfile.好感值 ?? selProfile.友善值 ?? 0) : 0;
   const selCorruption = selProfile?.堕落值 ?? 0;
   const selIsFemale = selProfile && selProfile.好感值 !== undefined;
-  const selAffStage = selIsFemale ? getAffectionStage(selAffection) : null;
+  const selAffStage = selIsFemale ? getAffectionStage(selAffection) : getFriendlinessStage(selAffection);
   const selCorrStage = selIsFemale ? getCorruptionStage(selCorruption) : null;
 
   // ── Hover tooltip data ──
@@ -158,7 +170,7 @@ export default function SocialPage() {
   const hoverAffection = hoverProfile ? (hoverProfile.好感值 ?? hoverProfile.友善值 ?? 0) : 0;
   const hoverCorruption = hoverProfile?.堕落值 ?? 0;
   const isFemaleHover = hoverProfile && hoverProfile.好感值 !== undefined;
-  const affStage = isFemaleHover ? getAffectionStage(hoverAffection) : null;
+  const affStage = isFemaleHover ? getAffectionStage(hoverAffection) : getFriendlinessStage(hoverAffection);
   const corrStage = isFemaleHover ? getCorruptionStage(hoverCorruption) : null;
 
   const isTopLevel = animPhase >= 1;
@@ -276,21 +288,19 @@ export default function SocialPage() {
                       {hoveredNode.name}
                     </p>
 
-                    {/* Affection — stage name as hero */}
+                    {/* Affection / Friendliness — stage name as hero */}
                     <div className="space-y-2 mb-3">
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="text-[9px] font-mono text-white/28 tracking-[0.08em] uppercase">{isFemaleHover ? '好感' : '友善'}</span>
-                        {affStage && (
-                          <span className="text-xl font-display font-bold italic tracking-[0.12em]" style={{ color: affStage.color, textShadow: `0 0 20px ${affStage.color}40, 0 0 40px ${affStage.color}15` }}>{affStage.name}</span>
-                        )}
+                        <span className="text-xl font-display font-bold italic tracking-[0.12em]" style={{ color: affStage.color, textShadow: `0 0 20px ${affStage.color}40, 0 0 40px ${affStage.color}15` }}>{affStage.name}</span>
                       </div>
-                      <span className="text-[10px] font-mono tracking-tight" style={{ color: isFemaleHover ? affStage!.color : NODE_COLOR, opacity: 0.5 }}>{hoverAffection}</span>
+                      <span className="text-[10px] font-mono tracking-tight" style={{ color: affStage.color, opacity: 0.5 }}>{hoverAffection}</span>
                       <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
                         <motion.div
                           initial={{ width: 0 }} animate={{ width: `${Math.abs(hoverAffection) / 200 * 100}%` }}
                           transition={{ duration: 0.5, ease: 'easeOut' }}
                           className="h-full rounded-full"
-                          style={{ background: `linear-gradient(90deg, ${isFemaleHover ? affStage!.color : NODE_COLOR}60, ${isFemaleHover ? affStage!.color : NODE_COLOR})`, boxShadow: `0 0 6px ${isFemaleHover ? affStage!.color : NODE_COLOR}30` }} />
+                          style={{ background: `linear-gradient(90deg, ${affStage.color}60, ${affStage.color})`, boxShadow: `0 0 6px ${affStage.color}30` }} />
                       </div>
                     </div>
 
@@ -348,12 +358,12 @@ export default function SocialPage() {
               <div className="p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.01]">
                 <div className="flex items-baseline justify-between mb-1">
                   <span className="text-[9px] font-mono text-white/70 tracking-[0.08em] uppercase">{selIsFemale ? '好感' : '友善'}</span>
-                  {selAffStage && <span className="text-[15px] font-display font-bold italic tracking-[0.1em]" style={{ color: selAffStage.color, textShadow: `0 0 16px ${selAffStage.color}30` }}>{selAffStage.name}</span>}
+                  <span className="text-[15px] font-display font-bold italic tracking-[0.1em]" style={{ color: selAffStage.color, textShadow: `0 0 16px ${selAffStage.color}30` }}>{selAffStage.name}</span>
                 </div>
-                <span className="text-[11px] font-mono" style={{ color: selIsFemale ? selAffStage!.color : NODE_COLOR, opacity: 0.85 }}>{selAffection}</span>
-                <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: `${selIsFemale ? selAffStage!.color : NODE_COLOR}10` }}>
+                <span className="text-[11px] font-mono" style={{ color: selAffStage.color, opacity: 0.85 }}>{selAffection}</span>
+                <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: `${selAffStage.color}10` }}>
                   <div
-                    className="h-full rounded-full" style={{ width: `${Math.abs(selAffection) / 200 * 100}%`, background: `linear-gradient(90deg, ${selIsFemale ? selAffStage!.color : NODE_COLOR}80, ${selIsFemale ? selAffStage!.color : NODE_COLOR})` }} />
+                    className="h-full rounded-full" style={{ width: `${Math.abs(selAffection) / 200 * 100}%`, background: `linear-gradient(90deg, ${selAffStage.color}80, ${selAffStage.color})` }} />
                 </div>
               </div>
               {selIsFemale && selCorruption !== undefined && (
@@ -432,7 +442,7 @@ export default function SocialPage() {
 function InfoRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="flex items-start gap-3 px-3 py-2 rounded-lg border border-white/[0.03] bg-white/[0.005]">
-      <span className="text-[9px] font-mono text-white/80 tracking-[0.1em] uppercase shrink-0 w-8 pt-0.5">{label}</span>
+      <span className="text-[9px] font-mono text-white/55 tracking-[0.1em] uppercase shrink-0 w-8 pt-0.5">{label}</span>
       <span className={`text-[12px] font-mono leading-relaxed ${muted ? 'text-white/85 italic' : 'text-white'}`}>{value}</span>
     </div>
   );
