@@ -52,6 +52,3 @@ export function getCorruptionStage(v: number): StageDef {
   return CORRUPTION_STAGES.find((s) => v >= s.min && v <= s.max) ?? CORRUPTION_STAGES[0];
 }
 
-export function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
-}

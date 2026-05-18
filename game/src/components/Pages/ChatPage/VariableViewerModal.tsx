@@ -9,8 +9,6 @@ interface Props {
   onSave: (vars: Record<string, any>) => void;
 }
 
-const HIDDEN_KEYS = new Set<string>();
-
 type EditTarget = { path: string[]; key: string; value: string } | null;
 
 /* ===== Flatten for search ===== */
@@ -23,7 +21,6 @@ interface FlatVarEntry {
 function flattenVars(obj: Record<string, any>, parentPath: string[]): FlatVarEntry[] {
   const result: FlatVarEntry[] = [];
   for (const [k, v] of Object.entries(obj)) {
-    if (HIDDEN_KEYS.has(k)) continue;
     const p = [...parentPath, k];
     result.push({ path: parentPath, key: k, value: v });
     if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
@@ -238,8 +235,7 @@ export default function VariableViewerModal({ isOpen, onClose, variables, onSave
                 onDelete={deleteKey}
                 onAdd={addKey}
                 onToggleBool={toggleBool}
-                hiddenKeys={HIDDEN_KEYS}
-              />
+                              />
             )}
           </div>
 
@@ -252,7 +248,7 @@ export default function VariableViewerModal({ isOpen, onClose, variables, onSave
 
 /* ────── Tree Node ────── */
 function TreeNode({
-  data, path, depth, expandedPaths, onToggle, editing, onStartEdit, onSaveEdit, onDelete, onAdd, onToggleBool, hiddenKeys,
+  data, path, depth, expandedPaths, onToggle, editing, onStartEdit, onSaveEdit, onDelete, onAdd, onToggleBool,
 }: {
   data: Record<string, any>;
   path: string[];
@@ -265,9 +261,8 @@ function TreeNode({
   onDelete: (path: string[], key: string) => void;
   onAdd: (path: string[]) => void;
   onToggleBool: (path: string[], key: string) => void;
-  hiddenKeys: Set<string>;
 }) {
-  const entries = Object.entries(data).filter(([k]) => !hiddenKeys.has(k));
+  const entries = Object.entries(data);
   if (entries.length === 0 && depth > 0) return null;
 
   return (
