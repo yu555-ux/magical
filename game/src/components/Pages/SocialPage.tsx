@@ -78,6 +78,7 @@ export default function SocialPage() {
   const socialData: Record<string, { 关系: string; 社交圈?: Record<string, string> }> =
     liveVars?.['主角']?.['社交'] ?? defaults.主角?.社交 ?? {};
   const charData: Record<string, any> = liveVars?.['主要人物'] ?? defaults.主要人物 ?? {};
+  const playerName = ss.settings?.userName ?? '我';
 
   const [selectedNode, setSelectedNode] = useState<LiveNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<LiveNode | null>(null);
@@ -221,7 +222,7 @@ export default function SocialPage() {
               <div className="absolute rounded-full" style={{ width: 120, height: 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
               <div className="relative w-20 h-20 rounded-full flex items-center justify-center border-2 border-aether-cyan"
                 style={{ background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: `0 0 36px ${NODE_COLOR}40, 0 0 80px ${NODE_COLOR}12` }}>
-                <span className="font-display text-2xl font-bold text-aether-cyan select-none" style={{ textShadow: `0 0 16px ${NODE_COLOR}80` }}>我</span>
+                <span className="font-display text-2xl font-bold text-aether-cyan select-none" style={{ textShadow: `0 0 16px ${NODE_COLOR}80` }}>{playerName[0]}</span>
               </div>
             </motion.div>
           </div>
@@ -346,10 +347,10 @@ export default function SocialPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.01]">
                 <div className="flex items-baseline justify-between mb-1">
-                  <span className="text-[9px] font-mono text-white/40 tracking-[0.08em] uppercase">{selIsFemale ? '好感' : '友善'}</span>
+                  <span className="text-[9px] font-mono text-white/70 tracking-[0.08em] uppercase">{selIsFemale ? '好感' : '友善'}</span>
                   {selAffStage && <span className="text-[15px] font-display font-bold italic tracking-[0.1em]" style={{ color: selAffStage.color, textShadow: `0 0 16px ${selAffStage.color}30` }}>{selAffStage.name}</span>}
                 </div>
-                <span className="text-[10px] font-mono" style={{ color: selIsFemale ? selAffStage!.color : NODE_COLOR, opacity: 0.7 }}>{selAffection}</span>
+                <span className="text-[11px] font-mono" style={{ color: selIsFemale ? selAffStage!.color : NODE_COLOR, opacity: 0.85 }}>{selAffection}</span>
                 <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: `${selIsFemale ? selAffStage!.color : NODE_COLOR}10` }}>
                   <div
                     className="h-full rounded-full" style={{ width: `${Math.abs(selAffection) / 200 * 100}%`, background: `linear-gradient(90deg, ${selIsFemale ? selAffStage!.color : NODE_COLOR}80, ${selIsFemale ? selAffStage!.color : NODE_COLOR})` }} />
@@ -358,10 +359,10 @@ export default function SocialPage() {
               {selIsFemale && selCorruption !== undefined && (
                 <div className="p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.01]">
                   <div className="flex items-baseline justify-between mb-1">
-                    <span className="text-[9px] font-mono text-white/40 tracking-[0.08em] uppercase">堕落</span>
+                    <span className="text-[9px] font-mono text-white/70 tracking-[0.08em] uppercase">堕落</span>
                     <span className="text-[15px] font-display font-bold italic tracking-[0.1em]" style={{ color: selCorrStage!.color, textShadow: `0 0 16px ${selCorrStage!.color}30` }}>{selCorrStage!.name}</span>
                   </div>
-                  <span className="text-[10px] font-mono" style={{ color: selCorrStage!.color, opacity: 0.7 }}>{selCorruption}</span>
+                  <span className="text-[11px] font-mono" style={{ color: selCorrStage!.color, opacity: 0.85 }}>{selCorruption}</span>
                   <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: `${selCorrStage!.color}10` }}>
                     <div
                       className="h-full rounded-full" style={{ width: `${selCorruption / 500 * 100}%`, background: `linear-gradient(90deg, ${selCorrStage!.color}80, ${selCorrStage!.color})` }} />
@@ -383,7 +384,7 @@ export default function SocialPage() {
             {/* ── Status effects ── */}
             {Object.keys(selProfile.状态).length > 0 && (
               <div className="space-y-1.5">
-                <span className="text-[9px] font-mono text-white/40 tracking-[0.12em] uppercase">状态效果</span>
+                <span className="text-[9px] font-mono text-white/70 tracking-[0.12em] uppercase">状态效果</span>
                 {Object.entries(selProfile.状态).map(([name, s]) => (
                   <div key={name} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.04] bg-white/[0.01]">
                     <div className="w-1 h-1 rounded-full bg-aether-cyan/50 shrink-0" />
@@ -400,20 +401,20 @@ export default function SocialPage() {
             {/* ── Social relation ── */}
             {selSocial && (
               <div className="p-4 rounded-xl border border-aether-cyan/[0.06]" style={{ background: 'linear-gradient(135deg, rgba(0,242,255,0.025), rgba(0,242,255,0.005))' }}>
-                <span className="text-[9px] font-mono text-aether-cyan/50 tracking-[0.1em] uppercase">社交关系</span>
+                <span className="text-[9px] font-mono text-aether-cyan/70 tracking-[0.1em] uppercase">社交关系</span>
                 <div className="mt-2 space-y-2">
-                  {/* Relationship to me: 我 + 关系 */}
+                  {/* Relationship to me: 玩家名 + 关系 */}
                   <div className="flex items-baseline gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-aether-cyan/50 shrink-0" />
-                    <span className="text-[13px] font-display text-white/80 font-bold tracking-wider">我</span>
-                    <span className="text-[11px] font-mono text-white/45">{selSocial.关系}</span>
+                    <span className="text-[13px] font-display text-white/80 font-bold tracking-wider">{playerName}</span>
+                    <span className="text-[11px] font-mono text-white/55">{selSocial.关系}</span>
                   </div>
                   {/* Social circle: 人名 + 关系 — same format */}
                   {selSocial.社交圈 && Object.entries(selSocial.社交圈).map(([name, rel]) => (
                     <div key={name} className="flex items-baseline gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-aether-cyan/35 shrink-0" />
                       <span className="text-[13px] font-display text-white/65 font-bold tracking-wider">{name}</span>
-                      <span className="text-[11px] font-mono text-white/45">{rel}</span>
+                      <span className="text-[11px] font-mono text-white/55">{rel}</span>
                     </div>
                   ))}
                 </div>
@@ -431,8 +432,8 @@ export default function SocialPage() {
 function InfoRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="flex items-start gap-3 px-3 py-2 rounded-lg border border-white/[0.03] bg-white/[0.005]">
-      <span className="text-[9px] font-mono text-white/50 tracking-[0.1em] uppercase shrink-0 w-8 pt-0.5">{label}</span>
-      <span className={`text-[12px] font-mono leading-relaxed ${muted ? 'text-white/75 italic' : 'text-white'}`}>{value}</span>
+      <span className="text-[9px] font-mono text-white/80 tracking-[0.1em] uppercase shrink-0 w-8 pt-0.5">{label}</span>
+      <span className={`text-[12px] font-mono leading-relaxed ${muted ? 'text-white/85 italic' : 'text-white'}`}>{value}</span>
     </div>
   );
 }
