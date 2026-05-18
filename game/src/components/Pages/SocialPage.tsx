@@ -169,10 +169,10 @@ export default function SocialPage() {
                   const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
                   return (
                     <React.Fragment key={`${edge.from}-${edge.to}`}>
-                      {/* Line */}
+                      {/* Line — original solid style + animated width */}
                       <motion.div className="absolute pointer-events-none"
-                        style={{ left: p1.x, top: p1.y, width: 0, height: 1.5, background: `linear-gradient(90deg, ${edge.stroke}30, ${edge.stroke})`, opacity: edge.opacity, transform: `rotate(${ang}deg)`, transformOrigin: '0 50%', borderRadius: '1px' }}
-                        animate={{ width: len }} transition={{ duration: 0.5, delay: i * 0.12, ease: 'easeOut' }} />
+                        style={{ left: p1.x, top: p1.y, height: 2.5, background: edge.stroke, opacity: edge.opacity, transform: `rotate(${ang}deg)`, transformOrigin: '0 50%', borderRadius: '2px' }}
+                        initial={{ width: 0 }} animate={{ width: len }} transition={{ duration: 0.5, delay: i * 0.12, ease: 'easeOut' }} />
                       {/* Label on midpoint */}
                       <motion.div
                         initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }}
