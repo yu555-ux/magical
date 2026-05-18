@@ -118,7 +118,13 @@ export default function SocialPage() {
   const orbitR = Math.min(graphBounds.width, graphBounds.height) * 0.30;
 
   const nodesWithPositions = useMemo((): LiveNode[] => {
-    const entries = Object.entries(socialData);
+    // Mutual filter: must be in 主角.社交 AND have {{user}} in their 社交圈
+    const entries = Object.entries(socialData).filter(([name]) => {
+      const profile = findCharProfile(charData, name);
+      if (!profile?.社交圈) return false;
+      const sc = profile.社交圈;
+      return '{{user}}' in sc || '<user>' in sc || (playerName && playerName in sc);
+    });
     if (entries.length === 0) return [];
     return entries.map(([name, data], i) => {
       const angle = (-90 + i * 120) * (Math.PI / 180);
@@ -130,7 +136,7 @@ export default function SocialPage() {
         size: 48 + (level / 100) * 18,
       };
     });
-  }, [socialData, orbitR, cx, cy]);
+  }, [socialData, orbitR, cx, cy, charData, playerName]);
 
   const posMap = useMemo(() => {
     const m = new Map<string, { x: number; y: number }>();
@@ -202,8 +208,10 @@ export default function SocialPage() {
                   const dx = p2.x - p1.x, dy = p2.y - p1.y;
                   const len = Math.sqrt(dx * dx + dy * dy);
                   const ang = Math.atan2(dy, dx) * (180 / Math.PI);
-                  const mx = p1.x + dx / 2, my = p1.y + dy / 2;
-                  const labelAng = dx < 0 ? ang + 180 : ang;
+                  // Midpoint + perpendicular offset for label above the line
+                  const perpX = -dy / len * 18;
+                  const perpY = dx / len * 18;
+                  const mx = p1.x + dx / 2 + perpX, my = p1.y + dy / 2 + perpY;
                   return (
                     <React.Fragment key={`e-${i}`}>
                       <motion.div className="absolute pointer-events-none"
@@ -216,17 +224,14 @@ export default function SocialPage() {
                         }}
                         initial={{ width: 0 }} animate={{ width: len }}
                         transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} />
-                      {/* Label along the line */}
+                      {/* Label above the line */}
                       <motion.div
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                         transition={{ duration: 0.3, delay: 0.4 }}
                         className="absolute pointer-events-none"
-                        style={{
-                          left: mx, top: my,
-                          transform: `translate(-50%, -50%) rotate(${labelAng}deg)`,
-                        }}>
-                        <span className="text-[9px] font-mono tracking-wider whitespace-nowrap"
-                          style={{ color: edge.stroke, opacity: 0.6, textShadow: `0 0 4px ${edge.stroke}30` }}>
+                        style={{ left: mx, top: my, transform: 'translate(-50%, -50%)' }}>
+                        <span className="text-[9px] font-mono tracking-wider whitespace-nowrap px-1.5 py-0.5 rounded"
+                          style={{ color: edge.stroke, background: 'rgba(3,5,10,0.7)', border: `1px solid ${edge.stroke}20` }}>
                           {edge.label}
                         </span>
                       </motion.div>
@@ -271,7 +276,7 @@ export default function SocialPage() {
                 style={{ margin: '-10px', boxShadow: `0 0 32px ${NODE_COLOR}30`, background: `${NODE_COLOR}04`, borderRadius: '50%' }} />
               <div className="w-full h-full rounded-full border-2 flex items-center justify-center transition-all duration-400 group-hover:scale-110"
                 style={{ borderColor: `${NODE_COLOR}80`, background: 'linear-gradient(135deg, rgba(6,12,20,0.92), rgba(3,6,12,0.95))', boxShadow: `0 0 18px ${NODE_COLOR}20` }}>
-                <span className="font-display font-bold select-none" style={{ fontSize: Math.max(14, node.size * 0.3), color: NODE_COLOR, textShadow: `0 0 8px ${NODE_COLOR}35` }}>{node.name[0]}</span>
+                <span className="font-display font-bold select-none whitespace-nowrap" style={{ fontSize: Math.max(11, 16 - node.name.length * 1.5), color: NODE_COLOR, textShadow: `0 0 8px ${NODE_COLOR}35` }}>{node.name}</span>
               </div>
             </motion.button>
           ))}
