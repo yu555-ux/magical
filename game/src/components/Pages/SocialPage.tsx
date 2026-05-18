@@ -402,17 +402,18 @@ export default function SocialPage() {
               <div className="p-4 rounded-xl border border-aether-cyan/[0.06]" style={{ background: 'linear-gradient(135deg, rgba(0,242,255,0.025), rgba(0,242,255,0.005))' }}>
                 <span className="text-[9px] font-mono text-aether-cyan/50 tracking-[0.1em] uppercase">社交关系</span>
                 <div className="mt-2 space-y-2">
-                  {/* Relationship to me */}
+                  {/* Relationship to me: 我 + 关系 */}
                   <div className="flex items-baseline gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-aether-cyan/50 shrink-0" />
-                    <span className="text-[13px] font-display text-white/80 font-bold tracking-wider">{selSocial.关系}</span>
+                    <span className="text-[13px] font-display text-white/80 font-bold tracking-wider">我</span>
+                    <span className="text-[11px] font-mono text-white/45">{selSocial.关系}</span>
                   </div>
-                  {/* Social circle — same visual weight */}
+                  {/* Social circle: 人名 + 关系 — same format */}
                   {selSocial.社交圈 && Object.entries(selSocial.社交圈).map(([name, rel]) => (
                     <div key={name} className="flex items-baseline gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-aether-cyan/35 shrink-0" />
                       <span className="text-[13px] font-display text-white/65 font-bold tracking-wider">{name}</span>
-                      <span className="text-[11px] font-mono text-white/40">{rel}</span>
+                      <span className="text-[11px] font-mono text-white/45">{rel}</span>
                     </div>
                   ))}
                 </div>
@@ -431,7 +432,7 @@ function InfoRow({ label, value, muted }: { label: string; value: string; muted?
   return (
     <div className="flex items-start gap-3 px-3 py-2 rounded-lg border border-white/[0.03] bg-white/[0.005]">
       <span className="text-[9px] font-mono text-white/50 tracking-[0.1em] uppercase shrink-0 w-8 pt-0.5">{label}</span>
-      <span className={`text-[11px] font-mono leading-relaxed ${muted ? 'text-white/65 italic' : 'text-white/85'}`}>{value}</span>
+      <span className={`text-[12px] font-mono leading-relaxed ${muted ? 'text-white/75 italic' : 'text-white'}`}>{value}</span>
     </div>
   );
 }
