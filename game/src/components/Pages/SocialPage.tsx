@@ -338,7 +338,7 @@ export default function SocialPage() {
                   <span className="text-[12px] font-mono text-white/30 font-bold">{selProfile.年龄}岁</span>
                   {selProfile.梦境NPC && <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-purple-400/12 text-purple-300/70 border border-purple-400/20">梦境NPC</span>}
                 </div>
-                <p className="text-[12px] text-white/45 font-mono leading-relaxed">{selProfile.身份}</p>
+                <p className="text-[12px] text-white/65 font-mono leading-relaxed">{selProfile.身份}</p>
               </div>
             </div>
 
@@ -383,12 +383,12 @@ export default function SocialPage() {
             {/* ── Status effects ── */}
             {Object.keys(selProfile.状态).length > 0 && (
               <div className="space-y-1.5">
-                <span className="text-[9px] font-mono text-white/18 tracking-[0.12em] uppercase">状态效果</span>
+                <span className="text-[9px] font-mono text-white/30 tracking-[0.12em] uppercase">状态效果</span>
                 {Object.entries(selProfile.状态).map(([name, s]) => (
                   <div key={name} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.04] bg-white/[0.01]">
-                    <div className="w-1 h-1 rounded-full bg-aether-cyan/40 shrink-0" />
-                    <span className="text-[11px] font-mono text-white/55">{name}</span>
-                    <span className="ml-auto text-[9px] font-mono text-white/22">{s.描述} · {s.持续时间}</span>
+                    <div className="w-1 h-1 rounded-full bg-aether-cyan/50 shrink-0" />
+                    <span className="text-[11px] font-mono text-white/65">{name}</span>
+                    <span className="ml-auto text-[9px] font-mono text-white/35">{s.描述} · {s.持续时间}</span>
                   </div>
                 ))}
               </div>
@@ -400,14 +400,20 @@ export default function SocialPage() {
             {/* ── Social relation ── */}
             {selSocial && (
               <div className="p-4 rounded-xl border border-aether-cyan/[0.06]" style={{ background: 'linear-gradient(135deg, rgba(0,242,255,0.025), rgba(0,242,255,0.005))' }}>
-                <span className="text-[9px] font-mono text-aether-cyan/40 tracking-[0.1em] uppercase">与我的关系</span>
-                <p className="text-[15px] font-display text-aether-cyan/80 font-bold tracking-wider mt-1.5">{selSocial.关系}</p>
+                <span className="text-[9px] font-mono text-aether-cyan/40 tracking-[0.1em] uppercase">社交关系</span>
+                {/* Primary: relationship to me */}
+                <div className="flex items-baseline gap-2 mt-2">
+                  <div className="w-2 h-2 rounded-full bg-aether-cyan/50 shrink-0" />
+                  <span className="text-[15px] font-display text-aether-cyan/80 font-bold tracking-wider">{selSocial.关系}</span>
+                </div>
+                {/* Sub: social circle */}
                 {selSocial.社交圈 && Object.keys(selSocial.社交圈).length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-white/[0.03] flex flex-wrap gap-1.5">
+                  <div className="mt-2 ml-2 pl-4 border-l border-aether-cyan/[0.08] space-y-1.5">
                     {Object.entries(selSocial.社交圈).map(([name, rel]) => (
-                      <span key={name} className="text-[10px] font-mono px-2.5 py-1 rounded-full border border-white/[0.04] bg-white/[0.01] text-white/45">
-                        {name}<span className="text-white/20 ml-1">· {rel}</span>
-                      </span>
+                      <div key={name} className="flex items-baseline gap-2">
+                        <span className="text-[11px] font-mono text-white/50">{name}</span>
+                        <span className="text-[10px] font-mono text-white/30">{rel}</span>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -425,8 +431,8 @@ export default function SocialPage() {
 function InfoRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="flex items-start gap-3 px-3 py-2 rounded-lg border border-white/[0.03] bg-white/[0.005]">
-      <span className="text-[9px] font-mono text-white/18 tracking-[0.1em] uppercase shrink-0 w-8 pt-0.5">{label}</span>
-      <span className={`text-[11px] font-mono leading-relaxed ${muted ? 'text-white/30 italic' : 'text-white/50'}`}>{value}</span>
+      <span className="text-[9px] font-mono text-white/30 tracking-[0.1em] uppercase shrink-0 w-8 pt-0.5">{label}</span>
+      <span className={`text-[11px] font-mono leading-relaxed ${muted ? 'text-white/40 italic' : 'text-white/60'}`}>{value}</span>
     </div>
   );
 }
