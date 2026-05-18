@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ZoomIn, ZoomOut, ArrowLeft, MapPin, Info, Skull, Crosshair,
+  ChevronRight, Navigation, X,
 } from 'lucide-react';
 import { MapLocationRender, MapAnomaly } from '../../types';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
@@ -59,13 +60,12 @@ const PARTICLES: Particle[] = Array.from({ length: 24 }, (_, i) => ({
 
 /* ===== Viewport helpers ===== */
 interface Viewport {
-  x: number;  // world-coord of viewport left edge
-  y: number;  // world-coord of viewport top edge
-  w: number;  // world-units visible horizontally
-  h: number;  // world-units visible vertically
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
-/** Fit a set of points into a viewport with padding. */
 function fitViewport(points: MapLocationRender[], paddingRatio = 0.6): Viewport {
   if (points.length === 0) return { x: -500, y: -500, w: 1000, h: 1000 };
 
@@ -82,7 +82,6 @@ function fitViewport(points: MapLocationRender[], paddingRatio = 0.6): Viewport 
   const padX = dx * paddingRatio;
   const padY = dy * paddingRatio;
 
-  // Maintain canvas aspect ratio
   const rawW = dx + padX * 2;
   const rawH = dy + padY * 2;
   const aspect = CANVAS_W / CANVAS_H;
@@ -101,7 +100,6 @@ function fitViewport(points: MapLocationRender[], paddingRatio = 0.6): Viewport 
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
-/** World coord → screen pixel (relative to container). */
 function worldToScreen(wx: number, wy: number, vp: Viewport): { sx: number; sy: number } {
   return {
     sx: ((wx - vp.x) / vp.w) * CANVAS_W,
@@ -109,7 +107,7 @@ function worldToScreen(wx: number, wy: number, vp: Viewport): { sx: number; sy: 
   };
 }
 
-/* ===== Point type color (for region/city markers) ===== */
+/* ===== Point type color ===== */
 interface PointColorSet {
   primary: string;
   glow: string;
@@ -117,14 +115,13 @@ interface PointColorSet {
 }
 
 const POINT_COLORS: Record<string, PointColorSet> = {
-  region: { primary: '#00f2ff', glow: 'rgba(0,242,255,0.5)', bg: 'rgba(0,242,255,0.12)' },
-  city:   { primary: '#22c55e', glow: 'rgba(34,197,94,0.5)',  bg: 'rgba(34,197,94,0.12)' },
+  region:  { primary: '#00f2ff', glow: 'rgba(0,242,255,0.5)',  bg: 'rgba(0,242,255,0.12)' },
+  city:    { primary: '#22c55e', glow: 'rgba(34,197,94,0.5)',  bg: 'rgba(34,197,94,0.12)' },
   district:{ primary: '#a78bfa', glow: 'rgba(167,139,250,0.5)', bg: 'rgba(167,139,250,0.12)' },
-  block:  { primary: '#eab308', glow: 'rgba(234,179,8,0.5)',  bg: 'rgba(234,179,8,0.12)' },
-  site:   { primary: '#f472b6', glow: 'rgba(244,114,182,0.5)', bg: 'rgba(244,114,182,0.12)' },
+  block:   { primary: '#eab308', glow: 'rgba(234,179,8,0.5)',  bg: 'rgba(234,179,8,0.12)' },
+  site:    { primary: '#f472b6', glow: 'rgba(244,114,182,0.5)', bg: 'rgba(244,114,182,0.12)' },
 };
 
-/** Guess point type by depth. */
 function pointStyle(depth: number, hasChildren: boolean): PointColorSet {
   if (depth === 0) return POINT_COLORS.region;
   if (depth === 1) return POINT_COLORS.city;
@@ -137,46 +134,41 @@ function pointStyle(depth: number, hasChildren: boolean): PointColorSet {
    MAP PAGE
    ============================================================ */
 export default function MapPage() {
-  // --- Build the map tree once ---
   const mapTree = useMemo(() => {
     const raw = DEFAULT_WORLD_VARS.地图;
     return adaptMapTree(raw as Record<string, any>);
   }, []);
 
-  // --- Navigation: path segments into the tree (excluding root '蓝星' which is the canvas itself) ---
   const [navPath, setNavPath] = useState<string[]>([]);
 
-  // --- Current node & children ---
   const currentNode = useMemo(() => {
     if (navPath.length === 0) return null;
     return findNode(mapTree, navPath);
   }, [mapTree, navPath]);
 
   const currentChildren = useMemo(() => {
-    if (navPath.length === 0) return mapTree; // top level: 蓝星's children
+    if (navPath.length === 0) return mapTree;
     return currentNode?.children ?? [];
   }, [mapTree, navPath, currentNode]);
 
   const navDepth = navPath.length;
 
-  // --- Viewport ---
   const [viewport, setViewport] = useState<Viewport>(() => fitViewport(mapTree, 1.2));
   const [zoom, setZoom] = useState(1);
 
-  // Reset viewport when layer changes
   useEffect(() => {
     const vp = fitViewport(currentChildren, navDepth === 0 ? 1.2 : 0.6);
     setViewport(vp);
     setZoom(1);
   }, [navDepth, currentChildren]);
 
-  // --- Selection & card ---
+  // --- Selection & card — now works for ALL points ---
   const [selectedPoint, setSelectedPoint] = useState<MapLocationRender | null>(null);
   const [cardOrigin, setCardOrigin] = useState<{ x: number; y: number } | null>(null);
   const [cardVisible, setCardVisible] = useState(false);
 
   useEffect(() => {
-    if (selectedPoint && selectedPoint.children.length === 0) {
+    if (selectedPoint) {
       const t = setTimeout(() => setCardVisible(true), 30);
       return () => clearTimeout(t);
     } else {
@@ -205,10 +197,8 @@ export default function MapPage() {
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved.current = true;
-
     const scaleX = dragViewStart.current.w / CANVAS_W;
     const scaleY = dragViewStart.current.h / CANVAS_H;
-
     setViewport({
       x: dragViewStart.current.x - dx * scaleX,
       y: dragViewStart.current.y - dy * scaleY,
@@ -219,22 +209,22 @@ export default function MapPage() {
 
   const handlePanEnd = useCallback(() => setIsDragging(false), []);
 
-  // --- Point click ---
+  // --- Point click — always opens card ---
   const handlePointClick = useCallback((point: MapLocationRender, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (point.children.length > 0) {
-      // Drill down
-      setNavPath((prev) => [...prev, point.key]);
-      setSelectedPoint(null);
-      setCardOrigin(null);
-      setCardVisible(false);
-    } else {
-      // Show info card
-      setSelectedPoint(point);
-      setCardOrigin({ x: e.clientX, y: e.clientY });
-      setCardVisible(false);
-    }
+    setSelectedPoint(point);
+    setCardOrigin({ x: e.clientX, y: e.clientY });
+    setCardVisible(false);
   }, []);
+
+  // --- Enter sub-map from card ---
+  const handleEnter = useCallback(() => {
+    if (!selectedPoint || selectedPoint.children.length === 0) return;
+    setNavPath((prev) => [...prev, selectedPoint.key]);
+    setSelectedPoint(null);
+    setCardOrigin(null);
+    setCardVisible(false);
+  }, [selectedPoint]);
 
   // --- Go back ---
   const goBack = useCallback(() => {
@@ -361,7 +351,6 @@ export default function MapPage() {
           >
             {currentChildren.map((point) => {
               const { sx, sy } = worldToScreen(point.cx, point.cy, viewport);
-              // Skip off-screen points
               if (sx < -60 || sx > CANVAS_W + 60 || sy < -60 || sy > CANVAS_H + 60) return null;
               return (
                 <PointMarker
@@ -377,55 +366,56 @@ export default function MapPage() {
           </motion.div>
         </AnimatePresence>
 
-        {/* ===== Info Card ===== */}
+        {/* ===== Info Card — shows for every point ===== */}
         <AnimatePresence>
-          {selectedPoint && selectedPoint.children.length === 0 && cardOrigin && cardVisible && (
+          {selectedPoint && cardOrigin && cardVisible && (
             <LocationInfoCard
               key={selectedPoint.key}
               point={selectedPoint}
               origin={cardOrigin}
+              hasChildren={selectedPoint.children.length > 0}
               onClose={dismissCard}
+              onEnter={handleEnter}
             />
           )}
         </AnimatePresence>
       </div>
 
       {/* ===== Footer Controls ===== */}
-      <div className="absolute bottom-8 right-8 z-10 flex flex-col gap-2 pointer-events-none">
-        {/* Zoom controls */}
-        <div className="glass-panel overflow-hidden pointer-events-auto flex flex-col items-center">
+      <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-2 pointer-events-none">
+        {/* Zoom controls — narrower */}
+        <div className="glass-panel overflow-hidden pointer-events-auto flex flex-col items-center w-9">
           <button
             onClick={zoomIn}
             disabled={zoom >= ZOOM_MAX}
-            className="p-2.5 border-b border-aether-border/20 hover:text-aether-cyan text-aether-blue disabled:opacity-25 disabled:cursor-not-allowed transition-all clickable hover:bg-aether-cyan/5"
+            className="p-1.5 border-b border-aether-border/20 hover:text-aether-cyan text-aether-blue disabled:opacity-25 disabled:cursor-not-allowed transition-all clickable hover:bg-aether-cyan/5 flex justify-center"
             aria-label="放大"
           >
-            <ZoomIn size={18} />
+            <ZoomIn size={14} />
           </button>
-          <div className="py-1.5 px-2 border-b border-aether-border/20 text-center w-full">
-            <span className="text-[10px] font-mono text-aether-cyan/80 font-bold">
+          <div className="py-1 border-b border-aether-border/20 text-center w-full">
+            <span className="text-[9px] font-mono text-aether-cyan/80 font-bold leading-none">
               {Math.round(zoom * 100)}%
             </span>
           </div>
           <button
             onClick={zoomOut}
             disabled={zoom <= ZOOM_MIN}
-            className="p-2.5 hover:text-aether-cyan text-aether-blue disabled:opacity-25 disabled:cursor-not-allowed transition-all clickable hover:bg-aether-cyan/5"
+            className="p-1.5 hover:text-aether-cyan text-aether-blue disabled:opacity-25 disabled:cursor-not-allowed transition-all clickable hover:bg-aether-cyan/5 flex justify-center"
             aria-label="缩小"
           >
-            <ZoomOut size={18} />
+            <ZoomOut size={14} />
           </button>
         </div>
 
         {/* Scale indicator */}
-        <div className="glass-panel px-3 py-1.5 pointer-events-auto">
-          <span className="text-[9px] font-mono text-aether-cyan/50">
-            1px ≈ {(viewport.w / CANVAS_W).toFixed(1)} km
+        <div className="glass-panel px-2 py-1 pointer-events-auto w-9 flex justify-center">
+          <span className="text-[8px] font-mono text-aether-cyan/40 leading-tight text-center">
+            {(viewport.w / CANVAS_W).toFixed(1)}km
           </span>
         </div>
       </div>
 
-      {/* Floating particles / atmosphere */}
       <MapAtmosphere />
 
       <style>{`
@@ -434,10 +424,6 @@ export default function MapPage() {
           8%   { opacity: 0.35; }
           85%  { opacity: 0.35; }
           100% { transform: translateY(-15vh) translateX(8px); opacity: 0; }
-        }
-        @keyframes progress-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
         }
       `}</style>
     </div>
@@ -478,7 +464,6 @@ function PointMarker({
         className="relative flex flex-col items-center justify-center clickable"
         aria-label={point.name}
       >
-        {/* Outer ring pulse for regions */}
         {hasChildren && (
           <div
             className="absolute rounded-full animate-pulse"
@@ -490,12 +475,8 @@ function PointMarker({
             }}
           />
         )}
-
-        {/* Marker */}
         <div
-          className={`rounded-full border-2 transition-all duration-300 group-hover:scale-150 ${
-            isSelected ? 'scale-125' : ''
-          }`}
+          className={`rounded-full border-2 transition-all duration-300 group-hover:scale-150 ${isSelected ? 'scale-125' : ''}`}
           style={{
             width: size,
             height: size,
@@ -504,8 +485,6 @@ function PointMarker({
             boxShadow: `0 0 ${size * 1.2}px ${colors.glow}`,
           }}
         />
-
-        {/* Label */}
         <div className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 pointer-events-none z-20">
           <span className="whitespace-nowrap text-[10px] font-display tracking-widest text-white/25 transition-all duration-300 group-hover:text-white group-hover:drop-shadow-[0_0_6px_rgba(0,242,255,0.4)]">
             {point.name}
@@ -517,16 +496,20 @@ function PointMarker({
 }
 
 /* ============================================================
-   LOCATION INFO CARD (redesigned — driven by variable data)
+   LOCATION INFO CARD — larger, redesigned, with action buttons
    ============================================================ */
 function LocationInfoCard({
   point,
   origin,
+  hasChildren,
   onClose,
+  onEnter,
 }: {
   point: MapLocationRender;
   origin: { x: number; y: number };
+  hasChildren: boolean;
   onClose: () => void;
+  onEnter: () => void;
 }) {
   const [layer, setLayer] = useState<'现实' | '梦境'>('现实');
   const detail = layer === '现实' ? point.reality : point.dream;
@@ -534,11 +517,15 @@ function LocationInfoCard({
   const hasAnomalies = anomalies.length > 0;
   const infoList = detail.地点细节.信息;
 
-  const cardW = 360;
-  const cardH = 520;
-  const margin = 16;
+  const cardW = 400;
+  const cardH = 560;
+  const margin = 20;
   const targetX = Math.max(margin, Math.min(origin.x - cardW / 2, window.innerWidth - cardW - margin));
   const targetY = Math.max(margin, Math.min(origin.y - cardH / 2, window.innerHeight - cardH - margin));
+
+  const isDream = layer === '梦境';
+  const accent = isDream ? '#a78bfa' : '#00f2ff';
+  const accentGlow = isDream ? 'rgba(167,139,250,0.4)' : 'rgba(0,242,255,0.4)';
 
   return (
     <motion.div
@@ -547,100 +534,180 @@ function LocationInfoCard({
       exit={{ opacity: 0, scale: 0.85, x: origin.x - cardW / 2, y: origin.y - cardH / 2 }}
       transition={{ type: 'spring', damping: 26, stiffness: 280, mass: 0.8 }}
       onClick={(e) => e.stopPropagation()}
-      className="fixed z-30 glass-panel border-glow overflow-hidden flex flex-col"
-      style={{ width: cardW, maxHeight: cardH }}
+      className="fixed z-30 flex flex-col overflow-hidden rounded-lg"
+      style={{
+        width: cardW,
+        maxHeight: cardH,
+        background: 'linear-gradient(180deg, rgba(12,16,24,0.98) 0%, rgba(8,10,16,0.98) 100%)',
+        border: `1px solid ${accent}25`,
+        boxShadow: `0 0 40px ${accentGlow}10, 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 ${accent}10`,
+      }}
     >
-      {/* Top accent */}
+      {/* ===== Header bar ===== */}
       <div
-        className="h-[2px] shrink-0"
-        style={{ backgroundColor: pointStyle(2, false).primary }}
-      />
+        className="shrink-0 px-5 py-3 flex items-center gap-3 border-b"
+        style={{ borderColor: `${accent}15`, backgroundColor: `${accent}06` }}
+      >
+        <MapPin size={14} style={{ color: accent }} />
+        <h3 className="font-display font-bold text-base text-white/90 tracking-wide flex-1 min-w-0 truncate">
+          {point.name}
+        </h3>
 
-      {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {/* Header */}
-        <div className="px-5 pt-4 pb-2">
-          <div className="flex items-center gap-2 mb-1">
-            <MapPin size={12} className="text-aether-cyan/60" />
-            <span className="text-[10px] font-mono tracking-[0.15em] uppercase text-aether-cyan/50">
-              {layer === '现实' ? 'Reality' : 'Dream'}
-            </span>
-            {/* Layer toggle */}
-            <button
-              onClick={() => setLayer((l) => (l === '现实' ? '梦境' : '现实'))}
-              className={`ml-auto text-[9px] font-mono px-2 py-0.5 rounded border transition-all ${
-                layer === '现实'
-                  ? 'border-aether-cyan/30 text-aether-cyan/70 hover:border-aether-cyan/60'
-                  : 'border-purple-400/30 text-purple-300/70 hover:border-purple-400/60'
-              }`}
-            >
-              {layer === '现实' ? '切换至梦境' : '切换至现实'}
-            </button>
-          </div>
-          <h3 className="font-display font-bold text-lg text-aether-cyan tracking-wide">
-            {point.name}
-          </h3>
-          <p className="text-[11px] text-white/55 leading-relaxed mt-1.5 font-mono tracking-wide">
+        {/* Layer toggle pill */}
+        <button
+          onClick={() => setLayer((l) => (l === '现实' ? '梦境' : '现实'))}
+          className="shrink-0 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border transition-all duration-300 tracking-wider"
+          style={{
+            color: accent,
+            borderColor: `${accent}40`,
+            backgroundColor: `${accent}10`,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = `${accent}20`;
+            e.currentTarget.style.borderColor = `${accent}60`;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = `${accent}10`;
+            e.currentTarget.style.borderColor = `${accent}40`;
+          }}
+        >
+          {isDream ? '梦境' : '现实'}
+        </button>
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="shrink-0 p-1 rounded-full text-white/20 hover:text-white/70 hover:bg-white/10 transition-all"
+          aria-label="关闭"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* ===== Scrollable body ===== */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
+        {/* Description */}
+        <div className="p-3 rounded-lg border" style={{ borderColor: `${accent}12`, backgroundColor: `${accent}04` }}>
+          <p className="text-[11px] text-white/55 leading-relaxed font-mono tracking-wide">
             {detail.描述}
           </p>
         </div>
 
-        {/* Coordinate & info section */}
-        <div className="px-5 pb-3 space-y-3">
-          {/* Bounds */}
-          <div className="grid grid-cols-3 gap-1.5">
-            <MiniStat label="X 范围" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" />
-            <MiniStat label="Y 范围" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" />
-            <MiniStat label="Z 范围" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" />
-          </div>
-
-          {/* Info messages */}
-          {infoList.length > 0 && (
-            <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded space-y-1.5">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Info size={10} className="text-aether-cyan/40" />
-                <span className="text-[9px] font-mono text-aether-cyan/40 tracking-wider uppercase">信息</span>
-              </div>
-              {infoList.map((info, i) => (
-                <p key={i} className="text-[10px] text-white/45 leading-relaxed font-mono pl-3 border-l border-aether-cyan/15">
-                  {info}
-                </p>
-              ))}
-            </div>
-          )}
-
-          {/* Anomalies */}
-          {hasAnomalies && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5">
-                <Skull size={10} className="text-red-400/50" />
-                <span className="text-[9px] font-mono text-red-400/50 tracking-wider uppercase">
-                  异常 {layer === '梦境' ? '(梦境)' : '(现实)'}
-                </span>
-              </div>
-              {anomalies.map(([name, anomaly]) => (
-                <AnomalyCard key={name} name={name} anomaly={anomaly} />
-              ))}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {infoList.length === 0 && !hasAnomalies && (
-            <p className="text-[10px] text-white/25 italic font-mono text-center py-4">
-              该区域暂无详细信息记录
-            </p>
-          )}
+        {/* Coordinate grid */}
+        <div className="grid grid-cols-3 gap-1.5">
+          <MiniStat label="X" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
+          <MiniStat label="Y" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
+          <MiniStat label="Z" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" accent={accent} />
         </div>
+
+        {/* Info messages */}
+        {infoList.length > 0 && (
+          <div className="p-3 rounded-lg border" style={{ borderColor: `${accent}15`, backgroundColor: `${accent}03` }}>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Info size={10} style={{ color: `${accent}80` }} />
+              <span className="text-[9px] font-mono tracking-wider uppercase" style={{ color: `${accent}80` }}>信息</span>
+            </div>
+            {infoList.map((info, i) => (
+              <p
+                key={i}
+                className="text-[10px] text-white/45 leading-relaxed font-mono pl-3 mb-1 last:mb-0"
+                style={{ borderLeft: `2px solid ${accent}20` }}
+              >
+                {info}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {/* Anomalies */}
+        {hasAnomalies && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Skull size={10} className="text-red-400/50" />
+              <span className="text-[9px] font-mono text-red-400/50 tracking-wider uppercase">
+                异常
+              </span>
+            </div>
+            {anomalies.map(([name, anomaly]) => (
+              <AnomalyCard key={name} name={name} anomaly={anomaly} />
+            ))}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {infoList.length === 0 && !hasAnomalies && (
+          <p className="text-[10px] text-white/20 italic font-mono text-center py-4">
+            该区域暂无详细信息记录
+          </p>
+        )}
       </div>
 
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        className="absolute top-3 right-3 p-1 text-white/30 hover:text-aether-cyan transition-colors clickable text-xs z-10"
-        aria-label="关闭信息卡"
+      {/* ===== Action buttons ===== */}
+      <div
+        className="shrink-0 px-5 py-3 flex gap-3 border-t"
+        style={{ borderColor: `${accent}15` }}
       >
-        ✕
-      </button>
+        {hasChildren ? (
+          <button
+            onClick={onEnter}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-display text-sm font-bold tracking-wider transition-all duration-300"
+            style={{
+              color: accent,
+              border: `1px solid ${accent}30`,
+              backgroundColor: `${accent}08`,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${accent}18`;
+              e.currentTarget.style.borderColor = `${accent}60`;
+              e.currentTarget.style.boxShadow = `0 0 20px ${accentGlow}20`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = `${accent}08`;
+              e.currentTarget.style.borderColor = `${accent}30`;
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            <ChevronRight size={16} />
+            进入
+          </button>
+        ) : (
+          <button
+            disabled
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-display text-sm font-bold tracking-wider opacity-25 cursor-not-allowed"
+            style={{
+              color: accent,
+              border: `1px solid ${accent}15`,
+              backgroundColor: `${accent}04`,
+            }}
+          >
+            <ChevronRight size={16} />
+            已是最深层级
+          </button>
+        )}
+
+        <button
+          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-display text-sm font-bold tracking-wider transition-all duration-300"
+          style={{
+            color: '#f59e0b',
+            border: '1px solid rgba(245,158,11,0.25)',
+            backgroundColor: 'rgba(245,158,11,0.06)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.14)';
+            e.currentTarget.style.borderColor = 'rgba(245,158,11,0.5)';
+            e.currentTarget.style.boxShadow = '0 0 16px rgba(245,158,11,0.15)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.06)';
+            e.currentTarget.style.borderColor = 'rgba(245,158,11,0.25)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+          aria-label="前往"
+        >
+          <Navigation size={14} />
+          前往
+        </button>
+      </div>
     </motion.div>
   );
 }
@@ -655,8 +722,7 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
   const progress = Math.min(100, Math.max(0, anomaly.具现进度));
 
   return (
-    <div className={`p-3 rounded border ${rating.border} ${rating.bg} transition-all`}>
-      {/* Header row */}
+    <div className={`p-3 rounded-lg border ${rating.border} ${rating.bg} transition-all`}>
       <div className="flex items-center gap-2">
         <Crosshair size={11} className={rating.text} />
         <span className="text-[11px] font-display font-bold text-white/80">{name}</span>
@@ -664,8 +730,6 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
           {anomaly.评级}
         </span>
       </div>
-
-      {/* Description */}
       <p className="text-[10px] text-white/50 leading-relaxed mt-1.5 font-mono">
         {anomaly.描述}
       </p>
@@ -684,7 +748,6 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
         <span className={`text-[9px] font-mono font-bold ${rating.text}`}>{progress}%</span>
       </div>
 
-      {/* Traits toggle */}
       {traits.length > 0 && (
         <>
           <button
@@ -732,13 +795,16 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
 /* ============================================================
    MINI STAT
    ============================================================ */
-function MiniStat({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function MiniStat({ label, value, unit, accent }: { label: string; value: string; unit?: string; accent: string }) {
   return (
-    <div className="p-2 bg-black/30 border border-white/5 rounded">
-      <p className="text-[7px] font-mono text-white/30 tracking-wider uppercase">{label}</p>
-      <p className="text-[10px] font-display mt-0.5 tracking-wide text-white/55">
+    <div
+      className="p-2 rounded border"
+      style={{ borderColor: `${accent}12`, backgroundColor: 'rgba(0,0,0,0.25)' }}
+    >
+      <p className="text-[7px] font-mono text-white/25 tracking-wider uppercase">{label}</p>
+      <p className="text-[10px] font-display mt-0.5 tracking-wide text-white/50">
         {value}
-        {unit && <span className="text-[7px] text-white/25 ml-0.5">{unit}</span>}
+        {unit && <span className="text-[7px] text-white/20 ml-0.5">{unit}</span>}
       </p>
     </div>
   );
@@ -790,7 +856,6 @@ function CornerBracket({ position }: { position: 'top-left' | 'top-right' | 'bot
 function MapAtmosphere() {
   return (
     <>
-      {/* Dot grid */}
       <div
         className="absolute inset-0 opacity-[0.06] pointer-events-none"
         style={{
@@ -798,8 +863,6 @@ function MapAtmosphere() {
           backgroundSize: '40px 40px',
         }}
       />
-
-      {/* Floating particles */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {PARTICLES.map((p) => (
           <div
@@ -816,14 +879,10 @@ function MapAtmosphere() {
           />
         ))}
       </div>
-
-      {/* Tech-line decorations */}
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/25 to-transparent pointer-events-none" />
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/25 to-transparent pointer-events-none" />
       <div className="absolute top-0 bottom-0 left-[60px] w-[1px] bg-gradient-to-b from-transparent via-aether-cyan/8 to-transparent pointer-events-none" />
       <div className="absolute top-0 bottom-0 right-[60px] w-[1px] bg-gradient-to-b from-transparent via-aether-cyan/8 to-transparent pointer-events-none" />
-
-      {/* Fog overlays */}
       <div className="absolute inset-0 bg-gradient-to-b from-aether-cyan/[0.025] via-transparent to-aether-cyan/[0.015] pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-aether-cyan/[0.008] to-transparent pointer-events-none" />
     </>
