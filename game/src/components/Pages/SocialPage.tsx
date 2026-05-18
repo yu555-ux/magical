@@ -163,17 +163,21 @@ export default function SocialPage() {
             )}
           </AnimatePresence>
 
+          {/* ===== Orbit rings (centered at cx,cy — independent of 我 node) ===== */}
+          <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: 'translate(-50%, -50%)' }}>
+            <div className="rounded-full border border-aether-cyan/[0.06]" style={{ width: orbitR * 2, height: orbitR * 2 }} />
+          </div>
+          <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: 'translate(-50%, -50%)' }}>
+            <div className="rounded-full border border-aether-cyan/[0.04]" style={{ width: orbitR * 1.3, height: orbitR * 1.3 }} />
+          </div>
+
           {/* ===== Centre "我" ===== */}
           <motion.div
             initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', damping: 10, stiffness: 160, delay: 0.1 }}
             className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: 'translate(-50%, -50%)' }}>
-            {/* Outer orbit ring */}
-            <div className="absolute rounded-full border border-aether-cyan/[0.06]" style={{ width: orbitR * 2, height: orbitR * 2, left: -orbitR, top: -orbitR }} />
-            {/* Mid ring */}
-            <div className="absolute rounded-full border border-aether-cyan/[0.04]" style={{ width: orbitR * 1.3, height: orbitR * 1.3, left: -orbitR * 0.65, top: -orbitR * 0.65 }} />
             {/* Glow aura */}
-            <div className="absolute rounded-full" style={{ width: 120, height: 120, left: -60, top: -60, background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
+            <div className="absolute rounded-full" style={{ width: 120, height: 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
             {/* Core circle */}
             <div className="relative w-20 h-20 rounded-full flex items-center justify-center border-2 border-aether-cyan"
               style={{ background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: '0 0 36px rgba(0,242,255,0.25), 0 0 80px rgba(0,242,255,0.08)' }}>
