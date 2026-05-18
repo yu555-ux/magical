@@ -133,7 +133,7 @@ export default function SocialPage() {
       // Affection/friendliness: higher value = closer to center
       const profile = findCharProfile(charData, name);
       const aff = profile ? (profile.好感值 ?? profile.友善值 ?? 0) : 0;
-      const distFactor = 1.35 - ((aff + 200) / 400) * 0.85; // 0.5 (close at +200) to 1.35 (far at -200)
+      const distFactor = 1.6 - ((aff + 200) / 400) * 1.0; // 0.6 (close at +200) to 1.6 (far at -200)
       const r = orbitR * distFactor;
       return {
         id: name, name, relation: data.关系, type: inferType(data.关系), level,
@@ -159,7 +159,7 @@ export default function SocialPage() {
         for (const [friend, rel] of Object.entries(data.社交圈)) {
           if (!nameSet.has(friend)) continue;
           const dup = edges.find((e) => (e.from === name && e.to === friend) || (e.from === friend && e.to === name));
-          if (!dup) edges.push({ from: name, to: friend, label: rel, stroke: '#a78bfa', opacity: 0.3, dash: true });
+          if (!dup) edges.push({ from: name, to: friend, label: rel, stroke: '#a78bfa', opacity: 0.2, dash: true });
         }
       }
     }

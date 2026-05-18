@@ -948,9 +948,10 @@ export const DEFAULT_WORLD_VARS: Record<string, any> = {
                                 },
                               },
                             },
-                          },
-                          子地图: {
-                            '11号楼': {
+                          }
+,
+
+'11号楼': {
                               检索词: ['11号楼'],
                               方位: { X: [150.5, 150.6], Y: [150.5, 150.6], Z: [0, 0.05] },
                               现实: {
@@ -1136,8 +1137,7 @@ export const DEFAULT_WORLD_VARS: Record<string, any> = {
                                   },
                                 },
                               },
-                            },
-                          },
+                            },,
                         },
                       },
                     },
