@@ -247,45 +247,74 @@ export default function SocialPage() {
           <AnimatePresence>
             {hoveredNode && hoverProfile && (
               <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
+                initial={{ opacity: 0, y: 10, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.94 }}
+                transition={{ type: 'spring', damping: 22, stiffness: 340, mass: 0.6 }}
                 className="absolute z-50 pointer-events-none"
                 style={{
                   left: hoveredNode.x,
-                  top: hoveredNode.y + hoveredNode.size / 2 + 12,
+                  top: hoveredNode.y + hoveredNode.size / 2 + 16,
                   transform: 'translate(-50%, 0)',
                 }}>
-                <div className="glass-panel px-4 py-3 min-w-[160px] border border-aether-cyan/20 shadow-[0_0_20px_rgba(0,0,0,0.6)]">
-                  {/* Name */}
-                  <p className="text-sm font-display font-bold text-white/90 mb-2">{hoveredNode.name}</p>
+                <div
+                  className="relative rounded-xl overflow-hidden backdrop-blur-xl"
+                  style={{
+                    minWidth: 170,
+                    background: 'linear-gradient(180deg, rgba(10,16,28,0.96) 0%, rgba(6,10,18,0.98) 100%)',
+                    border: '1px solid rgba(0,242,255,0.12)',
+                    boxShadow: '0 0 0 1px rgba(0,242,255,0.04), 0 8px 32px rgba(0,0,0,0.5), 0 0 40px rgba(0,242,255,0.04)',
+                  }}>
+                  {/* Accent line */}
+                  <div className="h-px w-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(0,242,255,0.5), transparent)' }} />
 
-                  {/* Affection / Friendliness */}
-                  <div className="space-y-0.5 mb-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[9px] font-mono text-white/35">
-                        {isFemaleHover ? '好感值' : '友善值'}
-                      </span>
-                      <span className="text-[11px] font-mono font-bold" style={{ color: isFemaleHover ? affStage!.color : '#00f2ff' }}>
-                        {hoverAffection > 0 ? '+' : ''}{hoverAffection}
-                      </span>
+                  <div className="px-4 py-3">
+                    {/* Name */}
+                    <p className="text-[13px] font-display font-bold text-white/85 tracking-wide mb-3">
+                      {hoveredNode.name}
+                    </p>
+
+                    {/* Affection / Friendliness bar */}
+                    <div className="space-y-1.5 mb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-mono text-white/28 tracking-[0.08em] uppercase">
+                          {isFemaleHover ? '好感' : '友善'}
+                        </span>
+                        <span className="text-[12px] font-mono font-bold tracking-tight" style={{ color: isFemaleHover ? affStage!.color : NODE_COLOR }}>
+                          {hoverAffection}
+                        </span>
+                      </div>
+                      <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                        <motion.div
+                          initial={{ width: 0 }} animate={{ width: `${Math.abs(hoverAffection) / 200 * 100}%` }}
+                          transition={{ duration: 0.5, ease: 'easeOut' }}
+                          className="h-full rounded-full"
+                          style={{ background: `linear-gradient(90deg, ${isFemaleHover ? affStage!.color : NODE_COLOR}60, ${isFemaleHover ? affStage!.color : NODE_COLOR})`, boxShadow: `0 0 6px ${isFemaleHover ? affStage!.color : NODE_COLOR}30` }} />
+                      </div>
+                      {affStage && (
+                        <span className="text-[9px] font-mono tracking-[0.06em]" style={{ color: affStage.color, opacity: 0.7 }}>{affStage.name}</span>
+                      )}
                     </div>
-                    {affStage && (
-                      <span className="text-[9px] font-mono tracking-wider" style={{ color: affStage.color }}>{affStage.name}</span>
+
+                    {/* Corruption bar (female only) */}
+                    {isFemaleHover && hoverCorruption !== undefined && (
+                      <div className="space-y-1.5 pt-2 border-t border-white/[0.04]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-mono text-white/28 tracking-[0.08em] uppercase">堕落</span>
+                          <span className="text-[12px] font-mono font-bold tracking-tight" style={{ color: corrStage!.color }}>
+                            {hoverCorruption}
+                          </span>
+                        </div>
+                        <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                          <motion.div
+                            initial={{ width: 0 }} animate={{ width: `${hoverCorruption / 500 * 100}%` }}
+                            transition={{ duration: 0.5, ease: 'easeOut' }}
+                            className="h-full rounded-full"
+                            style={{ background: `linear-gradient(90deg, ${corrStage!.color}50, ${corrStage!.color})`, boxShadow: `0 0 6px ${corrStage!.color}25` }} />
+                        </div>
+                        <span className="text-[9px] font-mono tracking-[0.06em]" style={{ color: corrStage!.color, opacity: 0.7 }}>{corrStage!.name}</span>
+                      </div>
                     )}
                   </div>
 
-                  {/* Corruption (female only) */}
-                  {isFemaleHover && hoverCorruption !== undefined && (
-                    <div className="space-y-0.5 pt-2 border-t border-white/[0.06]">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[9px] font-mono text-white/35">堕落值</span>
-                        <span className="text-[11px] font-mono font-bold" style={{ color: corrStage!.color }}>
-                          {hoverCorruption}
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-mono tracking-wider" style={{ color: corrStage!.color }}>{corrStage!.name}</span>
-                    </div>
-                  )}
                 </div>
               </motion.div>
             )}
