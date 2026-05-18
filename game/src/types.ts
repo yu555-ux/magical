@@ -93,6 +93,7 @@ export interface MapLocationRender {
   reality: MapLayerDetail;
   dream: MapLayerDetail;
   children: MapLocationRender[];
+  noDream: boolean;
 }
 
 export interface SocialNode {

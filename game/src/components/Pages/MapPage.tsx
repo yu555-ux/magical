@@ -542,12 +542,14 @@ function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter }: {
       <div className="shrink-0 px-5 py-3.5 flex items-center gap-3 border-b" style={{ borderColor: `${accent}15`, backgroundColor: `${accent}06` }}>
         <MapPin size={15} style={{ color: accent }} />
         <h3 className="font-display font-bold text-lg text-white/90 tracking-wide flex-1 min-w-0 truncate">{point.name}</h3>
-        <button onClick={() => setLayer((l) => (l === '现实' ? '梦境' : '现实'))}
-          className="shrink-0 text-[10px] font-mono font-bold px-3 py-1 rounded-full border transition-all duration-300 tracking-widest"
-          style={{ color: accent, borderColor: `${accent}40`, backgroundColor: `${accent}10` }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${accent}20`; e.currentTarget.style.borderColor = `${accent}60`; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = `${accent}10`; e.currentTarget.style.borderColor = `${accent}40`; }}
-        >{isDream ? '梦境' : '现实'}</button>
+        {!point.noDream && (
+          <button onClick={() => setLayer((l) => (l === '现实' ? '梦境' : '现实'))}
+            className="shrink-0 text-[10px] font-mono font-bold px-3 py-1 rounded-full border transition-all duration-300 tracking-widest"
+            style={{ color: accent, borderColor: `${accent}40`, backgroundColor: `${accent}10` }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${accent}20`; e.currentTarget.style.borderColor = `${accent}60`; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = `${accent}10`; e.currentTarget.style.borderColor = `${accent}40`; }}
+          >{isDream ? '梦境' : '现实'}</button>
+        )}
         <button onClick={onClose} className="shrink-0 p-1 rounded-full text-white/20 hover:text-white/70 hover:bg-white/10 transition-all" aria-label="关闭"><X size={15} /></button>
       </div>
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">

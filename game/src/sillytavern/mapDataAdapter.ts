@@ -5,20 +5,22 @@ import { MapLocationData, MapLocationRender } from '../types';
  * Each node's children are positioned by their center coordinates within the parent's bounds.
  */
 export function adaptMapTree(raw: Record<string, MapLocationData>): MapLocationRender[] {
-  return Object.entries(raw).map(([key, data]) => adaptNode(key, data));
+  return Object.entries(raw).map(([key, data]) => adaptNode(key, data, false));
 }
 
-function adaptNode(key: string, data: MapLocationData): MapLocationRender {
+function adaptNode(key: string, data: MapLocationData, parentNoDream: boolean): MapLocationRender {
   const bounds = data.方位;
   const cx = (bounds.X[0] + bounds.X[1]) / 2;
   const cy = (bounds.Y[0] + bounds.Y[1]) / 2;
 
+  // 异界 and its descendants have no dream layer
+  const noDream = parentNoDream || key === '异界';
+
   const children: MapLocationRender[] = data.子地图
-    ? Object.entries(data.子地图).map(([childKey, childData]) => adaptNode(childKey, childData))
+    ? Object.entries(data.子地图).map(([childKey, childData]) => adaptNode(childKey, childData, noDream))
     : [];
 
-  // Use the last search term as display name (usually the shortest / most readable)
-  const name = data.检索词.length > 0 ? data.检索词[0] : key;
+  const name = key;
 
   return {
     key,
@@ -30,6 +32,7 @@ function adaptNode(key: string, data: MapLocationData): MapLocationRender {
     reality: data.现实,
     dream: data.梦境,
     children,
+    noDream,
   };
 }
 
