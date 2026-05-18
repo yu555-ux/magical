@@ -5,27 +5,11 @@ import { Modal } from '../Feedback';
 import { useSillytavern } from '../../hooks/useSillytavern';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 
-/* ===== Constants ===== */
-type RelationType = '盟友' | '中立' | '敌对' | '未知';
-interface TypeVisuals { text: string; border: string; bg: string; glow: string }
-
-const TYPE_VISUALS: Record<RelationType, TypeVisuals> = {
-  '盟友': { text: 'text-aether-cyan', border: 'border-aether-cyan', bg: 'bg-aether-cyan/10', glow: 'shadow-[0_0_15px_rgba(0,242,255,0.4)]' },
-  '中立': { text: 'text-aether-blue', border: 'border-aether-blue', bg: 'bg-aether-blue/10', glow: '' },
-  '敌对': { text: 'text-red-400', border: 'border-red-500/60', bg: 'bg-red-500/10', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.4)]' },
-  '未知': { text: 'text-white/50', border: 'border-white/20', bg: 'bg-white/5', glow: '' },
-};
+import { getAffectionStage, getFriendlinessStage, getCorruptionStage } from '../../sillytavern/social-stages';
 
 const NODE_COLOR = '#00f2ff';
 
-import { getAffectionStage, getFriendlinessStage, getCorruptionStage } from '../../sillytavern/social-stages';
-
 /* ===== Helpers ===== */
-function inferType(rel: string): RelationType {
-  if (/母|父|姐|妹|兄|弟|家|亲/.test(rel)) return '盟友';
-  if (/敌|仇|恨|杀/.test(rel)) return '敌对';
-  return '未知';
-}
 function getLevelHint(rel: string): number {
   if (/母|父/.test(rel)) return 90;
   if (/姐|妹|兄|弟/.test(rel)) return 78;
@@ -44,7 +28,7 @@ function findCharProfile(chars: any, name: string): any | null {
 }
 
 /* ===== Local types ===== */
-interface LiveNode { id: string; name: string; relation: string; type: RelationType; level: number; x: number; y: number; size: number }
+interface LiveNode { id: string; name: string; relation: string; level: number; x: number; y: number; size: number }
 interface LiveEdge { from: string; to: string; label: string; stroke: string; opacity: number; dash?: boolean }
 
 /* ============================================================
@@ -103,7 +87,7 @@ export default function SocialPage() {
       const distFactor = 1.6 - ((aff + 200) / 400) * 1.0; // 0.6 (close at +200) to 1.6 (far at -200)
       const r = orbitR * distFactor;
       return {
-        id: name, name, relation: data.关系, type: inferType(data.关系), level,
+        id: name, name, relation: data.关系, level,
         x: Math.cos(angle) * r + cx,
         y: Math.sin(angle) * r + cy,
         size: 48 + (level / 100) * 18,
