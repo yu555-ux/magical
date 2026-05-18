@@ -10,12 +10,6 @@ import { getAffectionStage, getFriendlinessStage, getCorruptionStage } from '../
 const NODE_COLOR = '#00f2ff';
 
 /* ===== Helpers ===== */
-function getLevelHint(rel: string): number {
-  if (/母|父/.test(rel)) return 90;
-  if (/姐|妹|兄|弟/.test(rel)) return 78;
-  return 50;
-}
-
 function findCharProfile(chars: any, name: string): any | null {
   for (const [, groups] of Object.entries(chars)) {
     if (!groups || typeof groups !== 'object') continue;
@@ -28,7 +22,7 @@ function findCharProfile(chars: any, name: string): any | null {
 }
 
 /* ===== Local types ===== */
-interface LiveNode { id: string; name: string; relation: string; level: number; x: number; y: number; size: number }
+interface LiveNode { id: string; name: string; relation: string; x: number; y: number; size: number }
 interface LiveEdge { from: string; to: string; label: string; stroke: string; opacity: number; dash?: boolean }
 
 /* ============================================================
@@ -80,17 +74,17 @@ export default function SocialPage() {
     return entries.map(([name, data], i) => {
       const n = entries.length;
       const angle = (-90 + i * (360 / n)) * (Math.PI / 180);
-      const level = getLevelHint(data.关系);
-      // Affection/friendliness: higher value = closer to center
+      // Affection/friendliness drives both distance and size
       const profile = findCharProfile(charData, name);
       const aff = profile ? (profile.好感值 ?? profile.友善值 ?? 0) : 0;
-      const distFactor = 1.6 - ((aff + 200) / 400) * 1.0; // 0.6 (close at +200) to 1.6 (far at -200)
+      const distFactor = 1.6 - ((aff + 200) / 400) * 1.0;
+      const sizeFactor = 0.4 + ((aff + 200) / 400) * 0.3; // 0.4 (small) to 0.7 (large)
       const r = orbitR * distFactor;
       return {
-        id: name, name, relation: data.关系, level,
+        id: name, name, relation: data.关系,
         x: Math.cos(angle) * r + cx,
         y: Math.sin(angle) * r + cy,
-        size: 48 + (level / 100) * 18,
+        size: 44 + sizeFactor * 44,
       };
     });
   }, [socialData, orbitR, cx, cy, charData, playerName]);
