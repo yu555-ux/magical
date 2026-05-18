@@ -30,7 +30,8 @@ function adaptNode(key: string, data: MapLocationData, parentNoDream: boolean): 
     cy,
     bounds,
     reality: data.现实,
-    dream: data.梦境,
+    // 异界及其子地图自动裁剪梦境数据
+    dream: noDream ? { 描述: '', 地点细节: { 信息: [], 异常: {} } } : data.梦境,
     children,
     noDream,
   };
