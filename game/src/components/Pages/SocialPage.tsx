@@ -171,19 +171,20 @@ export default function SocialPage() {
             <div className="rounded-full border border-aether-cyan/[0.04]" style={{ width: orbitR * 1.3, height: orbitR * 1.3 }} />
           </div>
 
-          {/* ===== Centre "我" ===== */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 10, stiffness: 160, delay: 0.1 }}
-            className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: 'translate(-50%, -50%)' }}>
-            {/* Glow aura */}
-            <div className="absolute rounded-full" style={{ width: 120, height: 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
-            {/* Core circle */}
-            <div className="relative w-20 h-20 rounded-full flex items-center justify-center border-2 border-aether-cyan"
-              style={{ background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: '0 0 36px rgba(0,242,255,0.25), 0 0 80px rgba(0,242,255,0.08)' }}>
-              <span className="font-display text-2xl font-bold text-aether-cyan select-none" style={{ textShadow: '0 0 16px rgba(0,242,255,0.5)' }}>我</span>
-            </div>
-          </motion.div>
+          {/* ===== Centre "我" — wrapper for positioning, inner for animation ===== */}
+          <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: 'translate(-50%, -50%)' }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', damping: 10, stiffness: 160, delay: 0.1 }}>
+              {/* Glow aura */}
+              <div className="absolute rounded-full" style={{ width: 120, height: 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
+              {/* Core circle */}
+              <div className="relative w-20 h-20 rounded-full flex items-center justify-center border-2 border-aether-cyan"
+                style={{ background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: '0 0 36px rgba(0,242,255,0.25), 0 0 80px rgba(0,242,255,0.08)' }}>
+                <span className="font-display text-2xl font-bold text-aether-cyan select-none" style={{ textShadow: '0 0 16px rgba(0,242,255,0.5)' }}>我</span>
+              </div>
+            </motion.div>
+          </div>
 
           {/* ===== Character nodes (Phase 0) ===== */}
           {nodesWithPositions.map((node, i) => {
