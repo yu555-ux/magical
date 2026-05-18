@@ -2,12 +2,13 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ZoomIn, ZoomOut, ArrowLeft, MapPin, Info, Skull, Crosshair, Search, X,
+  AlertTriangle,
 } from 'lucide-react';
 import { MapLocationRender, MapAnomaly } from '../../types';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 import { adaptMapTree, findNode } from '../../sillytavern/mapDataAdapter';
 
-/* ===== Rating / anomaly color config (matching WarehousePage) ===== */
+/* ===== Rating / anomaly color config ===== */
 interface RatingColorSet {
   text: string;
   border: string;
@@ -58,16 +59,10 @@ const PARTICLES: Particle[] = Array.from({ length: 24 }, (_, i) => ({
 }));
 
 /* ===== Viewport helpers ===== */
-interface Viewport {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+interface Viewport { x: number; y: number; w: number; h: number }
 
 function fitViewport(points: MapLocationRender[], paddingRatio = 0.6): Viewport {
   if (points.length === 0) return { x: -500, y: -500, w: 1000, h: 1000 };
-
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of points) {
     if (p.cx < minX) minX = p.cx;
@@ -75,27 +70,18 @@ function fitViewport(points: MapLocationRender[], paddingRatio = 0.6): Viewport 
     if (p.cy < minY) minY = p.cy;
     if (p.cy > maxY) maxY = p.cy;
   }
-
   const dx = maxX - minX || 10;
   const dy = maxY - minY || 10;
   const padX = dx * paddingRatio;
   const padY = dy * paddingRatio;
-
   const rawW = dx + padX * 2;
   const rawH = dy + padY * 2;
   const aspect = CANVAS_W / CANVAS_H;
   let w: number, h: number;
-  if (rawW / rawH > aspect) {
-    w = rawW;
-    h = rawW / aspect;
-  } else {
-    h = rawH;
-    w = rawH * aspect;
-  }
-
+  if (rawW / rawH > aspect) { w = rawW; h = rawW / aspect; }
+  else { h = rawH; w = rawH * aspect; }
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
-
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
@@ -106,27 +92,58 @@ function worldToScreen(wx: number, wy: number, vp: Viewport): { sx: number; sy: 
   };
 }
 
-/* ===== Point type color ===== */
-interface PointColorSet {
-  primary: string;
-  glow: string;
-  bg: string;
+/* ===== 8 depth-based marker colors ===== */
+interface PointColorSet { primary: string; glow: string; bg: string }
+
+const DEPTH_COLORS: PointColorSet[] = [
+  { primary: '#00f2ff', glow: 'rgba(0,242,255,0.5)',    bg: 'rgba(0,242,255,0.12)'   }, // 0 星域 cyan
+  { primary: '#3b82f6', glow: 'rgba(59,130,246,0.5)',    bg: 'rgba(59,130,246,0.12)'   }, // 1 大区 blue
+  { primary: '#22c55e', glow: 'rgba(34,197,94,0.5)',     bg: 'rgba(34,197,94,0.12)'    }, // 2 城市 green
+  { primary: '#14b8a6', glow: 'rgba(20,184,166,0.5)',    bg: 'rgba(20,184,166,0.12)'   }, // 3 城区 teal
+  { primary: '#a78bfa', glow: 'rgba(167,139,250,0.5)',   bg: 'rgba(167,139,250,0.12)'  }, // 4 街区 violet
+  { primary: '#f59e0b', glow: 'rgba(245,158,11,0.5)',    bg: 'rgba(245,158,11,0.12)'   }, // 5 小区 amber
+  { primary: '#f472b6', glow: 'rgba(244,114,182,0.5)',   bg: 'rgba(244,114,182,0.12)'  }, // 6 地点 pink
+  { primary: '#ef4444', glow: 'rgba(239,68,68,0.5)',     bg: 'rgba(239,68,68,0.12)'    }, // 7 建筑 red
+];
+
+function pointStyle(depth: number): PointColorSet {
+  return DEPTH_COLORS[Math.min(depth, DEPTH_COLORS.length - 1)];
 }
 
-const POINT_COLORS: Record<string, PointColorSet> = {
-  region:  { primary: '#00f2ff', glow: 'rgba(0,242,255,0.5)',  bg: 'rgba(0,242,255,0.12)' },
-  city:    { primary: '#22c55e', glow: 'rgba(34,197,94,0.5)',  bg: 'rgba(34,197,94,0.12)' },
-  district:{ primary: '#a78bfa', glow: 'rgba(167,139,250,0.5)', bg: 'rgba(167,139,250,0.12)' },
-  block:   { primary: '#eab308', glow: 'rgba(234,179,8,0.5)',  bg: 'rgba(234,179,8,0.12)' },
-  site:    { primary: '#f472b6', glow: 'rgba(244,114,182,0.5)', bg: 'rgba(244,114,182,0.12)' },
+/* ===== Danger assessment ===== */
+// 0=none, 1=reality anomaly present, 2=dream anomaly fully manifested (≥100%)
+function getDangerLevel(point: MapLocationRender): number {
+  const realityAnomalies = Object.keys(point.reality.地点细节.异常);
+  if (realityAnomalies.length > 0) return 1;
+  const dreamAnomalies = Object.values(point.dream.地点细节.异常);
+  if (dreamAnomalies.some((a) => a.具现进度 >= 100)) return 2;
+  return 0;
+}
+
+const DANGER_STYLES: Record<number, { ring: string; glow: string; text: string }> = {
+  0: { ring: 'transparent', glow: 'transparent', text: '' },
+  1: { ring: 'rgba(239,68,68,0.45)', glow: 'rgba(239,68,68,0.3)', text: '现实异常' },
+  2: { ring: 'rgba(239,68,68,0.8)', glow: 'rgba(239,68,68,0.55)', text: '高危异常' },
 };
 
-function pointStyle(depth: number, hasChildren: boolean): PointColorSet {
-  if (depth === 0) return POINT_COLORS.region;
-  if (depth === 1) return POINT_COLORS.city;
-  if (depth === 2) return POINT_COLORS.district;
-  if (depth === 3 && hasChildren) return POINT_COLORS.block;
-  return POINT_COLORS.site;
+/* ===== Global search: flatten entire tree ===== */
+interface FlatEntry {
+  path: string[];
+  pathNames: string[];
+  node: MapLocationRender;
+}
+
+function flattenTree(nodes: MapLocationRender[], parentPath: string[], parentNames: string[]): FlatEntry[] {
+  let result: FlatEntry[] = [];
+  for (const node of nodes) {
+    const p = [...parentPath, node.key];
+    const n = [...parentNames, node.name];
+    result.push({ path: p, pathNames: n, node });
+    if (node.children.length > 0) {
+      result = result.concat(flattenTree(node.children, p, n));
+    }
+  }
+  return result;
 }
 
 /* ============================================================
@@ -138,6 +155,9 @@ export default function MapPage() {
     return adaptMapTree(raw as Record<string, any>);
   }, []);
 
+  // Flat list for global search
+  const flatNodes = useMemo(() => flattenTree(mapTree, [], []), [mapTree]);
+
   const [navPath, setNavPath] = useState<string[]>([]);
 
   const currentNode = useMemo(() => {
@@ -145,7 +165,7 @@ export default function MapPage() {
     return findNode(mapTree, navPath);
   }, [mapTree, navPath]);
 
-  const allChildren = useMemo(() => {
+  const currentChildren = useMemo(() => {
     if (navPath.length === 0) return mapTree;
     return currentNode?.children ?? [];
   }, [mapTree, navPath, currentNode]);
@@ -154,22 +174,19 @@ export default function MapPage() {
 
   // --- Search ---
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  const currentChildren = useMemo(() => {
-    if (!searchQuery.trim()) return allChildren;
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
     const q = searchQuery.trim().toLowerCase();
-    return allChildren.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.searchTerms.some((t) => t.toLowerCase().includes(q)),
-    );
-  }, [allChildren, searchQuery]);
+    return flatNodes.filter(
+      (e) =>
+        e.node.name.toLowerCase().includes(q) ||
+        e.node.searchTerms.some((t) => t.toLowerCase().includes(q)),
+    ).slice(0, 12);
+  }, [flatNodes, searchQuery]);
 
-  // Clear search when navigating
-  useEffect(() => {
-    setSearchQuery('');
-  }, [navDepth]);
-
+  // --- Viewport ---
   const [viewport, setViewport] = useState<Viewport>(() => fitViewport(mapTree, 1.2));
   const [zoom, setZoom] = useState(1);
 
@@ -198,7 +215,6 @@ export default function MapPage() {
   const dragStart = useRef({ x: 0, y: 0 });
   const dragViewStart = useRef<Viewport>(viewport);
   const dragMoved = useRef(false);
-
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handlePanStart = useCallback((e: React.MouseEvent) => {
@@ -226,7 +242,7 @@ export default function MapPage() {
 
   const handlePanEnd = useCallback(() => setIsDragging(false), []);
 
-  // --- Point click — always opens card ---
+  // --- Point click ---
   const handlePointClick = useCallback((point: MapLocationRender, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedPoint(point);
@@ -234,7 +250,7 @@ export default function MapPage() {
     setCardVisible(false);
   }, []);
 
-  // --- Enter sub-map from card ---
+  // --- Enter sub-map ---
   const handleEnter = useCallback(() => {
     if (!selectedPoint || selectedPoint.children.length === 0) return;
     setNavPath((prev) => [...prev, selectedPoint.key]);
@@ -242,7 +258,20 @@ export default function MapPage() {
     setCardOrigin(null);
     setCardVisible(false);
     setSearchQuery('');
+    setSearchOpen(false);
   }, [selectedPoint]);
+
+  // --- Search result click: navigate to node's parent & select ---
+  const handleSearchSelect = useCallback((entry: FlatEntry) => {
+    const parentPath = entry.path.slice(0, -1); // everything except the node itself
+    const targetNode = entry.node;
+    setNavPath(parentPath);
+    setSelectedPoint(targetNode);
+    setCardOrigin({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    setCardVisible(false);
+    setSearchQuery('');
+    setSearchOpen(false);
+  }, []);
 
   // --- Go back ---
   const goBack = useCallback(() => {
@@ -265,12 +294,7 @@ export default function MapPage() {
     setZoom((z) => {
       const next = Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2));
       const factor = z / next;
-      setViewport((vp) => ({
-        x: vp.x + vp.w * (1 - factor) / 2,
-        y: vp.y + vp.h * (1 - factor) / 2,
-        w: vp.w * factor,
-        h: vp.h * factor,
-      }));
+      setViewport((vp) => ({ x: vp.x + vp.w * (1 - factor) / 2, y: vp.y + vp.h * (1 - factor) / 2, w: vp.w * factor, h: vp.h * factor }));
       return next;
     });
   }, []);
@@ -279,17 +303,26 @@ export default function MapPage() {
     setZoom((z) => {
       const next = Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2));
       const factor = z / next;
-      setViewport((vp) => ({
-        x: vp.x + vp.w * (1 - factor) / 2,
-        y: vp.y + vp.h * (1 - factor) / 2,
-        w: vp.w * factor,
-        h: vp.h * factor,
-      }));
+      setViewport((vp) => ({ x: vp.x + vp.w * (1 - factor) / 2, y: vp.y + vp.h * (1 - factor) / 2, w: vp.w * factor, h: vp.h * factor }));
       return next;
     });
   }, []);
 
   const isTopLevel = navPath.length === 0;
+
+  // Breadcrumb segments
+  const breadcrumbSegs = useMemo(() => {
+    if (isTopLevel) return [];
+    const segs: { key: string; name: string }[] = [];
+    let list = mapTree;
+    for (const seg of navPath) {
+      const n = list.find((x) => x.key === seg);
+      if (!n) break;
+      segs.push({ key: n.key, name: n.name });
+      list = n.children;
+    }
+    return segs;
+  }, [isTopLevel, navPath, mapTree]);
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden bg-aether-deep">
@@ -302,7 +335,7 @@ export default function MapPage() {
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: -12, scale: 0.9 }}
             onClick={goBack}
-            className="absolute top-6 left-6 z-10 p-2.5 glass-panel hover:border-aether-cyan/60 text-aether-cyan transition-all hover-glow clickable press-scale"
+            className="absolute top-6 left-6 z-20 p-2.5 glass-panel hover:border-aether-cyan/60 text-aether-cyan transition-all hover-glow clickable press-scale"
             aria-label="返回上级地图"
           >
             <ArrowLeft size={18} />
@@ -310,56 +343,97 @@ export default function MapPage() {
         )}
       </AnimatePresence>
 
-      {/* ===== Breadcrumb — only shown after entering 蓝星 ===== */}
-      <AnimatePresence>
-        {!isTopLevel && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            className="absolute top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none"
-          >
-            <div className="glass-panel px-4 py-1.5 flex items-center gap-1.5">
-              <span className="text-[10px] font-mono text-aether-cyan/60 tracking-wider">蓝星</span>
-              {navPath.map((seg, i) => {
-                const n = i < navPath.length - 1
-                  ? findNode(mapTree, navPath.slice(0, i + 1))
-                  : currentNode;
-                return (
-                  <React.Fragment key={seg}>
-                    <span className="text-[8px] text-aether-cyan/30">/</span>
-                    <span className="text-[10px] font-mono text-aether-cyan/80 tracking-wider">
-                      {n?.name ?? seg}
-                    </span>
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ===== Search ===== */}
-      <div className="absolute top-6 right-6 z-10">
-        <div className="glass-panel flex items-center gap-1.5 px-3 py-1.5">
-          <Search size={12} className="text-aether-cyan/40 shrink-0" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="搜索子地图..."
-            className="bg-transparent text-[11px] font-mono text-white/70 placeholder:text-white/20 outline-none w-28 focus:w-40 transition-all duration-300"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="text-white/20 hover:text-white/50 transition-colors"
-            >
-              <X size={11} />
-            </button>
-          )}
+      {/* ===== Breadcrumb — always visible, top-level shows only "蓝星" ===== */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+        <div className="glass-panel px-4 py-1.5 flex items-center gap-1.5">
+          <span className={`text-[10px] font-mono tracking-wider ${isTopLevel ? 'text-aether-cyan font-bold' : 'text-aether-cyan/60'}`}>
+            蓝星
+          </span>
+          {breadcrumbSegs.map((seg, i) => (
+            <React.Fragment key={seg.key}>
+              <span className="text-[8px] text-aether-cyan/30">/</span>
+              <span className={`text-[10px] font-mono tracking-wider ${i === breadcrumbSegs.length - 1 ? 'text-aether-cyan/90 font-bold' : 'text-aether-cyan/70'}`}>
+                {seg.name}
+              </span>
+            </React.Fragment>
+          ))}
         </div>
       </div>
+
+      {/* ===== Search ===== */}
+      <div className="absolute top-6 right-6 z-20">
+        <div className="relative">
+          <div className="glass-panel flex items-center gap-1.5 px-3 py-1.5">
+            <Search size={12} className="text-aether-cyan/40 shrink-0" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="搜索全部地图..."
+              className="bg-transparent text-[11px] font-mono text-white/70 placeholder:text-white/20 outline-none w-32 focus:w-44 transition-all duration-300"
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }} className="text-white/20 hover:text-white/50 transition-colors">
+                <X size={11} />
+              </button>
+            )}
+          </div>
+
+          {/* Search results dropdown */}
+          <AnimatePresence>
+            {searchOpen && searchQuery.trim() && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="absolute top-full right-0 mt-1.5 w-72 max-h-72 overflow-y-auto custom-scrollbar rounded-lg border"
+                style={{
+                  background: 'rgba(8,10,16,0.98)',
+                  borderColor: 'rgba(0,242,255,0.12)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                }}
+              >
+                {searchResults.length === 0 ? (
+                  <p className="text-[10px] text-white/20 font-mono text-center py-4 px-3">
+                    未找到匹配 "{searchQuery}" 的地点
+                  </p>
+                ) : (
+                  searchResults.map((entry) => (
+                    <button
+                      key={entry.path.join('/')}
+                      onClick={() => handleSearchSelect(entry)}
+                      className="w-full text-left px-3.5 py-2.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.03] last:border-b-0 flex items-center gap-2.5"
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{
+                          backgroundColor: pointStyle(entry.path.length - 1).primary,
+                          boxShadow: `0 0 6px ${pointStyle(entry.path.length - 1).glow}`,
+                        }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-display text-white/70 truncate">{entry.node.name}</p>
+                        <p className="text-[8px] font-mono text-white/25 truncate mt-0.5">
+                          蓝星 / {entry.pathNames.join(' / ')}
+                        </p>
+                      </div>
+                      <span className="text-[8px] font-mono text-white/15 shrink-0">
+                        {entry.path.length - 1 >= 0 ? ['星域','大区','城市','城区','街区','小区','地点','建筑'][Math.min(entry.path.length - 1, 7)] : ''}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Click-outside to close search */}
+      {searchOpen && (
+        <div className="absolute inset-0 z-[15]" onClick={() => setSearchOpen(false)} />
+      )}
 
       {/* ===== Map Canvas ===== */}
       <div
@@ -387,15 +461,6 @@ export default function MapPage() {
           <CornerBracket position="bottom-left" />
           <CornerBracket position="bottom-right" />
         </div>
-
-        {/* No-results hint */}
-        {currentChildren.length === 0 && searchQuery.trim() && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="text-[11px] font-mono text-white/15 tracking-wider">
-              未找到匹配 "{searchQuery}" 的子地图
-            </span>
-          </div>
-        )}
 
         {/* Render points */}
         <AnimatePresence mode="wait">
@@ -441,29 +506,20 @@ export default function MapPage() {
 
       {/* ===== Footer Controls ===== */}
       <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-2 pointer-events-none">
-        {/* Zoom controls */}
         <div className="glass-panel overflow-hidden pointer-events-auto flex flex-col items-center w-9">
           <button
-            onClick={zoomIn}
-            disabled={zoom >= ZOOM_MAX}
+            onClick={zoomIn} disabled={zoom >= ZOOM_MAX}
             className="p-1.5 border-b border-aether-border/20 hover:text-aether-cyan text-aether-blue disabled:opacity-25 disabled:cursor-not-allowed transition-all clickable hover:bg-aether-cyan/5 flex justify-center"
             aria-label="放大"
-          >
-            <ZoomIn size={14} />
-          </button>
+          ><ZoomIn size={14} /></button>
           <div className="py-1 border-b border-aether-border/20 text-center w-full">
-            <span className="text-[9px] font-mono text-aether-cyan/80 font-bold leading-none">
-              {Math.round(zoom * 100)}%
-            </span>
+            <span className="text-[9px] font-mono text-aether-cyan/80 font-bold leading-none">{Math.round(zoom * 100)}%</span>
           </div>
           <button
-            onClick={zoomOut}
-            disabled={zoom <= ZOOM_MIN}
+            onClick={zoomOut} disabled={zoom <= ZOOM_MIN}
             className="p-1.5 hover:text-aether-cyan text-aether-blue disabled:opacity-25 disabled:cursor-not-allowed transition-all clickable hover:bg-aether-cyan/5 flex justify-center"
             aria-label="缩小"
-          >
-            <ZoomOut size={14} />
-          </button>
+          ><ZoomOut size={14} /></button>
         </div>
       </div>
 
@@ -476,30 +532,29 @@ export default function MapPage() {
           85%  { opacity: 0.35; }
           100% { transform: translateY(-15vh) translateX(8px); opacity: 0; }
         }
+        @keyframes danger-pulse {
+          0%, 100% { opacity: 0.45; transform: scale(1); }
+          50% { opacity: 0.85; transform: scale(1.25); }
+        }
       `}</style>
     </div>
   );
 }
 
 /* ============================================================
-   POINT MARKER
+   POINT MARKER — with danger ring
    ============================================================ */
 function PointMarker({
-  point,
-  depth,
-  isSelected,
-  style,
-  onClick,
+  point, depth, isSelected, style, onClick,
 }: {
-  point: MapLocationRender;
-  depth: number;
-  isSelected: boolean;
-  style: React.CSSProperties;
-  onClick: (e: React.MouseEvent) => void;
+  point: MapLocationRender; depth: number; isSelected: boolean;
+  style: React.CSSProperties; onClick: (e: React.MouseEvent) => void;
 }) {
-  const colors = pointStyle(depth, point.children.length > 0);
+  const colors = pointStyle(depth);
   const hasChildren = point.children.length > 0;
-  const size = depth === 0 ? 18 : depth === 1 ? 15 : depth === 2 ? 13 : 11;
+  const size = depth === 0 ? 18 : depth === 1 ? 16 : depth === 2 ? 14 : depth === 3 ? 13 : depth >= 6 ? 10 : 11;
+  const danger = getDangerLevel(point);
+  const dangerStyle = DANGER_STYLES[danger];
 
   return (
     <motion.div
@@ -510,36 +565,61 @@ function PointMarker({
       style={style}
       className="absolute group -translate-x-1/2 -translate-y-1/2 z-10"
     >
-      <button
-        onClick={onClick}
-        className="relative flex flex-col items-center justify-center clickable"
-        aria-label={point.name}
-      >
+      <button onClick={onClick} className="relative flex flex-col items-center justify-center clickable" aria-label={point.name}>
+        {/* Pulse ring for children */}
         {hasChildren && (
           <div
             className="absolute rounded-full animate-pulse"
             style={{
-              width: size * 3.5,
-              height: size * 3.5,
+              width: size * 3.5, height: size * 3.5,
               border: `1px solid ${colors.primary}20`,
               backgroundColor: colors.primary + '05',
             }}
           />
         )}
+
+        {/* Danger ring */}
+        {danger > 0 && (
+          <div
+            className="absolute rounded-full"
+            style={{
+              width: size * (danger === 2 ? 4 : 3),
+              height: size * (danger === 2 ? 4 : 3),
+              border: `1.5px solid ${dangerStyle.ring}`,
+              boxShadow: `0 0 ${size * 2}px ${dangerStyle.glow}`,
+              animation: 'danger-pulse 2s ease-in-out infinite',
+            }}
+          />
+        )}
+
+        {/* Danger icon for level 2 */}
+        {danger === 2 && (
+          <div className="absolute -top-1 -right-1 z-10">
+            <AlertTriangle size={size * 0.8} className="text-red-400" style={{ filter: 'drop-shadow(0 0 3px rgba(239,68,68,0.6))' }} />
+          </div>
+        )}
+
+        {/* Main marker dot */}
         <div
           className={`rounded-full border-2 transition-all duration-300 group-hover:scale-150 ${isSelected ? 'scale-125' : ''}`}
           style={{
-            width: size,
-            height: size,
+            width: size, height: size,
             borderColor: isSelected ? colors.primary : colors.primary + '99',
             backgroundColor: isSelected ? colors.primary + '40' : colors.primary + '20',
             boxShadow: `0 0 ${size * 1.2}px ${colors.glow}`,
           }}
         />
+
+        {/* Label */}
         <div className="absolute top-[calc(100%+4px)] left-1/2 -translate-x-1/2 pointer-events-none z-20">
-          <span className="whitespace-nowrap text-[10px] font-display tracking-widest text-white/25 transition-all duration-300 group-hover:text-white group-hover:drop-shadow-[0_0_6px_rgba(0,242,255,0.4)]">
+          <span className={`whitespace-nowrap text-[10px] font-display tracking-widest transition-all duration-300 group-hover:text-white ${
+            danger > 0 ? 'text-red-300/40 group-hover:drop-shadow-[0_0_6px_rgba(239,68,68,0.5)]' : 'text-white/25 group-hover:drop-shadow-[0_0_6px_rgba(0,242,255,0.4)]'
+          }`}>
             {point.name}
           </span>
+          {danger > 0 && (
+            <span className="text-[7px] font-mono text-red-400/40 ml-1">{dangerStyle.text}</span>
+          )}
         </div>
       </button>
     </motion.div>
@@ -550,23 +630,17 @@ function PointMarker({
    LOCATION INFO CARD
    ============================================================ */
 function LocationInfoCard({
-  point,
-  origin,
-  hasChildren,
-  onClose,
-  onEnter,
+  point, origin, hasChildren, onClose, onEnter,
 }: {
-  point: MapLocationRender;
-  origin: { x: number; y: number };
-  hasChildren: boolean;
-  onClose: () => void;
-  onEnter: () => void;
+  point: MapLocationRender; origin: { x: number; y: number };
+  hasChildren: boolean; onClose: () => void; onEnter: () => void;
 }) {
   const [layer, setLayer] = useState<'现实' | '梦境'>('现实');
   const detail = layer === '现实' ? point.reality : point.dream;
   const anomalies = Object.entries(detail.地点细节.异常);
   const hasAnomalies = anomalies.length > 0;
   const infoList = detail.地点细节.信息;
+  const danger = getDangerLevel(point);
 
   const cardW = 440;
   const cardH = 600;
@@ -587,14 +661,29 @@ function LocationInfoCard({
       onClick={(e) => e.stopPropagation()}
       className="fixed z-30 flex flex-col overflow-hidden rounded-lg"
       style={{
-        width: cardW,
-        maxHeight: cardH,
+        width: cardW, maxHeight: cardH,
         background: 'linear-gradient(180deg, rgba(12,16,24,0.98) 0%, rgba(8,10,16,0.98) 100%)',
-        border: `1px solid ${accent}25`,
-        boxShadow: `0 0 40px ${accentGlow}10, 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 ${accent}10`,
+        border: `1px solid ${danger >= 2 ? 'rgba(239,68,68,0.35)' : accent + '25'}`,
+        boxShadow: danger >= 2
+          ? `0 0 40px rgba(239,68,68,0.12), 0 8px 32px rgba(0,0,0,0.5)`
+          : `0 0 40px ${accentGlow}10, 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 ${accent}10`,
       }}
     >
-      {/* ===== Header bar ===== */}
+      {/* Danger banner */}
+      {danger >= 2 && (
+        <div className="shrink-0 px-4 py-1.5 flex items-center gap-2 bg-red-500/10 border-b border-red-500/20">
+          <AlertTriangle size={12} className="text-red-400" />
+          <span className="text-[10px] font-mono text-red-400/80 tracking-wider">高危区域 — 梦境异常已完全具现</span>
+        </div>
+      )}
+      {danger === 1 && (
+        <div className="shrink-0 px-4 py-1.5 flex items-center gap-2 bg-red-500/6 border-b border-red-500/12">
+          <AlertTriangle size={12} className="text-red-400/60" />
+          <span className="text-[10px] font-mono text-red-400/60 tracking-wider">注意 — 现实世界存在异常活动</span>
+        </div>
+      )}
+
+      {/* Header bar */}
       <div
         className="shrink-0 px-5 py-3.5 flex items-center gap-3 border-b"
         style={{ borderColor: `${accent}15`, backgroundColor: `${accent}06` }}
@@ -603,45 +692,25 @@ function LocationInfoCard({
         <h3 className="font-display font-bold text-lg text-white/90 tracking-wide flex-1 min-w-0 truncate">
           {point.name}
         </h3>
-
-        {/* Layer toggle pill */}
         <button
           onClick={() => setLayer((l) => (l === '现实' ? '梦境' : '现实'))}
           className="shrink-0 text-[10px] font-mono font-bold px-3 py-1 rounded-full border transition-all duration-300 tracking-widest"
-          style={{
-            color: accent,
-            borderColor: `${accent}40`,
-            backgroundColor: `${accent}10`,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = `${accent}20`;
-            e.currentTarget.style.borderColor = `${accent}60`;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = `${accent}10`;
-            e.currentTarget.style.borderColor = `${accent}40`;
-          }}
+          style={{ color: accent, borderColor: `${accent}40`, backgroundColor: `${accent}10` }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${accent}20`; e.currentTarget.style.borderColor = `${accent}60`; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = `${accent}10`; e.currentTarget.style.borderColor = `${accent}40`; }}
         >
           {isDream ? '梦境' : '现实'}
         </button>
-
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="shrink-0 p-1 rounded-full text-white/20 hover:text-white/70 hover:bg-white/10 transition-all"
-          aria-label="关闭"
-        >
+        <button onClick={onClose} className="shrink-0 p-1 rounded-full text-white/20 hover:text-white/70 hover:bg-white/10 transition-all" aria-label="关闭">
           <X size={15} />
         </button>
       </div>
 
-      {/* ===== Scrollable body ===== */}
+      {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
         {/* Description */}
         <div className="p-3.5 rounded-lg border" style={{ borderColor: `${accent}12`, backgroundColor: `${accent}04` }}>
-          <p className="text-[12px] text-white/60 leading-relaxed font-mono tracking-wide">
-            {detail.描述}
-          </p>
+          <p className="text-[12px] text-white/60 leading-relaxed font-mono tracking-wide">{detail.描述}</p>
         </div>
 
         {/* Coordinate grid */}
@@ -659,11 +728,7 @@ function LocationInfoCard({
               <span className="text-[10px] font-mono tracking-wider uppercase" style={{ color: `${accent}80` }}>信息</span>
             </div>
             {infoList.map((info, i) => (
-              <p
-                key={i}
-                className="text-[11px] text-white/50 leading-relaxed font-mono pl-3 mb-1.5 last:mb-0"
-                style={{ borderLeft: `2px solid ${accent}20` }}
-              >
+              <p key={i} className="text-[11px] text-white/50 leading-relaxed font-mono pl-3 mb-1.5 last:mb-0" style={{ borderLeft: `2px solid ${accent}20` }}>
                 {info}
               </p>
             ))}
@@ -675,9 +740,7 @@ function LocationInfoCard({
           <div className="space-y-2.5">
             <div className="flex items-center gap-1.5">
               <Skull size={11} className="text-red-400/50" />
-              <span className="text-[10px] font-mono text-red-400/50 tracking-wider uppercase">
-                异常
-              </span>
+              <span className="text-[10px] font-mono text-red-400/50 tracking-wider uppercase">异常</span>
             </div>
             {anomalies.map(([name, anomaly]) => (
               <AnomalyCard key={name} name={name} anomaly={anomaly} />
@@ -685,82 +748,33 @@ function LocationInfoCard({
           </div>
         )}
 
-        {/* Empty state */}
         {infoList.length === 0 && !hasAnomalies && (
-          <p className="text-[11px] text-white/20 italic font-mono text-center py-4">
-            该区域暂无详细信息记录
-          </p>
+          <p className="text-[11px] text-white/20 italic font-mono text-center py-4">该区域暂无详细信息记录</p>
         )}
       </div>
 
-      {/* ===== Action buttons ===== */}
-      <div
-        className="shrink-0 px-5 py-3.5 flex gap-3 border-t"
-        style={{ borderColor: `${accent}15` }}
-      >
+      {/* Action buttons */}
+      <div className="shrink-0 px-5 py-3.5 flex gap-3 border-t" style={{ borderColor: `${accent}15` }}>
         {hasChildren ? (
           <button
             onClick={onEnter}
-            className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.15em] transition-all duration-300"
-            style={{
-              color: accent,
-              border: `1px solid ${accent}30`,
-              backgroundColor: `${accent}08`,
-              fontSize: '13px',
-              letterSpacing: '0.2em',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `${accent}18`;
-              e.currentTarget.style.borderColor = `${accent}60`;
-              e.currentTarget.style.boxShadow = `0 0 24px ${accentGlow}25`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = `${accent}08`;
-              e.currentTarget.style.borderColor = `${accent}30`;
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            进 入
-          </button>
+            className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.2em] transition-all duration-300"
+            style={{ color: accent, border: `1px solid ${accent}30`, backgroundColor: `${accent}08`, fontSize: '13px' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = `${accent}18`; e.currentTarget.style.borderColor = `${accent}60`; e.currentTarget.style.boxShadow = `0 0 24px ${accentGlow}25`; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = `${accent}08`; e.currentTarget.style.borderColor = `${accent}30`; e.currentTarget.style.boxShadow = 'none'; }}
+          >进 入</button>
         ) : (
-          <button
-            disabled
-            className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.15em] opacity-25 cursor-not-allowed"
-            style={{
-              color: accent,
-              border: `1px solid ${accent}15`,
-              backgroundColor: `${accent}04`,
-              fontSize: '13px',
-              letterSpacing: '0.2em',
-            }}
-          >
-            已是最深层级
-          </button>
+          <button disabled className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.2em] opacity-25 cursor-not-allowed"
+            style={{ color: accent, border: `1px solid ${accent}15`, backgroundColor: `${accent}04`, fontSize: '13px' }}
+          >已是最深层级</button>
         )}
-
         <button
-          className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.15em] transition-all duration-300"
-          style={{
-            color: '#f59e0b',
-            border: '1px solid rgba(245,158,11,0.25)',
-            backgroundColor: 'rgba(245,158,11,0.06)',
-            fontSize: '13px',
-            letterSpacing: '0.2em',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.14)';
-            e.currentTarget.style.borderColor = 'rgba(245,158,11,0.5)';
-            e.currentTarget.style.boxShadow = '0 0 20px rgba(245,158,11,0.18)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.06)';
-            e.currentTarget.style.borderColor = 'rgba(245,158,11,0.25)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
+          className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.2em] transition-all duration-300"
+          style={{ color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)', backgroundColor: 'rgba(245,158,11,0.06)', fontSize: '13px' }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.14)'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.5)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(245,158,11,0.18)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.06)'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.25)'; e.currentTarget.style.boxShadow = 'none'; }}
           aria-label="前往"
-        >
-          前 往
-        </button>
+        >前 往</button>
       </div>
     </motion.div>
   );
@@ -774,9 +788,10 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
   const rating = getRating(anomaly.评级);
   const traits = Object.entries(anomaly.特性);
   const progress = Math.min(100, Math.max(0, anomaly.具现进度));
+  const isFull = progress >= 100;
 
   return (
-    <div className={`p-3.5 rounded-lg border ${rating.border} ${rating.bg} transition-all`}>
+    <div className={`p-3.5 rounded-lg border transition-all ${rating.border} ${rating.bg} ${isFull ? 'border-red-500/50 shadow-[0_0_12px_rgba(239,68,68,0.2)]' : ''}`}>
       <div className="flex items-center gap-2">
         <Crosshair size={12} className={rating.text} />
         <span className="text-[12px] font-display font-bold text-white/80">{name}</span>
@@ -784,22 +799,23 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
           {anomaly.评级}
         </span>
       </div>
-      <p className="text-[11px] text-white/55 leading-relaxed mt-2 font-mono">
-        {anomaly.描述}
-      </p>
+      <p className="text-[11px] text-white/55 leading-relaxed mt-2 font-mono">{anomaly.描述}</p>
 
       {/* Progress bar */}
       <div className="mt-2.5 flex items-center gap-2">
         <span className="text-[9px] font-mono text-white/30 whitespace-nowrap">具现进度</span>
-        <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: isFull ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)' }}>
           <motion.div
-            className={`h-full rounded-full ${rating.bar}`}
+            className={`h-full rounded-full ${isFull ? 'bg-red-500' : rating.bar}`}
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
           />
         </div>
-        <span className={`text-[10px] font-mono font-bold ${rating.text}`}>{progress}%</span>
+        <span className={`text-[10px] font-mono font-bold ${isFull ? 'text-red-400' : rating.text}`}>
+          {progress}%
+          {isFull && <span className="ml-0.5 text-[8px]">⚠</span>}
+        </span>
       </div>
 
       {traits.length > 0 && (
@@ -828,9 +844,7 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
                       {trait.效果.length > 0 && (
                         <ul className="mt-1.5 space-y-0.5">
                           {trait.效果.map((eff, i) => (
-                            <li key={i} className="text-[10px] text-aether-cyan/50 font-mono pl-2 leading-relaxed">
-                              · {eff}
-                            </li>
+                            <li key={i} className="text-[10px] text-aether-cyan/50 font-mono pl-2 leading-relaxed">· {eff}</li>
                           ))}
                         </ul>
                       )}
@@ -851,15 +865,9 @@ function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
    ============================================================ */
 function MiniStat({ label, value, unit, accent }: { label: string; value: string; unit?: string; accent: string }) {
   return (
-    <div
-      className="p-2.5 rounded border"
-      style={{ borderColor: `${accent}12`, backgroundColor: 'rgba(0,0,0,0.25)' }}
-    >
+    <div className="p-2.5 rounded border" style={{ borderColor: `${accent}12`, backgroundColor: 'rgba(0,0,0,0.25)' }}>
       <p className="text-[8px] font-mono text-white/25 tracking-wider uppercase">{label}</p>
-      <p className="text-[11px] font-display mt-0.5 tracking-wide text-white/50">
-        {value}
-        {unit && <span className="text-[8px] text-white/20 ml-0.5">{unit}</span>}
-      </p>
+      <p className="text-[11px] font-display mt-0.5 tracking-wide text-white/50">{value}{unit && <span className="text-[8px] text-white/20 ml-0.5">{unit}</span>}</p>
     </div>
   );
 }
@@ -870,36 +878,11 @@ function MiniStat({ label, value, unit, accent }: { label: string; value: string
 function CornerBracket({ position }: { position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }) {
   const isTop = position.startsWith('top');
   const isLeft = position.endsWith('left');
-
-  const style: React.CSSProperties = {
-    position: 'absolute',
-    ...(isTop ? { top: 8 } : { bottom: 8 }),
-    ...(isLeft ? { left: 8 } : { right: 8 }),
-    width: 20,
-    height: 20,
-    pointerEvents: 'none' as const,
-  };
-
+  const style: React.CSSProperties = { position: 'absolute', ...(isTop ? { top: 8 } : { bottom: 8 }), ...(isLeft ? { left: 8 } : { right: 8 }), width: 20, height: 20, pointerEvents: 'none' as const };
   return (
     <div style={style}>
-      <div
-        className="absolute bg-aether-cyan/25"
-        style={{
-          [isTop ? 'top' : 'bottom']: 0,
-          [isLeft ? 'left' : 'right']: 0,
-          height: 1,
-          width: '100%',
-        }}
-      />
-      <div
-        className="absolute bg-aether-cyan/25"
-        style={{
-          [isTop ? 'top' : 'bottom']: 0,
-          [isLeft ? 'left' : 'right']: 0,
-          width: 1,
-          height: '100%',
-        }}
-      />
+      <div className="absolute bg-aether-cyan/25" style={{ [isTop ? 'top' : 'bottom']: 0, [isLeft ? 'left' : 'right']: 0, height: 1, width: '100%' }} />
+      <div className="absolute bg-aether-cyan/25" style={{ [isTop ? 'top' : 'bottom']: 0, [isLeft ? 'left' : 'right']: 0, width: 1, height: '100%' }} />
     </div>
   );
 }
@@ -910,27 +893,10 @@ function CornerBracket({ position }: { position: 'top-left' | 'top-right' | 'bot
 function MapAtmosphere() {
   return (
     <>
-      <div
-        className="absolute inset-0 opacity-[0.06] pointer-events-none"
-        style={{
-          backgroundImage: 'radial-gradient(circle, #00f2ff 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }}
-      />
+      <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #00f2ff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {PARTICLES.map((p) => (
-          <div
-            key={p.id}
-            className="absolute bottom-0 rounded-full bg-aether-cyan"
-            style={{
-              left: `${p.left}%`,
-              width: `${p.size}px`,
-              height: `${p.size}px`,
-              opacity: p.opacity,
-              animation: `float-up ${p.duration}s ease-in-out ${p.delay}s infinite`,
-              boxShadow: `0 0 ${p.size * 2}px rgba(0,242,255,${p.opacity * 0.6})`,
-            }}
-          />
+          <div key={p.id} className="absolute bottom-0 rounded-full bg-aether-cyan" style={{ left: `${p.left}%`, width: `${p.size}px`, height: `${p.size}px`, opacity: p.opacity, animation: `float-up ${p.duration}s ease-in-out ${p.delay}s infinite`, boxShadow: `0 0 ${p.size * 2}px rgba(0,242,255,${p.opacity * 0.6})` }} />
         ))}
       </div>
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/25 to-transparent pointer-events-none" />
