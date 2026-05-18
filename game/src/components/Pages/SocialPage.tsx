@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Share2, Heart, Zap, Radio, Activity } from 'lucide-react';
-import { SocialNode } from '../../types';
+import { Users } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { useSillytavern } from '../../hooks/useSillytavern';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
@@ -53,8 +52,6 @@ function getLevelHint(rel: string): number {
   if (/姐|妹|兄|弟/.test(rel)) return 78;
   return 50;
 }
-function getVisuals(node: SocialNode): TypeVisuals { return TYPE_VISUALS[node.type] || TYPE_VISUALS['未知']; }
-function getLevelColor(l: number): string { if (l >= 70) return 'bg-aether-cyan'; if (l >= 40) return 'bg-aether-blue'; return 'bg-red-500'; }
 
 function findCharProfile(chars: any, name: string): any | null {
   for (const [, groups] of Object.entries(chars)) {
@@ -146,9 +143,14 @@ export default function SocialPage() {
 
   const getPos = (id: string) => id === '我' ? { x: cx, y: cy } : (posMap.get(id) ?? null);
 
-  // ── Modal ──
-  const selSn: SocialNode | null = selectedNode ? { id: selectedNode.id, name: selectedNode.name, relation: selectedNode.relation, type: selectedNode.type, level: selectedNode.level } as SocialNode : null;
-  const selV = selSn ? getVisuals(selSn) : null;
+  // ── Selected character full profile ──
+  const selProfile = selectedNode ? findCharProfile(charData, selectedNode.name) : null;
+  const selSocial = selectedNode ? socialData[selectedNode.name] ?? null : null;
+  const selAffection = selProfile ? (selProfile.好感值 ?? selProfile.友善值 ?? 0) : 0;
+  const selCorruption = selProfile?.堕落值 ?? 0;
+  const selIsFemale = selProfile && selProfile.好感值 !== undefined;
+  const selAffStage = selIsFemale ? getAffectionStage(selAffection) : null;
+  const selCorrStage = selIsFemale ? getCorruptionStage(selCorruption) : null;
 
   // ── Hover tooltip data ──
   const hoverProfile = hoveredNode ? findCharProfile(charData, hoveredNode.name) : null;
@@ -318,69 +320,113 @@ export default function SocialPage() {
       </div>
 
       {/* ── Modal ── */}
-      <Modal isOpen={!!selectedNode} onClose={() => setSelectedNode(null)} title="个体共鸣档案">
-        {selSn && selV && (
-          <div className="space-y-6">
-            <div className="flex items-center gap-6">
-              <div className={`relative w-20 h-20 rounded-full border-2 flex items-center justify-center text-3xl font-bold font-display shrink-0 ${selV.border} ${selV.text} ${selV.glow}`}>
-                {selSn.name[0]}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center flex-wrap gap-3">
-                  <h3 className="text-2xl font-display font-bold text-white truncate">{selSn.name}</h3>
-                  <span className={`text-[9px] px-2 py-0.5 rounded-sm font-mono tracking-wider uppercase shrink-0 ${selV.bg} ${selV.text} border ${selV.border}`}>{selSn.type}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <Share2 size={12} className="text-aether-blue shrink-0" />
-                  <span className="text-xs text-aether-blue/80 font-mono tracking-wider">{selSn.relation}</span>
+      <Modal isOpen={!!selectedNode} onClose={() => setSelectedNode(null)} title="">
+        {selectedNode && selProfile && (
+          <div className="space-y-5" style={{ minWidth: 430, maxWidth: 520 }}>
+            {/* ── Hero: avatar + name + identity ── */}
+            <div className="flex gap-5">
+              <div className="relative shrink-0">
+                <div className="absolute inset-0 rounded-full" style={{ margin: '-8px', boxShadow: `0 0 28px ${NODE_COLOR}25` }} />
+                <div className="w-20 h-20 rounded-full border-2 flex items-center justify-center text-3xl font-bold font-display"
+                  style={{ borderColor: `${NODE_COLOR}70`, color: NODE_COLOR, background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: `0 0 20px ${NODE_COLOR}20` }}>
+                  {selectedNode.name[0]}
                 </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] text-aether-blue font-mono tracking-wider">
-                <span className="uppercase flex items-center gap-1.5"><Activity size={10} className="text-aether-blue" />共鸣度</span>
-                <span className="text-white/80">{selSn.level}%</span>
-              </div>
-              <div className="h-2.5 bg-white/5 border border-white/10 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${selSn.level}%` }} transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
-                  className={`h-full rounded-full ${getLevelColor(selSn.level)}`}
-                  style={selSn.level >= 50 ? { boxShadow: '0 0 8px rgba(0,242,255,0.4)' } : undefined} />
+              <div className="min-w-0 pt-1">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <h3 className="text-xl font-display font-bold text-white/95 tracking-wide">{selectedNode.name}</h3>
+                  <span className="text-[12px] font-mono text-white/30 font-bold">{selProfile.年龄}岁</span>
+                  {selProfile.梦境NPC && <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-purple-400/12 text-purple-300/70 border border-purple-400/20">梦境NPC</span>}
+                </div>
+                <p className="text-[12px] text-white/45 font-mono leading-relaxed">{selProfile.身份}</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-aether-cyan/[0.04] border border-aether-cyan/20 rounded-sm hover:bg-aether-cyan/[0.06] transition-colors">
-                <Heart size={16} className="text-aether-cyan mb-2" />
-                <p className="text-[10px] text-aether-blue font-mono tracking-wider uppercase mb-1">社交关系</p>
-                <p className="text-sm font-medium text-white/90">{selSn.type}</p>
-                <p className="text-[10px] text-white/40 font-mono mt-1">关系: {selSn.relation}</p>
+
+            {/* ── Affection & Corruption bars ── */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.01]">
+                <div className="flex items-baseline justify-between mb-1">
+                  <span className="text-[9px] font-mono text-white/25 tracking-[0.08em] uppercase">{selIsFemale ? '好感' : '友善'}</span>
+                  {selAffStage && <span className="text-[15px] font-display font-bold italic tracking-[0.1em]" style={{ color: selAffStage.color, textShadow: `0 0 16px ${selAffStage.color}30` }}>{selAffStage.name}</span>}
+                </div>
+                <span className="text-[10px] font-mono" style={{ color: selIsFemale ? selAffStage!.color : NODE_COLOR, opacity: 0.45 }}>{selAffection}</span>
+                <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: `${selIsFemale ? selAffStage!.color : NODE_COLOR}10` }}>
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${Math.abs(selAffection) / 200 * 100}%` }} transition={{ duration: 0.7, ease: 'easeOut' }}
+                    className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${selIsFemale ? selAffStage!.color : NODE_COLOR}80, ${selIsFemale ? selAffStage!.color : NODE_COLOR})` }} />
+                </div>
               </div>
-              <div className="p-4 bg-aether-blue/[0.04] border border-aether-blue/20 rounded-sm hover:bg-aether-blue/[0.06] transition-colors">
-                <Zap size={16} className="text-aether-blue mb-2" />
-                <p className="text-[10px] text-aether-blue font-mono tracking-wider uppercase mb-1">共鸣等级</p>
-                <p className="text-sm font-medium text-white/90">Lv.{Math.floor(selSn.level / 10) + 1}</p>
-                <p className="text-[10px] text-white/40 font-mono mt-1">共鸣度 {selSn.level}%</p>
-              </div>
+              {selIsFemale && selCorruption !== undefined && (
+                <div className="p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.01]">
+                  <div className="flex items-baseline justify-between mb-1">
+                    <span className="text-[9px] font-mono text-white/25 tracking-[0.08em] uppercase">堕落</span>
+                    <span className="text-[15px] font-display font-bold italic tracking-[0.1em]" style={{ color: selCorrStage!.color, textShadow: `0 0 16px ${selCorrStage!.color}30` }}>{selCorrStage!.name}</span>
+                  </div>
+                  <span className="text-[10px] font-mono" style={{ color: selCorrStage!.color, opacity: 0.45 }}>{selCorruption}</span>
+                  <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: `${selCorrStage!.color}10` }}>
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${selCorruption / 500 * 100}%` }} transition={{ duration: 0.7, ease: 'easeOut' }}
+                      className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${selCorrStage!.color}80, ${selCorrStage!.color})` }} />
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="pt-4 border-t border-white/5">
-              <h4 className="text-[10px] text-aether-blue font-mono tracking-wider uppercase mb-3 flex items-center gap-1.5">
-                <Radio size={10} />社交档案
-              </h4>
-              <div className="relative pl-4 border-l border-aether-cyan/20">
-                <p className="text-sm text-white/60 leading-relaxed italic">
-                  与「{selSn.name}」的关系为「{selSn.relation}」，共鸣等级 {selSn.level}%。
-                </p>
-              </div>
+
+            {/* ── Divider ── */}
+            <div className="h-px bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
+
+            {/* ── Status: location / action / thought ── */}
+            <div className="space-y-2.5">
+              <InfoRow label="位置" value={selProfile.当前位置} />
+              <InfoRow label="行动" value={selProfile.当前行动} />
+              <InfoRow label="想法" value={selProfile.当前想法} muted />
             </div>
-            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-              className="w-full py-4 bg-gradient-to-r from-aether-cyan/90 to-aether-cyan text-aether-dark font-display font-bold tracking-[0.3em] uppercase text-sm hover:opacity-90 transition-all relative overflow-hidden group clickable">
-              <span className="relative z-10 flex items-center justify-center gap-3"><Radio size={16} />发起通讯</span>
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-            </motion.button>
+
+            {/* ── Status effects ── */}
+            {Object.keys(selProfile.状态).length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[9px] font-mono text-white/18 tracking-[0.12em] uppercase">状态效果</span>
+                {Object.entries(selProfile.状态).map(([name, s]) => (
+                  <div key={name} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.04] bg-white/[0.01]">
+                    <div className="w-1 h-1 rounded-full bg-aether-cyan/40 shrink-0" />
+                    <span className="text-[11px] font-mono text-white/55">{name}</span>
+                    <span className="ml-auto text-[9px] font-mono text-white/22">{s.描述} · {s.持续时间}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Divider ── */}
+            <div className="h-px bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
+
+            {/* ── Social relation ── */}
+            {selSocial && (
+              <div className="p-4 rounded-xl border border-aether-cyan/[0.06]" style={{ background: 'linear-gradient(135deg, rgba(0,242,255,0.025), rgba(0,242,255,0.005))' }}>
+                <span className="text-[9px] font-mono text-aether-cyan/40 tracking-[0.1em] uppercase">与我的关系</span>
+                <p className="text-[15px] font-display text-aether-cyan/80 font-bold tracking-wider mt-1.5">{selSocial.关系}</p>
+                {selSocial.社交圈 && Object.keys(selSocial.社交圈).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-white/[0.03] flex flex-wrap gap-1.5">
+                    {Object.entries(selSocial.社交圈).map(([name, rel]) => (
+                      <span key={name} className="text-[10px] font-mono px-2.5 py-1 rounded-full border border-white/[0.04] bg-white/[0.01] text-white/45">
+                        {name}<span className="text-white/20 ml-1">· {rel}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Modal>
 
       <style>{`@keyframes pulse-slow { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.06)} }`}</style>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div className="flex items-start gap-3 px-3 py-2 rounded-lg border border-white/[0.03] bg-white/[0.005]">
+      <span className="text-[9px] font-mono text-white/18 tracking-[0.1em] uppercase shrink-0 w-8 pt-0.5">{label}</span>
+      <span className={`text-[11px] font-mono leading-relaxed ${muted ? 'text-white/30 italic' : 'text-white/50'}`}>{value}</span>
     </div>
   );
 }
