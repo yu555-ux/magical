@@ -4,6 +4,7 @@ export enum PageType {
   WAREHOUSE = 'WAREHOUSE',
   MAP = 'MAP',
   SOCIAL = 'SOCIAL',
+  ARCHIVE = 'ARCHIVE',
 }
 
 // ---- Map variable types (from DEFAULT_WORLD_VARS.地图) ----
