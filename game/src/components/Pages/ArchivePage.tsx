@@ -61,6 +61,20 @@ const PROFICIENCY_STYLES: Record<string, { text: string; border: string; glow: s
 };
 
 /* ============================================================
+   HELPERS
+   ============================================================ */
+function findCharProfile(chars: Record<string, any>, name: string): any | null {
+  for (const [, groups] of Object.entries(chars)) {
+    if (!groups || typeof groups !== 'object') continue;
+    for (const [, members] of Object.entries(groups as Record<string, any>)) {
+      if (!members || typeof members !== 'object') continue;
+      if (members[name]) return members[name];
+    }
+  }
+  return null;
+}
+
+/* ============================================================
    ARCHIVE PAGE
    ============================================================ */
 export default function ArchivePage() {
@@ -71,6 +85,7 @@ export default function ArchivePage() {
 
   const [selected, setSelected] = useState<CharacterCard | null>(null);
   const [search, setSearch] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   // Flatten characters into cards grouped by category
   const groups = useMemo(() => {
@@ -92,18 +107,48 @@ export default function ArchivePage() {
   }, [charData]);
 
   const groupEntries: [string, CharacterCard[]][] = Object.entries(groups);
+
+  // Characters that appear on the social page (mutual social-circle check)
+  const socialCharNames = useMemo(() => {
+    const socialData = liveVars?.['主角']?.['社交'] ?? defaults.主角?.社交 ?? {};
+    const playerName = ss.settings?.userName || '我';
+    const names = new Set<string>();
+    for (const name of Object.keys(socialData)) {
+      const profile = findCharProfile(charData, name);
+      if (!profile?.社交圈) continue;
+      const sc = profile.社交圈;
+      if ('{{user}}' in sc || '<user>' in sc || (playerName && playerName in sc)) {
+        names.add(name);
+      }
+    }
+    return names;
+  }, [charData, liveVars, defaults, ss.settings?.userName]);
+
   const totalChars = groupEntries.reduce((sum, [, cards]) => sum + cards.length, 0);
+  const visibleChars = showAll ? totalChars : groupEntries.reduce((sum, [, cards]) => sum + cards.filter(c => socialCharNames.has(c.name)).length, 0);
 
   const filteredGroups: [string, CharacterCard[]][] = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return groupEntries;
-    return groupEntries
+
+    // Apply social-circle filter when not showing all
+    let source = groupEntries;
+    if (!showAll && socialCharNames.size > 0) {
+      source = groupEntries
+        .map(([key, cards]) => [
+          key,
+          cards.filter(c => socialCharNames.has(c.name)),
+        ] as [string, CharacterCard[]])
+        .filter(([, cards]) => cards.length > 0);
+    }
+
+    if (!q) return source;
+    return source
       .map(([key, cards]) => [
         key,
         cards.filter((c: CharacterCard) => c.name.toLowerCase().includes(q) || c.profile.检索词?.some((k: string) => k.toLowerCase().includes(q))),
       ] as [string, CharacterCard[]])
       .filter(([, cards]) => cards.length > 0);
-  }, [groupEntries, search]);
+  }, [groupEntries, search, showAll, socialCharNames]);
 
   const handleSearch = (v: string) => {
     setSearch(v);
@@ -118,7 +163,17 @@ export default function ArchivePage() {
           <div className="flex items-center gap-3">
             <div className="w-1 h-5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.4)]" />
             <h2 className="font-display text-base tracking-[0.12em] text-aether-cyan/90">角色档案</h2>
-            <span className="text-[10px] font-mono text-white/20 ml-auto">{totalChars}人</span>
+            <button
+              onClick={() => { setShowAll(!showAll); setSelected(null); }}
+              title={showAll ? '仅显示社交角色' : '显示全部角色'}
+              className={`text-[9px] font-mono px-2 py-0.5 rounded border transition-colors ml-auto shrink-0
+                ${showAll
+                  ? 'bg-aether-cyan/[0.06] border-aether-cyan/20 text-aether-cyan/70'
+                  : 'bg-white/[0.02] border-white/[0.06] text-white/25 hover:border-aether-cyan/15 hover:text-aether-cyan/50'
+                }`}
+            >
+              {showAll ? `${totalChars}人` : `${visibleChars}/${totalChars}人`}
+            </button>
           </div>
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/20" />
@@ -435,15 +490,16 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
 
       {/* ===== Status Effects ===== */}
       {hasStatus && (
-        <section className="space-y-4">
+        <section className="space-y-3">
           <SectionHeader title="状态" />
-          <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
             {Object.entries(p.状态 as Record<string, any>).map(([key, val]) => (
-              <div key={key} className="flex items-start gap-3 p-3 bg-aether-cyan/[0.03] border border-aether-cyan/10">
-                <span className="text-[11px] font-mono text-aether-cyan/70 shrink-0">{key}</span>
-                <span className="text-[11px] font-mono text-white/45">{val.描述}</span>
+              <div key={key} className="inline-flex items-center gap-1.5 px-3 py-1 bg-aether-cyan/[0.04] border border-aether-cyan/15 text-[11px]">
+                <span className="font-mono text-aether-cyan/80 shrink-0 font-bold">{key}</span>
+                <span className="text-white/15">·</span>
+                <span className="font-mono text-white/40 truncate max-w-36">{val.描述}</span>
                 {val.持续时间 && (
-                  <span className="text-[9px] font-mono text-white/20 ml-auto shrink-0">{val.持续时间}</span>
+                  <span className="font-mono text-white/15 shrink-0 ml-0.5">{val.持续时间}</span>
                 )}
               </div>
             ))}
