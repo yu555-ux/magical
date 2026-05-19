@@ -61,20 +61,6 @@ const PROFICIENCY_STYLES: Record<string, { text: string; border: string; glow: s
 };
 
 /* ============================================================
-   HELPERS
-   ============================================================ */
-function findCharProfile(chars: Record<string, any>, name: string): any | null {
-  for (const [, groups] of Object.entries(chars)) {
-    if (!groups || typeof groups !== 'object') continue;
-    for (const [, members] of Object.entries(groups as Record<string, any>)) {
-      if (!members || typeof members !== 'object') continue;
-      if (members[name]) return members[name];
-    }
-  }
-  return null;
-}
-
-/* ============================================================
    ARCHIVE PAGE
    ============================================================ */
 export default function ArchivePage() {
@@ -108,24 +94,13 @@ export default function ArchivePage() {
 
   const groupEntries: [string, CharacterCard[]][] = Object.entries(groups);
 
-  // Characters that appear on the social page (mutual social-circle check)
+  // Characters that appear in the player's social variable
   const socialCharNames = useMemo(() => {
     const socialData = liveVars?.['主角']?.['社交'] ?? defaults.主角?.社交 ?? {};
-    const playerName = ss.settings?.userName || '我';
-    const names = new Set<string>();
-    for (const name of Object.keys(socialData)) {
-      const profile = findCharProfile(charData, name);
-      if (!profile?.社交圈) continue;
-      const sc = profile.社交圈;
-      if ('{{user}}' in sc || '<user>' in sc || (playerName && playerName in sc)) {
-        names.add(name);
-      }
-    }
-    return names;
-  }, [charData, liveVars, defaults, ss.settings?.userName]);
+    return new Set(Object.keys(socialData));
+  }, [charData, liveVars, defaults]);
 
   const totalChars = groupEntries.reduce((sum, [, cards]) => sum + cards.length, 0);
-  const visibleChars = showAll ? totalChars : groupEntries.reduce((sum, [, cards]) => sum + cards.filter(c => socialCharNames.has(c.name)).length, 0);
 
   const filteredGroups: [string, CharacterCard[]][] = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -165,14 +140,13 @@ export default function ArchivePage() {
             <h2 className="font-display text-base tracking-[0.12em] text-aether-cyan/90">角色档案</h2>
             <button
               onClick={() => { setShowAll(!showAll); setSelected(null); }}
-              title={showAll ? '仅显示社交角色' : '显示全部角色'}
-              className={`text-[9px] font-mono px-2 py-0.5 rounded border transition-colors ml-auto shrink-0
+              className={`text-[10px] font-display px-2.5 py-1 rounded border transition-all ml-auto shrink-0 tracking-wider
                 ${showAll
-                  ? 'bg-aether-cyan/[0.06] border-aether-cyan/20 text-aether-cyan/70'
-                  : 'bg-white/[0.02] border-white/[0.06] text-white/25 hover:border-aether-cyan/15 hover:text-aether-cyan/50'
+                  ? 'bg-aether-cyan/[0.10] border-aether-cyan/35 text-aether-cyan shadow-[0_0_10px_rgba(0,242,255,0.15)]'
+                  : 'bg-aether-cyan/[0.04] border-aether-cyan/25 text-aether-cyan/60 hover:bg-aether-cyan/[0.08] hover:text-aether-cyan hover:shadow-[0_0_8px_rgba(0,242,255,0.1)]'
                 }`}
             >
-              {showAll ? `${totalChars}人` : `${visibleChars}/${totalChars}人`}
+              {showAll ? '隐藏' : '展示'}
             </button>
           </div>
           <div className="relative">
@@ -306,6 +280,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
   const p = char.profile;
   const [selectedSkill, setSelectedSkill] = useState<any>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedStatus, setSelectedStatus] = useState<any>(null);
 
   const isFemale = p.好感值 !== undefined;
   const affection = p.好感值 ?? p.友善值 ?? 0;
@@ -494,14 +469,13 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
           <SectionHeader title="状态" />
           <div className="flex flex-wrap gap-2">
             {Object.entries(p.状态 as Record<string, any>).map(([key, val]) => (
-              <div key={key} className="inline-flex items-center gap-1.5 px-3 py-1 bg-aether-cyan/[0.04] border border-aether-cyan/15 text-[11px]">
-                <span className="font-mono text-aether-cyan/80 shrink-0 font-bold">{key}</span>
-                <span className="text-white/15">·</span>
-                <span className="font-mono text-white/40 truncate max-w-36">{val.描述}</span>
-                {val.持续时间 && (
-                  <span className="font-mono text-white/15 shrink-0 ml-0.5">{val.持续时间}</span>
-                )}
-              </div>
+              <button
+                key={key}
+                onClick={() => setSelectedStatus({ name: key, ...val })}
+                className="text-[11px] font-mono px-3 py-1 bg-aether-cyan/[0.06] border border-aether-cyan/20 text-aether-cyan/80 hover:bg-aether-cyan/[0.12] hover:border-aether-cyan/40 transition-colors clickable font-bold"
+              >
+                {key}
+              </button>
             ))}
           </div>
         </section>
@@ -753,6 +727,53 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
             </div>
           );
         })()}
+      </Modal>
+
+      <Modal isOpen={!!selectedStatus} onClose={() => setSelectedStatus(null)} title="状态详情">
+        {selectedStatus && (
+          <div className="space-y-6">
+            <div className="flex items-start justify-between border-b border-white/10 pb-4">
+              <h3 className="text-2xl font-display font-bold text-aether-cyan">{selectedStatus.name}</h3>
+              {selectedStatus.持续时间 && (
+                <span className="text-xs font-mono text-white/30 shrink-0 mt-1">{selectedStatus.持续时间}</span>
+              )}
+            </div>
+            <div className="space-y-4">
+              {selectedStatus.描述 && (
+                <div>
+                  <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4>
+                  <p className="text-sm text-white/80 leading-relaxed">{selectedStatus.描述}</p>
+                </div>
+              )}
+              {selectedStatus.效果 && Object.keys(selectedStatus.效果).length > 0 && (
+                <div>
+                  <h4 className="text-[10px] text-aether-green uppercase tracking-widest mb-3 font-mono">效果</h4>
+                  <div className="space-y-2">
+                    {Object.entries(selectedStatus.效果 as Record<string, string>).map(([k, v]) => (
+                      <div key={k} className="p-3 bg-aether-green/[0.04] border border-aether-green/20">
+                        <h5 className="text-[11px] font-display font-bold text-aether-green/70 mb-1">{k}</h5>
+                        <p className="text-[11px] text-white/60 leading-relaxed">{v}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedStatus.副作用 && Object.keys(selectedStatus.副作用).length > 0 && (
+                <div>
+                  <h4 className="text-[10px] text-aether-red uppercase tracking-widest mb-3 font-mono">副作用</h4>
+                  <div className="space-y-2">
+                    {Object.entries(selectedStatus.副作用 as Record<string, string>).map(([k, v]) => (
+                      <div key={k} className="p-3 bg-aether-red/[0.04] border border-aether-red/20">
+                        <h5 className="text-[11px] font-display font-bold text-aether-red/70 mb-1">{k}</h5>
+                        <p className="text-[11px] text-white/60 leading-relaxed">{v}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
     </motion.div>
   );
