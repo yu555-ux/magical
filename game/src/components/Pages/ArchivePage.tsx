@@ -281,6 +281,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
   const [selectedSkill, setSelectedSkill] = useState<any>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [selectedStatus, setSelectedStatus] = useState<any>(null);
+  const [bodyOpen, setBodyOpen] = useState(false);
 
   const isFemale = p.好感值 !== undefined;
   const affection = p.好感值 ?? p.友善值 ?? 0;
@@ -379,18 +380,19 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
         </section>
       )}
 
-      {/* ===== Clothing (female only) ===== */}
-      {hasClothing && (
-        <section className="space-y-4">
-          <SectionHeader title="着装" />
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {Object.entries(clothing!).map(([slot, item]) => (
-              <div key={slot}
-                className="p-3 border border-aether-border/20 bg-white/[0.02] hover:border-aether-cyan/40 hover:bg-aether-cyan/[0.03] transition-all duration-300">
-                <span className="text-[10px] font-mono text-aether-cyan/50">{slot}</span>
-                <p className="text-xs font-display text-white/70 mt-1 font-bold">{item.名称}</p>
-                <p className="text-[10px] font-mono text-white/35 mt-0.5 leading-relaxed">{item.描述}</p>
-              </div>
+      {/* ===== Status Effects ===== */}
+      {hasStatus && (
+        <section className="space-y-3">
+          <SectionHeader title="状态" />
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(p.状态 as Record<string, any>).map(([key, val]) => (
+              <button
+                key={key}
+                onClick={() => setSelectedStatus({ name: key, ...val })}
+                className="text-xs font-mono px-4 py-1.5 bg-aether-cyan/[0.08] border border-aether-cyan/40 text-white/85 hover:bg-aether-cyan/[0.14] hover:border-aether-cyan/60 shadow-[0_0_8px_rgba(0,242,255,0.12)] hover:shadow-[0_0_14px_rgba(0,242,255,0.22)] transition-all clickable font-bold"
+              >
+                {key}
+              </button>
             ))}
           </div>
         </section>
@@ -463,21 +465,59 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
         </section>
       )}
 
-      {/* ===== Status Effects ===== */}
-      {hasStatus && (
-        <section className="space-y-3">
-          <SectionHeader title="状态" />
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(p.状态 as Record<string, any>).map(([key, val]) => (
-              <button
-                key={key}
-                onClick={() => setSelectedStatus({ name: key, ...val })}
-                className="text-xs font-mono px-4 py-1.5 bg-aether-cyan/[0.08] border border-aether-cyan/40 text-aether-cyan/90 hover:bg-aether-cyan/[0.14] hover:border-aether-cyan/60 shadow-[0_0_8px_rgba(0,242,255,0.12)] hover:shadow-[0_0_14px_rgba(0,242,255,0.22)] transition-all clickable font-bold"
-              >
-                {key}
-              </button>
+      {/* ===== Clothing (female only) ===== */}
+      {hasClothing && (
+        <section className="space-y-4">
+          <SectionHeader title="着装" />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {Object.entries(clothing!).map(([slot, item]) => (
+              <div key={slot}
+                className="p-3 border border-aether-border/20 bg-white/[0.02] hover:border-aether-cyan/40 hover:bg-aether-cyan/[0.03] transition-all duration-300">
+                <span className="text-[10px] font-mono text-aether-cyan/50">{slot}</span>
+                <p className="text-xs font-display text-white/70 mt-1 font-bold">{item.名称}</p>
+                <p className="text-[10px] font-mono text-white/35 mt-0.5 leading-relaxed">{item.描述}</p>
+              </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* ===== 身体开发 (collapsed by default, female only) ===== */}
+      {p.身体开发 && Object.keys(p.身体开发).length > 0 && (
+        <section className="space-y-3">
+          <button
+            onClick={() => setBodyOpen(!bodyOpen)}
+            className="flex items-center gap-4 w-full text-left group"
+          >
+            <div className="w-8 h-8 border border-aether-red/25 flex items-center justify-center shrink-0 group-hover:border-aether-red/40 transition-colors">
+              <Skull size={16} className="text-aether-red/50 group-hover:text-aether-red/70 transition-colors" />
+            </div>
+            <h2 className="font-display text-xl tracking-widest uppercase text-white/60 group-hover:text-white/80 transition-colors">
+              身体开发
+            </h2>
+            <div className="flex-1 h-px bg-gradient-to-r from-aether-red/15 to-transparent" />
+            <span className="text-[10px] font-mono text-aether-red/35 group-hover:text-aether-red/50 transition-colors">
+              {bodyOpen ? '收起 ▲' : '展开 ▼'}
+            </span>
+          </button>
+          {bodyOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="grid grid-cols-2 md:grid-cols-4 gap-3 overflow-hidden"
+            >
+              {Object.entries(p.身体开发 as Record<string, any>).map(([part, data]) => (
+                <div key={part} className="p-3 border border-aether-red/12 bg-aether-red/[0.02]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-display font-bold text-aether-red/65">{part}</span>
+                    <span className="text-[10px] font-mono text-aether-red/35">{data.使用次数}次</span>
+                  </div>
+                  <p className="text-[10px] font-mono text-white/30 leading-relaxed">{data.描述}</p>
+                </div>
+              ))}
+            </motion.div>
+          )}
         </section>
       )}
 

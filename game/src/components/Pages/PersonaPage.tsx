@@ -297,7 +297,7 @@ export default function PersonaPage() {
               <button
                 key={key}
                 onClick={() => setSelectedStatus({ name: key, ...val })}
-                className="text-xs font-mono px-4 py-1.5 bg-aether-cyan/[0.08] border border-aether-cyan/40 text-aether-cyan/90 hover:bg-aether-cyan/[0.14] hover:border-aether-cyan/60 shadow-[0_0_8px_rgba(0,242,255,0.12)] hover:shadow-[0_0_14px_rgba(0,242,255,0.22)] transition-all clickable font-bold"
+                className="text-xs font-mono px-4 py-1.5 bg-aether-cyan/[0.08] border border-aether-cyan/40 text-white/85 hover:bg-aether-cyan/[0.14] hover:border-aether-cyan/60 shadow-[0_0_8px_rgba(0,242,255,0.12)] hover:shadow-[0_0_14px_rgba(0,242,255,0.22)] transition-all clickable font-bold"
               >
                 {key}
               </button>
