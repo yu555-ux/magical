@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, User, Heart, Shield, Zap, Diamond, Skull, Package } from 'lucide-react';
+import { Search, User, Heart, Shield, Zap, Database, Diamond, Skull, Package } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { useSillytavern } from '../../hooks/useSillytavern';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
@@ -466,7 +466,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       {/* ===== Skills ===== */}
       {hasSkills && (
         <section className="space-y-6">
-          <SectionHeader title="技能" large />
+          <SectionHeader title="技能" large Icon={Database} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Object.entries(p.技能 as Record<string, any>).map(([skillName, skill]) => {
               const skillRating = RATING_STYLES[skill.等级];
