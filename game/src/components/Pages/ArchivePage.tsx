@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, User, Heart, Shield, MapPin, Zap } from 'lucide-react';
+import { Search, User, Diamond, Skull, Package } from 'lucide-react';
+import { Modal } from '../Feedback';
 import { useSillytavern } from '../../hooks/useSillytavern';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 import { getAffectionStage, getFriendlinessStage, getCorruptionStage } from '../../sillytavern/social-stages';
@@ -27,6 +28,21 @@ const RATING_STYLES: Record<string, { text: string; border: string; glow: string
   '凝石': { text: 'text-green-400', border: 'border-green-400/50', glow: 'shadow-[0_0_10px_rgba(74,222,128,0.3)]', bg: 'bg-green-400/10' },
   '聚砂': { text: 'text-purple-400',border: 'border-purple-400/50',glow: 'shadow-[0_0_12px_rgba(168,85,247,0.35)]',bg: 'bg-purple-400/10' },
   '微尘': { text: 'text-gray-400',  border: 'border-gray-400/40',  glow: 'shadow-[0_0_8px_rgba(156,163,175,0.2)]',  bg: 'bg-gray-400/10' },
+};
+
+const ITEM_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string }> = {
+  '灭世': { text: 'text-red-400',   border: 'border-red-400/50',   glow: 'shadow-[0_0_16px_rgba(239,68,68,0.4)]',   bg: 'bg-red-400/10' },
+  '绝域': { text: 'text-rose-400',  border: 'border-rose-400/50',  glow: 'shadow-[0_0_14px_rgba(251,113,133,0.4)]', bg: 'bg-rose-400/10' },
+  '倾国': { text: 'text-pink-400',  border: 'border-pink-400/50',  glow: 'shadow-[0_0_14px_rgba(244,114,182,0.4)]', bg: 'bg-pink-400/10' },
+  '祸城': { text: 'text-orange-400',border: 'border-orange-400/50',glow: 'shadow-[0_0_13px_rgba(251,146,60,0.4)]', bg: 'bg-orange-400/10' },
+  '凶煞': { text: 'text-amber-300', border: 'border-amber-400/50', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.35)]',bg: 'bg-amber-400/10' },
+  '微末': { text: 'text-gray-400',  border: 'border-gray-400/40',  glow: 'shadow-[0_0_8px_rgba(156,163,175,0.2)]',  bg: 'bg-gray-400/10' },
+};
+
+const CATEGORY_META: Record<string, { label: string; Icon: typeof Diamond }> = {
+  '灵宝': { label: '灵宝', Icon: Diamond },
+  '诡物': { label: '诡物', Icon: Skull },
+  '物品': { label: '物品', Icon: Package },
 };
 
 /* ============================================================
@@ -63,7 +79,6 @@ export default function ArchivePage() {
   const groupEntries: [string, CharacterCard[]][] = Object.entries(groups);
   const totalChars = groupEntries.reduce((sum, [, cards]) => sum + cards.length, 0);
 
-  // Filter by search
   const filteredGroups: [string, CharacterCard[]][] = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return groupEntries;
@@ -84,15 +99,12 @@ export default function ArchivePage() {
     <div className="h-full flex relative overflow-hidden bg-gradient-to-b from-aether-deep/95 via-aether-dark/80 to-aether-dark/60">
       {/* ==================== LEFT PANEL — Character List ==================== */}
       <div className="w-64 md:w-72 shrink-0 border-r border-aether-border/30 flex flex-col bg-aether-dark/40">
-        {/* Header */}
         <div className="px-4 pt-5 pb-3 space-y-3 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-1 h-5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.4)]" />
             <h2 className="font-display text-base tracking-[0.12em] text-aether-cyan/90">角色档案</h2>
             <span className="text-[10px] font-mono text-white/20 ml-auto">{totalChars}人</span>
           </div>
-
-          {/* Search */}
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/20" />
             <input
@@ -108,7 +120,6 @@ export default function ArchivePage() {
           </div>
         </div>
 
-        {/* Character list */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-4 space-y-4">
           {filteredGroups.length === 0 ? (
             <div className="flex items-center justify-center h-32">
@@ -125,7 +136,6 @@ export default function ArchivePage() {
                   </span>
                   <span className="text-[9px] font-mono text-white/15">{cards.length}</span>
                 </div>
-
                 <div className="space-y-0.5">
                   {cards.map((char) => {
                     const p = char.profile;
@@ -134,7 +144,6 @@ export default function ArchivePage() {
                     const isFemale = p.好感值 !== undefined;
                     const affection = p.好感值 ?? p.友善值 ?? 0;
                     const stage = isFemale ? getAffectionStage(affection) : getFriendlinessStage(affection);
-
                     return (
                       <button
                         key={char.name}
@@ -145,16 +154,13 @@ export default function ArchivePage() {
                             : 'border border-transparent hover:bg-white/[0.03] hover:border-white/[0.04]'
                           }`}
                       >
-                        {/* Active indicator — no layoutId, static style */}
                         {isActive && (
                           <div className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-aether-cyan rounded-r-full shadow-[0_0_6px_rgba(0,242,255,0.5)]" />
                         )}
-
                         <div className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center transition-colors
                           ${isActive ? 'bg-aether-cyan/15' : 'bg-white/[0.04] group-hover:bg-white/[0.06]'}`}>
                           <User size={13} className={isActive ? 'text-aether-cyan/60' : 'text-white/20'} />
                         </div>
-
                         <div className="flex-1 min-w-0 flex items-center gap-2">
                           <span className={`text-[13px] font-display truncate transition-colors
                             ${isActive ? 'text-aether-cyan/90 font-bold' : 'text-white/70 group-hover:text-white/85'}`}>
@@ -166,11 +172,9 @@ export default function ArchivePage() {
                             </span>
                           )}
                           {ratingStyle && (
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ratingStyle.bg} border ${ratingStyle.border}`}
-                              style={{ backgroundColor: ratingStyle.border === 'border-red-400/50' ? '#ef4444' : undefined }} />
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ratingStyle.bg} border ${ratingStyle.border}`} />
                           )}
                         </div>
-
                         <span className="text-[9px] font-mono shrink-0" style={{ color: stage.color, opacity: 0.5 }}>
                           {affection}
                         </span>
@@ -221,10 +225,27 @@ function EmptyState() {
 }
 
 /* ============================================================
+   SECTION HEADER — text + gradient line, no icon
+   ============================================================ */
+function SectionHeader({ title, large }: { title: string; large?: boolean }) {
+  return (
+    <div className="flex items-center gap-4">
+      <h2 className={`font-display tracking-widest uppercase ${large ? 'text-xl text-white/90' : 'text-base text-white/70'}`}>
+        {title}
+      </h2>
+      <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
+    </div>
+  );
+}
+
+/* ============================================================
    CHARACTER DETAIL — Dossier View
    ============================================================ */
 function CharacterDetail({ char }: { char: CharacterCard }) {
   const p = char.profile;
+  const [selectedSkill, setSelectedSkill] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
   const isFemale = p.好感值 !== undefined;
   const affection = p.好感值 ?? p.友善值 ?? 0;
   const stage = isFemale ? getAffectionStage(affection) : getFriendlinessStage(affection);
@@ -261,87 +282,70 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
           )}
         </div>
         {ratingStyle && (
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center justify-center px-3 py-0.5 text-xs font-bold font-display border ${ratingStyle.border} ${ratingStyle.bg} ${ratingStyle.text} ${ratingStyle.glow}`}>
-              {p.评级}
-            </span>
-          </div>
+          <span className={`inline-flex items-center justify-center px-3 py-0.5 text-xs font-bold font-display border ${ratingStyle.border} ${ratingStyle.bg} ${ratingStyle.text} ${ratingStyle.glow}`}>
+            {p.评级}
+          </span>
         )}
         <p className="text-sm text-white/55 leading-relaxed font-mono">{p.身份}</p>
       </div>
 
-      {/* ===== Social Stats ===== */}
-      <section className="space-y-6">
-        {/* Affection / Friendliness */}
+      {/* ===== Affection / Friendliness ===== */}
+      <section className="space-y-2">
+        <SectionHeader title={isFemale ? '好感阶段' : '友善阶段'} />
         <div className="space-y-2">
-          <div className="flex items-center gap-4">
-            <Heart size={16} className="text-aether-cyan/60 shrink-0" />
-            <h2 className="font-display text-base tracking-widest text-white/70">{isFemale ? '好感阶段' : '友善阶段'}</h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/20 to-transparent" />
+          <div className="flex items-center justify-between">
+            <span className="text-xl font-display font-bold italic tracking-wide" style={{ color: stage.color }}>
+              {stage.name}
+            </span>
+            <span className="text-sm font-mono" style={{ color: stage.color, opacity: 0.6 }}>{affection}</span>
           </div>
-          <div className="pl-10 space-y-2">
+          <div className="h-2 bg-white/[0.04] border border-white/[0.08] overflow-hidden">
+            <motion.div
+              className="h-full"
+              style={{ background: `linear-gradient(90deg, ${stage.color}40, ${stage.color})` }}
+              initial={{ width: 0 }}
+              animate={{ width: `${affectionPct}%` }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            />
+          </div>
+          <div className="flex justify-between text-[8px] font-mono text-white/12">
+            <span>-200</span><span>0</span><span>200</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== Corruption (female only) ===== */}
+      {corrStage && (
+        <section className="space-y-2">
+          <SectionHeader title="堕落阶段" />
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xl font-display font-bold italic tracking-wide" style={{ color: stage.color }}>
-                {stage.name}
+              <span className="text-xl font-display font-bold italic tracking-wide" style={{ color: corrStage.color }}>
+                {corrStage.name}
               </span>
-              <span className="text-sm font-mono" style={{ color: stage.color, opacity: 0.6 }}>{affection}</span>
+              <span className="text-sm font-mono" style={{ color: corrStage.color, opacity: 0.6 }}>{p.堕落值}</span>
             </div>
             <div className="h-2 bg-white/[0.04] border border-white/[0.08] overflow-hidden">
               <motion.div
                 className="h-full"
-                style={{ background: `linear-gradient(90deg, ${stage.color}40, ${stage.color})` }}
+                style={{ background: `linear-gradient(90deg, ${corrStage.color}40, ${corrStage.color})` }}
                 initial={{ width: 0 }}
-                animate={{ width: `${affectionPct}%` }}
-                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                animate={{ width: `${corrPct}%` }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
               />
             </div>
             <div className="flex justify-between text-[8px] font-mono text-white/12">
-              <span>-200</span><span>0</span><span>200</span>
+              <span>0</span><span>250</span><span>500</span>
             </div>
           </div>
-        </div>
+        </section>
+      )}
 
-        {/* Corruption (female only) */}
-        {corrStage && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-4">
-              <Shield size={16} className="text-aether-cyan/60 shrink-0" />
-              <h2 className="font-display text-base tracking-widest text-white/70">堕落阶段</h2>
-              <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/20 to-transparent" />
-            </div>
-            <div className="pl-10 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xl font-display font-bold italic tracking-wide" style={{ color: corrStage.color }}>
-                  {corrStage.name}
-                </span>
-                <span className="text-sm font-mono" style={{ color: corrStage.color, opacity: 0.6 }}>{p.堕落值}</span>
-              </div>
-              <div className="h-2 bg-white/[0.04] border border-white/[0.08] overflow-hidden">
-                <motion.div
-                  className="h-full"
-                  style={{ background: `linear-gradient(90deg, ${corrStage.color}40, ${corrStage.color})` }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${corrPct}%` }}
-                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-                />
-              </div>
-              <div className="flex justify-between text-[8px] font-mono text-white/12">
-                <span>0</span><span>250</span><span>500</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ===== Body Attributes — stat bars ===== */}
+      {/* ===== Body Attributes ===== */}
       {bodyAttr && (
         <section className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Zap size={16} className="text-aether-cyan/60 shrink-0" />
-            <h2 className="font-display text-base tracking-widest text-white/70">身体属性</h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/20 to-transparent" />
-          </div>
-          <div className="pl-10 space-y-4">
+          <SectionHeader title="身体属性" />
+          <div className="space-y-4">
             {(['生命', '能量', 'SAN'] as const).map(key => {
               const attr = bodyAttr[key] as { 当前: number; 上限: number } | undefined;
               if (!attr) return null;
@@ -374,12 +378,8 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       {/* ===== Attributes Grid ===== */}
       {(baseAttr || specialAttr) && (
         <section className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="w-4 h-4 shrink-0" />
-            <h2 className="font-display text-base tracking-widest text-white/70">属性</h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/20 to-transparent" />
-          </div>
-          <div className="grid grid-cols-3 gap-3 pl-10">
+          <SectionHeader title="属性" />
+          <div className="grid grid-cols-3 gap-3">
             {baseAttr && (['力量', '体质', '精神', '敏捷'] as const).map(key => {
               const v = baseAttr[key];
               if (v === undefined) return null;
@@ -414,12 +414,8 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       {/* ===== Status Effects ===== */}
       {hasStatus && (
         <section className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="w-4 h-4 shrink-0" />
-            <h2 className="font-display text-base tracking-widest text-white/70">状态</h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/20 to-transparent" />
-          </div>
-          <div className="pl-10 space-y-2">
+          <SectionHeader title="状态" />
+          <div className="space-y-2">
             {Object.entries(p.状态 as Record<string, any>).map(([key, val]) => (
               <div key={key} className="flex items-start gap-3 p-3 bg-aether-cyan/[0.03] border border-aether-cyan/10">
                 <span className="text-[11px] font-mono text-aether-cyan/70 shrink-0">{key}</span>
@@ -436,12 +432,8 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       {/* ===== Social Circle ===== */}
       {hasSocialCircle && (
         <section className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="w-4 h-4 shrink-0" />
-            <h2 className="font-display text-base tracking-widest text-white/70">社交圈</h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/20 to-transparent" />
-          </div>
-          <div className="flex flex-wrap gap-2 pl-10">
+          <SectionHeader title="社交圈" />
+          <div className="flex flex-wrap gap-2">
             {Object.entries(p.社交圈 as Record<string, string>).map(([who, rel]) => (
               <span key={who}
                 className="text-[10px] font-mono px-3 py-1.5 bg-white/[0.02] border border-aether-border/20 text-white/55">
@@ -457,22 +449,23 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       {/* ===== Skills ===== */}
       {hasSkills && (
         <section className="space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 border border-aether-cyan/40 flex items-center justify-center shrink-0">
-              <Zap size={16} className="text-aether-cyan" />
-            </div>
-            <h2 className="font-display text-xl tracking-widest uppercase text-white/90">技能</h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-12">
+          <SectionHeader title="技能" large />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Object.entries(p.技能 as Record<string, any>).map(([skillName, skill]) => {
               const skillRating = RATING_STYLES[skill.等级];
               return (
-                <div key={skillName}
-                  className="p-5 glass-panel border-aether-border/30 hover:border-aether-cyan/40 transition-colors">
+                <motion.button
+                  key={skillName}
+                  onClick={() => setSelectedSkill({ name: skillName, ...skill })}
+                  whileHover={{ y: -4 }}
+                  transition={{ type: 'spring', damping: 15, stiffness: 250 }}
+                  className="p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
+                >
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-display font-bold text-base text-white/80">{skillName}</h3>
-                    <div className="flex items-center gap-1.5">
+                    <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-20">
+                      {skillName}
+                    </h3>
+                    <div className="flex items-center gap-1.5 absolute top-3 right-3">
                       {skillRating && (
                         <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${skillRating.border} ${skillRating.bg} ${skillRating.text}`}>
                           {skill.等级}
@@ -480,22 +473,14 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
                       )}
                     </div>
                   </div>
-                  <p className="text-[11px] font-mono text-white/45 leading-relaxed mb-2">{skill.描述}</p>
-                  <div className="flex items-center gap-4 text-[10px] font-mono text-white/25">
-                    {skill.使用要求 && <span>需求：{skill.使用要求}</span>}
+                  <p className="text-[11px] font-mono text-white/45 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
+                    {skill.描述}
+                  </p>
+                  <div className="flex items-center gap-4 mt-3 text-[10px] font-mono text-white/25">
+                    <span>消耗 {skill.消耗能量 ?? 0} 能量</span>
                     <span className="ml-auto">熟练 {skill.熟练度}</span>
                   </div>
-                  {skill.分支 && Object.keys(skill.分支).length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-white/[0.04]">
-                      {Object.entries(skill.分支 as Record<string, any>).map(([branchName]) => (
-                        <span key={branchName}
-                          className="text-[9px] font-mono px-2 py-0.5 bg-aether-cyan/[0.04] border border-aether-cyan/10 text-aether-cyan/50">
-                          {branchName}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                </motion.button>
               );
             })}
           </div>
@@ -503,57 +488,176 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       )}
 
       {/* ===== Equipment ===== */}
-      {p.奇物 && (
-        <section className="space-y-6">
-          {(Object.entries(p.奇物 as Record<string, Record<string, any>>)).map(([category, items]) => {
-            const itemEntries = Object.entries(items);
-            if (itemEntries.length === 0) return null;
-            const catLabel: Record<string, string> = { '灵宝': '灵宝', '诡物': '诡物', '物品': '物品' };
-            return (
-              <div key={category} className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 border border-aether-cyan/40 flex items-center justify-center shrink-0">
-                    <Zap size={16} className="text-aether-cyan" />
-                  </div>
-                  <h2 className="font-display text-xl tracking-widest uppercase text-white/90">{catLabel[category] ?? category}</h2>
-                  <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-12">
-                  {itemEntries.map(([itemName, item]) => {
-                    const itemRating = item.等级 ? RATING_STYLES[item.等级] : null;
-                    return (
-                      <div key={itemName}
-                        className="p-5 glass-panel border-aether-border/30 hover:border-aether-cyan/40 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-display font-bold text-base text-white/80">
-                            {itemName}
-                            {item.数量 && <span className="text-[10px] font-mono text-white/25 ml-2">×{item.数量}</span>}
-                          </h3>
-                          {itemRating && (
-                            <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${itemRating.border} ${itemRating.bg} ${itemRating.text}`}>
-                              {item.等级}
-                            </span>
-                          )}
-                        </div>
-                        {item.描述 && <p className="text-[11px] font-mono text-white/45 leading-relaxed mb-2">{item.描述}</p>}
-                        {item.效果 && typeof item.效果 === 'object' && Object.keys(item.效果).length > 0 && (
-                          <div className="space-y-1 mt-2">
-                            {Object.entries(item.效果 as Record<string, string>).map(([effKey, effVal]) => (
-                              <p key={effKey} className="text-[10px] font-mono text-white/35">
-                                <span className="text-aether-cyan/50">{effKey}：</span>{effVal}
-                              </p>
-                            ))}
-                          </div>
+      {p.奇物 && (['灵宝', '诡物', '物品'] as const).map((category) => {
+        const items = p.奇物[category] ?? {};
+        const itemEntries = Object.entries(items);
+        if (itemEntries.length === 0) return null;
+        const meta = CATEGORY_META[category];
+        const CatIcon = meta.Icon;
+        return (
+          <section key={category} className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 border border-aether-cyan/40 flex items-center justify-center shrink-0">
+                <CatIcon size={16} className="text-aether-cyan" />
+              </div>
+              <h2 className="font-display text-xl tracking-widest uppercase text-white/90">{meta.label}</h2>
+              <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-12">
+              {itemEntries.map(([itemName, itemData]: [string, any]) => {
+                const itemRating = itemData.等级 ? ITEM_RANK_STYLES[itemData.等级] : null;
+                return (
+                  <motion.button
+                    key={itemName}
+                    onClick={() => setSelectedItem({ name: itemName, category, ...itemData })}
+                    whileHover={{ y: -4 }}
+                    transition={{ type: 'spring', damping: 15, stiffness: 250 }}
+                    className="p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-16 truncate">
+                        {itemName}
+                        {itemData.数量 && <span className="text-[10px] font-mono text-white/25 ml-2">×{itemData.数量}</span>}
+                      </h3>
+                      <div className="absolute top-3 right-3">
+                        {itemRating && (
+                          <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${itemRating.border} ${itemRating.bg} ${itemRating.text}`}>
+                            {itemData.等级}
+                          </span>
                         )}
                       </div>
-                    );
-                  })}
+                    </div>
+                    <p className="text-[11px] font-mono text-white/45 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
+                      {itemData.描述 || ''}
+                    </p>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+
+      {/* ============================================================
+          MODALS
+          ============================================================ */}
+      <Modal isOpen={!!selectedSkill} onClose={() => setSelectedSkill(null)} title="技能详情">
+        {selectedSkill && (() => {
+          const rank = selectedSkill?.等级 || '微尘';
+          const rs = RATING_STYLES[rank] || RATING_STYLES['微尘'];
+          const branches = selectedSkill?.分支 || {};
+          return (
+            <div className="space-y-6">
+              <div className="flex items-start justify-between border-b border-white/10 pb-4">
+                <div>
+                  <h3 className="text-2xl font-display font-bold text-aether-cyan">{selectedSkill.name}</h3>
+                  <p className="text-[11px] font-mono text-aether-cyan/50 tracking-wider mt-1">
+                    消耗 {selectedSkill?.消耗能量 ?? 0} 能量
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
+                    {rank}
+                  </span>
                 </div>
               </div>
-            );
-          })}
-        </section>
-      )}
+              <div className="space-y-4">
+                {selectedSkill?.描述 && (
+                  <div>
+                    <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4>
+                    <p className="text-sm text-white/80 leading-relaxed">{selectedSkill.描述}</p>
+                  </div>
+                )}
+                {selectedSkill?.使用要求 && (
+                  <div className="p-4 bg-aether-cyan/[0.05] border-l-2 border-aether-cyan">
+                    <h4 className="text-[10px] text-aether-cyan uppercase tracking-widest mb-1 font-mono">使用要求</h4>
+                    <p className="text-sm font-medium tracking-wide text-white/90">{selectedSkill.使用要求}</p>
+                  </div>
+                )}
+                {selectedSkill?.副作用 && (
+                  <div className="p-4 bg-aether-red/[0.05] border-l-2 border-aether-red">
+                    <h4 className="text-[10px] text-aether-red uppercase tracking-widest mb-1 font-mono">副作用</h4>
+                    <p className="text-sm tracking-wide text-aether-red/80">{selectedSkill.副作用}</p>
+                  </div>
+                )}
+                <div className="flex items-center gap-4 text-[11px] font-mono text-white/40">
+                  <span>熟练度：{selectedSkill?.熟练度 ?? 0}</span>
+                </div>
+                {Object.keys(branches).length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-3 font-mono">分支</h4>
+                    <div className="space-y-3">
+                      {Object.entries(branches).map(([bName, bData]: [string, any]) => (
+                        <div key={bName} className="p-3 bg-black/40 border border-white/5">
+                          <h5 className="text-xs font-display font-bold text-white/70 mb-1">{bName}</h5>
+                          {bData?.描述 && <p className="text-[11px] text-white/50 leading-relaxed mb-1">{bData.描述}</p>}
+                          {bData?.效果 && <p className="text-[11px] text-aether-cyan/70 leading-relaxed">{bData.效果}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      <Modal isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} title={selectedItem?.category === '灵宝' ? '灵宝详情' : selectedItem?.category === '诡物' ? '诡物详情' : '物品详情'}>
+        {selectedItem && (() => {
+          const rank = selectedItem?.等级 || '';
+          const irs = rank ? ITEM_RANK_STYLES[rank] : null;
+          return (
+            <div className="space-y-6">
+              <div className="flex items-start justify-between border-b border-white/10 pb-4">
+                <div>
+                  <h3 className="text-2xl font-display font-bold text-aether-cyan">{selectedItem.name}</h3>
+                  <p className="text-[10px] font-mono text-white/30 tracking-wider mt-0.5">数量: {selectedItem?.数量 ?? 1}</p>
+                </div>
+                {irs && (
+                  <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${irs.border} ${irs.bg} ${irs.text} ${irs.glow}`}>
+                    {rank}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-4">
+                {selectedItem?.描述 && (
+                  <div>
+                    <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4>
+                    <p className="text-sm text-white/80 leading-relaxed">{selectedItem.描述}</p>
+                  </div>
+                )}
+                {selectedItem?.效果 && Object.keys(selectedItem.效果).length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] text-aether-green uppercase tracking-widest mb-3 font-mono">效果</h4>
+                    <div className="space-y-2">
+                      {Object.entries(selectedItem.效果 as Record<string, string>).map(([k, v]) => (
+                        <div key={k} className="p-3 bg-aether-green/[0.04] border border-aether-green/20">
+                          <h5 className="text-[11px] font-display font-bold text-aether-green/70 mb-1">{k}</h5>
+                          <p className="text-[11px] text-white/60 leading-relaxed">{v}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedItem?.副作用 && Object.keys(selectedItem.副作用).length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] text-aether-red uppercase tracking-widest mb-3 font-mono">副作用</h4>
+                    <div className="space-y-2">
+                      {Object.entries(selectedItem.副作用 as Record<string, string>).map(([k, v]) => (
+                        <div key={k} className="p-3 bg-aether-red/[0.04] border border-aether-red/20">
+                          <h5 className="text-[11px] font-display font-bold text-aether-red/70 mb-1">{k}</h5>
+                          <p className="text-[11px] text-white/60 leading-relaxed">{v}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
     </motion.div>
   );
 }
