@@ -45,6 +45,21 @@ const CATEGORY_META: Record<string, { label: string; Icon: typeof Diamond }> = {
   '物品': { label: '物品', Icon: Package },
 };
 
+const PROFICIENCY_STAGES = ['初窥', '粗浅', '掌握', '熟练', '小成', '入门', '精进', '深谙', '登峰', '造极'];
+const getStage = (proficiency: number) => PROFICIENCY_STAGES[Math.min(Math.floor(proficiency / 100), 9)];
+const PROFICIENCY_STYLES: Record<string, { text: string; border: string; glow: string; bg: string }> = {
+  初窥: { text: 'text-gray-400',   border: 'border-gray-400/40',   glow: 'shadow-[0_0_8px_rgba(156,163,175,0.2)]',   bg: 'bg-gray-400/10' },
+  粗浅: { text: 'text-stone-400',  border: 'border-stone-400/45',  glow: 'shadow-[0_0_9px_rgba(168,162,158,0.25)]',  bg: 'bg-stone-400/10' },
+  掌握: { text: 'text-teal-400',   border: 'border-teal-400/45',   glow: 'shadow-[0_0_10px_rgba(45,212,191,0.3)]',   bg: 'bg-teal-400/10' },
+  熟练: { text: 'text-cyan-400',   border: 'border-cyan-400/45',   glow: 'shadow-[0_0_10px_rgba(34,211,238,0.3)]',   bg: 'bg-cyan-400/10' },
+  小成: { text: 'text-sky-400',    border: 'border-sky-400/50',    glow: 'shadow-[0_0_11px_rgba(56,189,248,0.35)]',  bg: 'bg-sky-400/10' },
+  入门: { text: 'text-blue-400',   border: 'border-blue-400/50',   glow: 'shadow-[0_0_12px_rgba(96,165,250,0.35)]',  bg: 'bg-blue-400/10' },
+  精进: { text: 'text-indigo-400', border: 'border-indigo-400/50', glow: 'shadow-[0_0_13px_rgba(129,140,248,0.4)]',bg: 'bg-indigo-400/10' },
+  深谙: { text: 'text-purple-400', border: 'border-purple-400/50', glow: 'shadow-[0_0_14px_rgba(168,85,247,0.4)]', bg: 'bg-purple-400/10' },
+  登峰: { text: 'text-amber-300',  border: 'border-amber-400/50',  glow: 'shadow-[0_0_15px_rgba(251,191,36,0.45)]', bg: 'bg-amber-400/10' },
+  造极: { text: 'text-orange-400', border: 'border-orange-400/50', glow: 'shadow-[0_0_16px_rgba(251,146,60,0.5)]', bg: 'bg-orange-400/10' },
+};
+
 /* ============================================================
    ARCHIVE PAGE
    ============================================================ */
@@ -139,11 +154,7 @@ export default function ArchivePage() {
                 <div className="space-y-0.5">
                   {cards.map((char) => {
                     const p = char.profile;
-                    const ratingStyle = p.评级 ? RATING_STYLES[p.评级] : null;
                     const isActive = selected?.name === char.name;
-                    const isFemale = p.好感值 !== undefined;
-                    const affection = p.好感值 ?? p.友善值 ?? 0;
-                    const stage = isFemale ? getAffectionStage(affection) : getFriendlinessStage(affection);
                     return (
                       <button
                         key={char.name}
@@ -162,22 +173,16 @@ export default function ArchivePage() {
                           <User size={13} className={isActive ? 'text-aether-cyan/60' : 'text-white/20'} />
                         </div>
                         <div className="flex-1 min-w-0 flex items-center gap-2">
-                          <span className={`text-[13px] font-display truncate transition-colors
-                            ${isActive ? 'text-aether-cyan/90 font-bold' : 'text-white/70 group-hover:text-white/85'}`}>
+                          <span className={`text-[15px] font-display font-semibold truncate transition-colors
+                            ${isActive ? 'text-aether-cyan/90 font-bold' : 'text-white/80 group-hover:text-white/95'}`}>
                             {char.name}
                           </span>
                           {p.梦境NPC && (
-                            <span className="text-[7px] font-mono px-1 py-px rounded shrink-0 bg-purple-400/10 text-purple-300/60 border border-purple-400/15">
-                              梦
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded shrink-0 bg-purple-400/12 text-purple-300/70 border border-purple-400/20">
+                              梦境
                             </span>
                           )}
-                          {ratingStyle && (
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ratingStyle.bg} border ${ratingStyle.border}`} />
-                          )}
                         </div>
-                        <span className="text-[9px] font-mono shrink-0" style={{ color: stage.color, opacity: 0.5 }}>
-                          {affection}
-                        </span>
                       </button>
                     );
                   })}
@@ -466,37 +471,49 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       {/* ===== Skills ===== */}
       {hasSkills && (
         <section className="space-y-6">
-          <SectionHeader title="技能" large Icon={Database} />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 border border-aether-cyan/40 flex items-center justify-center shrink-0">
+              <Database size={16} className="text-aether-cyan" />
+            </div>
+            <h2 className="font-display text-xl tracking-widest uppercase text-white/90">技能</h2>
+            <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {Object.entries(p.技能 as Record<string, any>).map(([skillName, skill]) => {
-              const skillRating = RATING_STYLES[skill.等级];
+              const rank = skill.等级 || '微尘';
+              const rs = RATING_STYLES[rank] || RATING_STYLES['微尘'];
+              const stage = getStage(skill.熟练度 ?? 0);
+              const ps = PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥'];
               return (
                 <motion.button
                   key={skillName}
                   onClick={() => setSelectedSkill({ name: skillName, ...skill })}
                   whileHover={{ y: -4 }}
                   transition={{ type: 'spring', damping: 15, stiffness: 250 }}
-                  className="p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
+                  className="relative p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-20">
-                      {skillName}
-                    </h3>
-                    <div className="flex items-center gap-1.5 absolute top-3 right-3">
-                      {skillRating && (
-                        <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${skillRating.border} ${skillRating.bg} ${skillRating.text}`}>
-                          {skill.等级}
-                        </span>
-                      )}
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    <div className="relative group" title={`${skill.熟练度 ?? 0} / 999`}>
+                      <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${ps.border} ${ps.bg} ${ps.text} ${ps.glow}`}>
+                        {stage}
+                      </span>
+                      <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-mono tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        {skill.熟练度 ?? 0} / 999
+                      </span>
                     </div>
+                    <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
+                      {rank}
+                    </span>
                   </div>
-                  <p className="text-[11px] font-mono text-white/45 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
-                    {skill.描述}
+                  <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-28">
+                    {skillName}
+                  </h3>
+                  <p className="text-[11px] font-mono text-aether-cyan/50 tracking-wider mt-1">
+                    消耗 {skill.消耗能量 ?? 0} 能量
                   </p>
-                  <div className="flex items-center gap-4 mt-3 text-[10px] font-mono text-white/25">
-                    <span>消耗 {skill.消耗能量 ?? 0} 能量</span>
-                    <span className="ml-auto">熟练 {skill.熟练度}</span>
-                  </div>
+                  <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
+                    {skill.描述 || ''}
+                  </p>
                 </motion.button>
               );
             })}
@@ -520,31 +537,30 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
               <h2 className="font-display text-xl tracking-widest uppercase text-white/90">{meta.label}</h2>
               <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {itemEntries.map(([itemName, itemData]: [string, any]) => {
                 const itemRating = itemData.等级 ? ITEM_RANK_STYLES[itemData.等级] : null;
+                const qty = itemData.数量 ?? 1;
                 return (
                   <motion.button
                     key={itemName}
                     onClick={() => setSelectedItem({ name: itemName, category, ...itemData })}
                     whileHover={{ y: -4 }}
                     transition={{ type: 'spring', damping: 15, stiffness: 250 }}
-                    className="p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
+                    className="relative p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-16 truncate">
-                        {itemName}
-                        {itemData.数量 && <span className="text-[10px] font-mono text-white/25 ml-2">×{itemData.数量}</span>}
-                      </h3>
-                      <div className="absolute top-3 right-3">
-                        {itemRating && (
-                          <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${itemRating.border} ${itemRating.bg} ${itemRating.text}`}>
-                            {itemData.等级}
-                          </span>
-                        )}
-                      </div>
+                    <div className="absolute top-3 right-3">
+                      {itemRating && (
+                        <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${itemRating.border} ${itemRating.bg} ${itemRating.text} ${itemRating.glow}`}>
+                          {itemData.等级}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-[11px] font-mono text-white/45 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
+                    <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-16 truncate">
+                      {itemName}
+                      <span className="text-[10px] font-mono text-white/25 ml-2">×{qty}</span>
+                    </h3>
+                    <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
                       {itemData.描述 || ''}
                     </p>
                   </motion.button>
@@ -563,6 +579,8 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
           const rank = selectedSkill?.等级 || '微尘';
           const rs = RATING_STYLES[rank] || RATING_STYLES['微尘'];
           const branches = selectedSkill?.分支 || {};
+          const prof = selectedSkill?.熟练度 ?? 0;
+          const stage = getStage(prof);
           return (
             <div className="space-y-6">
               <div className="flex items-start justify-between border-b border-white/10 pb-4">
@@ -573,7 +591,15 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[11px] font-bold font-display border ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
+                  <div className="relative group" title={`${prof} / 999`}>
+                    <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).border} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).bg} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).text} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).glow}`}>
+                      {stage}
+                    </span>
+                    <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-mono tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      {prof} / 999
+                    </span>
+                  </div>
+                  <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
                     {rank}
                   </span>
                 </div>
@@ -597,9 +623,6 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
                     <p className="text-sm tracking-wide text-aether-red/80">{selectedSkill.副作用}</p>
                   </div>
                 )}
-                <div className="flex items-center gap-4 text-[11px] font-mono text-white/40">
-                  <span>熟练度：{selectedSkill?.熟练度 ?? 0}</span>
-                </div>
                 {Object.keys(branches).length > 0 && (
                   <div>
                     <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-3 font-mono">分支</h4>
