@@ -443,7 +443,7 @@ export default function PersonaPage() {
       {/* ============================================================
           GENITAL STATUS (collapsed by default)
           ============================================================ */}
-      {Object.keys(genitals).length > 0 && (
+      {Object.keys(protagonist).length > 0 && (
         <motion.section
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -470,12 +470,16 @@ export default function PersonaPage() {
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className="grid grid-cols-2 gap-3 overflow-hidden"
             >
-              {Object.entries(genitals).map(([key, value]: [string, any]) => (
-                <div key={key} className="p-3 border border-pink-400/10 bg-black/20">
-                  <span className="text-[10px] font-mono text-pink-300/40">{key}</span>
-                  <p className="text-lg font-display font-bold text-pink-300/70 mt-0.5">{value}</p>
-                </div>
-              ))}
+              {Object.keys(genitals).length > 0 ? (
+                Object.entries(genitals).map(([key, value]: [string, any]) => (
+                  <div key={key} className="p-3 border border-pink-400/20 bg-black/40">
+                    <span className="text-[10px] font-mono text-pink-300/40">{key}</span>
+                    <p className="text-lg font-display font-bold text-pink-300/70 mt-0.5">{value}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[11px] font-mono text-pink-300/25 col-span-2 text-center py-4">暂无数据</p>
+              )}
             </motion.div>
           )}
         </motion.section>

@@ -505,12 +505,12 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
               className="grid grid-cols-2 md:grid-cols-4 gap-3 overflow-hidden"
             >
               {Object.entries(p.身体开发 as Record<string, any>).map(([part, data]) => (
-                <div key={part} className="p-3 border border-pink-400/10 bg-black/20">
+                <div key={part} className="p-3 border border-pink-400/25 bg-black/45">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] font-display font-bold text-pink-300/60">{part}</span>
-                    <span className="text-[10px] font-mono text-pink-300/30">{data.使用次数}次</span>
+                    <span className="text-[11px] font-display font-bold text-pink-300/70">{part}</span>
+                    <span className="text-[10px] font-mono text-pink-300/40">{data.使用次数}次</span>
                   </div>
-                  <p className="text-[10px] font-mono text-white/25 leading-relaxed">{data.描述}</p>
+                  <p className="text-[10px] font-mono text-white/35 leading-relaxed">{data.描述}</p>
                 </div>
               ))}
             </motion.div>
