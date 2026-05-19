@@ -446,9 +446,8 @@ export default function PersonaPage() {
           ============================================================ */}
       <motion.section
         initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-80px' }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut', delay: 0.3 }}
         className="border border-dashed border-pink-400/15 bg-pink-400/[0.02] px-5 py-4 space-y-4"
       >
         <button
