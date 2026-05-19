@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Server, Zap, AlertTriangle, CheckCircle, Loader2, ChevronRight,
-  BookOpen, User, Bot, Globe, Plus, Trash2, Pencil, Upload, Sparkles, Hash, Sliders, Star, Download,
+  BookOpen, User, Plus, Trash2, Pencil, Upload, Hash, Sliders, Star, Download,
 } from 'lucide-react';
 import { useSillytavern } from '../hooks/useSillytavern';
 import type { AppSettings, ApiSettings, Lorebook, ChatPreset } from '../sillytavern/types';
@@ -933,56 +933,19 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
 
                 {/* ═══════════ IDENTITY ═══════════ */}
                 {tab === 'identity' && draft && (
-                  <div className="p-5 space-y-5">
-                    {/* Player & Character cards */}
-                    <div className="flex gap-4">
-                      {/* Player card */}
-                      <section className="flex-1 bg-aether-dark/30 rounded-lg border border-aether-border/20 p-4">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-full border-2 border-aether-cyan/40 bg-aether-cyan/10 flex items-center justify-center flex-shrink-0">
-                            <User size={20} className="text-aether-cyan" />
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-display font-semibold text-aether-cyan tracking-wide">玩家信息</h4>
-                            <p className="text-[10px] text-white/25">设定你在游戏中的身份</p>
-                          </div>
+                  <div className="p-5">
+                    <section className="bg-aether-dark/30 rounded-lg border border-aether-border/20 p-4 max-w-lg">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full border-2 border-aether-cyan/40 bg-aether-cyan/10 flex items-center justify-center flex-shrink-0">
+                          <User size={20} className="text-aether-cyan" />
                         </div>
-                        <InputRow label="玩家名" value={draft.userName} onChange={(v) => setDraft({ ...draft, userName: v })} placeholder="输入你的名字" />
-                        <InputRow label="称号" value={draft.playerTitle ?? ''} onChange={(v) => setDraft({ ...draft, playerTitle: v })} placeholder="例：新东京流浪者" hint="你在游戏世界中的头衔或代号" />
-                      </section>
-
-                      {/* Character card */}
-                      <section className="flex-1 bg-aether-dark/30 rounded-lg border border-aether-border/20 p-4">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-full border-2 border-aether-purple/40 bg-aether-purple/10 flex items-center justify-center flex-shrink-0">
-                            <Bot size={20} className="text-aether-purple" />
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-display font-semibold text-aether-purple tracking-wide">AI 角色</h4>
-                            <p className="text-[10px] text-white/25">定义 AI 的身份与性格</p>
-                          </div>
-                        </div>
-                        <InputRow label="角色名" value={draft.characterName} onChange={(v) => setDraft({ ...draft, characterName: v })} placeholder="为 AI 角色命名" />
-                        <TextAreaRow label="角色描述" value={draft.characterDescription ?? ''} onChange={(v) => setDraft({ ...draft, characterDescription: v })} placeholder="描述 AI 角色的性格、说话风格、背景故事等..." rows={3} />
-                      </section>
-                    </div>
-
-                    {/* Scenario */}
-                    <section>
-                      <SectionHeader icon={Globe} label="场景设定" accent="bg-aether-gold" />
-                      <div className="bg-aether-dark/30 rounded-lg border border-aether-border/20 p-4">
-                        <TextAreaRow
-                          label="世界观描述"
-                          value={draft.scenario ?? ''}
-                          onChange={(v) => setDraft({ ...draft, scenario: v })}
-                          placeholder="描述当前世界的状态、地点、事件背景... AI 会在对话中参考这些设定"
-                          rows={4}
-                        />
-                        <div className="flex items-center gap-2 mt-2 text-[10px] text-white/20">
-                          <Sparkles size={12} className="text-aether-gold/50" />
-                          场景设定会在每次对话中注入到 AI 的系统提示词
+                        <div>
+                          <h4 className="text-sm font-display font-semibold text-aether-cyan tracking-wide">玩家信息</h4>
+                          <p className="text-[10px] text-white/25">设定玩家名与角色设定</p>
                         </div>
                       </div>
+                      <InputRow label="玩家名" value={draft.userName} onChange={(v) => setDraft({ ...draft, userName: v })} placeholder="输入你的名字" hint="使用宏 {{user}} 在提示词中引用" />
+                      <TextAreaRow label="玩家设定" value={draft.playerDescription ?? ''} onChange={(v) => setDraft({ ...draft, playerDescription: v })} placeholder="描述你的角色设定、背景故事、性格特征... AI 会在对话中参考这些设定" rows={4} />
                     </section>
                   </div>
                 )}

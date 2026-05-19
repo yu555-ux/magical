@@ -326,6 +326,23 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
           </span>
         )}
         <p className="text-sm text-white/55 leading-relaxed font-mono">{p.身份}</p>
+        {(p.当前位置 || p.当前行动) && (
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] font-mono pt-1">
+            {p.当前位置 && (
+              <span className="text-white/30">
+                <span className="text-white/12">位置 </span>{p.当前位置}
+              </span>
+            )}
+            {p.当前行动 && (
+              <span className="text-white/30">
+                <span className="text-white/12">行动 </span>{p.当前行动}
+              </span>
+            )}
+          </div>
+        )}
+        {p.当前想法 && (
+          <p className="text-[11px] font-mono text-white/18 italic leading-relaxed pt-0.5">"{p.当前想法}"</p>
+        )}
       </div>
 
       {/* ===== Affection / Friendliness ===== */}

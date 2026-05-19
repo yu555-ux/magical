@@ -160,6 +160,7 @@ export interface AppSettings {
   formatPromptTemplate: string;
   thinkingDisplay: 'fold' | 'hide' | 'inline';
   playerTitle?: string;
+  playerDescription?: string;
   characterDescription?: string;
   scenario?: string;
 }
