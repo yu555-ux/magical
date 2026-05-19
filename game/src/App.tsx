@@ -8,6 +8,7 @@ import MapPage from './components/Pages/MapPage';
 import SocialPage from './components/Pages/SocialPage';
 import ArchivePage from './components/Pages/ArchivePage';
 import SystemSettingsModal from './components/SystemSettingsModal';
+import EntryOverlay from './components/EntryOverlay';
 import { PageType, Notification } from './types';
 import { Toast, NotificationPanel } from './components/Feedback';
 import { Bell } from 'lucide-react';
@@ -18,16 +19,18 @@ export default function App() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   const [showSystemSettings, setShowSystemSettings] = useState(false);
+  const [entryDone, setEntryDone] = useState(false);
 
-  // Welcome toasts
+  // Post-entry welcome toasts
   useEffect(() => {
+    if (!entryDone) return;
     addToast('神经连接协议已通过 [AETHER_LINK]', 'success');
     addNotification('系统连接', '与以太网络的神经链接已建立，共振频率稳定。', 'success');
     setTimeout(() => {
       addToast('环境干扰读数正常。请开始探索。', 'info');
       addNotification('环境扫描完成', '当前区域以太波动在安全阈值内，可自由行动。', 'info');
     }, 2000);
-  }, []);
+  }, [entryDone]);
 
   const addToast = useCallback((message: string, type: 'info' | 'warning' | 'success' | 'error') => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -74,11 +77,65 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-aether-dark font-sans text-white selection:bg-aether-cyan selection:text-aether-dark">
+      {/* Entry Overlay */}
+      {!entryDone && <EntryOverlay onComplete={() => setEntryDone(true)} />}
+
       {/* Background Decorators */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_0%,_rgba(0,10,13,0.8)_100%)] opacity-80" />
+        {/* Anomaly surveillance grid */}
+        <div
+          className="absolute inset-0 opacity-[0.025]"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(0,242,255,0.15) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(0,242,255,0.15) 1px, transparent 1px)
+            `,
+            backgroundSize: '48px 48px',
+            maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 70%)',
+          }}
+        />
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/20 to-transparent" />
         <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/20 to-transparent" />
+        {/* Butterfly particles */}
+        {entryDone && (
+          <>
+            {[...Array(6)].map((_, i) => {
+              const x = 15 + (i * 14) % 85;
+              const y = 10 + (i * 17) % 80;
+              const colors = ['rgba(0,242,255,0.4)', 'rgba(167,139,250,0.35)', 'rgba(244,114,182,0.3)'];
+              const glows = [
+                '0 0 4px rgba(0,242,255,0.5)',
+                '0 0 4px rgba(167,139,250,0.5)',
+                '0 0 4px rgba(244,114,182,0.4)',
+              ];
+              return (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 rounded-full"
+                  style={{
+                    left: `${x}%`,
+                    top: `${y}%`,
+                    background: colors[i % 3],
+                    boxShadow: glows[i % 3],
+                  }}
+                  animate={{
+                    x: [0, (Math.random() - 0.5) * 60, 0],
+                    y: [0, (Math.random() - 0.5) * 50, 0],
+                    opacity: [0, 0.6, 0],
+                  }}
+                  transition={{
+                    duration: 4 + Math.random() * 6,
+                    repeat: Infinity,
+                    repeatType: 'loop',
+                    delay: Math.random() * 5,
+                    ease: 'easeInOut',
+                  }}
+                />
+              );
+            })}
+          </>
+        )}
       </div>
 
       {/* Sidebar Navigation */}

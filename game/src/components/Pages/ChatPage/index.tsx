@@ -93,6 +93,25 @@ export default function ChatPage({
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
       <div className="flex-1 flex flex-col w-full glass-panel border-glow relative overflow-hidden">
+        {/* Surveillance grid overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none z-0 opacity-[0.02]"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(0,242,255,0.2) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(0,242,255,0.2) 1px, transparent 1px)
+            `,
+            backgroundSize: '64px 64px',
+            maskImage: 'radial-gradient(ellipse at 50% 50%, black 20%, transparent 70%)',
+          }}
+        />
+        {/* Subtle scanline */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-[0.015]">
+          <div
+            className="absolute w-full h-[60%] bg-gradient-to-b from-transparent via-aether-cyan/30 to-transparent"
+            style={{ animation: 'scanline 8s linear infinite' }}
+          />
+        </div>
         {/* HUD corner brackets */}
         <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-aether-cyan/30 pointer-events-none z-20" />
         <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-aether-cyan/30 pointer-events-none z-20" />
