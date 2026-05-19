@@ -444,47 +444,45 @@ export default function PersonaPage() {
       {/* ============================================================
           GENITAL STATUS (collapsed by default)
           ============================================================ */}
-      {Object.keys(protagonist).length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="border border-dashed border-pink-400/15 bg-pink-400/[0.02] px-5 py-4 space-y-4"
+      <motion.section
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-80px' }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="border border-dashed border-pink-400/15 bg-pink-400/[0.02] px-5 py-4 space-y-4"
+      >
+        <button
+          onClick={() => setGenitalOpen(!genitalOpen)}
+          className="flex items-center gap-3 w-full text-left group"
         >
-          <button
-            onClick={() => setGenitalOpen(!genitalOpen)}
-            className="flex items-center gap-3 w-full text-left group"
+          <span className="font-display text-sm tracking-[0.15em] uppercase text-pink-300/60 group-hover:text-pink-300/85 transition-colors">
+            性器状态
+          </span>
+          <div className="flex-1 h-px bg-[repeating-linear-gradient(to_right,transparent,transparent_3px,rgba(244,114,182,0.15)_3px,rgba(244,114,182,0.15)_5px)]" />
+          <span className="text-[10px] font-mono text-pink-300/30 group-hover:text-pink-300/50 transition-colors shrink-0">
+            {genitalOpen ? '收起 ▲' : '展开 ▼'}
+          </span>
+        </button>
+        {genitalOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="grid grid-cols-2 gap-3 overflow-hidden"
           >
-            <span className="font-display text-sm tracking-[0.15em] uppercase text-pink-300/60 group-hover:text-pink-300/85 transition-colors">
-              性器状态
-            </span>
-            <div className="flex-1 h-px bg-[repeating-linear-gradient(to_right,transparent,transparent_3px,rgba(244,114,182,0.15)_3px,rgba(244,114,182,0.15)_5px)]" />
-            <span className="text-[10px] font-mono text-pink-300/30 group-hover:text-pink-300/50 transition-colors shrink-0">
-              {genitalOpen ? '收起 ▲' : '展开 ▼'}
-            </span>
-          </button>
-          {genitalOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className="grid grid-cols-2 gap-3 overflow-hidden"
-            >
-              {Object.keys(genitals).length > 0 ? (
-                Object.entries(genitals).map(([key, value]: [string, any]) => (
-                  <div key={key} className="p-3 border border-pink-400/20 bg-black/40">
-                    <span className="text-[10px] font-mono text-pink-300/40">{key}</span>
-                    <p className="text-lg font-display font-bold text-pink-300/70 mt-0.5">{value}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-[11px] font-mono text-pink-300/25 col-span-2 text-center py-4">暂无数据</p>
-              )}
-            </motion.div>
-          )}
-        </motion.section>
-      )}
+            {Object.keys(genitals).length > 0 ? (
+              Object.entries(genitals).map(([key, value]: [string, any]) => (
+                <div key={key} className="p-3 border border-pink-400/20 bg-black/40">
+                  <span className="text-[10px] font-mono text-pink-300/40">{key}</span>
+                  <p className="text-lg font-display font-bold text-pink-300/70 mt-0.5">{value}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-[11px] font-mono text-pink-300/25 col-span-2 text-center py-4">暂无数据</p>
+            )}
+          </motion.div>
+        )}
+      </motion.section>
 
       {/* ==============================================================
           MODALS
