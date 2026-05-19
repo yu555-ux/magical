@@ -360,7 +360,6 @@ function TreeNode({
                   onDelete={onDelete}
                   onAdd={onAdd}
                   onToggleBool={onToggleBool}
-                  hiddenKeys={hiddenKeys}
                 />
                 <button
                   onClick={() => onAdd(nodePath)}
