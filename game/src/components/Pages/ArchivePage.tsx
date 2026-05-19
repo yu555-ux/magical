@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, User, Diamond, Skull, Package } from 'lucide-react';
+import { Search, User, Heart, Shield, Zap, Diamond, Skull, Package } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { useSillytavern } from '../../hooks/useSillytavern';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
@@ -227,9 +227,10 @@ function EmptyState() {
 /* ============================================================
    SECTION HEADER — text + gradient line, no icon
    ============================================================ */
-function SectionHeader({ title, large }: { title: string; large?: boolean }) {
+function SectionHeader({ title, large, Icon }: { title: string; large?: boolean; Icon?: React.ComponentType<{ size?: number; className?: string }> }) {
   return (
     <div className="flex items-center gap-4">
+      {Icon && <Icon size={16} className="text-aether-cyan/60 shrink-0" />}
       <h2 className={`font-display tracking-widest uppercase ${large ? 'text-xl text-white/90' : 'text-base text-white/70'}`}>
         {title}
       </h2>
@@ -255,7 +256,9 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
   const affectionPct = ((affection + 200) / 400) * 100;
   const corrPct = corrStage ? (p.堕落值 / 500) * 100 : 0;
 
+  const clothing = p.着装 as Record<string, { 名称: string; 描述: string }> | undefined;
   const hasSocialCircle = p.社交圈 && Object.keys(p.社交圈).length > 0;
+  const hasClothing = clothing && Object.keys(clothing).length > 0;
   const hasStatus = p.状态 && Object.keys(p.状态).length > 0;
   const hasSkills = p.技能 && Object.keys(p.技能).length > 0;
   const bodyAttr = p.身体属性;
@@ -291,7 +294,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
 
       {/* ===== Affection / Friendliness ===== */}
       <section className="space-y-2">
-        <SectionHeader title={isFemale ? '好感阶段' : '友善阶段'} />
+        <SectionHeader title={isFemale ? '好感阶段' : '友善阶段'} Icon={Heart} />
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xl font-display font-bold italic tracking-wide" style={{ color: stage.color }}>
@@ -317,7 +320,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       {/* ===== Corruption (female only) ===== */}
       {corrStage && (
         <section className="space-y-2">
-          <SectionHeader title="堕落阶段" />
+          <SectionHeader title="堕落阶段" Icon={Shield} />
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xl font-display font-bold italic tracking-wide" style={{ color: corrStage.color }}>
@@ -341,73 +344,87 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
         </section>
       )}
 
-      {/* ===== Body Attributes ===== */}
-      {bodyAttr && (
+      {/* ===== Clothing (female only) ===== */}
+      {hasClothing && (
         <section className="space-y-4">
-          <SectionHeader title="身体属性" />
-          <div className="space-y-4">
-            {(['生命', '能量', 'SAN'] as const).map(key => {
-              const attr = bodyAttr[key] as { 当前: number; 上限: number } | undefined;
-              if (!attr) return null;
-              const pct = attr.上限 > 0 ? (attr.当前 / attr.上限) * 100 : 0;
-              const colors: Record<string, string> = { '生命': 'bg-red-500', '能量': 'bg-cyan-400', 'SAN': 'bg-aether-green' };
-              return (
-                <div key={key} className="space-y-1.5">
-                  <div className="flex justify-between items-end text-[11px] font-display tracking-widest">
-                    <span className="text-white/50">{key}</span>
-                    <span className="text-aether-cyan font-mono text-[10px] tabular-nums">
-                      {attr.当前} / {attr.上限}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-white/[0.04] border border-white/[0.08] overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      whileInView={{ width: `${pct}%` }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, ease: 'easeOut' }}
-                      className={`h-full ${colors[key]}`}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+          <SectionHeader title="着装" />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {Object.entries(clothing!).map(([slot, item]) => (
+              <div key={slot}
+                className="p-3 border border-aether-border/20 bg-white/[0.02] hover:border-aether-cyan/40 hover:bg-aether-cyan/[0.03] transition-all duration-300">
+                <span className="text-[10px] font-mono text-aether-cyan/50">{slot}</span>
+                <p className="text-xs font-display text-white/70 mt-1 font-bold">{item.名称}</p>
+                <p className="text-[10px] font-mono text-white/35 mt-0.5 leading-relaxed">{item.描述}</p>
+              </div>
+            ))}
           </div>
         </section>
       )}
 
-      {/* ===== Attributes Grid ===== */}
-      {(baseAttr || specialAttr) && (
+      {/* ===== Body + Base/Special Attributes (merged, no divider) ===== */}
+      {(bodyAttr || baseAttr || specialAttr) && (
         <section className="space-y-4">
-          <SectionHeader title="属性" />
-          <div className="grid grid-cols-3 gap-3">
-            {baseAttr && (['力量', '体质', '精神', '敏捷'] as const).map(key => {
-              const v = baseAttr[key];
-              if (v === undefined) return null;
-              return (
-                <div key={key}
-                  className="p-4 border border-aether-border/20 bg-white/[0.02] hover:border-aether-cyan/40 hover:bg-aether-cyan/[0.03] transition-all duration-300">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs text-white/45 font-display tracking-wide">{key}</span>
-                    <span className="text-xl font-display font-bold text-white tabular-nums">{v}</span>
+          <SectionHeader title="属性" Icon={Zap} />
+          {bodyAttr && (
+            <div className="space-y-4">
+              {(['生命', '能量', 'SAN'] as const).map(key => {
+                const attr = bodyAttr[key] as { 当前: number; 上限: number } | undefined;
+                if (!attr) return null;
+                const pct = attr.上限 > 0 ? (attr.当前 / attr.上限) * 100 : 0;
+                const colors: Record<string, string> = { '生命': 'bg-red-500', '能量': 'bg-cyan-400', 'SAN': 'bg-aether-green' };
+                return (
+                  <div key={key} className="space-y-1.5">
+                    <div className="flex justify-between items-end text-[11px] font-display tracking-widest">
+                      <span className="text-white/50">{key}</span>
+                      <span className="text-aether-cyan font-mono text-[10px] tabular-nums">
+                        {attr.当前} / {attr.上限}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-white/[0.04] border border-white/[0.08] overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        whileInView={{ width: `${pct}%` }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.8, ease: 'easeOut' }}
+                        className={`h-full ${colors[key]}`}
+                      />
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-            {specialAttr && (['幸运', '魅力'] as const).map(key => {
-              const v = specialAttr[key];
-              if (v === undefined) return null;
-              const accent = key === '幸运' ? 'text-amber-400' : 'text-purple-400';
-              return (
-                <div key={key}
-                  className="p-4 border border-aether-border/20 bg-white/[0.02] hover:border-aether-cyan/40 hover:bg-aether-cyan/[0.03] transition-all duration-300">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs text-white/45 font-display tracking-wide">{key}</span>
-                    <span className={`text-xl font-display font-bold tabular-nums ${accent}`}>{v}</span>
+                );
+              })}
+            </div>
+          )}
+          {(baseAttr || specialAttr) && (
+            <div className="grid grid-cols-3 gap-3">
+              {baseAttr && (['力量', '体质', '精神', '敏捷'] as const).map(key => {
+                const v = baseAttr[key];
+                if (v === undefined) return null;
+                return (
+                  <div key={key}
+                    className="p-4 border border-aether-border/20 bg-white/[0.02] hover:border-aether-cyan/40 hover:bg-aether-cyan/[0.03] transition-all duration-300">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xs text-white/45 font-display tracking-wide">{key}</span>
+                      <span className="text-xl font-display font-bold text-white tabular-nums">{v}</span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+              {specialAttr && (['幸运', '魅力'] as const).map(key => {
+                const v = specialAttr[key];
+                if (v === undefined) return null;
+                const accent = key === '幸运' ? 'text-amber-400' : 'text-purple-400';
+                return (
+                  <div key={key}
+                    className="p-4 border border-aether-border/20 bg-white/[0.02] hover:border-aether-cyan/40 hover:bg-aether-cyan/[0.03] transition-all duration-300">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xs text-white/45 font-display tracking-wide">{key}</span>
+                      <span className={`text-xl font-display font-bold tabular-nums ${accent}`}>{v}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
