@@ -484,19 +484,16 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
 
       {/* ===== 身体开发 (collapsed by default, female only) ===== */}
       {p.身体开发 && Object.keys(p.身体开发).length > 0 && (
-        <section className="space-y-3">
+        <section className="border border-dashed border-pink-400/15 bg-pink-400/[0.02] px-5 py-4 space-y-4">
           <button
             onClick={() => setBodyOpen(!bodyOpen)}
-            className="flex items-center gap-4 w-full text-left group"
+            className="flex items-center gap-3 w-full text-left group"
           >
-            <div className="w-8 h-8 border border-aether-red/25 flex items-center justify-center shrink-0 group-hover:border-aether-red/40 transition-colors">
-              <Skull size={16} className="text-aether-red/50 group-hover:text-aether-red/70 transition-colors" />
-            </div>
-            <h2 className="font-display text-xl tracking-widest uppercase text-white/60 group-hover:text-white/80 transition-colors">
+            <span className="font-display text-sm tracking-[0.15em] uppercase text-pink-300/60 group-hover:text-pink-300/85 transition-colors">
               身体开发
-            </h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-aether-red/15 to-transparent" />
-            <span className="text-[10px] font-mono text-aether-red/35 group-hover:text-aether-red/50 transition-colors">
+            </span>
+            <div className="flex-1 h-px bg-[repeating-linear-gradient(to_right,transparent,transparent_3px,rgba(244,114,182,0.15)_3px,rgba(244,114,182,0.15)_5px)]" />
+            <span className="text-[10px] font-mono text-pink-300/30 group-hover:text-pink-300/50 transition-colors shrink-0">
               {bodyOpen ? '收起 ▲' : '展开 ▼'}
             </span>
           </button>
@@ -508,12 +505,12 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
               className="grid grid-cols-2 md:grid-cols-4 gap-3 overflow-hidden"
             >
               {Object.entries(p.身体开发 as Record<string, any>).map(([part, data]) => (
-                <div key={part} className="p-3 border border-aether-red/12 bg-aether-red/[0.02]">
+                <div key={part} className="p-3 border border-pink-400/10 bg-black/20">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] font-display font-bold text-aether-red/65">{part}</span>
-                    <span className="text-[10px] font-mono text-aether-red/35">{data.使用次数}次</span>
+                    <span className="text-[11px] font-display font-bold text-pink-300/60">{part}</span>
+                    <span className="text-[10px] font-mono text-pink-300/30">{data.使用次数}次</span>
                   </div>
-                  <p className="text-[10px] font-mono text-white/30 leading-relaxed">{data.描述}</p>
+                  <p className="text-[10px] font-mono text-white/25 leading-relaxed">{data.描述}</p>
                 </div>
               ))}
             </motion.div>
