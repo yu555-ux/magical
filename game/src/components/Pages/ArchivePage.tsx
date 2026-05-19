@@ -472,7 +472,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
               <button
                 key={key}
                 onClick={() => setSelectedStatus({ name: key, ...val })}
-                className="text-[11px] font-mono px-3 py-1 bg-aether-cyan/[0.06] border border-aether-cyan/20 text-aether-cyan/80 hover:bg-aether-cyan/[0.12] hover:border-aether-cyan/40 transition-colors clickable font-bold"
+                className="text-xs font-mono px-4 py-1.5 bg-aether-cyan/[0.08] border border-aether-cyan/40 text-aether-cyan/90 hover:bg-aether-cyan/[0.14] hover:border-aether-cyan/60 shadow-[0_0_8px_rgba(0,242,255,0.12)] hover:shadow-[0_0_14px_rgba(0,242,255,0.22)] transition-all clickable font-bold"
               >
                 {key}
               </button>
@@ -523,7 +523,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
                   className="relative p-5 glass-panel text-left group border border-aether-border/30 hover:border-aether-cyan/40 transition-colors overflow-hidden clickable"
                 >
                   <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                    <div className="relative group" title={`${skill.熟练度 ?? 0} / 999`}>
+                    <div className="relative group inline-flex" title={`${skill.熟练度 ?? 0} / 999`}>
                       <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${ps.border} ${ps.bg} ${ps.text} ${ps.glow}`}>
                         {stage}
                       </span>
@@ -621,7 +621,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="relative group" title={`${prof} / 999`}>
+                  <div className="relative group inline-flex" title={`${prof} / 999`}>
                     <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).border} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).bg} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).text} ${(PROFICIENCY_STYLES[stage] || PROFICIENCY_STYLES['初窥']).glow}`}>
                       {stage}
                     </span>
