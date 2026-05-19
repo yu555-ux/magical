@@ -5,6 +5,7 @@ import {
   Database,
   Diamond,
   Package,
+  Zap,
 } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { getDatabase } from '../../sillytavern/database';
@@ -117,6 +118,7 @@ function AttrCard({ name, value, accent }: { name: string; value: number; accent
 export default function PersonaPage() {
   const [selectedSkill, setSelectedSkill] = useState<any>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedStatus, setSelectedStatus] = useState<any>(null);
   const [protagonist, setProtagonist] = useState<Record<string, any>>({});
 
   // Read latest chat variables directly from IndexedDB
@@ -156,6 +158,7 @@ export default function PersonaPage() {
 
   const money = protagonist?.资源?.金钱;
   const 超凡资源 = protagonist?.资源?.超凡资源;
+  const statuses = protagonist?.状态 ?? {};
   const 持有物品 = protagonist?.持有物品 ?? {};
   const skills = protagonist?.技能 ?? {};
 
@@ -270,6 +273,38 @@ export default function PersonaPage() {
           ))}
         </div>
       </motion.section>
+
+      {/* ============================================================
+          STATUS EFFECTS
+          ============================================================ */}
+      {Object.keys(statuses).length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="space-y-4"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 border border-aether-cyan/40 flex items-center justify-center shrink-0">
+              <Zap size={16} className="text-aether-cyan" />
+            </div>
+            <h2 className="font-display text-xl tracking-widest uppercase text-white/90">状态</h2>
+            <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(statuses).map(([key, val]: [string, any]) => (
+              <button
+                key={key}
+                onClick={() => setSelectedStatus({ name: key, ...val })}
+                className="text-[11px] font-mono px-3 py-1 bg-aether-cyan/[0.06] border border-aether-cyan/20 text-aether-cyan/80 hover:bg-aether-cyan/[0.12] hover:border-aether-cyan/40 transition-colors clickable font-bold"
+              >
+                {key}
+              </button>
+            ))}
+          </div>
+        </motion.section>
+      )}
 
       {/* ============================================================
           SECTION 2 — SKILLS
@@ -528,6 +563,25 @@ export default function PersonaPage() {
             </div>
           </div>
         )})()}
+      </Modal>
+
+      <Modal isOpen={!!selectedStatus} onClose={() => setSelectedStatus(null)} title="状态详情">
+        {selectedStatus && (
+          <div className="space-y-6">
+            <div className="flex items-start justify-between border-b border-white/10 pb-4">
+              <h3 className="text-2xl font-display font-bold text-aether-cyan">{selectedStatus.name}</h3>
+              {selectedStatus.持续时间 && (
+                <span className="text-xs font-mono text-white/30 shrink-0 mt-1">{selectedStatus.持续时间}</span>
+              )}
+            </div>
+            {selectedStatus.描述 && (
+              <div>
+                <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4>
+                <p className="text-sm text-white/80 leading-relaxed">{selectedStatus.描述}</p>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </main>
   );

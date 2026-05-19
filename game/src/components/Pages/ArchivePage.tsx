@@ -552,8 +552,8 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       )}
 
       {/* ===== Equipment ===== */}
-      {p.奇物 && (['灵宝', '诡物', '物品'] as const).map((category) => {
-        const items = p.奇物[category] ?? {};
+      {p.所持物品 && (['灵宝', '诡物', '物品'] as const).map((category) => {
+        const items = p.所持物品[category] ?? {};
         const itemEntries = Object.entries(items);
         if (itemEntries.length === 0) return null;
         const meta = CATEGORY_META[category];
@@ -738,40 +738,12 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
                 <span className="text-xs font-mono text-white/30 shrink-0 mt-1">{selectedStatus.持续时间}</span>
               )}
             </div>
-            <div className="space-y-4">
-              {selectedStatus.描述 && (
-                <div>
-                  <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4>
-                  <p className="text-sm text-white/80 leading-relaxed">{selectedStatus.描述}</p>
-                </div>
-              )}
-              {selectedStatus.效果 && Object.keys(selectedStatus.效果).length > 0 && (
-                <div>
-                  <h4 className="text-[10px] text-aether-green uppercase tracking-widest mb-3 font-mono">效果</h4>
-                  <div className="space-y-2">
-                    {Object.entries(selectedStatus.效果 as Record<string, string>).map(([k, v]) => (
-                      <div key={k} className="p-3 bg-aether-green/[0.04] border border-aether-green/20">
-                        <h5 className="text-[11px] font-display font-bold text-aether-green/70 mb-1">{k}</h5>
-                        <p className="text-[11px] text-white/60 leading-relaxed">{v}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {selectedStatus.副作用 && Object.keys(selectedStatus.副作用).length > 0 && (
-                <div>
-                  <h4 className="text-[10px] text-aether-red uppercase tracking-widest mb-3 font-mono">副作用</h4>
-                  <div className="space-y-2">
-                    {Object.entries(selectedStatus.副作用 as Record<string, string>).map(([k, v]) => (
-                      <div key={k} className="p-3 bg-aether-red/[0.04] border border-aether-red/20">
-                        <h5 className="text-[11px] font-display font-bold text-aether-red/70 mb-1">{k}</h5>
-                        <p className="text-[11px] text-white/60 leading-relaxed">{v}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            {selectedStatus.描述 && (
+              <div>
+                <h4 className="text-[10px] text-aether-blue uppercase tracking-widest mb-2 font-mono">描述</h4>
+                <p className="text-sm text-white/80 leading-relaxed">{selectedStatus.描述}</p>
+              </div>
+            )}
           </div>
         )}
       </Modal>
