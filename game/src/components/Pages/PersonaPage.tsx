@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { getDatabase } from '../../sillytavern/database';
+import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 
 /* ==============================================================
    TYPE / CONSTANT HELPERS
@@ -160,7 +161,7 @@ export default function PersonaPage() {
   const money = protagonist?.资源?.金钱;
   const 超凡资源 = protagonist?.资源?.超凡资源;
   const statuses = protagonist?.状态 ?? {};
-  const genitals = protagonist?.性器 ?? {};
+  const genitals = protagonist?.性器 ?? (DEFAULT_WORLD_VARS as any).主角?.性器 ?? {};
   const 持有物品 = protagonist?.持有物品 ?? {};
   const skills = protagonist?.技能 ?? {};
 
