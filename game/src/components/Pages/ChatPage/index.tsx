@@ -176,23 +176,15 @@ export default function ChatPage({
               <motion.div
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-center space-y-8 max-w-sm"
+                className="text-center space-y-6 max-w-sm"
               >
-                <div className="relative inline-flex items-center justify-center">
-                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 24, repeat: Infinity, ease: 'linear' }} className="absolute w-28 h-28 border border-aether-cyan/[0.08]" />
-                  <motion.div animate={{ rotate: -360 }} transition={{ duration: 16, repeat: Infinity, ease: 'linear' }} className="absolute w-20 h-20 border border-aether-cyan/[0.18]" />
-                  <div className="w-20 h-20 border border-aether-cyan/30 rotate-45 flex items-center justify-center bg-aether-dark/40 shadow-[0_0_40px_rgba(0,242,255,0.06)]">
-                    <span className="-rotate-45 font-display text-lg font-black text-aether-cyan/50 tracking-widest">异</span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <h2 className="font-display text-3xl font-black text-aether-cyan tracking-[0.12em] drop-shadow-[0_0_16px_rgba(0,242,255,0.2)]">
-                    梦 · 异常
-                  </h2>
-                  <p className="text-[13px] text-white/20 font-mono tracking-[0.15em]">
-                    :: 收容异常 · 维持秩序 ::
-                  </p>
-                </div>
+                <h2 className="font-display text-3xl font-black text-aether-cyan/80 tracking-[0.15em]">
+                  梦 · 异常
+                </h2>
+                <div className="w-12 h-[1px] mx-auto bg-gradient-to-r from-transparent via-aether-cyan/30 to-transparent" />
+                <p className="text-[12px] text-white/15 font-mono tracking-[0.2em]">
+                  收容异常 · 维持秩序
+                </p>
               </motion.div>
             </div>
           ) : (
