@@ -6,81 +6,81 @@ interface Props {
 }
 
 /* ============================================================
-   CONFIG — stacked squares
+   STACKED SQUARES CONFIG
    ============================================================ */
 interface SquareConfig {
-  size: number;       // px
-  speed: number;      // seconds per full rotation
-  direction: 1 | -1;  // 1=CW, -1=CCW
+  size: number;
+  speed: number;
+  direction: 1 | -1;
   borderWidth: number;
   borderColor: string;
   borderStyle: 'solid' | 'dashed' | 'dotted';
-  opacity: number;
-  glowIntensity: number;
+  glow: number;
 }
 
-const RINGS: SquareConfig[] = [
-  { size: 300, speed: 40, direction: 1,  borderWidth: 1, borderColor: 'rgba(0,242,255,0.06)', borderStyle: 'dashed', opacity: 0.6,  glowIntensity: 0 },
-  { size: 250, speed: 32, direction: -1, borderWidth: 1, borderColor: 'rgba(0,242,255,0.10)', borderStyle: 'solid',  opacity: 0.7,  glowIntensity: 0 },
-  { size: 195, speed: 24, direction: 1,  borderWidth: 1, borderColor: 'rgba(0,242,255,0.16)', borderStyle: 'dotted', opacity: 0.8,  glowIntensity: 0 },
-  { size: 145, speed: 18, direction: -1, borderWidth: 1.5, borderColor: 'rgba(0,242,255,0.22)', borderStyle: 'solid',  opacity: 0.85, glowIntensity: 2 },
-  { size: 100, speed: 13, direction: 1,  borderWidth: 1.5, borderColor: 'rgba(0,242,255,0.28)', borderStyle: 'dashed', opacity: 0.9,  glowIntensity: 4 },
-  { size: 60,  speed: 8,  direction: -1, borderWidth: 2,   borderColor: 'rgba(0,242,255,0.38)', borderStyle: 'solid',  opacity: 1,    glowIntensity: 8 },
-  { size: 30,  speed: 5,  direction: 1,  borderWidth: 2,   borderColor: 'rgba(0,242,255,0.50)', borderStyle: 'solid',  opacity: 1,    glowIntensity: 12 },
+const SQUARES: SquareConfig[] = [
+  { size: 300, speed: 40, direction: 1,  borderWidth: 1,   borderColor: 'rgba(0,242,255,0.06)', borderStyle: 'dashed', glow: 0 },
+  { size: 250, speed: 32, direction: -1, borderWidth: 1,   borderColor: 'rgba(0,242,255,0.10)', borderStyle: 'solid',  glow: 0 },
+  { size: 195, speed: 24, direction: 1,  borderWidth: 1,   borderColor: 'rgba(0,242,255,0.16)', borderStyle: 'dotted', glow: 0 },
+  { size: 145, speed: 18, direction: -1, borderWidth: 1.5, borderColor: 'rgba(0,242,255,0.22)', borderStyle: 'solid',  glow: 2 },
+  { size: 100, speed: 13, direction: 1,  borderWidth: 1.5, borderColor: 'rgba(0,242,255,0.28)', borderStyle: 'dashed', glow: 4 },
+  { size: 60,  speed: 8,  direction: -1, borderWidth: 2,   borderColor: 'rgba(0,242,255,0.38)', borderStyle: 'solid',  glow: 8 },
+  { size: 30,  speed: 5,  direction: 1,  borderWidth: 2,   borderColor: 'rgba(0,242,255,0.50)', borderStyle: 'solid',  glow: 14 },
 ];
 
 /* ============================================================
-   PARTICLE SWARM
+   PARTICLE GENERATOR
    ============================================================ */
-const PARTICLE_PRESETS = [
-  { bg: '#00f2ff', glow: '0 0 5px rgba(0,242,255,0.6)',   size: 1.5 },
-  { bg: '#a78bfa', glow: '0 0 5px rgba(167,139,250,0.5)', size: 1.2 },
-  { bg: '#f472b6', glow: '0 0 5px rgba(244,114,182,0.45)', size: 1.0 },
-  { bg: '#34d399', glow: '0 0 4px rgba(52,211,153,0.4)',  size: 0.8 },
-  { bg: '#fbbf24', glow: '0 0 4px rgba(251,191,36,0.35)', size: 1.0 },
+const COLORS = [
+  { bg: '#00f2ff', glow: '0 0 5px rgba(0,242,255,0.55)' },
+  { bg: '#a78bfa', glow: '0 0 4px rgba(167,139,250,0.45)' },
+  { bg: '#f472b6', glow: '0 0 4px rgba(244,114,182,0.4)' },
+  { bg: '#34d399', glow: '0 0 4px rgba(52,211,153,0.35)' },
+  { bg: '#fbbf24', glow: '0 0 4px rgba(251,191,36,0.3)' },
 ];
 
-function particle(i: number) {
-  const p = PARTICLE_PRESETS[i % PARTICLE_PRESETS.length];
-  const startX = 20 + Math.random() * 60;    // % from left
-  const startY = 55 + Math.random() * 35;    // % from top
-  const duration = 3.5 + Math.random() * 6;
-  const driftX = (Math.random() - 0.5) * 80;
-  const driftY = -40 - Math.random() * 100;
-  return { ...p, startX, startY, duration, driftX, driftY, delay: Math.random() * 5 };
+function makeParticle(i: number) {
+  const c = COLORS[i % COLORS.length];
+  return {
+    ...c,
+    size: 0.8 + Math.random() * 1.2,
+    left: 18 + Math.random() * 64,
+    top: 50 + Math.random() * 40,
+    driftX: (Math.random() - 0.5) * 70,
+    driftY: -40 - Math.random() * 90,
+    duration: 3 + Math.random() * 6,
+    delay: Math.random() * 5,
+  };
 }
 
 /* ============================================================
    COMPONENT
    ============================================================ */
 export default function EntryOverlay({ onComplete }: Props) {
-  const [phase, setPhase] = useState<'show' | 'exit'>('show');
-  const [scanAngle, setScanAngle] = useState(0);
-  const particles = useMemo(() => Array.from({ length: 20 }, (_, i) => particle(i)), []);
+  const [phase, setPhase] = useState<'logo' | 'menu' | 'exit'>('logo');
+  const particles = useMemo(() => Array.from({ length: 18 }, (_, i) => makeParticle(i)), []);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('exit'), 2800);
-    const t2 = setTimeout(() => onComplete(), 3500);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [onComplete]);
-
-  useEffect(() => {
-    const iv = setInterval(() => setScanAngle(a => (a + 0.6) % 360), 25);
-    return () => clearInterval(iv);
+    const t1 = setTimeout(() => setPhase('menu'), 2200);
+    return () => clearTimeout(t1);
   }, []);
+
+  const logoY = phase === 'menu' || phase === 'exit' ? -100 : 0;
+  const logoScale = phase === 'menu' || phase === 'exit' ? 0.55 : 1;
+  const logoOpacity = phase === 'exit' ? 0 : 1;
 
   return (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 1 }}
         exit={{ opacity: 0, filter: 'blur(3px) saturate(0.3)' }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed inset-0 z-[9999] bg-[#000a0d] flex items-center justify-center overflow-hidden"
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="fixed inset-0 z-[9999] bg-[#000a0d] flex flex-col items-center justify-center overflow-hidden"
       >
-        {/* ─── Radial vignette ─── */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_15%,_rgba(0,0,0,0.65)_100%)]" />
+        {/* Radial vignette */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_18%,_rgba(0,0,0,0.6)_100%)]" />
 
-        {/* ─── Subtle grid floor ─── */}
+        {/* Subtle floor grid */}
         <div
           className="absolute inset-0 opacity-[0.015]"
           style={{
@@ -89,29 +89,11 @@ export default function EntryOverlay({ onComplete }: Props) {
               linear-gradient(90deg, rgba(0,242,255,0.2) 1px, transparent 1px)
             `,
             backgroundSize: '36px 36px',
-            maskImage: 'radial-gradient(ellipse at center, black 25%, transparent 60%)',
+            maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 60%)',
           }}
         />
 
-        {/* ─── Scanning arc ─── */}
-        <div className="absolute w-[380px] h-[380px] rounded-full pointer-events-none overflow-hidden opacity-30">
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: `conic-gradient(from ${scanAngle}deg, transparent 0deg, rgba(0,242,255,0.2) 6deg, transparent 16deg, transparent 360deg)`,
-            }}
-          />
-        </div>
-
-        {/* ─── Outer breathing halo ─── */}
-        <motion.div
-          className="absolute w-[380px] h-[380px] rounded-full pointer-events-none"
-          style={{ border: '1px solid rgba(0,242,255,0.04)' }}
-          animate={{ scale: [1, 1.06, 1], opacity: [0.25, 0.45, 0.25] }}
-          transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-        />
-
-        {/* ─── Corner bracket accents ─── */}
+        {/* Corner accents */}
         {['top-6 left-6', 'top-6 right-6', 'bottom-6 left-6', 'bottom-6 right-6'].map((pos, i) => {
           const [v, h] = pos.split(' ');
           const bv = v === 'top-6' ? 'border-t' : 'border-b';
@@ -120,54 +102,52 @@ export default function EntryOverlay({ onComplete }: Props) {
             <motion.div
               key={i}
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.25 }}
+              animate={{ opacity: 0.22 }}
               transition={{ delay: 1 + i * 0.1, duration: 0.6 }}
-              className={`absolute ${v} ${h} w-7 h-7 ${bv} ${bh} border-aether-cyan/20 pointer-events-none`}
+              className={`absolute ${v} ${h} w-7 h-7 ${bv} ${bh} border-aether-cyan/18 pointer-events-none`}
             />
           );
         })}
 
-        {/* ═══════════════════════════════════════════
-            STACKED ROTATING SQUARES
-            ═══════════════════════════════════════════ */}
-        <div className="relative flex items-center justify-center z-10">
-          {RINGS.map((cfg, i) => (
+        {/* ═══════════════════════════════════
+            STACKED ROTATING SQUARES — LOGO
+            ═══════════════════════════════════ */}
+        <motion.div
+          className="relative flex items-center justify-center z-10"
+          animate={{ y: logoY, scale: logoScale, opacity: logoOpacity }}
+          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {SQUARES.map((cfg, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, rotate: cfg.direction === 1 ? -15 : 15 }}
+              initial={{ opacity: 0, rotate: cfg.direction === 1 ? -12 : 12 }}
               animate={{
-                opacity: cfg.opacity,
+                opacity: 1,
                 rotate: cfg.direction === 1 ? 360 : -360,
               }}
               transition={{
-                opacity: { duration: 0.5, delay: 0.1 + i * 0.08, ease: 'easeOut' },
-                rotate: {
-                  duration: cfg.speed,
-                  repeat: Infinity,
-                  ease: 'linear',
-                  delay: i * 0.2,
-                },
+                opacity: { duration: 0.45, delay: 0.08 + i * 0.06, ease: 'easeOut' },
+                rotate: { duration: cfg.speed, repeat: Infinity, ease: 'linear', delay: i * 0.15 },
               }}
               className="absolute rounded-[2px]"
               style={{
                 width: cfg.size,
                 height: cfg.size,
                 border: `${cfg.borderWidth}px ${cfg.borderStyle} ${cfg.borderColor}`,
-                boxShadow: cfg.glowIntensity > 0
-                  ? `0 0 ${cfg.glowIntensity}px rgba(0,242,255,${cfg.glowIntensity * 0.015})`
+                boxShadow: cfg.glow > 0
+                  ? `0 0 ${cfg.glow}px rgba(0,242,255,${cfg.glow * 0.014})`
                   : 'none',
               }}
             />
           ))}
 
-          {/* ─── Center crystal (鉴灵碑) ─── */}
+          {/* Center crystal */}
           <motion.div
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.45, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="absolute flex items-center justify-center"
           >
-            {/* Inner diamond */}
             <motion.div
               animate={{ rotate: [0, 360] }}
               transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
@@ -180,27 +160,78 @@ export default function EntryOverlay({ onComplete }: Props) {
               }}
             />
           </motion.div>
-        </div>
+        </motion.div>
 
-        {/* ─── Particle swarm ─── */}
+        {/* ═══════════════════════════════════
+            MENU BUTTONS
+            ═══════════════════════════════════ */}
+        <motion.div
+          className="flex flex-col items-center gap-4 z-10"
+          initial={{ opacity: 0 }}
+          animate={{
+            opacity: phase === 'menu' ? 1 : 0,
+            y: phase === 'menu' ? 0 : 20,
+          }}
+          transition={{ duration: 0.5, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          style={{ pointerEvents: phase === 'menu' ? 'auto' : 'none' }}
+        >
+          {/* "开始新游戏" — primary */}
+          <motion.button
+            onClick={() => { setPhase('exit'); setTimeout(onComplete, 650); }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            className="relative px-12 py-3.5 font-display text-base tracking-[0.2em] text-aether-cyan/90
+                       border border-aether-cyan/30 bg-aether-cyan/[0.04]
+                       hover:border-aether-cyan/50 hover:bg-aether-cyan/[0.08]
+                       hover:shadow-[0_0_24px_rgba(0,242,255,0.15)]
+                       transition-all duration-300 clickable select-none"
+          >
+            开始新游戏
+            <motion.div
+              className="absolute inset-0 pointer-events-none"
+              animate={{ opacity: [0.3, 0.6, 0.3] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              style={{
+                boxShadow: 'inset 0 0 20px rgba(0,242,255,0.04)',
+              }}
+            />
+          </motion.button>
+
+          {/* "继续游戏" — secondary */}
+          <motion.button
+            onClick={() => { setPhase('exit'); setTimeout(onComplete, 650); }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            className="px-10 py-2.5 font-display text-sm tracking-[0.15em] text-white/25
+                       border border-white/[0.06] hover:border-aether-cyan/20
+                       hover:text-aether-cyan/50 hover:bg-aether-cyan/[0.02]
+                       transition-all duration-300 clickable select-none"
+          >
+            继续游戏
+          </motion.button>
+        </motion.div>
+
+        {/* ═══════════════════════════════════
+            PARTICLE SWARM
+            ═══════════════════════════════════ */}
         {particles.map((p, i) => (
           <motion.div
             key={i}
             className="absolute rounded-full pointer-events-none"
             style={{
-              left: `${p.startX}%`,
-              top: `${p.startY}%`,
+              left: `${p.left}%`,
+              top: `${p.top}%`,
               width: p.size,
               height: p.size,
               background: p.bg,
               boxShadow: p.glow,
             }}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{
-              opacity: [0, 0.55, 0.12, 0],
+              opacity: [0, 0.5, 0.1, 0],
               y: [0, p.driftY * 0.5, p.driftY],
               x: [0, p.driftX * 0.4, p.driftX],
-              scale: [0.5, 1.1, 0.3],
+              scale: [0.4, 1, 0.25],
             }}
             transition={{
               duration: p.duration,
