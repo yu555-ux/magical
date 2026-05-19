@@ -24,11 +24,11 @@ export default function App() {
   // Post-entry welcome toasts
   useEffect(() => {
     if (!entryDone) return;
-    addToast('神经连接协议已通过 [AETHER_LINK]', 'success');
-    addNotification('系统连接', '与以太网络的神经链接已建立，共振频率稳定。', 'success');
+    addToast('鉴灵碑同步完成 · 夏城分局已连接', 'success');
+    addNotification('异常监测网络', '区域扫描完成，蝶烬波动处于安全阈值内。', 'success');
     setTimeout(() => {
-      addToast('环境干扰读数正常。请开始探索。', 'info');
-      addNotification('环境扫描完成', '当前区域以太波动在安全阈值内，可自由行动。', 'info');
+      addToast('认知过滤已激活 · 终端就绪', 'info');
+      addNotification('终端就绪', '异常管理局夏城分局终端已启动。收容异常，维持秩序。', 'info');
     }, 2000);
   }, [entryDone]);
 
