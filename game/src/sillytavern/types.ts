@@ -31,10 +31,6 @@ export interface LorebookEntry {
   excludeRecursion?: boolean;
   preventRecursion?: boolean;
   delayUntilRecursion?: boolean;
-  useGroupScoring?: boolean;
-  group?: string;
-  groupWeight?: number;
-  groupOverride?: boolean;
   outletName?: string;
   ignoreBudget?: boolean;
   matchPersonaDescription?: boolean;
@@ -95,9 +91,6 @@ export interface SillyTavernLorebookExport {
     excludeRecursion: boolean;
     preventRecursion: boolean;
     delayUntilRecursion: boolean;
-    useGroupScoring: boolean;
-    groupWeight: number;
-    groupOverride: boolean;
     outletName: string;
     ignoreBudget: boolean;
     matchPersonaDescription: boolean;
@@ -329,4 +322,4 @@ export interface VarsPatch {
 }
 
 export type Task = 'story' | 'summary' | 'vars';
-export type ApiTarget = 'primary' | 'secondary';
+export type ApiTarget = 'primary' | 'secondary' | 'dual';
