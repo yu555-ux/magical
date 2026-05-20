@@ -157,13 +157,26 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
     if (files.length === 0) return;
     const inputs = await Promise.all(files.map(async (f: File) => ({ fileName: f.name, json: JSON.parse(await f.text()) })));
     const { successes, failures } = importMultipleLorebooks(inputs);
+    const newIds: string[] = [];
     for (const s of successes) {
       const name = s.lorebook.name !== '导入的世界书' ? s.lorebook.name : s.fileName.replace(/\.json$/i, '');
-      await ss.addLorebook({ ...s.lorebook, name, id: crypto.randomUUID(), createdAt: Date.now(), updatedAt: Date.now() });
+      const id = crypto.randomUUID();
+      await ss.addLorebook({ ...s.lorebook, name, id, createdAt: Date.now(), updatedAt: Date.now() });
+      newIds.push(id);
     }
     if (failures.length) showToast(`${failures.length} 个文件导入失败`, 'error');
     setLorebookList(await db.lorebooks.toArray());
-    if (successes.length) showToast(`成功导入 ${successes.length} 本世界书`, 'success');
+    // Auto-activate imported worldbooks
+    if (newIds.length > 0) {
+      const currentIds = new Set(lorebookActiveIds);
+      newIds.forEach(id => currentIds.add(id));
+      setLorebookActiveIds(currentIds);
+      const settings = await db.settings.toArray();
+      if (settings[0]) {
+        await db.settings.put({ ...settings[0], activeLorebookIds: Array.from(currentIds) });
+      }
+    }
+    if (successes.length) showToast(`成功导入 ${successes.length} 本世界书（已自动激活）`, 'success');
     e.target.value = '';
   };
 
@@ -245,8 +258,11 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       const data = JSON.parse(await file.text());
       const imported = importPreset(data);
       const fallbackName = file.name.replace(/\.json$/i, '');
-      await ss.addPreset({ ...imported, name: imported.name !== '导入的预设' ? imported.name : fallbackName, id: crypto.randomUUID(), createdAt: Date.now(), updatedAt: Date.now() });
-      showToast(`预设 "${imported.name}" 已导入`, 'success');
+      const newId = crypto.randomUUID();
+      await ss.addPreset({ ...imported, name: imported.name !== '导入的预设' ? imported.name : fallbackName, id: newId, createdAt: Date.now(), updatedAt: Date.now() });
+      // Auto-activate imported preset
+      await ss.updateSettings({ activePresetId: newId });
+      showToast(`预设 "${imported.name}" 已导入并激活`, 'success');
     } catch { showToast('导入失败: 文件格式无效', 'error'); }
     e.target.value = '';
   };
