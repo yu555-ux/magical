@@ -221,6 +221,10 @@ export function replaceMacros(template: string, context: MacroContext): string {
     .replace(/\{\{char\}\}/g, context.characterName)
     .replace(/\{\{original\}\}/g, context.userInput);
 
+  // Chaoxi/ST special macros
+  result = result.replace(/\{\{\s*\/\/[^}]*\}\}/g, ''); // {{// comment}} → remove
+  result = result.replace(/\{\{trim\}\}/gi, '');          // {{trim}} → remove
+
   if (context.variables) {
     result = result.replace(/\{\{([^{}]+)\}\}/g, (match, key) => {
       const value = context.variables?.[key.trim()];
