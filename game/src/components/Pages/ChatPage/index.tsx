@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Send, X } from 'lucide-react';
 import ChatHeader from './ChatHeader';
 import PlotReaderModal from './PlotReaderModal';
 import VariableViewerModal from './VariableViewerModal';
+import SavePointModal from './SavePointModal';
 import { useSillytavern } from '../../../hooks/useSillytavern';
 
 export default function ChatPage({
@@ -22,6 +23,7 @@ export default function ChatPage({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [readerOpen, setReaderOpen] = useState(false);
   const [varViewerOpen, setVarViewerOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const [rawViewOpen, setRawViewOpen] = useState(false);
   const [rawViewPos, setRawViewPos] = useState({ x: 0, y: 0 });
   const [rawContent, setRawContent] = useState('');
@@ -60,6 +62,11 @@ export default function ChatPage({
     : (latestAssistant?.parsed?.maintext ?? latestAssistant?.content ?? '');
 
   // Clean and cap options: strip "N|" prefix, limit to 5
+  const savePointCount = useMemo(() => {
+    const msgs = ss.activeChat?.messages ?? [];
+    return msgs.filter(m => m.role === 'assistant' && m.parsed?.history).length;
+  }, [ss.activeChat?.messages]);
+
   const cleanOption = (raw: string) => raw.replace(/^[^|｜]*[|｜]\s*/, '');
   const rawOptions = isStreaming
     ? ss.streamState.options
@@ -120,10 +127,11 @@ export default function ChatPage({
 
         <ChatHeader
           variables={ss.activeChat?.variables}
-          messages={ss.activeChat?.messages}
+          messagesCount={savePointCount}
+          hasSavePoints={savePointCount > 0}
           onOpenReader={() => setReaderOpen(true)}
           onOpenVariables={() => setVarViewerOpen(true)}
-          onJumpToFloor={(id) => ss.jumpToFloor(id)}
+          onOpenSave={() => setSaveOpen(true)}
         />
 
         {/* ── Streaming indicator ── */}
@@ -326,6 +334,14 @@ export default function ChatPage({
         onClose={() => setVarViewerOpen(false)}
         variables={ss.activeChat?.variables ?? {}}
         onSave={(vars) => ss.setChatVariables(vars)}
+      />
+
+      {/* ── Save Point Modal ── */}
+      <SavePointModal
+        isOpen={saveOpen}
+        onClose={() => setSaveOpen(false)}
+        messages={ss.activeChat?.messages ?? []}
+        onJumpToFloor={(id) => ss.jumpToFloor(id)}
       />
 
       {/* ── Context menu ── */}
