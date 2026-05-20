@@ -319,6 +319,10 @@ export function useSillytavern() {
 
       const activeLorebookIds = new Set(effectiveSettings.activeLorebookIds ?? []);
       const effectiveLorebooks = await getLorebooks();
+      // Safety net: if lorebooks exist but none activated, activate all
+      if (activeLorebookIds.size === 0 && effectiveLorebooks.length > 0) {
+        effectiveLorebooks.forEach(l => activeLorebookIds.add(l.id));
+      }
       const effectivePresets = await getPresets();
       const activePresetId = effectiveSettings.activePresetId;
       const activePreset = effectivePresets.find((p: any) => p.id === activePresetId) ?? effectivePresets[0];

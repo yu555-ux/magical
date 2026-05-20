@@ -85,15 +85,15 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     const orderEntry = promptOrder.find(p => p.identifier === identifier);
     if (orderEntry?.content?.trim()) return orderEntry.content;
 
-    // 2) Chaoxi-style: content in prompts array (matching identifier)
-    const customPrompt = prompts.find(p => p.identifier === identifier);
-    if (customPrompt?.content?.trim()) return customPrompt.content;
-
-    // 3) Dynamic lorebook injection
+    // 2) Dynamic lorebook injection (must run BEFORE prompts lookup)
     if (identifier === 'worldInfoBefore' || identifier === 'worldInfoAfter') {
       const content = uniqueEntries.map(e => e.entry.content).join('\n\n');
       return content || null;
     }
+
+    // 3) Chaoxi-style: content in prompts array
+    const customPrompt = prompts.find(p => p.identifier === identifier);
+    if (customPrompt?.content?.trim()) return customPrompt.content;
 
     // 4) Character card / scenario placeholders
     if (identifier === 'charDescription') return preset.settings.character_description || null;
