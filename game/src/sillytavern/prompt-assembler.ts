@@ -17,10 +17,20 @@ export interface AssembleOptions {
   extraVariables?: Record<string, any>;
 }
 
+export interface PromptSection {
+  identifier: string;
+  name: string;
+  role: string;
+  enabled: boolean;
+  content: string | null;
+  source: 'preset' | 'lorebook' | 'variables' | 'custom';
+}
+
 export interface AssembleResult {
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
   matchedEntries: MatchedEntry[];
   systemPrompt: string;
+  sections: PromptSection[];
 }
 
 export function assemblePrompt(options: AssembleOptions): AssembleResult {
@@ -110,14 +120,19 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   }
 
   const assembledMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
+  const sections: PromptSection[] = [];
   let systemAccumulator = '';
   let hasChatHistory = false;
 
   for (const item of promptOrder) {
-    if (item.enabled === false) continue;
+    if (item.enabled === false) {
+      sections.push({ identifier: item.identifier, name: item.name || item.identifier, role: item.role || 'system', enabled: false, content: null, source: 'preset' });
+      continue;
+    }
 
     if (item.identifier === 'chatHistory') {
       hasChatHistory = true;
+      sections.push({ identifier: 'chatHistory', name: '对话历史', role: 'system', enabled: true, content: `[${recentHistory.length} 条历史消息]`, source: 'preset' });
       if (systemAccumulator) {
         assembledMessages.push({ role: 'system', content: systemAccumulator });
         systemAccumulator = '';
@@ -127,10 +142,23 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     }
 
     const rawContent = resolvePromptContent(item.identifier);
-    if (!rawContent) continue;
+    let source: PromptSection['source'] = 'preset';
+    if (item.identifier === 'worldInfoBefore' || item.identifier === 'worldInfoAfter') {
+      source = 'lorebook';
+    }
+
+    if (!rawContent) {
+      sections.push({ identifier: item.identifier, name: item.name || item.identifier, role: item.role || 'system', enabled: true, content: null, source });
+      continue;
+    }
 
     let content = replaceMacros(rawContent, { userName, characterName, userInput, variables });
-    if (!content.trim()) continue;
+    if (!content.trim()) {
+      sections.push({ identifier: item.identifier, name: item.name || item.identifier, role: item.role || 'system', enabled: true, content: null, source });
+      continue;
+    }
+
+    sections.push({ identifier: item.identifier, name: item.name || item.identifier, role: item.role || 'system', enabled: true, content, source });
 
     const role = item.role || 'system';
     if (role === 'system') {
@@ -147,6 +175,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   const variablesBlock = formatVariablesForPrompt(variables || {});
   if (variablesBlock) {
     systemAccumulator += (systemAccumulator ? '\n\n' : '') + variablesBlock;
+    sections.push({ identifier: 'variables', name: '当前状态', role: 'system', enabled: true, content: variablesBlock, source: 'variables' });
   }
 
   if (extraVariables && Object.keys(extraVariables).length > 0) {
@@ -175,6 +204,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     messages: assembledMessages,
     matchedEntries: uniqueEntries,
     systemPrompt,
+    sections,
   };
 }
 
