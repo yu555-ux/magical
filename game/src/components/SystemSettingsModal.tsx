@@ -1242,13 +1242,22 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                         </label>
                                       </div>
 
+                                      {/* Main prompt — always visible */}
+                                      <div className="bg-aether-dark/40 rounded-lg border border-aether-purple/20 p-3">
+                                        <h4 className="text-[10px] font-display font-semibold text-aether-purple/60 uppercase tracking-wider mb-2">系统指令 (Main)</h4>
+                                        <textarea value={presetDraftFull.settings.main ?? ''}
+                                          onChange={e => presetPatchSettings({ main: e.target.value })}
+                                          rows={5}
+                                          placeholder="核心角色扮演指令，标签格式要求写在此处..."
+                                          className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono leading-relaxed" />
+                                        <p className="text-[9px] text-white/12 mt-1">支持宏：{`{{user}}`} {`{{char}}`} {`{{original}}`} {`{{变量名}}`}</p>
+                                      </div>
+
                                       {/* Sub-tabs */}
                                       <div className="flex gap-1 flex-wrap">
                                         {([
                                           ['sampling', '采样参数'],
-                                          ['prompts', 'Prompt 文本'],
                                           ['custom', '自定义 Prompt'],
-                                          ['order', '排序'],
                                         ] as const).map(([id, label]) => (
                                           <button key={id}
                                             onClick={() => setPresetSubTab(id)}
@@ -1259,6 +1268,50 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                             }`}
                                           >{label}</button>
                                         ))}
+                                        {/* Other prompt texts — collapsible */}
+                                        <details className="inline-flex">
+                                          <summary className="px-3 py-1.5 rounded-full text-[11px] font-display tracking-wide text-white/25 hover:text-white/45 cursor-pointer border border-transparent hover:border-white/10 transition-all select-none">更多 Prompt ▾</summary>
+                                          <div className="mt-2 space-y-3 w-full absolute left-0 right-0 bg-aether-deep/98 border border-aether-border/20 rounded-lg p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-10 max-h-[50vh] overflow-y-auto">
+                                            <div className="flex gap-3">
+                                              <label className="flex-1">
+                                                <span className="block text-[10px] text-white/30 mb-1">NSFW 提示</span>
+                                                <textarea value={presetDraftFull.settings.nsfw ?? ''}
+                                                  onChange={e => presetPatchSettings({ nsfw: e.target.value })}
+                                                  rows={2}
+                                                  className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
+                                              </label>
+                                              <label className="flex-1">
+                                                <span className="block text-[10px] text-white/30 mb-1">越狱 (Jailbreak)</span>
+                                                <textarea value={presetDraftFull.settings.jailbreak ?? ''}
+                                                  onChange={e => presetPatchSettings({ jailbreak: e.target.value })}
+                                                  rows={2}
+                                                  className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
+                                              </label>
+                                            </div>
+                                            <div className="flex flex-wrap gap-3">
+                                              {([
+                                                ['impersonation_prompt', '扮演提示'],
+                                                ['scenario_format', '场景格式'],
+                                                ['personality_format', '性格格式'],
+                                                ['enhanceDefinitions', '增强定义'],
+                                                ['new_chat_prompt', '新对话提示'],
+                                                ['continue_nudge_prompt', '继续推动提示'],
+                                                ['wi_format', '世界书格式'],
+                                                ['group_nudge_prompt', '群组推动提示'],
+                                                ['new_group_chat_prompt', '新群聊提示'],
+                                                ['new_example_chat_prompt', '新示例对话提示'],
+                                              ] as const).map(([key, label]) => (
+                                                <label key={key} className="flex-1 min-w-[220px]">
+                                                  <span className="block text-[10px] text-white/30 mb-1">{label}</span>
+                                                  <textarea value={(presetDraftFull.settings as any)[key] ?? ''}
+                                                    onChange={e => presetPatchSettings({ [key]: e.target.value })}
+                                                    rows={2}
+                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
+                                                </label>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </details>
                                       </div>
 
                                       {/* TAB: Sampling */}
@@ -1314,84 +1367,6 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                         </div>
                                       )}
 
-                                      {/* TAB: Prompt texts */}
-                                      {presetSubTab === 'prompts' && (
-                                        <div className="space-y-3">
-                                          {/* Main — full width prominent */}
-                                          <div className="bg-aether-dark/40 rounded-lg border border-aether-purple/20 p-3">
-                                            <h4 className="text-[10px] font-display font-semibold text-aether-purple/60 uppercase tracking-wider mb-2">系统指令 (Main)</h4>
-                                            <textarea value={presetDraftFull.settings.main ?? ''}
-                                              onChange={e => presetPatchSettings({ main: e.target.value })}
-                                              rows={5}
-                                              placeholder="核心角色扮演指令，标签格式要求写在此处..."
-                                              className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono leading-relaxed" />
-                                            <p className="text-[9px] text-white/12 mt-1">支持宏：{`{{user}}`} {`{{char}}`} {`{{original}}`} {`{{变量名}}`}</p>
-                                          </div>
-                                          {/* 越狱与限制 */}
-                                          <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
-                                            <h4 className="text-[10px] font-display font-semibold text-white/30 uppercase tracking-wider mb-2">越狱与限制</h4>
-                                            <div className="flex gap-3">
-                                              <label className="flex-1">
-                                                <span className="block text-[10px] text-white/30 mb-1">NSFW 提示</span>
-                                                <textarea value={presetDraftFull.settings.nsfw ?? ''}
-                                                  onChange={e => presetPatchSettings({ nsfw: e.target.value })}
-                                                  rows={2}
-                                                  className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
-                                              </label>
-                                              <label className="flex-1">
-                                                <span className="block text-[10px] text-white/30 mb-1">越狱 (Jailbreak)</span>
-                                                <textarea value={presetDraftFull.settings.jailbreak ?? ''}
-                                                  onChange={e => presetPatchSettings({ jailbreak: e.target.value })}
-                                                  rows={2}
-                                                  className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
-                                              </label>
-                                            </div>
-                                          </div>
-                                          {/* 角色与场景 */}
-                                          <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
-                                            <h4 className="text-[10px] font-display font-semibold text-white/30 uppercase tracking-wider mb-2">角色与场景格式</h4>
-                                            <div className="flex flex-wrap gap-3">
-                                              {([
-                                                ['impersonation_prompt', '扮演提示'],
-                                                ['scenario_format', '场景格式'],
-                                                ['personality_format', '性格格式'],
-                                                ['enhanceDefinitions', '增强定义'],
-                                              ] as const).map(([key, label]) => (
-                                                <label key={key} className="flex-1 min-w-[220px]">
-                                                  <span className="block text-[10px] text-white/30 mb-1">{label}</span>
-                                                  <textarea value={(presetDraftFull.settings as any)[key] ?? ''}
-                                                    onChange={e => presetPatchSettings({ [key]: e.target.value })}
-                                                    rows={2}
-                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
-                                                </label>
-                                              ))}
-                                            </div>
-                                          </div>
-                                          {/* 对话管理 + 上下文格式 — collapsible */}
-                                          <details className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
-                                            <summary className="text-[10px] font-display font-semibold text-white/30 uppercase tracking-wider cursor-pointer hover:text-white/50 transition-colors select-none">对话管理 & 上下文格式</summary>
-                                            <div className="flex flex-wrap gap-3 mt-2">
-                                              {([
-                                                ['new_chat_prompt', '新对话提示'],
-                                                ['new_group_chat_prompt', '新群聊提示'],
-                                                ['new_example_chat_prompt', '新示例对话提示'],
-                                                ['continue_nudge_prompt', '继续推动提示'],
-                                                ['wi_format', '世界书格式'],
-                                                ['group_nudge_prompt', '群组推动提示'],
-                                              ] as const).map(([key, label]) => (
-                                                <label key={key} className="flex-1 min-w-[220px]">
-                                                  <span className="block text-[10px] text-white/30 mb-1">{label}</span>
-                                                  <textarea value={(presetDraftFull.settings as any)[key] ?? ''}
-                                                    onChange={e => presetPatchSettings({ [key]: e.target.value })}
-                                                    rows={2}
-                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
-                                                </label>
-                                              ))}
-                                            </div>
-                                          </details>
-                                        </div>
-                                      )}
-
                                       {/* TAB: Custom prompts */}
                                       {presetSubTab === 'custom' && (
                                         <div className="space-y-2">
@@ -1442,45 +1417,6 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                                   className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-purple/60 transition-all resize-none" />
                                               </div>
                                             ))
-                                          )}
-                                        </div>
-                                      )}
-
-                                      {/* TAB: Prompt order */}
-                                      {presetSubTab === 'order' && (
-                                        <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
-                                          {((presetDraftFull.settings.prompt_order ?? []) as any[]).length === 0 ? (
-                                            <p className="text-[11px] text-white/20 text-center py-6">暂无排序数据，导入 ST 预设或新建默认预设获取标准排序</p>
-                                          ) : (
-                                            <div className="space-y-0.5">
-                                              {((presetDraftFull.settings.prompt_order ?? []) as any[]).map((item: any, idx: number) => (
-                                                <div key={item.identifier} className="flex items-center gap-2 px-2 py-1.5 hover:bg-white/[0.02] rounded transition-colors">
-                                                  <input type="checkbox" checked={item.enabled !== false}
-                                                    onChange={e => {
-                                                      const list = [...(presetDraftFull.settings.prompt_order ?? [])];
-                                                      list[idx] = { ...list[idx], enabled: e.target.checked };
-                                                      presetPatchSettings({ prompt_order: list });
-                                                    }}
-                                                    className="accent-aether-purple shrink-0" />
-                                                  <code className="text-[10px] text-white/30 font-mono min-w-[140px] shrink-0">{item.identifier}</code>
-                                                  <span className="text-[10px] text-white/20 truncate flex-1">{item.name ?? item.identifier}</span>
-                                                  <button disabled={idx === 0}
-                                                    onClick={() => {
-                                                      const list = [...(presetDraftFull.settings.prompt_order ?? [])];
-                                                      [list[idx-1], list[idx]] = [list[idx], list[idx-1]];
-                                                      presetPatchSettings({ prompt_order: list });
-                                                    }}
-                                                    className="text-[10px] text-white/15 hover:text-white/40 disabled:opacity-20 px-1">↑</button>
-                                                  <button disabled={idx === ((presetDraftFull.settings.prompt_order ?? []) as any[]).length - 1}
-                                                    onClick={() => {
-                                                      const list = [...(presetDraftFull.settings.prompt_order ?? [])];
-                                                      [list[idx], list[idx+1]] = [list[idx+1], list[idx]];
-                                                      presetPatchSettings({ prompt_order: list });
-                                                    }}
-                                                    className="text-[10px] text-white/15 hover:text-white/40 disabled:opacity-20 px-1">↓</button>
-                                                </div>
-                                              ))}
-                                            </div>
                                           )}
                                         </div>
                                       )}
