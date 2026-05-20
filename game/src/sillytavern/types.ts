@@ -247,8 +247,8 @@ export const DEFAULT_PROMPT_ORDER = [
 
 export function createDefaultPreset(): Omit<ChatPreset, 'id' | 'createdAt' | 'updatedAt'> {
   return {
-    name: '默认预设',
-    description: 'SillyTavern 兼容的默认 OpenAI 预设',
+    name: '潮汐',
+    description: '基于潮汐预设模板的默认配置',
     settings: {
       temp_openai: 0.8,
       freq_pen_openai: 0,

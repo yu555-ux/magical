@@ -73,6 +73,24 @@ export async function initializeDatabase(): Promise<void> {
     } as ChatPreset);
   }
 
+  const lorebookCount = await db.lorebooks.count();
+  if (lorebookCount === 0) {
+    try {
+      const res = await fetch('/default-worldbook.json');
+      if (res.ok) {
+        const data = await res.json();
+        const { importLorebook } = await import('./importer');
+        const imported = importLorebook(data);
+        await db.lorebooks.add({
+          ...imported,
+          id: crypto.randomUUID(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as any);
+      }
+    } catch { /* default worldbook unavailable */ }
+  }
+
   const settingsCount = await db.settings.count();
   if (settingsCount === 0) {
     await db.settings.put({ ...DEFAULT_SETTINGS, key: 'settings' });
