@@ -325,8 +325,20 @@ export function useSillytavern() {
       }
       const effectivePresets = await getPresets();
       const activePresetId = effectiveSettings.activePresetId;
-      const activePreset = effectivePresets.find((p: any) => p.id === activePresetId) ?? effectivePresets[0];
-      if (!activePreset) throw new Error('No preset available');
+      let activePreset = effectivePresets.find((p: any) => p.id === activePresetId) ?? effectivePresets[0];
+      // Fallback: create a minimal preset on-the-fly if none exists
+      if (!activePreset) {
+        const { createDefaultPreset } = await import('../sillytavern/types');
+        const fallback = createDefaultPreset();
+        activePreset = {
+          ...fallback,
+          id: crypto.randomUUID(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        } as any;
+        await db.presets.put(activePreset);
+        setPresets(prev => [...prev, activePreset as any]);
+      }
 
       // ── diagnostic ──
       const filteredLorebooks = effectiveLorebooks.filter((l: any) => activeLorebookIds.has(l.id));
