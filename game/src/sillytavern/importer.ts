@@ -43,7 +43,7 @@ const REVERSE_LOGIC_MAP: Record<LorebookEntry['selectiveLogic'], number> = {
 export function importLorebook(data: SillyTavernLorebookExport): Omit<Lorebook, 'id' | 'createdAt' | 'updatedAt'> {
   const rawEntries = Object.values(data.entries || {});
   const entries: LorebookEntry[] = rawEntries
-    .filter((e) => !e.disable && !e.excluded)
+    .filter((e) => !e.excluded)
     .map((e) => ({
       id: crypto.randomUUID(),
       keys: e.key || [],
