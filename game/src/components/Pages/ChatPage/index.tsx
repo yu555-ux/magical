@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, ChevronRight, Send, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, Send, X } from 'lucide-react';
 import ChatHeader from './ChatHeader';
 import PlotReaderModal from './PlotReaderModal';
 import VariableViewerModal from './VariableViewerModal';
@@ -307,13 +307,19 @@ export default function ChatPage({
                   onClick={() => handleSend()}
                   disabled={!input.trim() || isStreaming}
                   className={`shrink-0 self-stretch px-5 transition-all duration-300 clickable flex items-center ${
-                    (isFocused || optionsOpen)
-                      ? 'text-aether-cyan drop-shadow-[0_0_10px_rgba(0,242,255,0.5)]'
-                      : 'text-aether-cyan/45'
-                  } enabled:hover:text-aether-cyan enabled:hover:bg-aether-cyan/[0.04] enabled:active:scale-95 disabled:opacity-15`}
-                  title="发送"
+                    isStreaming
+                      ? 'text-aether-cyan drop-shadow-[0_0_12px_rgba(0,242,255,0.6)]'
+                      : (isFocused || optionsOpen)
+                        ? 'text-aether-cyan drop-shadow-[0_0_10px_rgba(0,242,255,0.5)]'
+                        : 'text-aether-cyan/45'
+                  } enabled:hover:text-aether-cyan enabled:hover:bg-aether-cyan/[0.04] enabled:active:scale-95 disabled:opacity-40`}
+                  title={isStreaming ? 'AI 生成中...' : '发送'}
                 >
-                  <Send size={18} />
+                  {isStreaming ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <Send size={18} />
+                  )}
                 </button>
               </div>
             </div>
