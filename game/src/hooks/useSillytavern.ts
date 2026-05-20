@@ -323,6 +323,23 @@ export function useSillytavern() {
       const activePreset = effectivePresets.find((p: any) => p.id === activePresetId) ?? effectivePresets[0];
       if (!activePreset) throw new Error('No preset available');
 
+      // ── diagnostic ──
+      const filteredLorebooks = effectiveLorebooks.filter((l: any) => activeLorebookIds.has(l.id));
+      const promptOrder = (activePreset.settings as any)?.prompt_order;
+      const hasPromptOrder = Array.isArray(promptOrder) && promptOrder.length > 0;
+      const sectionsWithContent = hasPromptOrder ? promptOrder.filter((s: any) => s.content?.trim()).length : 0;
+      console.log('[Prompt Debug]', {
+        presetName: activePreset.name,
+        hasPromptOrder,
+        promptOrderCount: hasPromptOrder ? promptOrder.length : 0,
+        sectionsWithContent,
+        firstSection: hasPromptOrder ? { id: promptOrder[0].identifier, name: promptOrder[0].name, hasContent: !!promptOrder[0].content?.trim(), contentLen: promptOrder[0].content?.length ?? 0 } : null,
+        activeLorebookIds: Array.from(activeLorebookIds),
+        lorebookTotal: effectiveLorebooks.length,
+        lorebookFiltered: filteredLorebooks.length,
+        lorebookNames: filteredLorebooks.map((l: any) => l.name),
+      });
+
       const { messages, systemPrompt, sections } = assemblePrompt({
         userInput: userText,
         history: updatedChat.messages,
@@ -331,6 +348,15 @@ export function useSillytavern() {
         userName: effectiveSettings.userName,
         characterName: effectiveSettings.characterName,
         extraVariables: updatedChat.variables,
+      });
+
+      console.log('[Prompt Debug] assembled:', {
+        systemPromptLen: systemPrompt.length,
+        sectionCount: sections.length,
+        sectionsWithContent: sections.filter(s => s.content?.trim()).length,
+        sectionNames: sections.map(s => `${s.name}(${s.source}:${s.content ? '有' : '空'})`),
+        messageCount: messages.length,
+        hasLorebookContent: systemPrompt.includes('年龄') || systemPrompt.includes('描述'),
       });
 
       // Store last prompt for inspection
