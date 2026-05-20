@@ -113,6 +113,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
   const [presetSubTab, setPresetSubTab] = useState<string>('sampling');
   const [presetDraftFull, setPresetDraftFull] = useState<ChatPreset | null>(null);
   const [presetDirty, setPresetDirty] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['main']));
 
   useEffect(() => {
     if (isOpen && ss.initialized) {
@@ -403,6 +404,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
     setPresetSubTab('sampling');
     setPresetDraftFull(JSON.parse(JSON.stringify(preset)));
     setPresetDirty(false);
+    setExpandedSections(new Set(['main']));
   };
 
   const presetPatchSettings = (patch: Record<string, any>) => {
@@ -1269,6 +1271,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                             ((presetDraftFull.settings.prompt_order ?? []) as any[]).map((item: any, idx: number) => {
                                               const sectionEnabled = item.enabled !== false;
                                               const content = item.content ?? (presetDraftFull.settings as any)[item.identifier] ?? '';
+                                              const isExpanded = expandedSections.has(item.identifier);
                                               return (
                                                 <div key={item.identifier}
                                                   className={`rounded-lg border transition-all ${
@@ -1287,8 +1290,17 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                                         presetPatchSettings({ prompt_order: list });
                                                       }}
                                                       className="accent-aether-purple shrink-0" />
-                                                    <span className={`text-[12px] font-display font-medium flex-1 ${sectionEnabled ? 'text-white/60' : 'text-white/25'}`}>
-                                                      {item.name || item.identifier}
+                                                    <span
+                                                      onClick={() => {
+                                                        if (!sectionEnabled) return;
+                                                        setExpandedSections(prev => {
+                                                          const next = new Set(prev);
+                                                          next.has(item.identifier) ? next.delete(item.identifier) : next.add(item.identifier);
+                                                          return next;
+                                                        });
+                                                      }}
+                                                      className={`text-[12px] font-display font-medium flex-1 cursor-pointer select-none hover:text-white/80 transition-colors ${sectionEnabled ? 'text-white/60' : 'text-white/25'}`}>
+                                                      {isExpanded ? '▾ ' : '▸ '}{item.name || item.identifier}
                                                     </span>
                                                     <span className="text-[9px] text-white/15 font-mono">{item.identifier}</span>
                                                     {/* Reorder */}
@@ -1307,8 +1319,8 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                                       }}
                                                       className="text-[10px] text-white/15 hover:text-white/40 disabled:opacity-15 px-0.5" title="下移">↓</button>
                                                   </div>
-                                                  {/* Content textarea (only when enabled) */}
-                                                  {sectionEnabled && (
+                                                  {/* Content textarea (only when enabled AND expanded) */}
+                                                  {sectionEnabled && isExpanded && (
                                                     <div className="px-3 pb-3">
                                                       <textarea value={content}
                                                         onChange={e => {
