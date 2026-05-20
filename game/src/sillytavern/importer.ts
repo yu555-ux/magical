@@ -152,10 +152,16 @@ export function exportLorebook(lorebook: Lorebook): SillyTavernLorebookExport {
 
 export function importPreset(data: Record<string, any>): Omit<ChatPreset, 'id' | 'createdAt' | 'updatedAt'> {
   const name = data.preset || data.name || '导入的预设';
+  // Some ST presets wrap everything in a nested `settings` key
+  const inner = data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)
+    ? data.settings
+    : data;
+  // Merge: inner fields + top-level name/description, inner.settings takes precedence
+  const merged = { ...data, ...inner };
   return {
     name,
-    description: data.description,
-    settings: data,
+    description: merged.description || data.description,
+    settings: merged,
   };
 }
 
