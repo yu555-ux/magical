@@ -173,7 +173,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       setLorebookActiveIds(currentIds);
       const settings = await db.settings.toArray();
       if (settings[0]) {
-        await db.settings.put({ ...settings[0], activeLorebookIds: Array.from(currentIds) });
+        await db.settings.put({ ...settings[0], activeLorebookIds: Array.from(currentIds) as string[] });
       }
     }
     if (successes.length) showToast(`成功导入 ${successes.length} 本世界书（已自动激活）`, 'success');
