@@ -287,7 +287,22 @@ export function createDefaultPreset(): Omit<ChatPreset, 'id' | 'createdAt' | 'up
       personaDescription: '',
       dialogueExamples: '',
       prompts: [],
-      prompt_order: DEFAULT_PROMPT_ORDER.map((p, i) => ({ ...p, enabled: true })),
+      prompt_order: DEFAULT_PROMPT_ORDER.map((p, i) => {
+        const entry: any = { ...p, enabled: true };
+        if (p.identifier === 'main') {
+          entry.content = `Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.
+
+你必须严格按照以下 XML 标签格式输出回复，不要使用 Markdown 包裹：
+<thinking>……</thinking>     ← 可选；内部任何字符都视为思考过程，不被解析
+<maintext>……</maintext>     ← 必填；本回合的剧情正文，可多段，保留换行
+<option>选项 A
+选项 B
+选项 C</option>              ← 必填；至少 2 项，每行一个
+<history>日期|标题|地点|人物|描述|人物关系|标签1,标签2|重要信息|暗线与伏笔</history>  ← 必填；存档点，9字段用|分隔，标签用,分隔
+<vars>{ "金钱": +10, "HP": 38 }</vars>   ← 选填；JSON 深合并`;
+        }
+        return entry;
+      }),
     },
   };
 }

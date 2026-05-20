@@ -1268,7 +1268,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                           ) : (
                                             ((presetDraftFull.settings.prompt_order ?? []) as any[]).map((item: any, idx: number) => {
                                               const sectionEnabled = item.enabled !== false;
-                                              const content = (presetDraftFull.settings as any)[item.identifier] ?? '';
+                                              const content = item.content ?? (presetDraftFull.settings as any)[item.identifier] ?? '';
                                               return (
                                                 <div key={item.identifier}
                                                   className={`rounded-lg border transition-all ${
@@ -1311,7 +1311,11 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                                   {sectionEnabled && (
                                                     <div className="px-3 pb-3">
                                                       <textarea value={content}
-                                                        onChange={e => presetPatchSettings({ [item.identifier]: e.target.value })}
+                                                        onChange={e => {
+                                                          const list = [...(presetDraftFull.settings.prompt_order ?? [])];
+                                                          list[idx] = { ...list[idx], content: e.target.value };
+                                                          presetPatchSettings({ prompt_order: list });
+                                                        }}
                                                         rows={item.identifier === 'main' ? 6 : 3}
                                                         placeholder={item.identifier === 'main' ? '核心角色扮演指令，标签格式要求写在此处...' : ''}
                                                         className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono leading-relaxed" />

@@ -57,6 +57,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     name?: string;
     role?: 'system' | 'user' | 'assistant';
     enabled?: boolean;
+    content?: string;
   }>;
 
   const prompts = (preset.settings.prompts || []) as Array<{
@@ -66,6 +67,10 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   }>;
 
   function resolvePromptContent(identifier: string): string | null {
+    // Check prompt_order entry for inline content (Chaoxi-style presets)
+    const orderEntry = promptOrder.find(p => p.identifier === identifier);
+    if (orderEntry?.content?.trim()) return orderEntry.content;
+
     if (identifier === 'worldInfoBefore' || identifier === 'worldInfoAfter') {
       const content = uniqueEntries.map(e => e.entry.content).join('\n\n');
       return content || null;
