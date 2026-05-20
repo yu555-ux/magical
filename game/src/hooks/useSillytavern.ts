@@ -43,7 +43,7 @@ export function useSillytavern() {
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
-  const [lastPrompt, setLastPrompt] = useState<{ messages: Array<{ role: string; content: string }>; estimatedTokens: number } | null>(null);
+  const [lastPrompt, setLastPrompt] = useState<{ messages: Array<{ role: string; content: string }>; systemPrompt: string; estimatedTokens: number } | null>(null);
 
   // ---- modal toggles ----
   const [showSettings, setShowSettings] = useState(false);
@@ -323,7 +323,7 @@ export function useSillytavern() {
       const activePreset = effectivePresets.find((p: any) => p.id === activePresetId) ?? effectivePresets[0];
       if (!activePreset) throw new Error('No preset available');
 
-      const { messages } = assemblePrompt({
+      const { messages, systemPrompt } = assemblePrompt({
         userInput: userText,
         history: updatedChat.messages,
         preset: activePreset,
@@ -336,6 +336,7 @@ export function useSillytavern() {
       // Store last prompt for inspection
       setLastPrompt({
         messages: messages.map(m => ({ role: m.role, content: m.content })),
+        systemPrompt,
         estimatedTokens: Math.round(messages.reduce((sum, m) => sum + m.content.length / 4, 0)),
       });
 

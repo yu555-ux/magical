@@ -5,7 +5,7 @@ import { X, FileText, Hash } from 'lucide-react';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  prompt: { messages: Array<{ role: string; content: string }>; estimatedTokens: number } | null;
+  prompt: { messages: Array<{ role: string; content: string }>; systemPrompt: string; estimatedTokens: number } | null;
   replyText?: string;
 }
 
@@ -78,6 +78,21 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
               </div>
             ) : (
               <div className="space-y-4">
+                {/* Assembled system prompt (merged view) */}
+                {prompt.systemPrompt && (
+                  <div className="bg-aether-dark/40 rounded-lg border border-aether-cyan/20 overflow-hidden">
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-aether-cyan/15 bg-aether-cyan/[0.04]">
+                      <span className="text-[10px] font-display font-semibold tracking-wider text-aether-cyan/70 uppercase">组装后的系统提示词</span>
+                      <span className="text-[9px] text-white/15 font-mono ml-auto">~{Math.round(prompt.systemPrompt.length / 4)} tk</span>
+                    </div>
+                    <pre className="p-3 text-[11px] text-white/55 whitespace-pre-wrap leading-relaxed font-mono max-h-[300px] overflow-y-auto">
+                      {prompt.systemPrompt}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Individual messages */}
+                <div className="text-[10px] text-white/15 font-display tracking-wider uppercase border-t border-aether-border/10 pt-2">API 请求消息列表</div>
                 {prompt.messages.map((msg, i) => (
                   <div key={i}
                     className="bg-aether-dark/40 rounded-lg border border-aether-border/15 overflow-hidden">
