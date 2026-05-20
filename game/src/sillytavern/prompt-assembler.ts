@@ -62,13 +62,17 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     currentTokens += msgTokens;
   }
 
-  const promptOrder = (preset.settings.prompt_order || []) as Array<{
+  // prompt_order can be an array or {character_id, order: [...]} (Chaoxi format)
+  const rawPromptOrder = (preset.settings.prompt_order || preset.settings.prompts || []) as any;
+  const promptOrder: Array<{
     identifier: string;
     name?: string;
     role?: 'system' | 'user' | 'assistant';
     enabled?: boolean;
     content?: string;
-  }>;
+  }> = Array.isArray(rawPromptOrder) ? rawPromptOrder
+    : Array.isArray(rawPromptOrder?.order) ? rawPromptOrder.order
+    : [];
 
   const prompts = (preset.settings.prompts || []) as Array<{
     identifier: string;
@@ -77,43 +81,28 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   }>;
 
   function resolvePromptContent(identifier: string): string | null {
-    // Check prompt_order entry for inline content (Chaoxi-style presets)
+    // 1) prompt_order entry inline content
     const orderEntry = promptOrder.find(p => p.identifier === identifier);
     if (orderEntry?.content?.trim()) return orderEntry.content;
 
+    // 2) Chaoxi-style: content in prompts array (matching identifier)
+    const customPrompt = prompts.find(p => p.identifier === identifier);
+    if (customPrompt?.content?.trim()) return customPrompt.content;
+
+    // 3) Dynamic lorebook injection
     if (identifier === 'worldInfoBefore' || identifier === 'worldInfoAfter') {
       const content = uniqueEntries.map(e => e.entry.content).join('\n\n');
       return content || null;
     }
-    if (identifier === 'charDescription') {
-      return preset.settings.character_description || null;
-    }
-    if (identifier === 'charPersonality') {
-      return preset.settings.character_personality || null;
-    }
-    if (identifier === 'scenario') {
-      return preset.settings.scenario || null;
-    }
-    if (identifier === 'personaDescription') {
-      return preset.settings.persona_description || null;
-    }
-    if (identifier === 'dialogueExamples') {
-      return preset.settings.dialogue_examples || null;
-    }
-    if (identifier === 'groupNudge') {
-      return preset.settings.group_nudge_prompt || null;
-    }
-    if (identifier === 'impersonate') {
-      return preset.settings.impersonation_prompt || null;
-    }
-    if (identifier === 'quietPrompt') {
-      return preset.settings.quiet_prompt || null;
-    }
-    if (identifier === 'bias') {
-      return null;
-    }
-    const custom = prompts.find(p => p.identifier === identifier);
-    if (custom?.content) return custom.content;
+
+    // 4) Character card / scenario placeholders
+    if (identifier === 'charDescription') return preset.settings.character_description || null;
+    if (identifier === 'charPersonality') return preset.settings.character_personality || null;
+    if (identifier === 'scenario') return preset.settings.scenario || null;
+    if (identifier === 'personaDescription') return preset.settings.persona_description || null;
+    if (identifier === 'dialogueExamples') return preset.settings.dialogue_examples || null;
+
+    // 5) Direct preset.settings field
     const direct = preset.settings[identifier];
     if (typeof direct === 'string' && direct.trim()) return direct;
     return null;
