@@ -20,6 +20,7 @@ export interface LorebookEntry {
   probability: number;
   useProbability?: boolean;
   addMemo: boolean;
+  disable?: boolean;
   sticky?: number;
   cooldown?: number;
   delay?: number;
@@ -29,14 +30,19 @@ export interface LorebookEntry {
   matchWholeWords?: boolean;
   excludeRecursion?: boolean;
   preventRecursion?: boolean;
+  delayUntilRecursion?: boolean;
   useGroupScoring?: boolean;
+  group?: string;
+  groupWeight?: number;
+  groupOverride?: boolean;
+  outletName?: string;
+  ignoreBudget?: boolean;
   matchPersonaDescription?: boolean;
   matchCharacterDescription?: boolean;
   matchCharacterPersonality?: boolean;
   matchCharacterDepthPrompt?: boolean;
   matchScenario?: boolean;
   matchCreatorNotes?: boolean;
-  group?: string;
   decorators?: string[];
   characterFilter?: {
     isExclude?: boolean;
@@ -88,7 +94,12 @@ export interface SillyTavernLorebookExport {
     matchWholeWords: boolean;
     excludeRecursion: boolean;
     preventRecursion: boolean;
+    delayUntilRecursion: boolean;
     useGroupScoring: boolean;
+    groupWeight: number;
+    groupOverride: boolean;
+    outletName: string;
+    ignoreBudget: boolean;
     matchPersonaDescription: boolean;
     matchCharacterDescription: boolean;
     matchCharacterPersonality: boolean;

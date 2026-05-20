@@ -295,6 +295,11 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
       probability: 100,
       useProbability: false,
       addMemo: false,
+      disable: false,
+      groupWeight: 100,
+      groupOverride: false,
+      delayUntilRecursion: false,
+      ignoreBudget: false,
     };
     openEntryEditor(entry);
   }, [openEntryEditor]);
@@ -433,7 +438,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
           animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[680px] glass-panel border-glow overflow-hidden"
+          className="relative w-full max-w-[960px] glass-panel border-glow overflow-hidden"
         >
           {/* Top line */}
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/40 to-transparent" />
@@ -471,7 +476,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
           </div>
 
           {/* Content */}
-          <div className="max-h-[55vh] overflow-y-auto">
+          <div className="max-h-[62vh] overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={tab}
@@ -729,7 +734,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                 </div>
                               </motion.div>
 
-                              {/* Expanded entries + editor */}
+                              {/* Expanded: worldbook settings + split-panel entry editor */}
                               <AnimatePresence initial={false}>
                                 {isExpanded && (
                                   <motion.div
@@ -745,105 +750,98 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                         <h4 className="text-[11px] font-display font-semibold text-white/40 uppercase tracking-wider mb-2">世界书设置</h4>
                                         <div className="flex items-center gap-3 flex-wrap">
                                           <label className="flex items-center gap-1.5 text-[11px] text-white/40 cursor-pointer">
-                                            <input
-                                              type="checkbox"
-                                              checked={lb.recursiveScanning}
+                                            <input type="checkbox" checked={lb.recursiveScanning}
                                               onChange={async () => {
                                                 await ss.updateLorebook({ ...lb, recursiveScanning: !lb.recursiveScanning, updatedAt: Date.now() });
                                                 setLorebookList(await db.lorebooks.toArray());
-                                              }}
-                                              className="accent-aether-cyan"
-                                            />
+                                              }} className="accent-aether-cyan" />
                                             递归扫描
                                           </label>
                                           <label className="flex items-center gap-1.5 text-[11px] text-white/40 cursor-pointer">
-                                            <input
-                                              type="checkbox"
-                                              checked={lb.caseSensitive}
+                                            <input type="checkbox" checked={lb.caseSensitive}
                                               onChange={async () => {
                                                 await ss.updateLorebook({ ...lb, caseSensitive: !lb.caseSensitive, updatedAt: Date.now() });
                                                 setLorebookList(await db.lorebooks.toArray());
-                                              }}
-                                              className="accent-aether-cyan"
-                                            />
+                                              }} className="accent-aether-cyan" />
                                             区分大小写
                                           </label>
                                           <label className="flex items-center gap-1.5 text-[11px] text-white/40 cursor-pointer">
-                                            <input
-                                              type="checkbox"
-                                              checked={lb.matchWholeWords}
+                                            <input type="checkbox" checked={lb.matchWholeWords}
                                               onChange={async () => {
                                                 await ss.updateLorebook({ ...lb, matchWholeWords: !lb.matchWholeWords, updatedAt: Date.now() });
                                                 setLorebookList(await db.lorebooks.toArray());
-                                              }}
-                                              className="accent-aether-cyan"
-                                            />
+                                              }} className="accent-aether-cyan" />
                                             全词匹配
                                           </label>
                                           <StatPill count={lb.entries.length} />
                                         </div>
                                       </div>
 
-                                      {/* New entry button */}
-                                      <button
-                                        onClick={() => handleNewEntry(lb)}
-                                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-aether-cyan/15 border border-aether-cyan/30 text-aether-cyan text-xs font-semibold tracking-wide hover:bg-aether-cyan/25 transition-all font-display w-full justify-center"
-                                      >
-                                        <Plus size={14} /> 新建条目
-                                      </button>
-
-                                      {/* Entry list */}
-                                      {lb.entries.length > 0 && (
-                                        <div className="space-y-1">
-                                          {lb.entries.map((entry, idx) => (
-                                            <div key={entry.id}
-                                              className={`rounded border transition-all group ${
-                                                editingEntryId === entry.id
-                                                  ? 'border-aether-cyan/40 bg-aether-cyan/[0.06]'
-                                                  : 'border-aether-border/10 bg-aether-dark/40 hover:border-aether-border/25'
-                                              }`}
+                                      {/* Split panel: entries sidebar + editor */}
+                                      <div className="flex border border-aether-border/15 rounded-lg overflow-hidden bg-aether-dark/20" style={{ minHeight: 420 }}>
+                                        {/* ── Left: Entry sidebar ── */}
+                                        <div className="w-[250px] shrink-0 border-r border-aether-border/15 bg-aether-dark/30 flex flex-col">
+                                          <div className="p-2 border-b border-aether-border/10">
+                                            <button
+                                              onClick={() => handleNewEntry(lb)}
+                                              className="flex items-center gap-1.5 w-full px-3 py-1.5 rounded text-[11px] font-display tracking-wide
+                                                         bg-aether-cyan/15 border border-aether-cyan/25 text-aether-cyan
+                                                         hover:bg-aether-cyan/25 transition-all"
                                             >
-                                              <div className="flex items-center gap-2 px-3 py-2">
-                                                <span className="text-[10px] text-white/20 font-mono w-5 shrink-0">#{idx + 1}</span>
-                                                <span className="text-[12px] font-display font-medium text-white/55 truncate flex-1"
+                                              <Plus size={13} /> 新建条目
+                                            </button>
+                                          </div>
+                                          <div className="flex-1 overflow-y-auto">
+                                            {lb.entries.length === 0 ? (
+                                              <p className="text-[10px] text-white/15 text-center py-8 px-2">暂无条目</p>
+                                            ) : (
+                                              lb.entries.map((entry, idx) => (
+                                                <button
+                                                  key={entry.id}
                                                   onClick={() => openEntryEditor(entry)}
+                                                  className={`w-full text-left px-3 py-2 border-b border-white/[0.03] transition-all group ${
+                                                    editingEntryId === entry.id
+                                                      ? 'bg-aether-cyan/[0.08] border-l-[3px] border-l-aether-cyan'
+                                                      : 'hover:bg-white/[0.02] border-l-[3px] border-l-transparent'
+                                                  }`}
                                                 >
-                                                  {entry.comment || entry.content.slice(0, 35) || '(未命名)'}
-                                                </span>
-                                                {entry.constant && <span className="text-[8px] bg-aether-purple/15 text-aether-purple/60 px-1 rounded font-mono shrink-0">常驻</span>}
-                                                {entry.selective && <span className="text-[8px] bg-aether-blue/15 text-aether-blue/60 px-1 rounded font-mono shrink-0">选择性</span>}
-                                                <button
-                                                  onClick={() => openEntryEditor(entry)}
-                                                  className="p-1 text-white/15 hover:text-aether-cyan opacity-0 group-hover:opacity-100 transition-all"
-                                                  title="编辑"
-                                                ><Pencil size={12} /></button>
-                                                <button
-                                                  onClick={(ev) => { ev.stopPropagation(); handleDeleteEntry(lb, entry.id); }}
-                                                  className="p-1 text-white/10 hover:text-aether-red opacity-0 group-hover:opacity-100 transition-all"
-                                                  title="删除"
-                                                ><Trash2 size={12} /></button>
-                                              </div>
-                                            </div>
-                                          ))}
+                                                  <div className="flex items-center gap-1.5">
+                                                    <span className="text-[9px] text-white/15 font-mono shrink-0">#{idx + 1}</span>
+                                                    <span className={`text-[11px] font-display truncate flex-1 ${
+                                                      editingEntryId === entry.id ? 'text-aether-cyan/80' : 'text-white/45'
+                                                    }`}>
+                                                      {entry.comment || entry.content.slice(0, 28) || '(未命名)'}
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex gap-1 mt-0.5">
+                                                    {entry.constant && <span className="text-[7px] bg-aether-purple/15 text-aether-purple/50 px-1 rounded">常驻</span>}
+                                                    {entry.selective && <span className="text-[7px] bg-aether-blue/15 text-aether-blue/50 px-1 rounded">选择性</span>}
+                                                    {entry.disable && <span className="text-[7px] bg-aether-red/10 text-aether-red/40 px-1 rounded">禁用</span>}
+                                                  </div>
+                                                </button>
+                                              ))
+                                            )}
+                                          </div>
                                         </div>
-                                      )}
 
-                                      {/* Entry Editor */}
-                                      <AnimatePresence>
-                                        {editingEntryId && entryDraft && (
-                                          <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="overflow-hidden"
-                                          >
-                                            <div className="bg-aether-dark/50 rounded-lg border border-aether-cyan/20 p-4 space-y-3">
-                                              <div className="flex items-center gap-2 mb-1">
-                                                <div className="w-1 h-3 bg-aether-cyan rounded-full" />
-                                                <span className="text-[11px] font-display font-bold text-aether-cyan/70 uppercase tracking-wider">
-                                                  {lb.entries.find(e => e.id === editingEntryId) ? '编辑条目' : '新建条目'}
-                                                </span>
+                                        {/* ── Right: Entry editor ── */}
+                                        <div className="flex-1 overflow-y-auto">
+                                          {editingEntryId && entryDraft ? (
+                                            <div className="p-4 space-y-3">
+                                              {/* Header */}
+                                              <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                  <div className="w-1 h-4 bg-aether-cyan rounded-full" />
+                                                  <span className="text-[12px] font-display font-bold text-aether-cyan/70 uppercase tracking-wider">
+                                                    {lb.entries.find(e => e.id === editingEntryId) ? '编辑条目' : '新建条目'}
+                                                  </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                  <button onClick={() => handleDeleteEntry(lb, editingEntryId)}
+                                                    className="p-1 text-white/15 hover:text-aether-red transition-colors" title="删除条目">
+                                                    <Trash2 size={14} />
+                                                  </button>
+                                                </div>
                                               </div>
 
                                               {/* Comment */}
@@ -866,12 +864,12 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                                 <span className="block text-[10px] text-white/30 mb-1">内容 (content)</span>
                                                 <textarea value={entryDraft.content}
                                                   onChange={e => patchEntryDraft({ content: e.target.value })}
-                                                  rows={5}
+                                                  rows={8}
                                                   placeholder="匹配后注入到 prompt 的正文..."
                                                   className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-cyan/60 transition-all resize-none font-mono leading-relaxed" />
                                               </label>
 
-                                              {/* Position + Order */}
+                                              {/* Row: Position + Order + Depth */}
                                               <div className="flex gap-3">
                                                 <label className="flex-1">
                                                   <span className="block text-[10px] text-white/30 mb-1">位置 (position)</span>
@@ -883,27 +881,67 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                                     ))}
                                                   </select>
                                                 </label>
-                                                <label className="w-24">
+                                                {entryDraft.position === 'at_depth' && (
+                                                  <>
+                                                    <label className="w-20">
+                                                      <span className="block text-[10px] text-white/30 mb-1">深度</span>
+                                                      <input type="number" value={entryDraft.depth ?? 4}
+                                                        onChange={e => patchEntryDraft({ depth: Number(e.target.value) || 4 })}
+                                                        className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60" />
+                                                    </label>
+                                                    <label className="w-20">
+                                                      <span className="block text-[10px] text-white/30 mb-1">角色</span>
+                                                      <select value={entryDraft.role ?? 0}
+                                                        onChange={e => patchEntryDraft({ role: Number(e.target.value) })}
+                                                        className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-2 text-xs text-white/60 focus:outline-none focus:border-aether-cyan/60">
+                                                        <option value={0}>system</option>
+                                                        <option value={1}>user</option>
+                                                        <option value={2}>assistant</option>
+                                                      </select>
+                                                    </label>
+                                                  </>
+                                                )}
+                                                {entryDraft.position === 'outlet' && (
+                                                  <label className="flex-1">
+                                                    <span className="block text-[10px] text-white/30 mb-1">出口名</span>
+                                                    <input type="text" value={entryDraft.outletName ?? ''}
+                                                      onChange={e => patchEntryDraft({ outletName: e.target.value })}
+                                                      className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60" />
+                                                  </label>
+                                                )}
+                                                <label className="w-20">
                                                   <span className="block text-[10px] text-white/30 mb-1">优先级</span>
                                                   <input type="number" value={entryDraft.order}
                                                     onChange={e => patchEntryDraft({ order: Number(e.target.value) || 100 })}
-                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 focus:outline-none focus:border-aether-cyan/60 transition-all font-mono" />
+                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60" />
                                                 </label>
                                               </div>
 
-                                              {/* Toggles */}
+                                              {/* Toggles row 1: constant, disable, addMemo */}
                                               <div className="flex flex-wrap items-center gap-4">
                                                 <label className="flex items-center gap-1.5 text-[11px] text-white/45 cursor-pointer">
                                                   <input type="checkbox" checked={entryDraft.constant}
                                                     onChange={e => patchEntryDraft({ constant: e.target.checked })}
-                                                    className="accent-aether-cyan" />
-                                                  常驻
+                                                    className="accent-aether-purple" /> 常驻
                                                 </label>
+                                                <label className="flex items-center gap-1.5 text-[11px] text-white/45 cursor-pointer">
+                                                  <input type="checkbox" checked={entryDraft.disable ?? false}
+                                                    onChange={e => patchEntryDraft({ disable: e.target.checked })}
+                                                    className="accent-aether-red" /> 禁用
+                                                </label>
+                                                <label className="flex items-center gap-1.5 text-[11px] text-white/45 cursor-pointer">
+                                                  <input type="checkbox" checked={entryDraft.addMemo}
+                                                    onChange={e => patchEntryDraft({ addMemo: e.target.checked })}
+                                                    className="accent-aether-cyan" /> 添加备注
+                                                </label>
+                                              </div>
+
+                                              {/* Toggles row 2: selective + logic + probability */}
+                                              <div className="flex flex-wrap items-center gap-4">
                                                 <label className="flex items-center gap-1.5 text-[11px] text-white/45 cursor-pointer">
                                                   <input type="checkbox" checked={entryDraft.selective}
                                                     onChange={e => patchEntryDraft({ selective: e.target.checked })}
-                                                    className="accent-aether-blue" />
-                                                  选择性
+                                                    className="accent-aether-blue" /> 选择性
                                                 </label>
                                                 {entryDraft.selective && (
                                                   <select value={entryDraft.selectiveLogic}
@@ -917,8 +955,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                                 <label className="flex items-center gap-1.5 text-[11px] text-white/45 cursor-pointer">
                                                   <input type="checkbox" checked={entryDraft.useProbability ?? false}
                                                     onChange={e => patchEntryDraft({ useProbability: e.target.checked })}
-                                                    className="accent-aether-gold" />
-                                                  概率
+                                                    className="accent-aether-gold" /> 概率
                                                 </label>
                                                 {entryDraft.useProbability && (
                                                   <input type="number" value={entryDraft.probability} min={0} max={100}
@@ -927,47 +964,127 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                                 )}
                                               </div>
 
-                                              {/* Advanced */}
+                                              {/* Row: sticky / cooldown / delay / weight */}
+                                              <div className="flex gap-3 flex-wrap">
+                                                <label className="flex-1 min-w-[80px]">
+                                                  <span className="block text-[10px] text-white/30 mb-1">sticky</span>
+                                                  <input type="number" value={entryDraft.sticky ?? 0}
+                                                    onChange={e => patchEntryDraft({ sticky: Number(e.target.value) || 0 })}
+                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60" />
+                                                </label>
+                                                <label className="flex-1 min-w-[80px]">
+                                                  <span className="block text-[10px] text-white/30 mb-1">cooldown</span>
+                                                  <input type="number" value={entryDraft.cooldown ?? 0}
+                                                    onChange={e => patchEntryDraft({ cooldown: Number(e.target.value) || 0 })}
+                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60" />
+                                                </label>
+                                                <label className="flex-1 min-w-[80px]">
+                                                  <span className="block text-[10px] text-white/30 mb-1">delay</span>
+                                                  <input type="number" value={entryDraft.delay ?? 0}
+                                                    onChange={e => patchEntryDraft({ delay: Number(e.target.value) || 0 })}
+                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60" />
+                                                </label>
+                                                <label className="flex-1 min-w-[80px]">
+                                                  <span className="block text-[10px] text-white/30 mb-1">weight</span>
+                                                  <input type="number" value={entryDraft.weight ?? 100}
+                                                    onChange={e => patchEntryDraft({ weight: Number(e.target.value) || 100 })}
+                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60" />
+                                                </label>
+                                              </div>
+
+                                              {/* Row: group */}
+                                              <div className="flex gap-3 flex-wrap items-end">
+                                                <label className="flex-1 min-w-[120px]">
+                                                  <span className="block text-[10px] text-white/30 mb-1">分组 (group)</span>
+                                                  <input type="text" value={entryDraft.group ?? ''}
+                                                    onChange={e => patchEntryDraft({ group: e.target.value })}
+                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-2 text-xs text-white/70 focus:outline-none focus:border-aether-cyan/60" />
+                                                </label>
+                                                <label className="w-20">
+                                                  <span className="block text-[10px] text-white/30 mb-1">组权重</span>
+                                                  <input type="number" value={entryDraft.groupWeight ?? 100}
+                                                    onChange={e => patchEntryDraft({ groupWeight: Number(e.target.value) || 100 })}
+                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60" />
+                                                </label>
+                                                <label className="flex items-center gap-1.5 text-[10px] text-white/40 cursor-pointer pb-2">
+                                                  <input type="checkbox" checked={entryDraft.groupOverride ?? false}
+                                                    onChange={e => patchEntryDraft({ groupOverride: e.target.checked })}
+                                                    className="accent-aether-cyan" /> 覆盖分组
+                                                </label>
+                                                <label className="flex items-center gap-1.5 text-[10px] text-white/40 cursor-pointer pb-2">
+                                                  <input type="checkbox" checked={entryDraft.useGroupScoring ?? false}
+                                                    onChange={e => patchEntryDraft({ useGroupScoring: e.target.checked })}
+                                                    className="accent-aether-cyan" /> 分组评分
+                                                </label>
+                                              </div>
+
+                                              {/* Advanced: checkboxes */}
                                               <details className="border-t border-aether-border/10 pt-2">
-                                                <summary className="text-[10px] text-white/25 cursor-pointer hover:text-white/40 transition-colors font-display tracking-wide">高级设置</summary>
+                                                <summary className="text-[10px] text-white/25 cursor-pointer hover:text-white/40 transition-colors font-display tracking-wide select-none">高级选项</summary>
                                                 <div className="pt-2 space-y-2">
-                                                  <div className="flex gap-3 flex-wrap">
-                                                    <label className="flex-1 min-w-[80px]">
-                                                      <span className="block text-[9px] text-white/20 mb-0.5">sticky</span>
-                                                      <input type="number" value={entryDraft.sticky ?? 0}
-                                                        onChange={e => patchEntryDraft({ sticky: Number(e.target.value) || 0 })}
-                                                        className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-[10px] text-white/60 font-mono focus:outline-none focus:border-aether-cyan/60" />
-                                                    </label>
-                                                    <label className="flex-1 min-w-[80px]">
-                                                      <span className="block text-[9px] text-white/20 mb-0.5">cooldown</span>
-                                                      <input type="number" value={entryDraft.cooldown ?? 0}
-                                                        onChange={e => patchEntryDraft({ cooldown: Number(e.target.value) || 0 })}
-                                                        className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-[10px] text-white/60 font-mono focus:outline-none focus:border-aether-cyan/60" />
-                                                    </label>
-                                                    <label className="flex-1 min-w-[80px]">
-                                                      <span className="block text-[9px] text-white/20 mb-0.5">delay</span>
-                                                      <input type="number" value={entryDraft.delay ?? 0}
-                                                        onChange={e => patchEntryDraft({ delay: Number(e.target.value) || 0 })}
-                                                        className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-[10px] text-white/60 font-mono focus:outline-none focus:border-aether-cyan/60" />
-                                                    </label>
-                                                    <label className="flex-1 min-w-[80px]">
-                                                      <span className="block text-[9px] text-white/20 mb-0.5">weight</span>
-                                                      <input type="number" value={entryDraft.weight ?? 100}
-                                                        onChange={e => patchEntryDraft({ weight: Number(e.target.value) || 100 })}
-                                                        className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-[10px] text-white/60 font-mono focus:outline-none focus:border-aether-cyan/60" />
-                                                    </label>
+                                                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                                                    {([
+                                                      ['caseSensitive', '区分大小写'],
+                                                      ['matchWholeWords', '全词匹配'],
+                                                      ['excludeRecursion', '排除递归'],
+                                                      ['preventRecursion', '阻止递归'],
+                                                      ['delayUntilRecursion', '延迟至递归'],
+                                                      ['ignoreBudget', '忽略预算'],
+                                                    ] as const).map(([k, label]) => (
+                                                      <label key={k} className="flex items-center gap-1.5 text-[10px] text-white/35 cursor-pointer">
+                                                        <input type="checkbox"
+                                                          checked={(entryDraft as any)[k] ?? false}
+                                                          onChange={e => patchEntryDraft({ [k]: e.target.checked } as any)}
+                                                          className="accent-aether-cyan" />
+                                                        {label}
+                                                      </label>
+                                                    ))}
                                                   </div>
+
+                                                  {/* Scan depth */}
+                                                  <label className="flex items-center gap-2 text-[10px] text-white/30">
+                                                    scanDepth
+                                                    <input type="number" value={entryDraft.scanDepth ?? 0}
+                                                      onChange={e => patchEntryDraft({ scanDepth: Number(e.target.value) || 0 })}
+                                                      className="w-20 bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60" />
+                                                  </label>
+
+                                                  {/* Character card matching */}
+                                                  <fieldset className="border border-aether-border/10 rounded p-2">
+                                                    <legend className="text-[9px] text-white/20 px-1">角色卡匹配</legend>
+                                                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                                      {([
+                                                        ['matchPersonaDescription', '人设描述'],
+                                                        ['matchCharacterDescription', '角色描述'],
+                                                        ['matchCharacterPersonality', '角色性格'],
+                                                        ['matchCharacterDepthPrompt', '深层提示'],
+                                                        ['matchScenario', '场景'],
+                                                        ['matchCreatorNotes', '创建者备注'],
+                                                      ] as const).map(([k, label]) => (
+                                                        <label key={k} className="flex items-center gap-1.5 text-[10px] text-white/30 cursor-pointer">
+                                                          <input type="checkbox"
+                                                            checked={(entryDraft as any)[k] ?? false}
+                                                            onChange={e => patchEntryDraft({ [k]: e.target.checked } as any)}
+                                                            className="accent-aether-purple" />
+                                                          {label}
+                                                        </label>
+                                                      ))}
+                                                    </div>
+                                                  </fieldset>
+
+                                                  {/* Decorators */}
                                                   <label className="block">
-                                                    <span className="block text-[9px] text-white/20 mb-0.5">分组 (group)</span>
-                                                    <input type="text" value={entryDraft.group ?? ''}
-                                                      onChange={e => patchEntryDraft({ group: e.target.value })}
+                                                    <span className="block text-[9px] text-white/20 mb-0.5">decorators (逗号分隔)</span>
+                                                    <input type="text"
+                                                      value={(entryDraft.decorators ?? []).join(', ')}
+                                                      onChange={e => patchEntryDraft({ decorators: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
                                                       className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-[10px] text-white/60 focus:outline-none focus:border-aether-cyan/60" />
                                                   </label>
                                                 </div>
                                               </details>
 
                                               {/* Save / Cancel */}
-                                              <div className="flex items-center justify-end gap-2 pt-1">
+                                              <div className="flex items-center justify-end gap-2 pt-2 border-t border-aether-border/10">
                                                 <button onClick={closeEntryEditor}
                                                   className="px-3 py-1.5 rounded text-[10px] text-white/30 hover:text-white/60 transition-colors font-display tracking-wide">
                                                   取消
@@ -983,9 +1100,16 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                                 </button>
                                               </div>
                                             </div>
-                                          </motion.div>
-                                        )}
-                                      </AnimatePresence>
+                                          ) : (
+                                            /* Empty state */
+                                            <div className="flex flex-col items-center justify-center h-full py-16 text-center">
+                                              <BookOpen size={32} className="text-white/8 mb-3" />
+                                              <p className="text-white/15 text-xs font-display tracking-wide">选择左侧条目进行编辑</p>
+                                              <p className="text-white/8 text-[10px] mt-1">或点击「新建条目」创建</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
                                   </motion.div>
                                 )}
