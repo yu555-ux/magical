@@ -110,9 +110,8 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
 
   // ── preset ──
   const [expandedPresetId, setExpandedPresetId] = useState<string | null>(null);
-  const [presetMainDraft, setPresetMainDraft] = useState<string>('');
-  const [presetTempDraft, setPresetTempDraft] = useState<number>(0.8);
-  const [presetMaxTokensDraft, setPresetMaxTokensDraft] = useState<number>(2048);
+  const [presetSubTab, setPresetSubTab] = useState<string>('sampling');
+  const [presetDraftFull, setPresetDraftFull] = useState<ChatPreset | null>(null);
   const [presetDirty, setPresetDirty] = useState(false);
 
   useEffect(() => {
@@ -393,24 +392,25 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
   const presetFileRef = useRef<HTMLInputElement>(null);
 
   const openPresetEdit = (preset: ChatPreset) => {
-    setExpandedPresetId(expandedPresetId === preset.id ? null : preset.id);
-    setPresetMainDraft(preset.settings.main ?? '');
-    setPresetTempDraft(preset.settings.temp_openai ?? 0.8);
-    setPresetMaxTokensDraft(preset.settings.openai_max_tokens ?? 2048);
+    if (expandedPresetId === preset.id) {
+      setExpandedPresetId(null);
+      return;
+    }
+    setExpandedPresetId(preset.id);
+    setPresetSubTab('sampling');
+    setPresetDraftFull(JSON.parse(JSON.stringify(preset)));
     setPresetDirty(false);
   };
 
-  const handleSavePresetEdits = async (preset: ChatPreset) => {
-    const updated: ChatPreset = {
-      ...preset,
-      settings: {
-        ...preset.settings,
-        main: presetMainDraft,
-        temp_openai: presetTempDraft,
-        openai_max_tokens: presetMaxTokensDraft,
-      },
-    };
-    await ss.updatePreset(updated);
+  const presetPatchSettings = (patch: Record<string, any>) => {
+    if (!presetDraftFull) return;
+    setPresetDraftFull({ ...presetDraftFull, settings: { ...presetDraftFull.settings, ...patch } });
+    setPresetDirty(true);
+  };
+
+  const handleSavePresetEdits = async () => {
+    if (!presetDraftFull) return;
+    await ss.updatePreset({ ...presetDraftFull, updatedAt: Date.now() });
     setPresetDirty(false);
     showToast('预设已更新', 'success');
   };
@@ -1051,6 +1051,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                                             rows={6}
                                                             placeholder="匹配后注入到提示词中的正文内容..."
                                                             className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-cyan/60 transition-all resize-none font-mono leading-relaxed" />
+                                                          <p className="text-[9px] text-white/12 mt-1">支持宏：{`{{user}}`} {`{{char}}`}</p>
                                                         </label>
 
                                                         {/* ── Actions ── */}
@@ -1217,9 +1218,9 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                 </div>
                               </motion.div>
 
-                              {/* Expanded preset editor */}
+                              {/* Expanded preset editor — ST-native 4-tab */}
                               <AnimatePresence initial={false}>
-                                {isExpanded && (
+                                {isExpanded && presetDraftFull && (
                                   <motion.div
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: 'auto', opacity: 1 }}
@@ -1228,64 +1229,204 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
                                     className="overflow-hidden"
                                   >
                                     <div className="ml-8 mr-2 mb-3 space-y-3 border-l border-aether-border/20 pl-4 pt-2">
-                                      {/* Sampling */}
+                                      {/* Preset name */}
                                       <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
-                                        <h4 className="text-[11px] font-display font-semibold text-white/40 uppercase tracking-wider mb-3">采样参数</h4>
-                                        <div className="flex flex-wrap gap-3">
-                                          <label className="flex-1 min-w-[120px]">
-                                            <span className="block text-[10px] text-white/30 mb-1">Temperature</span>
-                                            <input
-                                              type="number" step={0.05} min={0} max={2}
-                                              value={presetTempDraft}
-                                              onChange={(e) => { setPresetTempDraft(Number(e.target.value)); setPresetDirty(true); }}
-                                              className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1.5 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-purple/60"
-                                            />
-                                          </label>
-                                          <label className="flex-1 min-w-[120px]">
-                                            <span className="block text-[10px] text-white/30 mb-1">Max Tokens</span>
-                                            <input
-                                              type="number" step={64} min={32} max={32768}
-                                              value={presetMaxTokensDraft}
-                                              onChange={(e) => { setPresetMaxTokensDraft(Number(e.target.value)); setPresetDirty(true); }}
-                                              className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1.5 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-purple/60"
-                                            />
-                                          </label>
-                                          <label className="flex-1 min-w-[120px]">
-                                            <span className="block text-[10px] text-white/30 mb-1">Top P</span>
-                                            <input
-                                              type="text" readOnly
-                                              value={preset.settings.top_p_openai ?? 0.9}
-                                              className="w-full bg-aether-dark/30 border border-aether-border/10 rounded px-2 py-1.5 text-xs text-white/40 font-mono cursor-default"
-                                            />
-                                          </label>
-                                        </div>
+                                        <label className="flex items-center gap-3">
+                                          <span className="text-[11px] text-white/40 font-display tracking-wide shrink-0">名称</span>
+                                          <input type="text" value={presetDraftFull.name}
+                                            onChange={e => { setPresetDraftFull({ ...presetDraftFull, name: e.target.value }); setPresetDirty(true); }}
+                                            className="flex-1 bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-1.5 text-xs text-white/70 focus:outline-none focus:border-aether-purple/60 transition-all" />
+                                        </label>
                                       </div>
 
-                                      {/* Main prompt */}
-                                      <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
-                                        <h4 className="text-[11px] font-display font-semibold text-white/40 uppercase tracking-wider mb-3">Main Prompt</h4>
-                                        <textarea
-                                          value={presetMainDraft}
-                                          onChange={(e) => { setPresetMainDraft(e.target.value); setPresetDirty(true); }}
-                                          rows={4}
-                                          className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono"
-                                        />
-                                        <p className="text-[9px] text-white/15 mt-1">
-                                          支持宏：{`{{user}}`} {`{{char}}`} {`{{original}}`} {`{{变量名}}`}
-                                        </p>
+                                      {/* Sub-tabs */}
+                                      <div className="flex gap-1 flex-wrap">
+                                        {([
+                                          ['sampling', '采样参数'],
+                                          ['prompts', 'Prompt 文本'],
+                                          ['custom', '自定义 Prompt'],
+                                          ['order', '排序'],
+                                        ] as const).map(([id, label]) => (
+                                          <button key={id}
+                                            onClick={() => setPresetSubTab(id)}
+                                            className={`px-3 py-1.5 rounded-full text-[11px] font-display tracking-wide transition-all ${
+                                              presetSubTab === id
+                                                ? 'bg-aether-purple/30 text-aether-purple border border-aether-purple/40'
+                                                : 'text-white/30 hover:text-white/50 border border-transparent hover:border-white/10'
+                                            }`}
+                                          >{label}</button>
+                                        ))}
                                       </div>
+
+                                      {/* TAB: Sampling */}
+                                      {presetSubTab === 'sampling' && (
+                                        <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
+                                          <div className="flex flex-wrap gap-3">
+                                            <NumField label="温度 (temp_openai)" value={presetDraftFull.settings.temp_openai} onChange={v => presetPatchSettings({ temp_openai: v })} step={0.05} min={0} max={2} fallback={0.8} />
+                                            <NumField label="top_p_openai" value={presetDraftFull.settings.top_p_openai} onChange={v => presetPatchSettings({ top_p_openai: v })} step={0.01} min={0} max={1} fallback={0.9} />
+                                            <NumField label="top_k_openai" value={presetDraftFull.settings.top_k_openai} onChange={v => presetPatchSettings({ top_k_openai: v })} min={0} max={500} fallback={0} />
+                                            <NumField label="top_a_openai" value={presetDraftFull.settings.top_a_openai} onChange={v => presetPatchSettings({ top_a_openai: v })} step={0.01} min={0} max={1} fallback={0} />
+                                            <NumField label="min_p_openai" value={presetDraftFull.settings.min_p_openai} onChange={v => presetPatchSettings({ min_p_openai: v })} step={0.01} min={0} max={1} fallback={0} />
+                                            <NumField label="频率惩罚 (freq_pen)" value={presetDraftFull.settings.freq_pen_openai} onChange={v => presetPatchSettings({ freq_pen_openai: v })} step={0.1} min={-2} max={2} fallback={0} />
+                                            <NumField label="存在惩罚 (pres_pen)" value={presetDraftFull.settings.pres_pen_openai} onChange={v => presetPatchSettings({ pres_pen_openai: v })} step={0.1} min={-2} max={2} fallback={0} />
+                                            <NumField label="重复惩罚" value={presetDraftFull.settings.repetition_penalty_openai} onChange={v => presetPatchSettings({ repetition_penalty_openai: v })} step={0.05} min={0} max={2} fallback={1} />
+                                            <NumField label="最大上下文" value={presetDraftFull.settings.openai_max_context} onChange={v => presetPatchSettings({ openai_max_context: v })} step={256} min={256} max={2000000} fallback={4096} />
+                                            <NumField label="最大 Token 数" value={presetDraftFull.settings.openai_max_tokens} onChange={v => presetPatchSettings({ openai_max_tokens: v })} step={64} min={32} max={32768} fallback={2048} />
+                                            <label className="flex-1 min-w-[140px]">
+                                              <span className="block text-[10px] text-white/30 mb-1">模型</span>
+                                              <input type="text" value={presetDraftFull.settings.openai_model ?? ''}
+                                                onChange={e => presetPatchSettings({ openai_model: e.target.value })}
+                                                placeholder="gpt-3.5-turbo"
+                                                className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1.5 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-purple/60" />
+                                            </label>
+                                          </div>
+                                          <div className="flex items-center gap-5 mt-3">
+                                            <label className="flex items-center gap-1.5 text-[10px] text-white/35 cursor-pointer">
+                                              <input type="checkbox" checked={!!presetDraftFull.settings.stream_openai}
+                                                onChange={e => presetPatchSettings({ stream_openai: e.target.checked })}
+                                                className="accent-aether-purple" /> 流式输出
+                                            </label>
+                                            <label className="flex items-center gap-1.5 text-[10px] text-white/35 cursor-pointer">
+                                              <input type="checkbox" checked={!!presetDraftFull.settings.max_context_unlocked}
+                                                onChange={e => presetPatchSettings({ max_context_unlocked: e.target.checked })}
+                                                className="accent-aether-purple" /> 解锁上下文限制
+                                            </label>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* TAB: Prompt texts */}
+                                      {presetSubTab === 'prompts' && (
+                                        <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3 space-y-3">
+                                          {([
+                                            ['main', 'Main（角色扮演指令）'],
+                                            ['nsfw', 'NSFW'],
+                                            ['jailbreak', 'Jailbreak'],
+                                            ['enhanceDefinitions', '增强定义'],
+                                            ['impersonation_prompt', '扮演提示'],
+                                            ['new_chat_prompt', '新对话提示'],
+                                            ['new_group_chat_prompt', '新群聊提示'],
+                                            ['new_example_chat_prompt', '新示例对话提示'],
+                                            ['continue_nudge_prompt', '继续推动提示'],
+                                            ['wi_format', '世界书格式'],
+                                            ['group_nudge_prompt', '群组推动提示'],
+                                            ['scenario_format', '场景格式'],
+                                            ['personality_format', '性格格式'],
+                                          ] as const).map(([key, label]) => (
+                                            <label key={key} className="block">
+                                              <span className="block text-[10px] text-white/30 mb-1">{label}</span>
+                                              <textarea value={(presetDraftFull.settings as any)[key] ?? ''}
+                                                onChange={e => presetPatchSettings({ [key]: e.target.value })}
+                                                rows={3}
+                                                className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
+                                            </label>
+                                          ))}
+                                          <p className="text-[9px] text-white/15 mt-1">支持宏：{`{{user}}`} {`{{char}}`} {`{{original}}`} {`{{变量名}}`}</p>
+                                        </div>
+                                      )}
+
+                                      {/* TAB: Custom prompts */}
+                                      {presetSubTab === 'custom' && (
+                                        <div className="space-y-2">
+                                          <button
+                                            onClick={() => {
+                                              const current = (presetDraftFull.settings.prompts ?? []) as any[];
+                                              const id = prompt('新 prompt 标识符（英文/下划线）', 'custom_' + (current.length + 1));
+                                              if (!id) return;
+                                              if (current.some((p: any) => p.identifier === id)) { alert('标识符已存在'); return; }
+                                              presetPatchSettings({ prompts: [...current, { identifier: id, role: 'system', content: '' }] });
+                                            }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-display tracking-wide
+                                                       bg-aether-purple/15 border border-aether-purple/25 text-aether-purple hover:bg-aether-purple/25 transition-all"
+                                          ><Plus size={12} /> 新建自定义 Prompt</button>
+                                          {((presetDraftFull.settings.prompts ?? []) as any[]).length === 0 ? (
+                                            <p className="text-[10px] text-white/15 text-center py-4">暂无自定义 Prompt</p>
+                                          ) : (
+                                            ((presetDraftFull.settings.prompts ?? []) as any[]).map((p: any, idx: number) => (
+                                              <div key={idx} className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3 space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                  <code className="text-[10px] text-aether-purple/50 font-mono">{p.identifier}</code>
+                                                  <select value={p.role ?? 'system'}
+                                                    onChange={e => {
+                                                      const list = [...(presetDraftFull.settings.prompts ?? [])];
+                                                      list[idx] = { ...list[idx], role: e.target.value };
+                                                      presetPatchSettings({ prompts: list });
+                                                    }}
+                                                    className="bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-[10px] text-white/50 focus:outline-none focus:border-aether-purple/60">
+                                                    <option value="system">系统</option>
+                                                    <option value="user">用户</option>
+                                                    <option value="assistant">助手</option>
+                                                  </select>
+                                                  <span className="flex-1" />
+                                                  <button onClick={() => {
+                                                    if (!confirm('删除此 Prompt？')) return;
+                                                    const list = [...(presetDraftFull.settings.prompts ?? [])];
+                                                    list.splice(idx, 1);
+                                                    presetPatchSettings({ prompts: list });
+                                                  }} className="text-[10px] text-white/20 hover:text-aether-red transition-colors">删除</button>
+                                                </div>
+                                                <textarea value={p.content ?? ''}
+                                                  onChange={e => {
+                                                    const list = [...(presetDraftFull.settings.prompts ?? [])];
+                                                    list[idx] = { ...list[idx], content: e.target.value };
+                                                    presetPatchSettings({ prompts: list });
+                                                  }}
+                                                  rows={3}
+                                                  className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-purple/60 transition-all resize-none" />
+                                              </div>
+                                            ))
+                                          )}
+                                        </div>
+                                      )}
+
+                                      {/* TAB: Prompt order */}
+                                      {presetSubTab === 'order' && (
+                                        <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
+                                          {((presetDraftFull.settings.prompt_order ?? []) as any[]).length === 0 ? (
+                                            <p className="text-[11px] text-white/20 text-center py-6">暂无排序数据，导入 ST 预设或新建默认预设获取标准排序</p>
+                                          ) : (
+                                            <div className="space-y-0.5">
+                                              {((presetDraftFull.settings.prompt_order ?? []) as any[]).map((item: any, idx: number) => (
+                                                <div key={item.identifier} className="flex items-center gap-2 px-2 py-1.5 hover:bg-white/[0.02] rounded transition-colors">
+                                                  <input type="checkbox" checked={item.enabled !== false}
+                                                    onChange={e => {
+                                                      const list = [...(presetDraftFull.settings.prompt_order ?? [])];
+                                                      list[idx] = { ...list[idx], enabled: e.target.checked };
+                                                      presetPatchSettings({ prompt_order: list });
+                                                    }}
+                                                    className="accent-aether-purple shrink-0" />
+                                                  <code className="text-[10px] text-white/30 font-mono min-w-[140px] shrink-0">{item.identifier}</code>
+                                                  <span className="text-[10px] text-white/20 truncate flex-1">{item.name ?? item.identifier}</span>
+                                                  <button disabled={idx === 0}
+                                                    onClick={() => {
+                                                      const list = [...(presetDraftFull.settings.prompt_order ?? [])];
+                                                      [list[idx-1], list[idx]] = [list[idx], list[idx-1]];
+                                                      presetPatchSettings({ prompt_order: list });
+                                                    }}
+                                                    className="text-[10px] text-white/15 hover:text-white/40 disabled:opacity-20 px-1">↑</button>
+                                                  <button disabled={idx === ((presetDraftFull.settings.prompt_order ?? []) as any[]).length - 1}
+                                                    onClick={() => {
+                                                      const list = [...(presetDraftFull.settings.prompt_order ?? [])];
+                                                      [list[idx], list[idx+1]] = [list[idx+1], list[idx]];
+                                                      presetPatchSettings({ prompt_order: list });
+                                                    }}
+                                                    className="text-[10px] text-white/15 hover:text-white/40 disabled:opacity-20 px-1">↓</button>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
 
                                       {/* Save */}
                                       <div className="flex justify-end">
-                                        <button
-                                          onClick={() => handleSavePresetEdits(preset)}
+                                        <button onClick={handleSavePresetEdits}
                                           disabled={!presetDirty}
                                           className={`px-4 py-1.5 rounded text-xs font-display tracking-wide transition-all ${
                                             presetDirty
                                               ? 'bg-aether-purple text-white shadow-[0_0_12px_rgba(168,85,247,0.3)] hover:shadow-[0_0_20px_rgba(168,85,247,0.5)]'
                                               : 'bg-white/5 text-white/20 cursor-not-allowed'
-                                          }`}
-                                        >
+                                          }`}>
                                           保存修改
                                         </button>
                                       </div>
@@ -1397,6 +1538,24 @@ function ActionButton({ busy, onClick, label, variant }: {
       {label}
       {!busy && !isSecondary && <ChevronRight size={12} />}
     </button>
+  );
+}
+
+/* ─────────── Number Field ─────────── */
+function NumField({ label, value, onChange, step, min, max, fallback }: {
+  label: string; value: number | undefined; onChange: (n: number) => void;
+  step?: number; min?: number; max?: number; fallback: number;
+}) {
+  return (
+    <label className="flex-1 min-w-[130px]">
+      <span className="block text-[10px] text-white/30 mb-1">{label}</span>
+      <input type="number" step={step ?? 1} value={value ?? fallback}
+        onChange={e => {
+          const n = Number(e.target.value);
+          if (!isNaN(n)) onChange(Math.min(max ?? 1e9, Math.max(min ?? -1e9, n)));
+        }}
+        className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1.5 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-purple/60" />
+    </label>
   );
 }
 
