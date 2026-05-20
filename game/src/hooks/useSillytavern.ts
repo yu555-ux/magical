@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, aggregateEvents } from '../sillytavern/variables';
+import { applyVarsPatch } from '../sillytavern/vars-merger';
 import { assemblePrompt } from '../sillytavern/prompt-assembler';
 import {
   DEFAULT_TAGS,
@@ -368,10 +369,57 @@ export function useSillytavern() {
       }
 
       const { events, parsed } = parser.finish();
-      const { nextVariables, snapshot } = applyParsedToChat(
+      let { nextVariables, snapshot } = applyParsedToChat(
         updatedChat.variables ?? {},
         parsed
       );
+
+      // ── Dual API: secondary independently extracts variables from story ──
+      let apiUsed: 'primary' | 'secondary' | 'dual' = 'primary';
+      if (effectiveApi.secondary?.enabled && effectiveSettings.apiMode === 'dual'
+          && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
+        const maintextForVars = parsed.maintext || events
+          .filter((e) => e.type === 'tag-chunk' || e.type === 'raw')
+          .map((e: any) => e.chunk)
+          .join('');
+
+        if (maintextForVars.trim()) {
+          try {
+            const secondaryMessages = [
+              {
+                role: 'system',
+                content: `Extract variable changes from story text. Output ONLY a JSON object with key-value pairs to merge into the world state. Use nested objects for hierarchical data. Do NOT include any other text or explanation.`,
+              },
+              {
+                role: 'user',
+                content: `Current world state:\n${JSON.stringify(updatedChat.variables ?? {}, null, 2)}\n\nStory:\n${maintextForVars.slice(0, 3000)}\n\nJSON variable changes:`,
+              },
+            ];
+            const secondaryResult = await freshRouter.call('vars', {
+              messages: secondaryMessages as any,
+              stream: false,
+              temperature: effectiveApi.secondary.temperature ?? 0.3,
+              max_tokens: effectiveApi.secondary.maxTokens ?? 2048,
+            });
+            if (secondaryResult.response.ok) {
+              const data = await secondaryResult.response.json();
+              const rawContent: string = data?.choices?.[0]?.message?.content ?? '';
+              const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const secondaryParsed = JSON.parse(jsonMatch[0]);
+                if (secondaryParsed && typeof secondaryParsed === 'object' && !Array.isArray(secondaryParsed)) {
+                  // Merge: secondary overrides primary for same keys
+                  nextVariables = applyVarsPatch(nextVariables, { merge: secondaryParsed });
+                  snapshot = JSON.parse(JSON.stringify(nextVariables));
+                  apiUsed = 'dual';
+                }
+              }
+            }
+          } catch {
+            // secondary API failed silently; keep primary vars
+          }
+        }
+      }
 
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
@@ -383,7 +431,7 @@ export function useSillytavern() {
         timestamp: Date.now(),
         parsed,
         variablesAfter: snapshot,
-        apiUsed: 'primary',
+        apiUsed,
       };
       const finalChat: ChatSession = {
         ...updatedChat,
