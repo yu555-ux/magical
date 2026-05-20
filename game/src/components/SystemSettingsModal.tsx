@@ -256,7 +256,16 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
+      console.log('[Import Preset] raw JSON keys:', Object.keys(data));
+      console.log('[Import Preset] has settings?', !!data.settings, 'settings keys:', data.settings ? Object.keys(data.settings) : 'N/A');
+      console.log('[Import Preset] root prompt_order?', Array.isArray(data.prompt_order) ? data.prompt_order.length : 'no');
+      console.log('[Import Preset] settings.prompt_order?', data.settings?.prompt_order ? data.settings.prompt_order.length : 'no');
+      console.log('[Import Preset] first root entry:', data.prompt_order?.[0]);
+      console.log('[Import Preset] first settings entry:', data.settings?.prompt_order?.[0]);
       const imported = importPreset(data);
+      console.log('[Import Preset] imported settings keys:', Object.keys(imported.settings));
+      console.log('[Import Preset] imported prompt_order length:', (imported.settings as any).prompt_order?.length);
+      console.log('[Import Preset] imported first entry:', (imported.settings as any).prompt_order?.[0]);
       const fallbackName = file.name.replace(/\.json$/i, '');
       const newId = crypto.randomUUID();
       await ss.addPreset({ ...imported, name: imported.name !== '导入的预设' ? imported.name : fallbackName, id: newId, createdAt: Date.now(), updatedAt: Date.now() });

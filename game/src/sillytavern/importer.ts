@@ -158,6 +158,10 @@ export function importPreset(data: Record<string, any>): Omit<ChatPreset, 'id' |
     : data;
   // Merge: inner fields + top-level name/description, inner.settings takes precedence
   const merged = { ...data, ...inner };
+  console.log('[importPreset] data keys:', Object.keys(data));
+  console.log('[importPreset] inner keys:', Object.keys(inner));
+  console.log('[importPreset] merged keys:', Object.keys(merged));
+  console.log('[importPreset] merged.prompt_order?.[0]:', (merged as any).prompt_order?.[0]);
   return {
     name,
     description: merged.description || data.description,
