@@ -329,7 +329,6 @@ export function useSillytavern() {
         userName: effectiveSettings.userName,
         characterName: effectiveSettings.characterName,
         extraVariables: updatedChat.variables,
-        formatPrompt: effectiveSettings.formatPromptTemplate,
       });
 
       // Build a fresh router with the latest API key

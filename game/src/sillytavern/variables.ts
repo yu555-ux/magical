@@ -2,7 +2,7 @@
  * Variable System Utilities
  */
 
-import type { ChatSession, ParsedTags } from './types';
+import type { ChatSession, ParsedTags, SavePoint } from './types';
 import type { ParserEvent } from './stream-parser';
 import { parseVarsBlock, applyVarsPatch } from './vars-merger';
 
@@ -85,12 +85,28 @@ export function branchChat(
 
 // ========== v3: stream parser event aggregation ==========
 
+export function parseHistoryBlock(raw: string): SavePoint | null {
+  const parts = raw.trim().split('|');
+  if (parts.length < 7) return null;
+  return {
+    date: parts[0]?.trim() ?? '',
+    title: parts[1]?.trim() ?? '',
+    location: parts[2]?.trim() ?? '',
+    characters: parts[3]?.trim() ?? '',
+    description: parts[4]?.trim() ?? '',
+    relationships: parts[5]?.trim() ?? '',
+    tags: (parts[6]?.split(',') ?? []).map(t => t.trim()).filter(Boolean),
+    importantInfo: parts[7]?.trim() ?? '',
+    hiddenClues: parts[8]?.trim() ?? '',
+  };
+}
+
 export function aggregateEvents(events: ParserEvent[]): ParsedTags {
   const parsed: ParsedTags = {
     thinking: '',
     maintext: '',
     options: [],
-    sum: '',
+    history: null,
     varsRaw: '',
     varsCommands: { merge: {} },
     unknown: {},
@@ -99,7 +115,7 @@ export function aggregateEvents(events: ParserEvent[]): ParsedTags {
     if (ev.type === 'tag-close') {
       if (ev.tag === 'thinking' || ev.tag === 'think') parsed.thinking = ev.full;
       else if (ev.tag === 'maintext') parsed.maintext = ev.full;
-      else if (ev.tag === 'sum') parsed.sum = ev.full;
+      else if (ev.tag === 'history') parsed.history = parseHistoryBlock(ev.full);
       else if (ev.tag === 'vars') {
         parsed.varsRaw = ev.full;
         parsed.varsCommands = parseVarsBlock(ev.full);

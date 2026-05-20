@@ -1,19 +1,19 @@
 import { useRef, useState, useCallback } from 'react';
 import { StreamTagParser, type ParserEvent } from '../sillytavern/stream-parser';
-import { aggregateEvents } from '../sillytavern/variables';
-import type { ParsedTags } from '../sillytavern/types';
+import { aggregateEvents, parseHistoryBlock } from '../sillytavern/variables';
+import type { ParsedTags, SavePoint } from '../sillytavern/types';
 
 export interface StreamParserState {
   thinking: string;
   maintext: string;
   options: string[];
-  sum: string;
+  history: SavePoint | null;
   varsRaw: string;
   isStreaming: boolean;
 }
 
 const initialState: StreamParserState = {
-  thinking: '', maintext: '', options: [], sum: '', varsRaw: '', isStreaming: false,
+  thinking: '', maintext: '', options: [], history: null, varsRaw: '', isStreaming: false,
 };
 
 export function useStreamParser(tags: string[], opaqueTags: string[]) {
@@ -54,8 +54,9 @@ function applyEvents(prev: StreamParserState, events: ParserEvent[]): StreamPars
     if (ev.type === 'tag-chunk') {
       if (ev.tag === 'maintext') next.maintext += ev.chunk;
       else if (ev.tag === 'thinking' || ev.tag === 'think') next.thinking += ev.chunk;
-      else if (ev.tag === 'sum') next.sum += ev.chunk;
       else if (ev.tag === 'vars') next.varsRaw += ev.chunk;
+    } else if (ev.type === 'tag-close') {
+      if (ev.tag === 'history') next.history = parseHistoryBlock(ev.full);
     } else if (ev.type === 'option-line') {
       next.options = [...next.options, ev.line];
     }
@@ -65,7 +66,7 @@ function applyEvents(prev: StreamParserState, events: ParserEvent[]): StreamPars
 
 function emptyParsed(): ParsedTags {
   return {
-    thinking: '', maintext: '', options: [], sum: '', varsRaw: '',
+    thinking: '', maintext: '', options: [], history: null, varsRaw: '',
     varsCommands: { merge: {} }, unknown: {},
   };
 }

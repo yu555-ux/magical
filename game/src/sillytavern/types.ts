@@ -157,7 +157,6 @@ export interface AppSettings {
   autoSaveInterval: number;
   uiMode: 'game' | 'chat';
   customTags: string[];
-  formatPromptTemplate: string;
   thinkingDisplay: 'fold' | 'hide' | 'inline';
   playerTitle?: string;
   playerDescription?: string;
@@ -165,16 +164,7 @@ export interface AppSettings {
   scenario?: string;
 }
 
-export const DEFAULT_FORMAT_PROMPT = `你必须严格按照以下 XML 标签格式输出回复，不要使用 Markdown 包裹：
-<thinking>……</thinking>     ← 可选；内部任何字符都视为思考过程，不被解析
-<maintext>……</maintext>     ← 必填；本回合的剧情正文，可多段，保留换行
-<option>选项 A
-选项 B
-选项 C</option>              ← 必填；至少 2 项，每行一个
-<sum>……</sum>               ← 必填；本回合一句话总结
-<vars>{ "金钱": +10, "HP": 38 }</vars>   ← 选填；JSON 深合并`;
-
-export const DEFAULT_TAGS = ['maintext', 'option', 'sum', 'vars', 'thinking', 'think'] as const;
+export const DEFAULT_TAGS = ['maintext', 'option', 'history', 'vars', 'thinking', 'think'] as const;
 export const DEFAULT_OPAQUE_TAGS = ['thinking', 'think'] as const;
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -202,8 +192,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoSave: true,
   autoSaveInterval: 30,
   uiMode: 'game',
-  customTags: ['maintext', 'option', 'sum', 'vars', 'thinking', 'think'],
-  formatPromptTemplate: DEFAULT_FORMAT_PROMPT,
+  customTags: ['maintext', 'option', 'history', 'vars', 'thinking', 'think'],
   thinkingDisplay: 'fold',
 };
 
@@ -272,7 +261,16 @@ export function createDefaultPreset(): Omit<ChatPreset, 'id' | 'createdAt' | 'up
       max_context_unlocked: false,
       chat_completion_source: 'openai',
       openai_model: 'gpt-3.5-turbo',
-      main: 'Write {{char}}\'s next reply in a fictional chat between {{char}} and {{user}}.',
+      main: `Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.
+
+你必须严格按照以下 XML 标签格式输出回复，不要使用 Markdown 包裹：
+<thinking>……</thinking>     ← 可选；内部任何字符都视为思考过程，不被解析
+<maintext>……</maintext>     ← 必填；本回合的剧情正文，可多段，保留换行
+<option>选项 A
+选项 B
+选项 C</option>              ← 必填；至少 2 项，每行一个
+<history>日期|标题|地点|人物|描述|人物关系|标签1,标签2|重要信息|暗线与伏笔</history>  ← 必填；存档点，9字段用|分隔，标签用,分隔
+<vars>{ "金钱": +10, "HP": 38 }</vars>   ← 选填；JSON 深合并`,
       nsfw: '',
       jailbreak: '',
       enhanceDefinitions: '',
@@ -293,11 +291,23 @@ export function createDefaultPreset(): Omit<ChatPreset, 'id' | 'createdAt' | 'up
 
 // ========== v3 Game Mode Types ==========
 
+export interface SavePoint {
+  date: string;
+  title: string;
+  location: string;
+  characters: string;
+  description: string;
+  relationships: string;
+  tags: string[];
+  importantInfo: string;
+  hiddenClues: string;
+}
+
 export interface ParsedTags {
   thinking: string;
   maintext: string;
   options: string[];
-  sum: string;
+  history: SavePoint | null;
   varsRaw: string;
   varsCommands: VarsPatch;
   unknown: Record<string, string>;

@@ -4,7 +4,6 @@ import { ChevronDown, ChevronRight, Send, X } from 'lucide-react';
 import ChatHeader from './ChatHeader';
 import PlotReaderModal from './PlotReaderModal';
 import VariableViewerModal from './VariableViewerModal';
-import SaveManagerModal from './SaveManagerModal';
 import { useSillytavern } from '../../../hooks/useSillytavern';
 
 export default function ChatPage({
@@ -23,7 +22,6 @@ export default function ChatPage({
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [readerOpen, setReaderOpen] = useState(false);
   const [varViewerOpen, setVarViewerOpen] = useState(false);
-  const [saveManagerOpen, setSaveManagerOpen] = useState(false);
   const [rawViewOpen, setRawViewOpen] = useState(false);
   const [rawViewPos, setRawViewPos] = useState({ x: 0, y: 0 });
   const [rawContent, setRawContent] = useState('');
@@ -122,9 +120,10 @@ export default function ChatPage({
 
         <ChatHeader
           variables={ss.activeChat?.variables}
+          messages={ss.activeChat?.messages}
           onOpenReader={() => setReaderOpen(true)}
           onOpenVariables={() => setVarViewerOpen(true)}
-          onOpenSave={() => setSaveManagerOpen(true)}
+          onJumpToFloor={(id) => ss.jumpToFloor(id)}
         />
 
         {/* ── Streaming indicator ── */}
@@ -327,13 +326,6 @@ export default function ChatPage({
         onClose={() => setVarViewerOpen(false)}
         variables={ss.activeChat?.variables ?? {}}
         onSave={(vars) => ss.setChatVariables(vars)}
-      />
-
-      {/* ── Save Manager Modal ── */}
-      <SaveManagerModal
-        isOpen={saveManagerOpen}
-        onClose={() => setSaveManagerOpen(false)}
-        addNotification={addNotification}
       />
 
       {/* ── Context menu ── */}

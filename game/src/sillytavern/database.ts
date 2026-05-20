@@ -38,9 +38,8 @@ class AppDatabase extends Dexie {
       const settings = await tx.table('settings').toCollection().toArray();
       for (const s of settings) {
         if (s.uiMode === undefined) s.uiMode = 'game';
-        if (s.customTags === undefined) s.customTags = ['maintext', 'option', 'sum', 'vars', 'thinking', 'think'];
+        if (s.customTags === undefined) s.customTags = ['maintext', 'option', 'history', 'vars', 'thinking', 'think'];
         if (s.thinkingDisplay === undefined) s.thinkingDisplay = 'fold';
-        if (s.formatPromptTemplate === undefined) s.formatPromptTemplate = '';
         if (s.api && s.api.secondary === undefined) {
           s.api.secondary = { enabled: false, baseUrl: '', apiKey: '', model: '' };
         }
