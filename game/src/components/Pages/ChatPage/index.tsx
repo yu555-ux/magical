@@ -159,9 +159,7 @@ export default function ChatPage({
         {/* ── Main text pane ── */}
         <div className="flex-1 overflow-y-auto px-5 md:px-10 py-6">
           {!maintext && !isStreaming ? (
-            <div className="h-full flex items-center justify-center">
-              <p className="text-[13px] text-white/10 font-display tracking-[0.1em]">输入行动推进剧情</p>
-            </div>
+            <div className="h-full" />
           ) : (
             /* Main text display */
             <motion.div
