@@ -299,8 +299,9 @@ export function useSillytavern() {
       // Always read latest API settings from DB to prevent stale empty keys
       // (another component instance may have saved new settings)
       const latestSettings = await getSettings();
-      const effectiveApi = latestSettings?.api ?? settings.api;
-      const effectiveSettings = latestSettings ?? settings;
+      const effectiveApi = latestSettings?.api ?? settings?.api ?? DEFAULT_SETTINGS.api;
+      // Merge: DB settings as base, React state overrides for toggled fields
+      const effectiveSettings = { ...(latestSettings ?? DEFAULT_SETTINGS), ...(settings ?? {}), api: effectiveApi };
 
       const userMsg: ChatMessage = {
         id: crypto.randomUUID(),
