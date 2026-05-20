@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Clock, MapPin, CloudSun, BookOpen, Eye, Hourglass, Moon, Save } from 'lucide-react';
+import { Clock, MapPin, CloudSun, BookOpen, Eye, Hourglass, Moon, Save, FileText } from 'lucide-react';
 
 interface ChatHeaderProps {
   variables?: Record<string, any>;
@@ -8,6 +8,7 @@ interface ChatHeaderProps {
   onOpenReader?: () => void;
   onOpenVariables?: () => void;
   onOpenSave?: () => void;
+  onOpenPrompt?: () => void;
 }
 
 function getDisplayData(vars: Record<string, any> | undefined) {
@@ -27,7 +28,7 @@ function getDisplayData(vars: Record<string, any> | undefined) {
   return { time, location, weather, countdown, countdownLabel, inDream };
 }
 
-export default function ChatHeader({ variables, messagesCount = 0, hasSavePoints, onOpenReader, onOpenVariables, onOpenSave }: ChatHeaderProps) {
+export default function ChatHeader({ variables, messagesCount = 0, hasSavePoints, onOpenReader, onOpenVariables, onOpenSave, onOpenPrompt }: ChatHeaderProps) {
   const display = useMemo(() => getDisplayData(variables), [variables]);
 
   const iconColor = display.inDream ? 'text-aether-purple/60' : 'text-aether-blue/70';
@@ -80,6 +81,19 @@ export default function ChatHeader({ variables, messagesCount = 0, hasSavePoints
           )}
           <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
             存档
+          </span>
+        </button>
+      )}
+
+      {/* Prompt viewer button */}
+      {onOpenPrompt && (
+        <button
+          onClick={onOpenPrompt}
+          className="relative group flex items-center gap-2 px-3 py-1.5 rounded-sm text-white/30 hover:text-aether-cyan transition-colors hover:bg-aether-cyan/[0.04]"
+        >
+          <FileText size={17} />
+          <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            请求
           </span>
         </button>
       )}

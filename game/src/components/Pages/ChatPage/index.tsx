@@ -5,6 +5,7 @@ import ChatHeader from './ChatHeader';
 import PlotReaderModal from './PlotReaderModal';
 import VariableViewerModal from './VariableViewerModal';
 import SavePointModal from './SavePointModal';
+import PromptViewerModal from './PromptViewerModal';
 import { useSillytavern } from '../../../hooks/useSillytavern';
 
 export default function ChatPage({
@@ -24,6 +25,7 @@ export default function ChatPage({
   const [readerOpen, setReaderOpen] = useState(false);
   const [varViewerOpen, setVarViewerOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
   const [rawViewOpen, setRawViewOpen] = useState(false);
   const [rawViewPos, setRawViewPos] = useState({ x: 0, y: 0 });
   const [rawContent, setRawContent] = useState('');
@@ -100,31 +102,6 @@ export default function ChatPage({
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
       <div className="flex-1 flex flex-col w-full glass-panel border-glow relative overflow-hidden">
-        {/* Surveillance grid overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none z-0 opacity-[0.02]"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(0,242,255,0.2) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(0,242,255,0.2) 1px, transparent 1px)
-            `,
-            backgroundSize: '64px 64px',
-            maskImage: 'radial-gradient(ellipse at 50% 50%, black 20%, transparent 70%)',
-          }}
-        />
-        {/* Subtle scanline */}
-        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-[0.015]">
-          <div
-            className="absolute w-full h-[60%] bg-gradient-to-b from-transparent via-aether-cyan/30 to-transparent"
-            style={{ animation: 'scanline 8s linear infinite' }}
-          />
-        </div>
-        {/* HUD corner brackets */}
-        <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-aether-cyan/30 pointer-events-none z-20" />
-        <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-aether-cyan/30 pointer-events-none z-20" />
-        <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-aether-cyan/20 pointer-events-none z-20" />
-        <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-aether-cyan/20 pointer-events-none z-20" />
-
         <ChatHeader
           variables={ss.activeChat?.variables}
           messagesCount={savePointCount}
@@ -132,6 +109,7 @@ export default function ChatPage({
           onOpenReader={() => setReaderOpen(true)}
           onOpenVariables={() => setVarViewerOpen(true)}
           onOpenSave={() => setSaveOpen(true)}
+          onOpenPrompt={() => setPromptOpen(true)}
         />
 
         {/* ── Streaming indicator ── */}
@@ -181,21 +159,8 @@ export default function ChatPage({
         {/* ── Main text pane ── */}
         <div className="flex-1 overflow-y-auto px-5 md:px-10 py-6">
           {!maintext && !isStreaming ? (
-            /* Empty state */
             <div className="h-full flex items-center justify-center">
-              <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center space-y-6 max-w-sm"
-              >
-                <h2 className="font-display text-3xl font-black text-aether-cyan/80 tracking-[0.15em]">
-                  梦 · 异常
-                </h2>
-                <div className="w-12 h-[1px] mx-auto bg-gradient-to-r from-transparent via-aether-cyan/30 to-transparent" />
-                <p className="text-[12px] text-white/15 font-mono tracking-[0.2em]">
-                  收容异常 · 维持秩序
-                </p>
-              </motion.div>
+              <p className="text-[13px] text-white/10 font-display tracking-[0.1em]">输入行动推进剧情</p>
             </div>
           ) : (
             /* Main text display */
@@ -348,6 +313,14 @@ export default function ChatPage({
         onClose={() => setSaveOpen(false)}
         messages={ss.activeChat?.messages ?? []}
         onJumpToFloor={(id) => ss.jumpToFloor(id)}
+      />
+
+      {/* ── Prompt Viewer Modal ── */}
+      <PromptViewerModal
+        isOpen={promptOpen}
+        onClose={() => setPromptOpen(false)}
+        prompt={ss.lastPrompt}
+        replyText={latestAssistant?.content}
       />
 
       {/* ── Context menu ── */}
