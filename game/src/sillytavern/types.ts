@@ -1,136 +1,4 @@
-/**
- * SillyTavern Web - Core Types
- */
-
-// ========== World Book (Lorebook) Types ==========
-
-export interface LorebookEntry {
-  id: string;
-  keys: string[];
-  secondaryKeys: string[];
-  content: string;
-  comment?: string;
-  order: number;
-  position: 'before_char' | 'after_char' | 'before_example' | 'after_example' | 'at_depth' | 'example_msg_top' | 'example_msg_bottom' | 'outlet';
-  depth?: number;
-  role?: number;
-  selective: boolean;
-  selectiveLogic: 'and_any' | 'not_all' | 'not_any' | 'and_all';
-  constant: boolean;
-  probability: number;
-  useProbability?: boolean;
-  addMemo: boolean;
-  disable?: boolean;
-  sticky?: number;
-  cooldown?: number;
-  delay?: number;
-  weight?: number;
-  scanDepth?: number;
-  caseSensitive?: boolean;
-  matchWholeWords?: boolean;
-  excludeRecursion?: boolean;
-  preventRecursion?: boolean;
-  delayUntilRecursion?: boolean;
-  outletName?: string;
-  ignoreBudget?: boolean;
-  matchPersonaDescription?: boolean;
-  matchCharacterDescription?: boolean;
-  matchCharacterPersonality?: boolean;
-  matchCharacterDepthPrompt?: boolean;
-  matchScenario?: boolean;
-  matchCreatorNotes?: boolean;
-  decorators?: string[];
-  characterFilter?: {
-    isExclude?: boolean;
-    names?: string[];
-    tags?: number[];
-  };
-}
-
-export interface Lorebook {
-  id: string;
-  name: string;
-  description?: string;
-  entries: LorebookEntry[];
-  recursiveScanning: boolean;
-  caseSensitive: boolean;
-  matchWholeWords: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
-
-export interface SillyTavernLorebookExport {
-  name: string;
-  description?: string;
-  entries: Record<string, {
-    uid: number;
-    key: string[];
-    keysecondary: string[];
-    comment: string;
-    content: string;
-    constant: boolean;
-    selective: boolean;
-    selectiveLogic: 0 | 1 | 2 | 3;
-    addMemo: boolean;
-    order: number;
-    position: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
-    role: number;
-    disable: boolean;
-    probability: number;
-    depth: number;
-    group: string;
-    useProbability: boolean;
-    excluded: boolean;
-    sticky: number;
-    cooldown: number;
-    delay: number;
-    weight: number;
-    scanDepth: number;
-    caseSensitive: boolean;
-    matchWholeWords: boolean;
-    excludeRecursion: boolean;
-    preventRecursion: boolean;
-    delayUntilRecursion: boolean;
-    outletName: string;
-    ignoreBudget: boolean;
-    matchPersonaDescription: boolean;
-    matchCharacterDescription: boolean;
-    matchCharacterPersonality: boolean;
-    matchCharacterDepthPrompt: boolean;
-    matchScenario: boolean;
-    matchCreatorNotes: boolean;
-    decorators: string[];
-    characterFilter: {
-      isExclude?: boolean;
-      names?: string[];
-      tags?: number[];
-    };
-  }>;
-  settings?: {
-    recursive_scanning?: boolean;
-    case_sensitive?: boolean;
-    match_whole_words?: boolean;
-  };
-}
-
-export interface MatchedEntry {
-  entry: LorebookEntry;
-  score: number;
-  matchedKeywords: string[];
-}
-
-// ========== Preset Types ==========
-
-export interface ChatPreset {
-  id: string;
-  name: string;
-  description?: string;
-  settings: Record<string, any>;
-  createdAt: number;
-  updatedAt: number;
-}
-
-// ========== Settings Types ==========
+// ========== API Types ==========
 
 export interface ApiSettings {
   baseUrl: string;
@@ -147,12 +15,12 @@ export interface ApiSettings {
   };
 }
 
+// ========== Settings Types ==========
+
 export interface AppSettings {
   key?: string;
   api: ApiSettings;
   apiMode: 'single' | 'dual';
-  activePresetId: string | null;
-  activeLorebookIds: string[];
   userName: string;
   characterName: string;
   theme: 'dark' | 'light';
@@ -177,18 +45,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     apiKey: '',
     model: 'gpt-3.5-turbo',
     timeout: 60000,
-    secondary: {
-      enabled: true,
-      baseUrl: '',
-      apiKey: '',
-      model: '',
-      temperature: 0.7,
-      maxTokens: 8000,
-    },
+    secondary: { enabled: true, baseUrl: '', apiKey: '', model: '', temperature: 0.7, maxTokens: 8000 },
   },
   apiMode: 'dual',
-  activePresetId: null,
-  activeLorebookIds: [],
   userName: '用户',
   characterName: 'AI',
   theme: 'dark',
@@ -207,12 +66,6 @@ export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
   timestamp: number;
-  variables?: Record<string, string | number>;
-  metadata?: {
-    tokenCount?: number;
-    lorebookEntries?: string[];
-    processingTime?: number;
-  };
   parsed?: ParsedTags;
   variablesAfter?: Record<string, any>;
   apiUsed?: ApiTarget;
@@ -224,87 +77,9 @@ export interface ChatSession {
   messages: ChatMessage[];
   characterName: string;
   userName: string;
-  presetId: string | null;
-  lorebookIds: string[];
   variables: Record<string, any>;
   createdAt: number;
   updatedAt: number;
-}
-
-// ========== Constants ==========
-
-export const DEFAULT_PROMPT_ORDER = [
-  { identifier: 'main', name: '系统指令', role: 'system' as const },
-  { identifier: 'worldInfoBefore', name: '世界书（角色前）', role: 'system' as const },
-  { identifier: 'charDescription', name: '角色描述', role: 'system' as const },
-  { identifier: 'charPersonality', name: '角色性格', role: 'system' as const },
-  { identifier: 'scenario', name: '场景', role: 'system' as const },
-  { identifier: 'personaDescription', name: '用户人设', role: 'system' as const },
-  { identifier: 'dialogueExamples', name: '对话示例', role: 'system' as const },
-  { identifier: 'chatHistory', name: '对话历史', role: 'system' as const },
-  { identifier: 'worldInfoAfter', name: '世界书（角色后）', role: 'system' as const },
-];
-
-export function createDefaultPreset(): Omit<ChatPreset, 'id' | 'createdAt' | 'updatedAt'> {
-  return {
-    name: '默认预设',
-    description: 'SillyTavern 兼容的默认 OpenAI 预设',
-    settings: {
-      temp_openai: 0.8,
-      freq_pen_openai: 0,
-      pres_pen_openai: 0,
-      top_p_openai: 0.9,
-      top_k_openai: 0,
-      top_a_openai: 0,
-      min_p_openai: 0,
-      repetition_penalty_openai: 1,
-      openai_max_context: 4096,
-      openai_max_tokens: 2048,
-      stream_openai: false,
-      max_context_unlocked: false,
-      chat_completion_source: 'openai',
-      openai_model: 'gpt-3.5-turbo',
-      main: `Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.
-
-你必须严格按照以下 XML 标签格式输出回复，不要使用 Markdown 包裹：
-<thinking>……</thinking>     ← 可选；内部任何字符都视为思考过程，不被解析
-<maintext>……</maintext>     ← 必填；本回合的剧情正文，可多段，保留换行
-<option>选项 A
-选项 B
-选项 C</option>              ← 必填；至少 2 项，每行一个
-<history>日期|标题|地点|人物|描述|人物关系|标签1,标签2|重要信息|暗线与伏笔</history>  ← 必填；存档点，9字段用|分隔，标签用,分隔
-<vars>{ "金钱": +10, "HP": 38 }</vars>   ← 选填；JSON 深合并`,
-      nsfw: '',
-      jailbreak: '',
-      enhanceDefinitions: '',
-      impersonation_prompt: '',
-      new_chat_prompt: '',
-      continue_nudge_prompt: '',
-      wi_format: '',
-      charDescription: '',
-      charPersonality: '',
-      scenario: '',
-      personaDescription: '',
-      dialogueExamples: '',
-      prompts: [],
-      prompt_order: DEFAULT_PROMPT_ORDER.map((p, i) => {
-        const entry: any = { ...p, enabled: true };
-        if (p.identifier === 'main') {
-          entry.content = `Write {{char}}'s next reply in a fictional chat between {{char}} and {{user}}.
-
-你必须严格按照以下 XML 标签格式输出回复，不要使用 Markdown 包裹：
-<thinking>……</thinking>     ← 可选；内部任何字符都视为思考过程，不被解析
-<maintext>……</maintext>     ← 必填；本回合的剧情正文，可多段，保留换行
-<option>选项 A
-选项 B
-选项 C</option>              ← 必填；至少 2 项，每行一个
-<history>日期|标题|地点|人物|描述|人物关系|标签1,标签2|重要信息|暗线与伏笔</history>  ← 必填；存档点，9字段用|分隔，标签用,分隔
-<vars>{ "金钱": +10, "HP": 38 }</vars>   ← 选填；JSON 深合并`;
-        }
-        return entry;
-      }),
-    },
-  };
 }
 
 // ========== v3 Game Mode Types ==========
