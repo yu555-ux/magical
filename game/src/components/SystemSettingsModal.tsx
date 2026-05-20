@@ -375,8 +375,11 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
       const text = await file.text();
       const data = JSON.parse(text);
       const imported = importPreset(data);
+      // Use filename if JSON doesn't have a proper name
+      const fallbackName = file.name.replace(/\.json$/i, '');
       const preset: ChatPreset = {
         ...imported,
+        name: imported.name !== '导入的预设' ? imported.name : fallbackName,
         id: crypto.randomUUID(),
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -1260,68 +1263,132 @@ export default function SystemSettingsModal({ isOpen, onClose }: Props) {
 
                                       {/* TAB: Sampling */}
                                       {presetSubTab === 'sampling' && (
-                                        <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
-                                          <div className="flex flex-wrap gap-3">
-                                            <NumField label="温度 (temp_openai)" value={presetDraftFull.settings.temp_openai} onChange={v => presetPatchSettings({ temp_openai: v })} step={0.05} min={0} max={2} fallback={0.8} />
-                                            <NumField label="top_p_openai" value={presetDraftFull.settings.top_p_openai} onChange={v => presetPatchSettings({ top_p_openai: v })} step={0.01} min={0} max={1} fallback={0.9} />
-                                            <NumField label="top_k_openai" value={presetDraftFull.settings.top_k_openai} onChange={v => presetPatchSettings({ top_k_openai: v })} min={0} max={500} fallback={0} />
-                                            <NumField label="top_a_openai" value={presetDraftFull.settings.top_a_openai} onChange={v => presetPatchSettings({ top_a_openai: v })} step={0.01} min={0} max={1} fallback={0} />
-                                            <NumField label="min_p_openai" value={presetDraftFull.settings.min_p_openai} onChange={v => presetPatchSettings({ min_p_openai: v })} step={0.01} min={0} max={1} fallback={0} />
-                                            <NumField label="频率惩罚 (freq_pen)" value={presetDraftFull.settings.freq_pen_openai} onChange={v => presetPatchSettings({ freq_pen_openai: v })} step={0.1} min={-2} max={2} fallback={0} />
-                                            <NumField label="存在惩罚 (pres_pen)" value={presetDraftFull.settings.pres_pen_openai} onChange={v => presetPatchSettings({ pres_pen_openai: v })} step={0.1} min={-2} max={2} fallback={0} />
-                                            <NumField label="重复惩罚" value={presetDraftFull.settings.repetition_penalty_openai} onChange={v => presetPatchSettings({ repetition_penalty_openai: v })} step={0.05} min={0} max={2} fallback={1} />
-                                            <NumField label="最大上下文" value={presetDraftFull.settings.openai_max_context} onChange={v => presetPatchSettings({ openai_max_context: v })} step={256} min={256} max={2000000} fallback={4096} />
-                                            <NumField label="最大 Token 数" value={presetDraftFull.settings.openai_max_tokens} onChange={v => presetPatchSettings({ openai_max_tokens: v })} step={64} min={32} max={32768} fallback={2048} />
-                                            <label className="flex-1 min-w-[140px]">
-                                              <span className="block text-[10px] text-white/30 mb-1">模型</span>
-                                              <input type="text" value={presetDraftFull.settings.openai_model ?? ''}
-                                                onChange={e => presetPatchSettings({ openai_model: e.target.value })}
-                                                placeholder="gpt-3.5-turbo"
-                                                className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1.5 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-purple/60" />
-                                            </label>
+                                        <div className="space-y-3">
+                                          {/* 核心采样 */}
+                                          <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
+                                            <h4 className="text-[10px] font-display font-semibold text-white/30 uppercase tracking-wider mb-2">核心采样</h4>
+                                            <div className="flex flex-wrap gap-3">
+                                              <NumField label="温度 (Temperature)" value={presetDraftFull.settings.temp_openai} onChange={v => presetPatchSettings({ temp_openai: v })} step={0.05} min={0} max={2} fallback={0.8} />
+                                              <NumField label="Top P" value={presetDraftFull.settings.top_p_openai} onChange={v => presetPatchSettings({ top_p_openai: v })} step={0.01} min={0} max={1} fallback={0.9} />
+                                              <NumField label="Top K" value={presetDraftFull.settings.top_k_openai} onChange={v => presetPatchSettings({ top_k_openai: v })} min={0} max={500} fallback={0} />
+                                              <NumField label="Top A" value={presetDraftFull.settings.top_a_openai} onChange={v => presetPatchSettings({ top_a_openai: v })} step={0.01} min={0} max={1} fallback={0} />
+                                              <NumField label="Min P" value={presetDraftFull.settings.min_p_openai} onChange={v => presetPatchSettings({ min_p_openai: v })} step={0.01} min={0} max={1} fallback={0} />
+                                            </div>
                                           </div>
-                                          <div className="flex items-center gap-5 mt-3">
-                                            <label className="flex items-center gap-1.5 text-[10px] text-white/35 cursor-pointer">
-                                              <input type="checkbox" checked={!!presetDraftFull.settings.stream_openai}
-                                                onChange={e => presetPatchSettings({ stream_openai: e.target.checked })}
-                                                className="accent-aether-purple" /> 流式输出
-                                            </label>
-                                            <label className="flex items-center gap-1.5 text-[10px] text-white/35 cursor-pointer">
-                                              <input type="checkbox" checked={!!presetDraftFull.settings.max_context_unlocked}
-                                                onChange={e => presetPatchSettings({ max_context_unlocked: e.target.checked })}
-                                                className="accent-aether-purple" /> 解锁上下文限制
-                                            </label>
+                                          {/* 惩罚参数 */}
+                                          <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
+                                            <h4 className="text-[10px] font-display font-semibold text-white/30 uppercase tracking-wider mb-2">惩罚参数</h4>
+                                            <div className="flex flex-wrap gap-3">
+                                              <NumField label="频率惩罚 (Frequency)" value={presetDraftFull.settings.freq_pen_openai} onChange={v => presetPatchSettings({ freq_pen_openai: v })} step={0.1} min={-2} max={2} fallback={0} />
+                                              <NumField label="存在惩罚 (Presence)" value={presetDraftFull.settings.pres_pen_openai} onChange={v => presetPatchSettings({ pres_pen_openai: v })} step={0.1} min={-2} max={2} fallback={0} />
+                                              <NumField label="重复惩罚 (Repetition)" value={presetDraftFull.settings.repetition_penalty_openai} onChange={v => presetPatchSettings({ repetition_penalty_openai: v })} step={0.05} min={0} max={2} fallback={1} />
+                                            </div>
+                                          </div>
+                                          {/* 上下文 */}
+                                          <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
+                                            <h4 className="text-[10px] font-display font-semibold text-white/30 uppercase tracking-wider mb-2">上下文与模型</h4>
+                                            <div className="flex flex-wrap gap-3 items-end">
+                                              <NumField label="最大上下文" value={presetDraftFull.settings.openai_max_context} onChange={v => presetPatchSettings({ openai_max_context: v })} step={256} min={256} max={2000000} fallback={4096} />
+                                              <NumField label="最大 Token 数" value={presetDraftFull.settings.openai_max_tokens} onChange={v => presetPatchSettings({ openai_max_tokens: v })} step={64} min={32} max={32768} fallback={2048} />
+                                              <label className="flex-1 min-w-[160px]">
+                                                <span className="block text-[10px] text-white/30 mb-1">模型</span>
+                                                <input type="text" value={presetDraftFull.settings.openai_model ?? ''}
+                                                  onChange={e => presetPatchSettings({ openai_model: e.target.value })}
+                                                  placeholder="gpt-3.5-turbo"
+                                                  className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1.5 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-purple/60" />
+                                              </label>
+                                            </div>
+                                            <div className="flex items-center gap-5 mt-3">
+                                              <label className="flex items-center gap-1.5 text-[10px] text-white/35 cursor-pointer">
+                                                <input type="checkbox" checked={!!presetDraftFull.settings.stream_openai}
+                                                  onChange={e => presetPatchSettings({ stream_openai: e.target.checked })}
+                                                  className="accent-aether-purple" /> 流式输出
+                                              </label>
+                                              <label className="flex items-center gap-1.5 text-[10px] text-white/35 cursor-pointer">
+                                                <input type="checkbox" checked={!!presetDraftFull.settings.max_context_unlocked}
+                                                  onChange={e => presetPatchSettings({ max_context_unlocked: e.target.checked })}
+                                                  className="accent-aether-purple" /> 解锁上下文限制
+                                              </label>
+                                            </div>
                                           </div>
                                         </div>
                                       )}
 
                                       {/* TAB: Prompt texts */}
                                       {presetSubTab === 'prompts' && (
-                                        <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3 space-y-3">
-                                          {([
-                                            ['main', 'Main（角色扮演指令）'],
-                                            ['nsfw', 'NSFW'],
-                                            ['jailbreak', 'Jailbreak'],
-                                            ['enhanceDefinitions', '增强定义'],
-                                            ['impersonation_prompt', '扮演提示'],
-                                            ['new_chat_prompt', '新对话提示'],
-                                            ['new_group_chat_prompt', '新群聊提示'],
-                                            ['new_example_chat_prompt', '新示例对话提示'],
-                                            ['continue_nudge_prompt', '继续推动提示'],
-                                            ['wi_format', '世界书格式'],
-                                            ['group_nudge_prompt', '群组推动提示'],
-                                            ['scenario_format', '场景格式'],
-                                            ['personality_format', '性格格式'],
-                                          ] as const).map(([key, label]) => (
-                                            <label key={key} className="block">
-                                              <span className="block text-[10px] text-white/30 mb-1">{label}</span>
-                                              <textarea value={(presetDraftFull.settings as any)[key] ?? ''}
-                                                onChange={e => presetPatchSettings({ [key]: e.target.value })}
-                                                rows={3}
-                                                className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
-                                            </label>
-                                          ))}
-                                          <p className="text-[9px] text-white/15 mt-1">支持宏：{`{{user}}`} {`{{char}}`} {`{{original}}`} {`{{变量名}}`}</p>
+                                        <div className="space-y-3">
+                                          {/* Main — full width prominent */}
+                                          <div className="bg-aether-dark/40 rounded-lg border border-aether-purple/20 p-3">
+                                            <h4 className="text-[10px] font-display font-semibold text-aether-purple/60 uppercase tracking-wider mb-2">系统指令 (Main)</h4>
+                                            <textarea value={presetDraftFull.settings.main ?? ''}
+                                              onChange={e => presetPatchSettings({ main: e.target.value })}
+                                              rows={5}
+                                              placeholder="核心角色扮演指令，标签格式要求写在此处..."
+                                              className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono leading-relaxed" />
+                                            <p className="text-[9px] text-white/12 mt-1">支持宏：{`{{user}}`} {`{{char}}`} {`{{original}}`} {`{{变量名}}`}</p>
+                                          </div>
+                                          {/* 越狱与限制 */}
+                                          <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
+                                            <h4 className="text-[10px] font-display font-semibold text-white/30 uppercase tracking-wider mb-2">越狱与限制</h4>
+                                            <div className="flex gap-3">
+                                              <label className="flex-1">
+                                                <span className="block text-[10px] text-white/30 mb-1">NSFW 提示</span>
+                                                <textarea value={presetDraftFull.settings.nsfw ?? ''}
+                                                  onChange={e => presetPatchSettings({ nsfw: e.target.value })}
+                                                  rows={2}
+                                                  className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
+                                              </label>
+                                              <label className="flex-1">
+                                                <span className="block text-[10px] text-white/30 mb-1">越狱 (Jailbreak)</span>
+                                                <textarea value={presetDraftFull.settings.jailbreak ?? ''}
+                                                  onChange={e => presetPatchSettings({ jailbreak: e.target.value })}
+                                                  rows={2}
+                                                  className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
+                                              </label>
+                                            </div>
+                                          </div>
+                                          {/* 角色与场景 */}
+                                          <div className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
+                                            <h4 className="text-[10px] font-display font-semibold text-white/30 uppercase tracking-wider mb-2">角色与场景格式</h4>
+                                            <div className="flex flex-wrap gap-3">
+                                              {([
+                                                ['impersonation_prompt', '扮演提示'],
+                                                ['scenario_format', '场景格式'],
+                                                ['personality_format', '性格格式'],
+                                                ['enhanceDefinitions', '增强定义'],
+                                              ] as const).map(([key, label]) => (
+                                                <label key={key} className="flex-1 min-w-[220px]">
+                                                  <span className="block text-[10px] text-white/30 mb-1">{label}</span>
+                                                  <textarea value={(presetDraftFull.settings as any)[key] ?? ''}
+                                                    onChange={e => presetPatchSettings({ [key]: e.target.value })}
+                                                    rows={2}
+                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
+                                                </label>
+                                              ))}
+                                            </div>
+                                          </div>
+                                          {/* 对话管理 + 上下文格式 — collapsible */}
+                                          <details className="bg-aether-dark/40 rounded-lg border border-aether-border/15 p-3">
+                                            <summary className="text-[10px] font-display font-semibold text-white/30 uppercase tracking-wider cursor-pointer hover:text-white/50 transition-colors select-none">对话管理 & 上下文格式</summary>
+                                            <div className="flex flex-wrap gap-3 mt-2">
+                                              {([
+                                                ['new_chat_prompt', '新对话提示'],
+                                                ['new_group_chat_prompt', '新群聊提示'],
+                                                ['new_example_chat_prompt', '新示例对话提示'],
+                                                ['continue_nudge_prompt', '继续推动提示'],
+                                                ['wi_format', '世界书格式'],
+                                                ['group_nudge_prompt', '群组推动提示'],
+                                              ] as const).map(([key, label]) => (
+                                                <label key={key} className="flex-1 min-w-[220px]">
+                                                  <span className="block text-[10px] text-white/30 mb-1">{label}</span>
+                                                  <textarea value={(presetDraftFull.settings as any)[key] ?? ''}
+                                                    onChange={e => presetPatchSettings({ [key]: e.target.value })}
+                                                    rows={2}
+                                                    className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono" />
+                                                </label>
+                                              ))}
+                                            </div>
+                                          </details>
                                         </div>
                                       )}
 
