@@ -3,7 +3,7 @@ import type { AppSettings, ChatSession } from './types';
 import { DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS } from './types';
 
 const DB_NAME = 'SillyTavernWebDB';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 class AppDatabase extends Dexie {
   settings!: Table<AppSettings>;
@@ -34,6 +34,18 @@ class AppDatabase extends Dexie {
       for (const row of s) {
         if (!row.presetBlocks || row.presetBlocks.length === 0) {
           row.presetBlocks = DEFAULT_PRESET_BLOCKS;
+        }
+        await tx.table('settings').put(row);
+      }
+    });
+    this.version(5).stores({
+      settings: 'key',
+      chats: 'id, name, updatedAt',
+    }).upgrade(async tx => {
+      const s = await tx.table('settings').toCollection().toArray();
+      for (const row of s) {
+        if (row.lorebooks === undefined) {
+          row.lorebooks = [];
         }
         await tx.table('settings').put(row);
       }

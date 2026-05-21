@@ -1,5 +1,8 @@
-import type { ChatMessage, PresetBlock } from './types';
+import type { ChatMessage, PresetBlock, Lorebook } from './types';
+import { INJECTION_ANCHORS } from './types';
 import { formatVariablesForPrompt } from './variables';
+import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
+import type { ScanResult } from './lorebookEngine';
 
 export interface PromptSection {
   identifier: string;
@@ -7,13 +10,14 @@ export interface PromptSection {
   role: string;
   enabled: boolean;
   content: string | null;
-  source: 'preset' | 'variables' | 'chat';
+  source: 'preset' | 'variables' | 'chat' | 'lorebook';
 }
 
 export interface AssembleOptions {
   userInput: string;
   history: ChatMessage[];
   presetBlocks?: PresetBlock[];
+  lorebooks?: Lorebook[];
   userName: string;
   characterName: string;
   extraVariables?: Record<string, any>;
@@ -81,7 +85,7 @@ function resolveContent(
 // ── Main assembler ──
 
 export function assemblePrompt(options: AssembleOptions): AssembleResult {
-  const { userInput, history, presetBlocks, userName, characterName, extraVariables } = options;
+  const { userInput, history, presetBlocks, lorebooks, userName, characterName, extraVariables } = options;
 
   const sections: PromptSection[] = [];
   const assembledMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
@@ -89,8 +93,14 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   let hasChatHistory = false;
 
   const macroCtx: MacroContext = { userName, characterName, userInput };
-  // Shared variable map — setvar/addvar from earlier blocks affect getvar in later blocks
   const presetVars: Record<string, string> = {};
+
+  // ── Scan lorebooks ──
+  const historyText = history.slice(-6).map(m => m.content).join(' ');
+  let scanResult: ScanResult = { before: [], after: [] };
+  if (lorebooks && lorebooks.length > 0) {
+    scanResult = scanLorebooks(lorebooks, userInput, historyText);
+  }
 
   // Process preset blocks in order
   if (presetBlocks && presetBlocks.length > 0) {
@@ -127,9 +137,32 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
         continue;
       }
 
-      // Resolve content with full macro engine
-      const rawContent = block.content?.trim();
-      const content = rawContent ? resolveContent(rawContent, presetVars, macroCtx) : null;
+      // Resolve content — first check if this is an injection anchor
+      let content: string | null = null;
+      let source: PromptSection['source'] = 'preset';
+
+      if (INJECTION_ANCHORS.includes(block.identifier as typeof INJECTION_ANCHORS[number])) {
+        // Injection anchor — replace empty content with matched lorebook entries
+        const entries = block.identifier === 'worldInfoBefore' ? scanResult.before : scanResult.after;
+        if (entries.length > 0) {
+          content = formatMatchedEntries(entries);
+          source = 'lorebook';
+        }
+      }
+
+      // If no lorebook content was injected, use the block's own content
+      if (!content) {
+        const rawContent = block.content?.trim();
+        content = rawContent ? resolveContent(rawContent, presetVars, macroCtx) : null;
+      }
+
+      // Still apply macro resolution to lorebook content (for {{user}} etc.)
+      if (content && source === 'lorebook') {
+        content = content
+          .replace(/\{\{user\}\}/g, macroCtx.userName)
+          .replace(/\{\{char\}\}/g, macroCtx.characterName)
+          .replace(/\{\{original\}\}/g, macroCtx.userInput);
+      }
 
       if (!content || !content.trim()) {
         sections.push({
@@ -149,7 +182,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
         role: block.role,
         enabled: true,
         content,
-        source: 'preset',
+        source,
       });
 
       if (block.role === 'system') {

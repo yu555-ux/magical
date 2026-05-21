@@ -15,6 +15,43 @@ export interface ApiSettings {
   };
 }
 
+// ========== Lorebook (World Book) Types ==========
+
+/** ST position → preset injection anchor */
+export const LOREBOOK_POSITION_MAP: Record<number, string> = {
+  0: 'worldInfoBefore',  // before_char → 角色定位之前
+  1: 'worldInfoAfter',   // after_char → 角色定位之后
+  2: 'worldInfoAfter',   // before_example → 角色定位之后
+  3: 'worldInfoAfter',   // after_example → 角色定位之后
+  4: 'worldInfoAfter',   // at_depth → 角色定位之后
+  5: 'worldInfoAfter',   // example_msg_top → 角色定位之后
+  6: 'worldInfoAfter',   // example_msg_bottom → 角色定位之后
+  7: 'worldInfoAfter',   // outlet → 角色定位之后
+};
+
+/** Preset block identifiers that act as lorebook injection anchors */
+export const INJECTION_ANCHORS = ['worldInfoBefore', 'worldInfoAfter'] as const;
+
+export interface LorebookEntry {
+  id: string;
+  keys: string[];
+  secondaryKeys: string[];
+  content: string;
+  comment: string;
+  enabled: boolean;
+  position: number;        // ST position 0-7, mapped via LOREBOOK_POSITION_MAP
+  order: number;
+  constant: boolean;       // always inject, ignore keywords
+}
+
+export interface Lorebook {
+  id: string;
+  name: string;
+  entries: LorebookEntry[];
+  recursive: boolean;       // player-enabled recursive scanning
+  createdAt: number;
+}
+
 // ========== Preset Types ==========
 
 export interface PresetBlock {
@@ -32,6 +69,7 @@ export interface AppSettings {
   api: ApiSettings;
   apiMode: 'single' | 'dual';
   presetBlocks: PresetBlock[];
+  lorebooks: Lorebook[];
   userName: string;
   characterName: string;
   theme: 'dark' | 'light';
@@ -76,25 +114,39 @@ export const DEFAULT_PRESET_BLOCKS: PresetBlock[] = [
 - option标签提供2-5个玩家可选的行动方向`,
   },
   {
+    identifier: 'worldInfoBefore',
+    name: '世界书（角色定位之前）',
+    role: 'system',
+    enabled: true,
+    content: '',
+  },
+  {
     identifier: 'charDescription',
     name: 'AI角色描述',
     role: 'system',
     enabled: false,
-    content: '你是{{char}}，一个存在于梦境与现实交界处的存在。你拥有丰富的知识和敏锐的洞察力，能够引导{{user}}探索这个充满异常的世界。',
+    content: '你是{{char}}，一个存在于梦境与现实交界处的存在。',
   },
   {
     identifier: 'scenario',
     name: '场景设定',
     role: 'system',
     enabled: false,
-    content: '故事发生在一个看似普通的世界，但当{{user}}入睡后，会进入一个与现实对应的梦境世界。梦境中充满了各种异常和危险，但也隐藏着改变现实的力量。',
+    content: '故事发生在一个看似普通的世界。',
   },
   {
     identifier: 'personaDescription',
     name: '玩家人设',
     role: 'system',
     enabled: false,
-    content: '{{user}}是一名普通的高三学生，拥有"梦境行走"的特殊能力。在现实世界中，{{user}}面临着学业压力和复杂的人际关系；在梦境世界中，{{user}}需要探索未知、对抗异常、保护自己和身边的人。',
+    content: '{{user}}是一名普通的高三学生，拥有特殊能力。',
+  },
+  {
+    identifier: 'worldInfoAfter',
+    name: '世界书（角色定位之后）',
+    role: 'system',
+    enabled: true,
+    content: '',
   },
 ];
 
@@ -108,6 +160,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   apiMode: 'dual',
   presetBlocks: DEFAULT_PRESET_BLOCKS,
+  lorebooks: [],
   userName: '用户',
   characterName: 'AI',
   theme: 'dark',

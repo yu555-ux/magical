@@ -8,6 +8,7 @@ import { fetchModels, testConnection } from '../sillytavern/api-tools';
 import ApiTab from './Settings/ApiTab';
 import IdentityTab from './Settings/IdentityTab';
 import PresetTab from './Settings/PresetTab';
+import LorebookTab from './Settings/LorebookTab';
 
 type TabId = 'api' | 'lorebook' | 'preset' | 'identity';
 const TABS: { id: TabId; label: string; icon: any }[] = [
@@ -47,7 +48,8 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       || (draft.playerTitle ?? '') !== (ss.settings.playerTitle ?? '')
       || (draft.characterDescription ?? '') !== (ss.settings.characterDescription ?? '')
       || (draft.scenario ?? '') !== (ss.settings.scenario ?? '')
-      || JSON.stringify(draft.presetBlocks) !== JSON.stringify(ss.settings.presetBlocks);
+      || JSON.stringify(draft.presetBlocks) !== JSON.stringify(ss.settings.presetBlocks)
+      || JSON.stringify(draft.lorebooks) !== JSON.stringify(ss.settings.lorebooks);
   }, [draft, ss.settings]);
 
   const handleSave = async () => {
@@ -125,13 +127,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
                     primaryModels={primaryModels} secondaryModels={secondaryModels}
                     onFetchModels={handleFetchModels} onTestConnection={handleTestConnection} />
                 )}
-                {tab === 'lorebook' && (
-                  <div className="p-5 flex flex-col items-center justify-center py-16 text-center">
-                    <BookOpen size={32} className="text-white/8 mb-3" />
-                    <p className="text-white/15 text-xs font-display tracking-wide">世界书配置</p>
-                    <p className="text-white/8 text-[10px] mt-1">后端重构中</p>
-                  </div>
-                )}
+                {tab === 'lorebook' && draft && <LorebookTab draft={draft} setDraft={setDraft} />}
                 {tab === 'preset' && draft && <PresetTab draft={draft} setDraft={setDraft} />}
                 {tab === 'identity' && draft && <IdentityTab draft={draft} setDraft={setDraft} />}
               </motion.div>

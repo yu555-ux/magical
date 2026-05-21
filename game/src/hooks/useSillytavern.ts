@@ -95,6 +95,7 @@ export function useSillytavern() {
       userInput: userText,
       history: updatedChat.messages,
       presetBlocks: effectiveSettings.presetBlocks,
+      lorebooks: effectiveSettings.lorebooks,
       userName: effectiveSettings.userName,
       characterName: effectiveSettings.characterName,
       extraVariables: updatedChat.variables,
