@@ -2,7 +2,7 @@
  * Lorebook matching engine — keyword-based activation + recursive scanning
  */
 import type { Lorebook, LorebookEntry } from './types';
-import { LOREBOOK_POSITION_MAP, INJECTION_ANCHORS } from './types';
+import { LOREBOOK_POSITION_MAP } from './types';
 
 export interface MatchedEntry {
   entry: LorebookEntry;

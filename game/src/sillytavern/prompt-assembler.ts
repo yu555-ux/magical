@@ -1,5 +1,4 @@
 import type { ChatMessage, PresetBlock, Lorebook } from './types';
-import { INJECTION_ANCHORS } from './types';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
 import type { ScanResult } from './lorebookEngine';
 
@@ -89,6 +88,22 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     scanResult = scanLorebooks(lorebooks, userInput, historyText);
   }
 
+  // ── Anchor detection by name + identifier ──
+  const isBeforeAnchor = (block: PresetBlock): boolean => {
+    const id = block.identifier.toLowerCase();
+    const name = block.name.toLowerCase();
+    return id === 'worldinfobefore' ||
+      name.includes('角色定位之前') || name.includes('角色前') ||
+      name.includes('worldinfobefore') || name.includes('角色定位（前');
+  };
+  const isAfterAnchor = (block: PresetBlock): boolean => {
+    const id = block.identifier.toLowerCase();
+    const name = block.name.toLowerCase();
+    return id === 'worldinfoafter' ||
+      name.includes('角色定位之后') || name.includes('角色后') ||
+      name.includes('worldinfoafter') || name.includes('角色定位（后');
+  };
+
   // Track whether lorebook was injected via preset anchors
   let injectedBefore = false;
   let injectedAfter = false;
@@ -142,12 +157,15 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       let content: string | null = null;
       let source: PromptSection['source'] = 'preset';
 
-      if (INJECTION_ANCHORS.includes(block.identifier as typeof INJECTION_ANCHORS[number])) {
-        const entries = block.identifier === 'worldInfoBefore' ? scanResult.before : scanResult.after;
+      // Check if this block is a lorebook injection anchor (by name or identifier)
+      const isBefore = isBeforeAnchor(block);
+      const isAfter = isAfterAnchor(block);
+      if (isBefore || isAfter) {
+        const entries = isBefore ? scanResult.before : scanResult.after;
         if (entries.length > 0) {
           content = formatMatchedEntries(entries);
           source = 'lorebook';
-          if (block.identifier === 'worldInfoBefore') injectedBefore = true;
+          if (isBefore) injectedBefore = true;
           else injectedAfter = true;
         }
       }
