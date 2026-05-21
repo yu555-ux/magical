@@ -32,7 +32,13 @@ export function useSillytavern() {
       await initializeDatabase();
       const [s, c] = await Promise.all([getSettings(), getChats()]);
       if (cancelled) return;
-      setSettings(s ? { ...DEFAULT_SETTINGS, ...s } : { ...DEFAULT_SETTINGS });
+      setSettings(s ? {
+        ...DEFAULT_SETTINGS,
+        ...s,
+        // Restore defaults for fields that may be undefined in stored settings
+        lorebooks: s.lorebooks ?? DEFAULT_SETTINGS.lorebooks,
+        presetBlocks: s.presetBlocks ?? DEFAULT_SETTINGS.presetBlocks,
+      } : { ...DEFAULT_SETTINGS });
       setChats(c);
       if (c.length > 0) setActiveChatId(c[0].id);
       setInitialized(true);
@@ -82,8 +88,9 @@ export function useSillytavern() {
       ...(latestSettings ?? DEFAULT_SETTINGS),
       ...(settings ?? {}),
       api: effectiveApi,
-      // DB takes priority for presetBlocks (may be updated by PresetTab auto-save)
+      // DB takes priority for these fields (may be updated by PresetTab/LorebookTab auto-save)
       presetBlocks: latestSettings?.presetBlocks ?? settings?.presetBlocks ?? DEFAULT_PRESET_BLOCKS,
+      lorebooks: latestSettings?.lorebooks ?? settings?.lorebooks ?? DEFAULT_SETTINGS.lorebooks,
     };
 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now() };

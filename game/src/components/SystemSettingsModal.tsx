@@ -60,6 +60,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
         characterName: draft.characterName, playerTitle: draft.playerTitle,
         characterDescription: draft.characterDescription, scenario: draft.scenario,
         presetBlocks: draft.presetBlocks,
+        lorebooks: draft.lorebooks,
       });
       showToast('配置已保存', 'success');
     } catch { showToast('保存失败', 'error'); }

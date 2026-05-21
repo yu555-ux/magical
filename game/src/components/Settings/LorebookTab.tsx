@@ -56,15 +56,19 @@ export default function LorebookTab({ draft, setDraft }: Props) {
       const currentDraft = { ...draft };
       const next = [...(currentDraft.lorebooks || []), book];
       currentDraft.lorebooks = next;
+      console.log('[LorebookTab] Before setDraft, lorebooks count:', next.length);
       setDraft(currentDraft);
+      console.log('[LorebookTab] Before saveSettings');
       await saveSettings(currentDraft);
+      console.log('[LorebookTab] After saveSettings');
       setExpandedBook(book.id);
       showToast(`已导入「${book.name}」: ${book.entries.length} 个条目 — 已自动保存`, 'success');
     } catch (err: any) {
-      console.error('[LorebookTab] Import error:', err);
+      console.log('[LorebookTab] Import error:', err?.message || err);
       showToast(`导入失败: ${err?.message || '无法解析'}`, 'error');
     }
-    e.target.value = '';
+    // Reset file input — use try since React may have cleaned up the event
+    try { e.target.value = ''; } catch { /* ignore */ }
   }, [draft, showToast]);
 
   // ── Entry ops ──
