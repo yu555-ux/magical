@@ -25,6 +25,61 @@ export interface AssembleResult {
   sections: PromptSection[];
 }
 
+// ── Chaoxi-style variable macro engine ──
+
+/**
+ * Process Chaoxi preset macros in the correct order across all blocks.
+ *
+ * Order: strip comments → setvar → addvar → getvar → user/char/original → trim
+ *
+ * setvar::name::value  → sets presetVars[name] = value
+ * addvar::name::value  → presetVars[name] += value
+ * getvar::name         → replaced with presetVars[name]
+ * {{// comment}}       → removed (Chaoxi inline comments)
+ * {{trim}}             → removed (Chaoxi trimming)
+ */
+function resolveContent(
+  content: string,
+  presetVars: Record<string, string>,
+  macroCtx: MacroContext,
+): string {
+  let result = content;
+
+  // 1) Strip {{// comment}} — Chaoxi inline comments
+  result = result.replace(/\{\{\s*\/\/[^}]*\}\}/g, '');
+
+  // 2) Process {{setvar::name::value}} — set variable (overwrite)
+  result = result.replace(/\{\{setvar::([^:}]+)::([^}]*)\}\}/g, (_, name: string, value: string) => {
+    presetVars[name.trim()] = value;
+    return '';
+  });
+
+  // 3) Process {{addvar::name::value}} — append to variable
+  result = result.replace(/\{\{addvar::([^:}]+)::([^}]*)\}\}/g, (_, name: string, value: string) => {
+    const key = name.trim();
+    presetVars[key] = (presetVars[key] || '') + value;
+    return '';
+  });
+
+  // 4) Process {{getvar::name}} — get variable value
+  result = result.replace(/\{\{getvar::([^}]+)\}\}/g, (_, name: string) => {
+    return presetVars[name.trim()] ?? '';
+  });
+
+  // 5) Standard macros: {{user}} {{char}} {{original}}
+  result = result
+    .replace(/\{\{user\}\}/g, macroCtx.userName)
+    .replace(/\{\{char\}\}/g, macroCtx.characterName)
+    .replace(/\{\{original\}\}/g, macroCtx.userInput);
+
+  // 6) Strip {{trim}}
+  result = result.replace(/\{\{trim\}\}/gi, '');
+
+  return result;
+}
+
+// ── Main assembler ──
+
 export function assemblePrompt(options: AssembleOptions): AssembleResult {
   const { userInput, history, presetBlocks, userName, characterName, extraVariables } = options;
 
@@ -34,6 +89,8 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   let hasChatHistory = false;
 
   const macroCtx: MacroContext = { userName, characterName, userInput };
+  // Shared variable map — setvar/addvar from earlier blocks affect getvar in later blocks
+  const presetVars: Record<string, string> = {};
 
   // Process preset blocks in order
   if (presetBlocks && presetBlocks.length > 0) {
@@ -70,10 +127,11 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
         continue;
       }
 
-      // Replace macros in content
-      let content = block.content?.trim() ? replaceMacros(block.content, macroCtx) : null;
+      // Resolve content with full macro engine
+      const rawContent = block.content?.trim();
+      const content = rawContent ? resolveContent(rawContent, presetVars, macroCtx) : null;
 
-      if (!content) {
+      if (!content || !content.trim()) {
         sections.push({
           identifier: block.identifier,
           name: block.name,
@@ -97,7 +155,6 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       if (block.role === 'system') {
         systemAccumulator += (systemAccumulator ? '\n\n' : '') + content;
       } else {
-        // Flush system accumulator before non-system message
         if (systemAccumulator.trim()) {
           assembledMessages.push({ role: 'system', content: systemAccumulator });
           systemAccumulator = '';
@@ -176,16 +233,17 @@ interface MacroContext {
 }
 
 export function replaceMacros(template: string, context: MacroContext): string {
-  return template
-    .replace(/\{\{user\}\}/g, context.userName)
-    .replace(/\{\{char\}\}/g, context.characterName)
-    .replace(/\{\{original\}\}/g, context.userInput)
-    .replace(/\{\{\s*\/\/[^}]*\}\}/g, '')
-    .replace(/\{\{trim\}\}/gi, '');
+  const presetVars: Record<string, string> = {};
+  return resolveContent(template, presetVars, context);
 }
 
 export const SUPPORTED_MACROS = [
   { name: '{{user}}', description: '用户名' },
   { name: '{{char}}', description: 'AI角色名' },
   { name: '{{original}}', description: '用户原始输入' },
+  { name: '{{setvar::name::value}}', description: '设置预设变量' },
+  { name: '{{addvar::name::value}}', description: '追加预设变量' },
+  { name: '{{getvar::name}}', description: '获取预设变量值' },
+  { name: '{{// 注释}}', description: '潮汐注释（发送时移除）' },
+  { name: '{{trim}}', description: '裁剪标记（发送时移除）' },
 ] as const;
