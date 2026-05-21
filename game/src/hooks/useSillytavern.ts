@@ -3,7 +3,7 @@ import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat } from '../sillytavern/variables';
 import { assemblePrompt } from '../sillytavern/prompt-assembler';
-import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, type AppSettings, type ChatSession, type ChatMessage } from '../sillytavern/types';
+import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, type AppSettings, type ChatSession, type ChatMessage } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 
@@ -78,7 +78,13 @@ export function useSillytavern() {
 
     const latestSettings = await getSettings();
     const effectiveApi = latestSettings?.api ?? settings.api ?? DEFAULT_SETTINGS.api;
-    const effectiveSettings = { ...(latestSettings ?? DEFAULT_SETTINGS), ...(settings ?? {}), api: effectiveApi };
+    const effectiveSettings = {
+      ...(latestSettings ?? DEFAULT_SETTINGS),
+      ...(settings ?? {}),
+      api: effectiveApi,
+      // DB takes priority for presetBlocks (may be updated by PresetTab auto-save)
+      presetBlocks: latestSettings?.presetBlocks ?? settings?.presetBlocks ?? DEFAULT_PRESET_BLOCKS,
+    };
 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now() };
     const updatedChat: ChatSession = { ...activeChat, messages: [...activeChat.messages, userMsg], updatedAt: Date.now() };

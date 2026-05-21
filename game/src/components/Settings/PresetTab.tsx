@@ -1,10 +1,11 @@
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sliders, Plus, Upload, AlertTriangle, CheckCircle } from 'lucide-react';
 import { SectionHeader } from './SettingsFields';
 import type { AppSettings, PresetBlock } from '../../sillytavern/types';
 import { importPresetFromJson } from '../../sillytavern/chaoxiAdapter';
 import type { ImportResult } from '../../sillytavern/chaoxiAdapter';
+import { saveSettings } from '../../sillytavern/database';
 
 interface Props {
   draft: AppSettings;
@@ -68,41 +69,52 @@ export default function PresetTab({ draft, setDraft }: Props) {
 
   // ── Import ──
 
-  const handleFilePicked = useCallback(async () => {
-    const file = fileRef.current?.files?.[0];
+  const handleFilePicked = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
     try {
       const raw = JSON.parse(await file.text());
+      console.log('[PresetTab] Imported JSON keys:', Object.keys(raw));
       const result = importPresetFromJson(raw);
+      console.log('[PresetTab] Parsed blocks:', result.blocks.length, 'name:', result.name);
       if (result.blocks.length === 0) {
         showToast('未识别到任何预设词块，请确认文件格式', 'error');
         return;
       }
       setPendingImport(result);
     } catch (err: any) {
+      console.error('[PresetTab] Import error:', err);
       showToast(`导入失败: ${err?.message || '无法解析 JSON 文件'}`, 'error');
     }
-    if (fileRef.current) fileRef.current.value = '';
+    // Reset input value so same file can be re-imported
+    e.target.value = '';
   }, [showToast]);
 
-  const applyImport = useCallback((mode: 'replace' | 'append') => {
+  const applyImport = useCallback(async (mode: 'replace' | 'append') => {
     if (!pendingImport) return;
     const importedBlocks = pendingImport.blocks.map(b => ({
       ...b,
       identifier: crypto.randomUUID(),
     }));
     const nextBlocks = mode === 'replace' ? importedBlocks : [...blocks, ...importedBlocks];
-    setDraft({ ...draft, presetBlocks: nextBlocks });
+    const nextDraft = { ...draft, presetBlocks: nextBlocks };
+    setDraft(nextDraft);
+
+    // Auto-save to DB so imported preset takes effect immediately
+    try {
+      await saveSettings(nextDraft);
+      showToast(
+        `已导入「${pendingImport.name}」: ${pendingImport.blocks.length} 个词块（${mode === 'replace' ? '替换' : '追加'}）— 已自动保存`,
+        'success',
+      );
+    } catch {
+      showToast(`已导入但保存失败，请手动点击「保存配置」`, 'error');
+    }
 
     // Auto-expand first imported block
     if (importedBlocks.length > 0) {
       setExpandedIds(prev => { const s = new Set(prev); s.add(importedBlocks[0].identifier); return s; });
     }
-
-    showToast(
-      `已导入「${pendingImport.name}」: ${pendingImport.blocks.length} 个词块（${mode === 'replace' ? '替换' : '追加'}）`,
-      'success',
-    );
     setPendingImport(null);
   }, [pendingImport, blocks, draft, setDraft, showToast]);
 
