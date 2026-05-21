@@ -55,7 +55,7 @@ export function truncateChatAt(
   variables?: Record<string, string | number>
 ): ChatSession {
   const truncated = chat.messages.slice(0, index);
-  const restoredVars = variables ?? truncated[truncated.length - 1]?.variables ?? {};
+  const restoredVars = variables ?? truncated[truncated.length - 1]?.variablesAfter ?? {};
   return { ...chat, messages: truncated, variables: restoredVars, updatedAt: Date.now() };
 }
 
@@ -64,8 +64,6 @@ export function branchChat(
   index: number,
   options: {
     name: string;
-    presetId: string | null;
-    lorebookIds: string[];
     variables?: Record<string, string | number>;
   }
 ): ChatSession {
@@ -75,9 +73,7 @@ export function branchChat(
     messages: source.messages.slice(0, index + 1).map(m => ({ ...m })),
     characterName: source.characterName,
     userName: source.userName,
-    presetId: options.presetId,
-    lorebookIds: [...options.lorebookIds],
-    variables: options.variables ?? source.messages[index].variables ?? {},
+    variables: options.variables ?? source.messages[index]?.variablesAfter ?? {},
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

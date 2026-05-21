@@ -1,4 +1,4 @@
-import type { ChatMessage } from './types';
+import type { ChatMessage, PresetBlock } from './types';
 import { formatVariablesForPrompt } from './variables';
 
 export interface PromptSection {
@@ -7,13 +7,13 @@ export interface PromptSection {
   role: string;
   enabled: boolean;
   content: string | null;
-  source: 'system' | 'variables' | 'chat';
+  source: 'preset' | 'variables' | 'chat';
 }
 
 export interface AssembleOptions {
   userInput: string;
   history: ChatMessage[];
-  systemPrompt?: string;
+  presetBlocks?: PresetBlock[];
   userName: string;
   characterName: string;
   extraVariables?: Record<string, any>;
@@ -26,57 +26,147 @@ export interface AssembleResult {
 }
 
 export function assemblePrompt(options: AssembleOptions): AssembleResult {
-  const { userInput, history, systemPrompt, userName, characterName, extraVariables } = options;
+  const { userInput, history, presetBlocks, userName, characterName, extraVariables } = options;
 
   const sections: PromptSection[] = [];
+  const assembledMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
   let systemAccumulator = '';
+  let hasChatHistory = false;
 
-  // System prompt (from preset main field)
-  if (systemPrompt?.trim()) {
-    const content = replaceMacros(systemPrompt, { userName, characterName, userInput });
-    systemAccumulator = content;
-    sections.push({ identifier: 'system', name: '系统指令', role: 'system', enabled: true, content, source: 'system' });
+  const macroCtx: MacroContext = { userName, characterName, userInput };
+
+  // Process preset blocks in order
+  if (presetBlocks && presetBlocks.length > 0) {
+    for (const block of presetBlocks) {
+      if (!block.enabled) {
+        sections.push({
+          identifier: block.identifier,
+          name: block.name,
+          role: block.role,
+          enabled: false,
+          content: null,
+          source: 'preset',
+        });
+        continue;
+      }
+
+      // Handle chatHistory insertion
+      if (block.identifier === 'chatHistory') {
+        hasChatHistory = true;
+        if (systemAccumulator.trim()) {
+          assembledMessages.push({ role: 'system', content: systemAccumulator });
+          systemAccumulator = '';
+        }
+        const recentHistory = buildRecentHistory(history);
+        assembledMessages.push(...recentHistory);
+        sections.push({
+          identifier: 'chatHistory',
+          name: block.name || '对话历史',
+          role: 'system',
+          enabled: true,
+          content: `[${recentHistory.length} 条]`,
+          source: 'chat',
+        });
+        continue;
+      }
+
+      // Replace macros in content
+      let content = block.content?.trim() ? replaceMacros(block.content, macroCtx) : null;
+
+      if (!content) {
+        sections.push({
+          identifier: block.identifier,
+          name: block.name,
+          role: block.role,
+          enabled: true,
+          content: null,
+          source: 'preset',
+        });
+        continue;
+      }
+
+      sections.push({
+        identifier: block.identifier,
+        name: block.name,
+        role: block.role,
+        enabled: true,
+        content,
+        source: 'preset',
+      });
+
+      if (block.role === 'system') {
+        systemAccumulator += (systemAccumulator ? '\n\n' : '') + content;
+      } else {
+        // Flush system accumulator before non-system message
+        if (systemAccumulator.trim()) {
+          assembledMessages.push({ role: 'system', content: systemAccumulator });
+          systemAccumulator = '';
+        }
+        assembledMessages.push({ role: block.role, content });
+      }
+    }
   }
 
-  // Variables
+  // Variables (always appended to system accumulator for context)
   if (extraVariables && Object.keys(extraVariables).length > 0) {
     const varsBlock = formatVariablesForPrompt(extraVariables);
     if (varsBlock) {
       systemAccumulator += (systemAccumulator ? '\n\n' : '') + varsBlock;
-      sections.push({ identifier: 'variables', name: '当前状态', role: 'system', enabled: true, content: varsBlock, source: 'variables' });
+      sections.push({
+        identifier: 'variables',
+        name: '当前状态',
+        role: 'system',
+        enabled: true,
+        content: varsBlock,
+        source: 'variables',
+      });
     }
   }
 
-  // Build messages
-  const assembledMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
-  if (systemAccumulator) {
-    assembledMessages.push({ role: 'system', content: systemAccumulator });
+  // Flush remaining system accumulator
+  if (systemAccumulator.trim()) {
+    assembledMessages.unshift({ role: 'system', content: systemAccumulator });
   }
 
-  // Recent history (limit by rough token estimate)
+  // Chat history (if not already inserted by a chatHistory preset block)
+  if (!hasChatHistory) {
+    const recentHistory = buildRecentHistory(history);
+    if (recentHistory.length > 0) {
+      assembledMessages.push(...recentHistory);
+      sections.push({
+        identifier: 'chatHistory',
+        name: '对话历史',
+        role: 'system',
+        enabled: true,
+        content: `[${recentHistory.length} 条]`,
+        source: 'chat',
+      });
+    }
+  }
+
+  // User input
+  assembledMessages.push({ role: 'user', content: userInput });
+
+  const systemPrompt = assembledMessages
+    .filter(m => m.role === 'system')
+    .map(m => m.content)
+    .join('\n\n');
+
+  return { messages: assembledMessages, systemPrompt, sections };
+}
+
+function buildRecentHistory(history: ChatMessage[]): { role: 'system' | 'user' | 'assistant'; content: string }[] {
   let tokenBudget = 3000;
-  const recentHistory: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
+  const recent: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
   for (let i = history.length - 1; i >= 0; i--) {
     const msg = history[i];
     if (msg.role === 'system') continue;
     const t = Math.round(msg.content.length / 4);
     if (tokenBudget - t < 0) break;
-    recentHistory.unshift({ role: msg.role, content: msg.content });
+    recent.unshift({ role: msg.role, content: msg.content });
     tokenBudget -= t;
   }
-  if (recentHistory.length > 0) {
-    assembledMessages.push(...recentHistory);
-    sections.push({ identifier: 'chatHistory', name: '对话历史', role: 'system', enabled: true, content: `[${recentHistory.length} 条]`, source: 'chat' });
-  }
-
-  assembledMessages.push({ role: 'user', content: userInput });
-
-  const sysPrompt = assembledMessages
-    .filter(m => m.role === 'system')
-    .map(m => m.content)
-    .join('\n\n');
-
-  return { messages: assembledMessages, systemPrompt: sysPrompt, sections };
+  return recent;
 }
 
 interface MacroContext {

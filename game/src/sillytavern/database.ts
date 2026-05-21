@@ -1,9 +1,9 @@
 import Dexie, { Table } from 'dexie';
 import type { AppSettings, ChatSession } from './types';
-import { DEFAULT_SETTINGS } from './types';
+import { DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS } from './types';
 
 const DB_NAME = 'SillyTavernWebDB';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 class AppDatabase extends Dexie {
   settings!: Table<AppSettings>;
@@ -22,6 +22,18 @@ class AppDatabase extends Dexie {
         if (row.thinkingDisplay === undefined) row.thinkingDisplay = 'fold';
         if (row.api?.secondary === undefined) {
           row.api = { ...row.api, secondary: { enabled: false, baseUrl: '', apiKey: '', model: '' } };
+        }
+        await tx.table('settings').put(row);
+      }
+    });
+    this.version(4).stores({
+      settings: 'key',
+      chats: 'id, name, updatedAt',
+    }).upgrade(async tx => {
+      const s = await tx.table('settings').toCollection().toArray();
+      for (const row of s) {
+        if (!row.presetBlocks || row.presetBlocks.length === 0) {
+          row.presetBlocks = DEFAULT_PRESET_BLOCKS;
         }
         await tx.table('settings').put(row);
       }

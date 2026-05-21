@@ -4,7 +4,7 @@ import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat } from '../sillytavern/variables';
 import { assemblePrompt } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, type AppSettings, type ChatSession, type ChatMessage } from '../sillytavern/types';
-import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat } from '../sillytavern/database';
+import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 
 const db = getDatabase();
@@ -62,7 +62,12 @@ export function useSillytavern() {
   }, [activeChatId, chats]);
 
   const updateSettings = useCallback(async (patch: Partial<AppSettings>) => {
-    setSettings(prev => { if (!prev) return prev; const next = { ...prev, ...patch }; return next; });
+    setSettings(prev => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      saveSettings(next);
+      return next;
+    });
   }, []);
 
   // ── streaming parser ──
@@ -83,7 +88,7 @@ export function useSillytavern() {
     const { messages, systemPrompt, sections } = assemblePrompt({
       userInput: userText,
       history: updatedChat.messages,
-      systemPrompt: effectiveSettings.characterDescription || undefined,
+      presetBlocks: effectiveSettings.presetBlocks,
       userName: effectiveSettings.userName,
       characterName: effectiveSettings.characterName,
       extraVariables: updatedChat.variables,

@@ -7,6 +7,7 @@ import { DEFAULT_SETTINGS } from '../sillytavern/types';
 import { fetchModels, testConnection } from '../sillytavern/api-tools';
 import ApiTab from './Settings/ApiTab';
 import IdentityTab from './Settings/IdentityTab';
+import PresetTab from './Settings/PresetTab';
 
 type TabId = 'api' | 'lorebook' | 'preset' | 'identity';
 const TABS: { id: TabId; label: string; icon: any }[] = [
@@ -45,7 +46,8 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       || draft.characterName !== ss.settings.characterName
       || (draft.playerTitle ?? '') !== (ss.settings.playerTitle ?? '')
       || (draft.characterDescription ?? '') !== (ss.settings.characterDescription ?? '')
-      || (draft.scenario ?? '') !== (ss.settings.scenario ?? '');
+      || (draft.scenario ?? '') !== (ss.settings.scenario ?? '')
+      || JSON.stringify(draft.presetBlocks) !== JSON.stringify(ss.settings.presetBlocks);
   }, [draft, ss.settings]);
 
   const handleSave = async () => {
@@ -55,6 +57,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
         api: draft.api, apiMode: draft.apiMode, userName: draft.userName,
         characterName: draft.characterName, playerTitle: draft.playerTitle,
         characterDescription: draft.characterDescription, scenario: draft.scenario,
+        presetBlocks: draft.presetBlocks,
       });
       showToast('配置已保存', 'success');
     } catch { showToast('保存失败', 'error'); }
@@ -129,13 +132,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
                     <p className="text-white/8 text-[10px] mt-1">后端重构中</p>
                   </div>
                 )}
-                {tab === 'preset' && (
-                  <div className="p-5 flex flex-col items-center justify-center py-16 text-center">
-                    <Sliders size={32} className="text-white/8 mb-3" />
-                    <p className="text-white/15 text-xs font-display tracking-wide">预设配置</p>
-                    <p className="text-white/8 text-[10px] mt-1">后端重构中</p>
-                  </div>
-                )}
+                {tab === 'preset' && draft && <PresetTab draft={draft} setDraft={setDraft} />}
                 {tab === 'identity' && draft && <IdentityTab draft={draft} setDraft={setDraft} />}
               </motion.div>
             </AnimatePresence>
