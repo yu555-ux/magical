@@ -1,6 +1,5 @@
 import type { ChatMessage, PresetBlock, Lorebook } from './types';
 import { INJECTION_ANCHORS } from './types';
-import { formatVariablesForPrompt } from './variables';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
 import type { ScanResult } from './lorebookEngine';
 
@@ -10,7 +9,7 @@ export interface PromptSection {
   role: string;
   enabled: boolean;
   content: string | null;
-  source: 'preset' | 'variables' | 'chat' | 'lorebook';
+  source: 'preset' | 'lorebook' | 'chat';
 }
 
 export interface AssembleOptions {
@@ -20,7 +19,6 @@ export interface AssembleOptions {
   lorebooks?: Lorebook[];
   userName: string;
   characterName: string;
-  extraVariables?: Record<string, any>;
 }
 
 export interface AssembleResult {
@@ -31,17 +29,6 @@ export interface AssembleResult {
 
 // ── Chaoxi-style variable macro engine ──
 
-/**
- * Process Chaoxi preset macros in the correct order across all blocks.
- *
- * Order: strip comments → setvar → addvar → getvar → user/char/original → trim
- *
- * setvar::name::value  → sets presetVars[name] = value
- * addvar::name::value  → presetVars[name] += value
- * getvar::name         → replaced with presetVars[name]
- * {{// comment}}       → removed (Chaoxi inline comments)
- * {{trim}}             → removed (Chaoxi trimming)
- */
 function resolveContent(
   content: string,
   presetVars: Record<string, string>,
@@ -49,28 +36,28 @@ function resolveContent(
 ): string {
   let result = content;
 
-  // 1) Strip {{// comment}} — Chaoxi inline comments
+  // 1) Strip {{// comment}}
   result = result.replace(/\{\{\s*\/\/[^}]*\}\}/g, '');
 
-  // 2) Process {{setvar::name::value}} — set variable (overwrite)
+  // 2) Process {{setvar::name::value}}
   result = result.replace(/\{\{setvar::([^:}]+)::([^}]*)\}\}/g, (_, name: string, value: string) => {
     presetVars[name.trim()] = value;
     return '';
   });
 
-  // 3) Process {{addvar::name::value}} — append to variable
+  // 3) Process {{addvar::name::value}}
   result = result.replace(/\{\{addvar::([^:}]+)::([^}]*)\}\}/g, (_, name: string, value: string) => {
     const key = name.trim();
     presetVars[key] = (presetVars[key] || '') + value;
     return '';
   });
 
-  // 4) Process {{getvar::name}} — get variable value
+  // 4) Process {{getvar::name}}
   result = result.replace(/\{\{getvar::([^}]+)\}\}/g, (_, name: string) => {
     return presetVars[name.trim()] ?? '';
   });
 
-  // 5) Standard macros: {{user}} {{char}} {{original}}
+  // 5) Standard macros
   result = result
     .replace(/\{\{user\}\}/g, macroCtx.userName)
     .replace(/\{\{char\}\}/g, macroCtx.characterName)
@@ -85,7 +72,7 @@ function resolveContent(
 // ── Main assembler ──
 
 export function assemblePrompt(options: AssembleOptions): AssembleResult {
-  const { userInput, history, presetBlocks, lorebooks, userName, characterName, extraVariables } = options;
+  const { userInput, history, presetBlocks, lorebooks, userName, characterName } = options;
 
   const sections: PromptSection[] = [];
   const assembledMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
@@ -101,6 +88,10 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   if (lorebooks && lorebooks.length > 0) {
     scanResult = scanLorebooks(lorebooks, userInput, historyText);
   }
+
+  // Track whether lorebook was injected via preset anchors
+  let injectedBefore = false;
+  let injectedAfter = false;
 
   // Process preset blocks in order
   if (presetBlocks && presetBlocks.length > 0) {
@@ -120,6 +111,20 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       // Handle chatHistory insertion
       if (block.identifier === 'chatHistory') {
         hasChatHistory = true;
+        // Inject worldInfoAfter lorebook if not already done via anchor
+        if (!injectedAfter && scanResult.after.length > 0) {
+          const lorebookContent = formatMatchedEntries(scanResult.after)
+            .replace(/\{\{user\}\}/g, macroCtx.userName)
+            .replace(/\{\{char\}\}/g, macroCtx.characterName);
+          if (lorebookContent.trim()) {
+            systemAccumulator += (systemAccumulator ? '\n\n' : '') + lorebookContent;
+            sections.push({
+              identifier: 'worldInfoAfter', name: '世界书（角色定位之后）',
+              role: 'system', enabled: true, content: lorebookContent, source: 'lorebook',
+            });
+          }
+          injectedAfter = true;
+        }
         if (systemAccumulator.trim()) {
           assembledMessages.push({ role: 'system', content: systemAccumulator });
           systemAccumulator = '';
@@ -127,12 +132,8 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
         const recentHistory = buildRecentHistory(history);
         assembledMessages.push(...recentHistory);
         sections.push({
-          identifier: 'chatHistory',
-          name: block.name || '对话历史',
-          role: 'system',
-          enabled: true,
-          content: `[${recentHistory.length} 条]`,
-          source: 'chat',
+          identifier: 'chatHistory', name: block.name || '对话历史',
+          role: 'system', enabled: true, content: `[${recentHistory.length} 条]`, source: 'chat',
         });
         continue;
       }
@@ -142,21 +143,20 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       let source: PromptSection['source'] = 'preset';
 
       if (INJECTION_ANCHORS.includes(block.identifier as typeof INJECTION_ANCHORS[number])) {
-        // Injection anchor — replace empty content with matched lorebook entries
         const entries = block.identifier === 'worldInfoBefore' ? scanResult.before : scanResult.after;
         if (entries.length > 0) {
           content = formatMatchedEntries(entries);
           source = 'lorebook';
+          if (block.identifier === 'worldInfoBefore') injectedBefore = true;
+          else injectedAfter = true;
         }
       }
 
-      // If no lorebook content was injected, use the block's own content
       if (!content) {
         const rawContent = block.content?.trim();
         content = rawContent ? resolveContent(rawContent, presetVars, macroCtx) : null;
       }
 
-      // Still apply macro resolution to lorebook content (for {{user}} etc.)
       if (content && source === 'lorebook') {
         content = content
           .replace(/\{\{user\}\}/g, macroCtx.userName)
@@ -166,24 +166,13 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
       if (!content || !content.trim()) {
         sections.push({
-          identifier: block.identifier,
-          name: block.name,
-          role: block.role,
-          enabled: true,
-          content: null,
-          source: 'preset',
+          identifier: block.identifier, name: block.name, role: block.role,
+          enabled: true, content: null, source: 'preset',
         });
         continue;
       }
 
-      sections.push({
-        identifier: block.identifier,
-        name: block.name,
-        role: block.role,
-        enabled: true,
-        content,
-        source,
-      });
+      sections.push({ identifier: block.identifier, name: block.name, role: block.role, enabled: true, content, source });
 
       if (block.role === 'system') {
         systemAccumulator += (systemAccumulator ? '\n\n' : '') + content;
@@ -197,19 +186,33 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     }
   }
 
-  // Variables (always appended to system accumulator for context)
-  if (extraVariables && Object.keys(extraVariables).length > 0) {
-    const varsBlock = formatVariablesForPrompt(extraVariables);
-    if (varsBlock) {
-      systemAccumulator += (systemAccumulator ? '\n\n' : '') + varsBlock;
-      sections.push({
-        identifier: 'variables',
-        name: '当前状态',
-        role: 'system',
-        enabled: true,
-        content: varsBlock,
-        source: 'variables',
+  // ── Inject worldInfoBefore if not done via anchor ──
+  if (!injectedBefore && scanResult.before.length > 0) {
+    const beforeContent = formatMatchedEntries(scanResult.before)
+      .replace(/\{\{user\}\}/g, macroCtx.userName)
+      .replace(/\{\{char\}\}/g, macroCtx.characterName);
+    if (beforeContent.trim()) {
+      systemAccumulator = beforeContent + (systemAccumulator ? '\n\n' : '') + systemAccumulator;
+      sections.unshift({
+        identifier: 'worldInfoBefore', name: '世界书（角色定位之前）',
+        role: 'system', enabled: true, content: beforeContent, source: 'lorebook',
       });
+      injectedBefore = true;
+    }
+  }
+
+  // ── Inject worldInfoAfter if not done via anchor ──
+  if (!injectedAfter && scanResult.after.length > 0) {
+    const afterContent = formatMatchedEntries(scanResult.after)
+      .replace(/\{\{user\}\}/g, macroCtx.userName)
+      .replace(/\{\{char\}\}/g, macroCtx.characterName);
+    if (afterContent.trim()) {
+      systemAccumulator += (systemAccumulator ? '\n\n' : '') + afterContent;
+      sections.push({
+        identifier: 'worldInfoAfter', name: '世界书（角色定位之后）',
+        role: 'system', enabled: true, content: afterContent, source: 'lorebook',
+      });
+      injectedAfter = true;
     }
   }
 
@@ -224,12 +227,8 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     if (recentHistory.length > 0) {
       assembledMessages.push(...recentHistory);
       sections.push({
-        identifier: 'chatHistory',
-        name: '对话历史',
-        role: 'system',
-        enabled: true,
-        content: `[${recentHistory.length} 条]`,
-        source: 'chat',
+        identifier: 'chatHistory', name: '对话历史',
+        role: 'system', enabled: true, content: `[${recentHistory.length} 条]`, source: 'chat',
       });
     }
   }

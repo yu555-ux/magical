@@ -105,7 +105,6 @@ export function useSillytavern() {
       lorebooks: effectiveSettings.lorebooks,
       userName: effectiveSettings.userName,
       characterName: effectiveSettings.characterName,
-      extraVariables: updatedChat.variables,
     });
 
     setLastPrompt({

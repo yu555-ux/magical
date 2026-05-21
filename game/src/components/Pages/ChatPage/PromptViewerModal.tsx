@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { X, FileText, EyeOff, CheckCircle2, Circle, Database, Layers, BookOpen } from 'lucide-react';
+import { X, FileText, EyeOff, CheckCircle2, Circle, Layers, BookOpen } from 'lucide-react';
 import type { PromptSection } from '../../../sillytavern/prompt-assembler';
 
 interface Props {
@@ -17,14 +17,12 @@ interface Props {
 const sourceIcons: Record<string, any> = {
   preset: Layers,
   lorebook: BookOpen,
-  variables: Database,
   chat: FileText,
 };
 
 const sourceLabels: Record<string, string> = {
   preset: '预设',
   lorebook: '世界书',
-  variables: '变量',
   chat: '对话',
 };
 
@@ -105,7 +103,6 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                         <span className="text-[8px] text-white/15 font-mono uppercase">{section.role}</span>
                         <span className={`flex items-center gap-1 text-[8px] font-mono px-1.5 py-0.5 rounded ${
                           section.source === 'lorebook' ? 'bg-aether-purple/10 text-aether-purple/50' :
-                          section.source === 'variables' ? 'bg-aether-gold/10 text-aether-gold/50' :
                           section.source === 'chat' ? 'bg-aether-blue/10 text-aether-blue/50' :
                           'bg-aether-cyan/10 text-aether-cyan/50'
                         }`}>
