@@ -32,7 +32,12 @@ export default function LorebookTab({ draft, setDraft }: Props) {
   const save = async (next: Lorebook[]) => {
     const nextDraft = { ...draft, lorebooks: next };
     setDraft(nextDraft);
-    try { await saveSettings(nextDraft); } catch { /* draft saved */ }
+    try {
+      await saveSettings(nextDraft);
+    } catch (err) {
+      console.error('[LorebookTab] Save failed:', err);
+      showToast('保存失败，请重试', 'error');
+    }
   };
 
   // ── Import ──
@@ -40,33 +45,43 @@ export default function LorebookTab({ draft, setDraft }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const raw = JSON.parse(await file.text());
+      const text = await file.text();
+      console.log('[LorebookTab] File size:', (text.length / 1024).toFixed(1), 'KB');
+      const raw = JSON.parse(text);
       const book = importLorebookFromJson(raw);
-      const next = [...lorebooks, book];
-      await save(next);
+      console.log('[LorebookTab] Imported book:', book.name, 'entries:', book.entries.length);
+      const contentSize = book.entries.reduce((s, e) => s + e.content.length, 0);
+      console.log('[LorebookTab] Total content size:', (contentSize / 1024).toFixed(1), 'KB');
+
+      const currentDraft = { ...draft };
+      const next = [...(currentDraft.lorebooks || []), book];
+      currentDraft.lorebooks = next;
+      setDraft(currentDraft);
+      await saveSettings(currentDraft);
       setExpandedBook(book.id);
       showToast(`已导入「${book.name}」: ${book.entries.length} 个条目 — 已自动保存`, 'success');
     } catch (err: any) {
+      console.error('[LorebookTab] Import error:', err);
       showToast(`导入失败: ${err?.message || '无法解析'}`, 'error');
     }
     e.target.value = '';
-  }, [lorebooks, save, showToast]);
+  }, [draft, showToast]);
 
   // ── Entry ops ──
-  const toggleEntry = (bookId: string, entryId: string) => {
+  const toggleEntry = async (bookId: string, entryId: string) => {
     const next = lorebooks.map(b => b.id !== bookId ? b : {
       ...b, entries: b.entries.map(e => e.id === entryId ? { ...e, enabled: !e.enabled } : e),
     });
-    save(next);
+    await save(next);
   };
 
-  const toggleRecursive = (bookId: string) => {
+  const toggleRecursive = async (bookId: string) => {
     const next = lorebooks.map(b => b.id !== bookId ? b : { ...b, recursive: !b.recursive });
-    save(next);
+    await save(next);
   };
 
-  const removeBook = (bookId: string) => {
-    save(lorebooks.filter(b => b.id !== bookId));
+  const removeBook = async (bookId: string) => {
+    await save(lorebooks.filter(b => b.id !== bookId));
   };
 
   const anchorLabel = (pos: number) => POSITION_LABELS[LOREBOOK_POSITION_MAP[pos]] || '角色定位之后';
