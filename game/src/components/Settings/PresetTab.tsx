@@ -22,6 +22,12 @@ function newBlock(): PresetBlock {
   };
 }
 
+const ROLE_COLORS: Record<string, string> = {
+  system: 'bg-aether-cyan/10 text-aether-cyan/45 border-aether-cyan/20',
+  user: 'bg-aether-green/10 text-aether-green/45 border-aether-green/20',
+  assistant: 'bg-aether-blue/10 text-aether-blue/45 border-aether-blue/20',
+};
+
 export default function PresetTab({ draft, setDraft }: Props) {
   const blocks: PresetBlock[] = draft.presetBlocks ?? [];
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -74,9 +80,10 @@ export default function PresetTab({ draft, setDraft }: Props) {
     if (!file) return;
     try {
       const raw = JSON.parse(await file.text());
-      console.log('[PresetTab] Imported JSON keys:', Object.keys(raw));
+      console.log('[PresetTab] File keys:', Object.keys(raw));
+      console.log('[PresetTab] prompts count:', raw.prompts?.length, 'prompt_order:', !!raw.prompt_order);
       const result = importPresetFromJson(raw);
-      console.log('[PresetTab] Parsed blocks:', result.blocks.length, 'name:', result.name);
+      console.log('[PresetTab] Imported:', result.blocks.length, 'blocks, source:', result.source, 'name:', result.name);
       if (result.blocks.length === 0) {
         showToast('未识别到任何预设词块，请确认文件格式', 'error');
         return;
@@ -86,7 +93,6 @@ export default function PresetTab({ draft, setDraft }: Props) {
       console.error('[PresetTab] Import error:', err);
       showToast(`导入失败: ${err?.message || '无法解析 JSON 文件'}`, 'error');
     }
-    // Reset input value so same file can be re-imported
     e.target.value = '';
   }, [showToast]);
 
@@ -100,18 +106,16 @@ export default function PresetTab({ draft, setDraft }: Props) {
     const nextDraft = { ...draft, presetBlocks: nextBlocks };
     setDraft(nextDraft);
 
-    // Auto-save to DB so imported preset takes effect immediately
     try {
       await saveSettings(nextDraft);
       showToast(
-        `已导入「${pendingImport.name}」: ${pendingImport.blocks.length} 个词块（${mode === 'replace' ? '替换' : '追加'}）— 已自动保存`,
+        `已导入「${pendingImport.name}」: ${importedBlocks.length} 个词块（${mode === 'replace' ? '替换' : '追加'}）— 已自动保存`,
         'success',
       );
     } catch {
-      showToast(`已导入但保存失败，请手动点击「保存配置」`, 'error');
+      showToast('导入成功但保存失败，请手动保存', 'error');
     }
 
-    // Auto-expand first imported block
     if (importedBlocks.length > 0) {
       setExpandedIds(prev => { const s = new Set(prev); s.add(importedBlocks[0].identifier); return s; });
     }
@@ -126,67 +130,59 @@ export default function PresetTab({ draft, setDraft }: Props) {
         <SectionHeader icon={Sliders} label="预设配置" accent="bg-aether-purple" />
 
         {/* ── Toolbar ── */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3">
           <button
             onClick={addBlock}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-aether-purple/20 border border-aether-purple/40 text-aether-purple text-xs font-semibold tracking-wide hover:bg-aether-purple/30 transition-all font-display"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] tracking-wide bg-aether-purple/15 border border-aether-purple/30 text-aether-purple hover:bg-aether-purple/25 transition-all font-display"
           >
-            <Plus size={14} /> 新建词块
+            <Plus size={13} /> 新建词块
           </button>
-          <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-aether-border/30 text-white/50 hover:text-white/80 hover:border-aether-purple/40 text-xs tracking-wide cursor-pointer transition-all font-display">
-            <Upload size={14} /> 导入预设
+          <label className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] tracking-wide border border-aether-border/30 text-white/40 hover:text-white/70 hover:border-aether-purple/40 cursor-pointer transition-all font-display">
+            <Upload size={13} /> 导入预设
             <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={handleFilePicked} />
           </label>
+          {blocks.length > 0 && (
+            <span className="text-[10px] text-white/15 font-mono ml-auto">{blocks.length} 个词块</span>
+          )}
         </div>
 
         {/* ── Pending import banner ── */}
         <AnimatePresence>
           {pendingImport && (
             <motion.div
-              initial={{ opacity: 0, y: -8 }}
+              initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="mb-3 p-4 rounded-lg border border-aether-purple/30 bg-aether-purple/[0.04] shadow-[0_0_24px_rgba(168,85,247,0.06)]"
+              exit={{ opacity: 0, y: -6 }}
+              className="mb-3 p-3 rounded-lg border border-aether-purple/30 bg-aether-purple/[0.04]"
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <div>
-                  <span className="text-xs text-aether-purple/80 font-display font-semibold tracking-wide">
-                    {pendingImport.name}
-                  </span>
-                  <span className="text-[10px] text-white/25 ml-2 font-mono">{pendingImport.blocks.length} 个词块</span>
+                  <span className="text-xs text-aether-purple/80 font-display font-semibold">{pendingImport.name}</span>
+                  <span className="text-[10px] text-white/25 ml-2 font-mono">{pendingImport.blocks.length} 词块</span>
+                  <span className="text-[9px] text-white/12 ml-1">({pendingImport.source})</span>
                 </div>
-                <button
-                  onClick={() => setPendingImport(null)}
-                  className="text-white/15 hover:text-white/40 transition-colors text-[10px] font-display tracking-wide"
-                >
-                  取消
-                </button>
+                <button onClick={() => setPendingImport(null)} className="text-white/15 hover:text-white/40 text-[10px]">取消</button>
               </div>
-              <div className="space-y-0.5 mb-3 max-h-28 overflow-y-auto">
+              <div className="max-h-24 overflow-y-auto mb-2 space-y-0.5">
                 {pendingImport.blocks.map((b, i) => (
-                  <div key={i} className="flex items-center gap-3 text-[10px] py-0.5">
-                    <span className="text-white/15 font-mono w-4 text-right shrink-0">{i + 1}</span>
-                    <span className={`font-display tracking-wide flex-1 ${b.enabled ? 'text-white/50' : 'text-white/20 line-through'}`}>
+                  <div key={i} className="flex items-center gap-2 text-[10px]">
+                    <span className={`shrink-0 ${b.enabled ? 'text-aether-purple/40' : 'text-white/10'}`}>
+                      {b.enabled ? '☑' : '☐'}
+                    </span>
+                    <span className={`truncate flex-1 ${b.enabled ? 'text-white/55' : 'text-white/20 line-through'}`}>
                       {b.name}
                     </span>
-                    <span className="text-white/12 font-mono text-[9px] uppercase">{b.role}</span>
-                    <span className="text-white/8 truncate max-w-[140px] hidden sm:inline">
-                      {b.content ? b.content.slice(0, 40) + '...' : '—'}
-                    </span>
+                    <span className="text-white/12 font-mono text-[9px] uppercase shrink-0">{b.role}</span>
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => applyImport('replace')}
-                  className="px-4 py-1.5 rounded text-[11px] tracking-wide bg-aether-purple/25 border border-aether-purple/45 text-aether-purple hover:bg-aether-purple/35 transition-all font-display font-semibold"
-                >
+              <div className="flex gap-2">
+                <button onClick={() => applyImport('replace')}
+                  className="px-3 py-1 rounded text-[10px] font-display tracking-wide bg-aether-purple/25 border border-aether-purple/40 text-aether-purple hover:bg-aether-purple/35 transition-all">
                   替换当前
                 </button>
-                <button
-                  onClick={() => applyImport('append')}
-                  className="px-4 py-1.5 rounded text-[11px] tracking-wide border border-aether-purple/30 text-aether-purple/70 hover:bg-aether-purple/[0.06] transition-all font-display"
-                >
+                <button onClick={() => applyImport('append')}
+                  className="px-3 py-1 rounded text-[10px] font-display tracking-wide border border-aether-purple/30 text-aether-purple/70 hover:bg-aether-purple/[0.06] transition-all">
                   追加到末尾
                 </button>
               </div>
@@ -194,15 +190,15 @@ export default function PresetTab({ draft, setDraft }: Props) {
           )}
         </AnimatePresence>
 
-        {/* ── Word block cards ── */}
-        <div className="space-y-1.5">
+        {/* ── 词块 card list ── */}
+        <div className="space-y-1">
           {blocks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center bg-aether-dark/20 rounded-lg border border-aether-border/10">
-              <div className="w-12 h-12 rounded-full bg-aether-purple/5 border border-aether-border/20 flex items-center justify-center mb-3">
-                <Sliders size={22} className="text-white/10" />
+            <div className="flex flex-col items-center justify-center py-14 text-center bg-aether-dark/20 rounded-lg border border-aether-border/10">
+              <div className="w-10 h-10 rounded-full bg-aether-purple/5 border border-aether-border/20 flex items-center justify-center mb-2">
+                <Sliders size={18} className="text-white/10" />
               </div>
-              <p className="text-white/20 text-xs font-display tracking-wide mb-1">暂无预设词块</p>
-              <p className="text-white/10 text-[10px]">点击「新建词块」创建，或「导入预设」加载潮汐/酒馆预设文件</p>
+              <p className="text-white/15 text-xs font-display tracking-wide mb-1">暂无预设词块</p>
+              <p className="text-white/8 text-[10px]">点击「新建词块」或「导入预设」加载潮汐/酒馆预设</p>
             </div>
           ) : (
             blocks.map((block, index) => {
@@ -211,84 +207,61 @@ export default function PresetTab({ draft, setDraft }: Props) {
               return (
                 <div
                   key={block.identifier}
-                  className={`rounded-lg border transition-all ${
+                  className={`rounded border transition-all ${
                     enabled
-                      ? 'border-aether-border/15 bg-aether-dark/40'
-                      : 'border-aether-border/8 bg-aether-dark/20 opacity-60'
+                      ? 'border-aether-border/12 bg-aether-dark/30'
+                      : 'border-aether-border/6 bg-aether-dark/15 opacity-55'
                   }`}
                 >
                   {/* ── Card header ── */}
-                  <div className="flex items-center gap-2 px-3 py-2.5">
-                    {/* Enable checkbox */}
+                  <div className="flex items-center gap-2 px-2.5 py-2">
+                    {/* Checkbox */}
                     <input
                       type="checkbox"
                       checked={enabled}
                       onChange={e => updateBlock(index, { enabled: e.target.checked })}
-                      className="accent-aether-purple shrink-0"
+                      className="accent-aether-purple shrink-0 h-3.5 w-3.5"
                     />
 
-                    {/* Name (click to expand/collapse) */}
+                    {/* Expand toggle + Name */}
                     <button
-                      onClick={() => { if (enabled) toggleExpanded(block.identifier); }}
+                      onClick={() => enabled && toggleExpanded(block.identifier)}
                       disabled={!enabled}
-                      className={`flex-1 text-left flex items-center gap-1 select-none ${
-                        enabled
-                          ? 'cursor-pointer hover:text-white/80'
-                          : 'cursor-default'
-                      } transition-colors`}
+                      className={`flex-1 text-left flex items-center gap-1 min-w-0 ${
+                        enabled ? 'cursor-pointer' : 'cursor-default'
+                      }`}
                     >
-                      <span className={`text-[9px] ${isExpanded ? 'text-white/30' : 'text-white/12'}`}>
-                        {isExpanded ? '▾' : '▸'}
+                      <span className={`shrink-0 text-[9px] transition-colors ${
+                        isExpanded && enabled ? 'text-white/30' : 'text-white/10'
+                      }`}>
+                        {isExpanded && enabled ? '▾' : '▸'}
                       </span>
-                      <span className={`text-[12px] font-display font-medium ${
-                        enabled ? 'text-white/60' : 'text-white/25'
+                      <span className={`text-[11px] leading-tight truncate ${
+                        enabled ? 'text-white/65' : 'text-white/25'
                       }`}>
                         {block.name || '未命名'}
                       </span>
                     </button>
 
-                    {/* Identifier badge */}
-                    <span className="text-[9px] text-white/12 font-mono truncate max-w-[100px]" title={block.identifier}>
-                      {block.identifier.length > 20 ? block.identifier.slice(0, 18) + '…' : block.identifier}
-                    </span>
-
                     {/* Role badge */}
-                    <span className={`text-[8px] px-1 py-0.5 rounded font-mono uppercase shrink-0 ${
-                      block.role === 'system'
-                        ? 'bg-aether-cyan/10 text-aether-cyan/40'
-                        : block.role === 'user'
-                          ? 'bg-aether-green/10 text-aether-green/40'
-                          : 'bg-aether-blue/10 text-aether-blue/40'
-                    }`}>
+                    <span className={`text-[8px] px-1 py-0.5 rounded border font-mono uppercase shrink-0 ${ROLE_COLORS[block.role] || ROLE_COLORS.system}`}>
                       {block.role}
                     </span>
 
-                    {/* Reorder */}
-                    <button
-                      disabled={index === 0}
-                      onClick={() => moveBlock(index, -1)}
-                      className="text-[11px] text-white/15 hover:text-white/40 disabled:opacity-10 disabled:cursor-default px-0.5 leading-none"
-                      title="上移"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      disabled={index === blocks.length - 1}
-                      onClick={() => moveBlock(index, 1)}
-                      className="text-[11px] text-white/15 hover:text-white/40 disabled:opacity-10 disabled:cursor-default px-0.5 leading-none"
-                      title="下移"
-                    >
-                      ↓
-                    </button>
+                    {/* Identifier (short) */}
+                    <span className="text-[8px] text-white/10 font-mono shrink-0 hidden sm:inline">
+                      {block.identifier.length > 8 ? block.identifier.slice(0, 8) + '…' : block.identifier}
+                    </span>
+
+                    {/* Order buttons */}
+                    <button disabled={index === 0} onClick={() => moveBlock(index, -1)}
+                      className="text-[10px] text-white/12 hover:text-white/35 disabled:opacity-8 px-0.5 leading-none shrink-0" title="上移">↑</button>
+                    <button disabled={index === blocks.length - 1} onClick={() => moveBlock(index, 1)}
+                      className="text-[10px] text-white/12 hover:text-white/35 disabled:opacity-8 px-0.5 leading-none shrink-0" title="下移">↓</button>
 
                     {/* Delete */}
-                    <button
-                      onClick={() => removeBlock(index)}
-                      className="text-[11px] text-white/15 hover:text-aether-red/50 transition-colors px-0.5"
-                      title="删除"
-                    >
-                      ✕
-                    </button>
+                    <button onClick={() => removeBlock(index)}
+                      className="text-[10px] text-white/10 hover:text-aether-red/50 transition-colors px-0.5 shrink-0" title="删除">✕</button>
                   </div>
 
                   {/* ── Expanded content ── */}
@@ -298,59 +271,44 @@ export default function PresetTab({ draft, setDraft }: Props) {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                         className="overflow-hidden"
                       >
-                        <div className="px-3 pb-3 border-t border-aether-border/8 pt-2">
+                        <div className="px-3 pb-3 border-t border-aether-border/6 pt-2 space-y-2">
                           {/* Name + Role row */}
-                          <div className="flex items-center gap-3 mb-2">
-                            <label className="flex-1">
-                              <span className="block text-[10px] text-white/25 mb-0.5">名称</span>
-                              <input
-                                type="text"
-                                value={block.name}
-                                onChange={e => updateBlock(index, { name: e.target.value })}
-                                className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-xs text-white/70 focus:outline-none focus:border-aether-purple/60 transition-all font-mono"
-                              />
-                            </label>
-                            <label style={{ width: 100 }}>
-                              <span className="block text-[10px] text-white/25 mb-0.5">角色</span>
-                              <select
-                                value={block.role}
-                                onChange={e => updateBlock(index, { role: e.target.value as PresetBlock['role'] })}
-                                className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-xs text-white/70 focus:outline-none focus:border-aether-purple/60 transition-all font-mono"
-                              >
-                                <option value="system">system</option>
-                                <option value="user">user</option>
-                                <option value="assistant">assistant</option>
-                              </select>
-                            </label>
-                            <label style={{ width: 100 }}>
-                              <span className="block text-[10px] text-white/25 mb-0.5">位置</span>
-                              <input
-                                type="text"
-                                value={`第 ${index + 1} 位`}
-                                disabled
-                                className="w-full bg-aether-dark/40 border border-aether-border/15 rounded px-2 py-1 text-xs text-white/25 font-mono cursor-not-allowed"
-                              />
-                            </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={block.name}
+                              onChange={e => updateBlock(index, { name: e.target.value })}
+                              placeholder="词块名称"
+                              className="flex-1 bg-aether-dark/50 border border-aether-border/25 rounded px-2 py-1 text-[11px] text-white/65 focus:outline-none focus:border-aether-purple/50 transition-all"
+                            />
+                            <select
+                              value={block.role}
+                              onChange={e => updateBlock(index, { role: e.target.value as PresetBlock['role'] })}
+                              className="bg-aether-dark/50 border border-aether-border/25 rounded px-2 py-1 text-[11px] text-white/55 focus:outline-none focus:border-aether-purple/50 transition-all"
+                            >
+                              <option value="system">system</option>
+                              <option value="user">user</option>
+                              <option value="assistant">assistant</option>
+                            </select>
+                            <span className="text-[9px] text-white/15 font-mono shrink-0">#{index + 1}</span>
                           </div>
 
                           {/* Content textarea */}
                           <textarea
                             value={block.content}
                             onChange={e => updateBlock(index, { content: e.target.value })}
-                            rows={block.identifier === 'main' || block.name === '系统指令' ? 6 : 4}
-                            placeholder="输入提示词内容...&#10;支持宏：{{user}} {{char}} {{original}}"
-                            className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 placeholder:text-white/12 focus:outline-none focus:border-aether-purple/60 transition-all resize-none font-mono leading-relaxed"
+                            rows={6}
+                            placeholder="提示词内容..."
+                            className="w-full bg-aether-dark/50 border border-aether-border/25 rounded px-3 py-2 text-[11px] text-white/65 placeholder:text-white/10 focus:outline-none focus:border-aether-purple/50 transition-all resize-none font-mono leading-relaxed"
                           />
-
-                          {/* Macro hints */}
-                          <p className="text-[9px] text-white/12 mt-1.5">
-                            支持宏：
-                            <code className="text-aether-cyan/30">{'{{user}}'}</code>{' '}
-                            <code className="text-aether-cyan/30">{'{{char}}'}</code>{' '}
-                            <code className="text-aether-cyan/30">{'{{original}}'}</code>
+                          <p className="text-[9px] text-white/10">
+                            宏: <code className="text-aether-cyan/25">{'{{user}}'}</code>{' '}
+                            <code className="text-aether-cyan/25">{'{{char}}'}</code>{' '}
+                            <code className="text-aether-cyan/25">{'{{original}}'}</code>{' '}
+                            <code className="text-white/8">{'{{setvar::}} {{addvar::}} {{getvar::}} {{trim}}'}</code>
                           </p>
                         </div>
                       </motion.div>
@@ -360,15 +318,6 @@ export default function PresetTab({ draft, setDraft }: Props) {
               );
             })
           )}
-        </div>
-
-        {/* ── Info footer ── */}
-        <div className="bg-aether-dark/20 rounded-lg border border-aether-border/15 p-3 mt-4">
-          <p className="text-[10px] text-white/20 leading-relaxed">
-            <span className="text-aether-purple/40 font-semibold">词块按顺序发送：</span>
-            每个词块按列表从上到下的顺序依次组装为 prompt。勾选框控制是否包含该词块。
-            相同角色的词块会被合并。使用「导入预设」可加载潮汐/酒馆的 .json 预设文件。
-          </p>
         </div>
       </section>
 
