@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Upload, AlertTriangle, CheckCircle, Settings2, Circle, CheckCircle2, Pencil, X } from 'lucide-react';
+import { Plus, Upload, Download, AlertTriangle, CheckCircle, Settings2, Circle, CheckCircle2, Pencil, X } from 'lucide-react';
 import type { AppSettings, PresetBlock, PresetParams, SavedPreset } from '../../sillytavern/types';
 import { DEFAULT_PRESET_PARAMS } from '../../sillytavern/types';
 import { importPresetFromJson } from '../../sillytavern/chaoxiAdapter';
@@ -148,6 +148,40 @@ export default function PresetTab({ draft, setDraft }: Props) {
     setEditingPresetId(null);
   };
 
+  const exportPreset = (preset: SavedPreset) => {
+    const params = preset.params ?? DEFAULT_PRESET_PARAMS;
+    const data: Record<string, any> = {
+      name: preset.name,
+      ...params,
+      prompts: preset.blocks.map(b => ({
+        identifier: b.identifier,
+        name: b.name,
+        role: b.role,
+        enabled: b.enabled,
+        content: b.content,
+        system_prompt: b.role === 'system',
+        marker: false,
+        forbid_overrides: false,
+      })),
+      prompt_order: [{
+        character_id: 100001,
+        order: preset.blocks.map(b => ({
+          identifier: b.identifier,
+          enabled: b.enabled,
+        })),
+      }],
+    };
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${preset.name}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`已导出「${preset.name}」`, 'success');
+  };
+
   // ── Block editing ops (on active preset) ──
 
   const toggleExpanded = (id: string) => {
@@ -247,6 +281,13 @@ export default function PresetTab({ draft, setDraft }: Props) {
                 <span className="text-[9px] text-white/15 font-mono shrink-0 hidden sm:inline">
                   {preset.blocks.length} 块 {preset.source ? `· ${preset.source}` : ''}
                 </span>
+
+                {/* Export */}
+                <button onClick={() => exportPreset(preset)}
+                  className="text-white/12 hover:text-aether-purple/50 transition-colors p-0.5"
+                  title="导出预设">
+                  <Download size={11} />
+                </button>
 
                 {/* Rename */}
                 <button onClick={() => startRename(preset)}

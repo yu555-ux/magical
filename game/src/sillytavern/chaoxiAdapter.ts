@@ -96,7 +96,7 @@ export function importPresetFromJson(raw: Record<string, any>): ImportResult {
     source = 'prompt_order';
   }
 
-  const name = merged.name || merged.preset || '导入的预设';
+  const name = merged.name || merged.preset || '';
   const description = merged.description || '';
 
   // ── Extract preset parameters ──

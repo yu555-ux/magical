@@ -19,6 +19,8 @@ export interface AssembleOptions {
   lorebooks?: Lorebook[];
   userName: string;
   characterName: string;
+  playerDescription?: string;
+  characterDescription?: string;
 }
 
 export interface AssembleResult {
@@ -61,7 +63,9 @@ function resolveContent(
   result = result
     .replace(/\{\{user\}\}/g, macroCtx.userName)
     .replace(/\{\{char\}\}/g, macroCtx.characterName)
-    .replace(/\{\{original\}\}/g, macroCtx.userInput);
+    .replace(/\{\{original\}\}/g, macroCtx.userInput)
+    .replace(/\{\{player_description\}\}/g, macroCtx.playerDescription ?? '')
+    .replace(/\{\{char_description\}\}/g, macroCtx.characterDescription ?? '');
 
   // 6) Strip {{trim}}
   result = result.replace(/\{\{trim\}\}/gi, '');
@@ -97,14 +101,14 @@ for (const rule of INJECTION_ANCHOR_RULES) {
 // ── Main assembler ──
 
 export function assemblePrompt(options: AssembleOptions): AssembleResult {
-  const { userInput, history, presetBlocks, lorebooks, userName, characterName } = options;
+  const { userInput, history, presetBlocks, lorebooks, userName, characterName, playerDescription, characterDescription } = options;
 
   const sections: PromptSection[] = [];
   const assembledMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
   let systemAccumulator = '';
   let hasChatHistory = false;
 
-  const macroCtx: MacroContext = { userName, characterName, userInput };
+  const macroCtx: MacroContext = { userName, characterName, userInput, playerDescription, characterDescription };
   const presetVars: Record<string, string> = {};
 
   // ── Scan lorebooks ──
@@ -122,7 +126,9 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     content
       .replace(/\{\{user\}\}/g, macroCtx.userName)
       .replace(/\{\{char\}\}/g, macroCtx.characterName)
-      .replace(/\{\{original\}\}/g, macroCtx.userInput);
+      .replace(/\{\{original\}\}/g, macroCtx.userInput)
+      .replace(/\{\{player_description\}\}/g, macroCtx.playerDescription ?? '')
+      .replace(/\{\{char_description\}\}/g, macroCtx.characterDescription ?? '');
 
   const pushSection = (anchor: InjectionAnchor, content: string) => {
     sections.push({
@@ -316,6 +322,8 @@ interface MacroContext {
   userName: string;
   characterName: string;
   userInput: string;
+  playerDescription?: string;
+  characterDescription?: string;
 }
 
 export function replaceMacros(template: string, context: MacroContext): string {
@@ -327,6 +335,8 @@ export const SUPPORTED_MACROS = [
   { name: '{{user}}', description: '用户名' },
   { name: '{{char}}', description: 'AI角色名' },
   { name: '{{original}}', description: '用户原始输入' },
+  { name: '{{player_description}}', description: '玩家设定（IdentityTab）' },
+  { name: '{{char_description}}', description: '角色设定（IdentityTab）' },
   { name: '{{setvar::name::value}}', description: '设置预设变量' },
   { name: '{{addvar::name::value}}', description: '追加预设变量' },
   { name: '{{getvar::name}}', description: '获取预设变量值' },
