@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, Upload, Download, Trash2, AlertTriangle, CheckCircle, RefreshCw, Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { AppSettings, Lorebook, LorebookEntry } from '../../sillytavern/types';
@@ -11,12 +11,17 @@ interface Props {
   setDraft: (d: AppSettings) => void;
 }
 
-const POSITION_LABELS: Record<string, string> = {
-  worldInfoBefore: '角色定位之前',
-  worldInfoAfter: '角色定位之后',
-  worldInfoD2Before: 'D2之前',
-  worldInfoD2After: 'D2之后',
-};
+const POSITION_OPTIONS = [
+  { value: 0, label: '角色定位之前' },
+  { value: 1, label: '角色定位之后' },
+  { value: 2, label: 'D2之前' },
+  { value: 3, label: 'D2之后' },
+];
+
+const TRIGGER_OPTIONS = [
+  { value: 'keyword', label: '关键词' },
+  { value: 'constant', label: '常驻' },
+];
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100, 200];
 
@@ -45,6 +50,13 @@ export default function LorebookTab({ draft, setDraft }: Props) {
       console.error('[LorebookTab] Save failed:', err);
       showToast('保存失败，请重试', 'error');
     }
+  };
+
+  const updateEntry = async (bookId: string, entryId: string, patch: Partial<LorebookEntry>) => {
+    const next = lorebooks.map(b => b.id !== bookId ? b : {
+      ...b, entries: b.entries.map(e => e.id === entryId ? { ...e, ...patch } : e),
+    });
+    await save(next);
   };
 
   // ── Filter entries by search ──
@@ -114,9 +126,12 @@ export default function LorebookTab({ draft, setDraft }: Props) {
       content: '',
       comment: '新条目',
       enabled: true,
-      position: 0,
+      position: 1,
       order: 100,
       constant: false,
+      depth: 4,
+      selective: false,
+      selectiveLogic: 0,
     };
     const next = lorebooks.map(b =>
       b.id !== targetId ? b : { ...b, entries: [...b.entries, newEntry] }
@@ -127,14 +142,6 @@ export default function LorebookTab({ draft, setDraft }: Props) {
     showToast('已添加新条目', 'success');
   };
 
-  // ── Entry ops ──
-  const toggleEntry = async (bookId: string, entryId: string) => {
-    const next = lorebooks.map(b => b.id !== bookId ? b : {
-      ...b, entries: b.entries.map(e => e.id === entryId ? { ...e, enabled: !e.enabled } : e),
-    });
-    await save(next);
-  };
-
   const toggleRecursive = async (bookId: string) => {
     const next = lorebooks.map(b => b.id !== bookId ? b : { ...b, recursive: !b.recursive });
     await save(next);
@@ -143,8 +150,6 @@ export default function LorebookTab({ draft, setDraft }: Props) {
   const removeBook = async (bookId: string) => {
     await save(lorebooks.filter(b => b.id !== bookId));
   };
-
-  const anchorLabel = (pos: number) => POSITION_LABELS[LOREBOOK_POSITION_MAP[pos]] || '角色定位之后';
 
   const getPage = (bookId: string) => pages[bookId] || 1;
 
@@ -198,7 +203,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
           </div>
           {lorebooks.length > 0 && (
             <span className="text-[10px] text-white/15 font-mono ml-auto">
-              {lorebooks.length} 本世界书，共 {lorebooks.reduce((s, b) => s + b.entries.length, 0)} 条目
+              {lorebooks.length} 本，{lorebooks.reduce((s, b) => s + b.entries.length, 0)} 条目
             </span>
           )}
         </div>
@@ -243,9 +248,8 @@ export default function LorebookTab({ draft, setDraft }: Props) {
               const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
               const page = Math.min(getPage(book.id), totalPages);
               const start = (page - 1) * pageSize;
-              const paged = filtered.slice(start, start + pageSize);
+              const paged: LorebookEntry[] = filtered.slice(start, start + pageSize);
               const enabledCount = allEntries.filter(e => e.enabled).length;
-              const showingFiltered = searchQuery.trim() ? filtered.length : allEntries.length;
 
               return (
                 <div key={book.id} className="rounded-lg border border-aether-border/15 bg-aether-dark/30 overflow-hidden">
@@ -259,9 +263,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
                       <span className="text-[9px] text-white/20">{isExpanded ? '▾' : '▸'}</span>
                       <span className="text-xs font-display font-medium text-white/60">{book.name}</span>
                       <span className="text-[10px] text-white/20 ml-1">
-                        {searchQuery.trim()
-                          ? `${filtered.length}/${allEntries.length} 条目`
-                          : `${enabledCount}/${allEntries.length} 条目`}
+                        {enabledCount}/{allEntries.length} 条目
                       </span>
                     </button>
                     <button
@@ -295,22 +297,16 @@ export default function LorebookTab({ draft, setDraft }: Props) {
                         {totalPages > 1 && (
                           <div className="flex items-center justify-between px-2 py-1.5 border-b border-aether-border/5">
                             <span className="text-[9px] text-white/15 font-mono">
-                              {start + 1}–{Math.min(start + pageSize, filtered.length)} / {showingFiltered} 条目
+                              {start + 1}–{Math.min(start + pageSize, filtered.length)} / {filtered.length} 条目
                             </span>
                             <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => setPage(book.id, page - 1)}
-                                disabled={page <= 1}
-                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed"
-                              >
+                              <button onClick={() => setPage(book.id, page - 1)} disabled={page <= 1}
+                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed">
                                 <ChevronLeft size={12} />
                               </button>
                               <span className="text-[9px] text-white/25 font-mono w-6 text-center">{page}</span>
-                              <button
-                                onClick={() => setPage(book.id, page + 1)}
-                                disabled={page >= totalPages}
-                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed"
-                              >
+                              <button onClick={() => setPage(book.id, page + 1)} disabled={page >= totalPages}
+                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed">
                                 <ChevronRight size={12} />
                               </button>
                             </div>
@@ -323,71 +319,12 @@ export default function LorebookTab({ draft, setDraft }: Props) {
                           ) : (
                             paged.map(entry => {
                               const entryExpanded = expandedEntry === entry.id;
-                              const hasKeys = entry.keys.length > 0;
-                              return (
-                                <div key={entry.id}
-                                  className={`rounded border transition-all ${
-                                    entry.enabled
-                                      ? 'border-aether-border/10 bg-aether-dark/25'
-                                      : 'border-aether-border/5 bg-aether-dark/15 opacity-50'
-                                  }`}>
-                                  {/* Entry header */}
-                                  <div className="flex items-center gap-2 px-2 py-1.5">
-                                    <input
-                                      type="checkbox"
-                                      checked={entry.enabled}
-                                      onChange={() => toggleEntry(book.id, entry.id)}
-                                      className="accent-aether-purple shrink-0 h-3 w-3"
-                                    />
-                                    <button
-                                      onClick={() => setExpandedEntry(entryExpanded ? null : entry.id)}
-                                      className="flex-1 text-left flex items-center gap-1 min-w-0"
-                                    >
-                                      <span className="text-[8px] text-white/15">{entryExpanded ? '▾' : '▸'}</span>
-                                      <span className={`text-[11px] truncate ${entry.enabled ? 'text-white/55' : 'text-white/25'}`}>
-                                        {entry.comment || '未命名条目'}
-                                      </span>
-                                      {entry.constant && (
-                                        <span className="text-[8px] bg-aether-blue/10 text-aether-blue/40 px-1 rounded shrink-0">始终</span>
-                                      )}
-                                    </button>
-                                    {hasKeys && (
-                                      <span className="text-[8px] text-white/15 font-mono truncate max-w-[120px] shrink-0 hidden sm:inline">
-                                        {entry.keys.slice(0, 3).join(' ')}
-                                      </span>
-                                    )}
-                                    <span className="text-[8px] text-white/12 font-mono shrink-0">
-                                      {anchorLabel(entry.position)}
-                                    </span>
-                                  </div>
-
-                                  {/* Entry content */}
-                                  <AnimatePresence initial={false}>
-                                    {entryExpanded && (
-                                      <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.15 }}
-                                        className="overflow-hidden"
-                                      >
-                                        <div className="px-2 pb-2 border-t border-aether-border/5 pt-1.5">
-                                          {hasKeys && (
-                                            <div className="flex flex-wrap gap-1 mb-1.5">
-                                              {entry.keys.map((k, i) => (
-                                                <span key={i} className="text-[8px] bg-aether-cyan/5 border border-aether-cyan/10 text-aether-cyan/35 px-1 rounded font-mono">{k}</span>
-                                              ))}
-                                            </div>
-                                          )}
-                                          <pre className="text-[10px] text-white/40 whitespace-pre-wrap leading-relaxed font-mono max-h-[200px] overflow-y-auto bg-aether-dark/30 rounded p-2">
-                                            {entry.content}
-                                          </pre>
-                                        </div>
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
-                              );
+                              return renderEntry({
+                                entry,
+                                isExpanded: entryExpanded,
+                                onToggleExpand: () => { setExpandedEntry(entryExpanded ? null : entry.id); },
+                                onUpdate: (patch: Partial<LorebookEntry>) => { void updateEntry(book.id, entry.id, patch); },
+                              });
                             })
                           )}
                         </div>
@@ -396,46 +333,28 @@ export default function LorebookTab({ draft, setDraft }: Props) {
                         {totalPages > 1 && (
                           <div className="flex items-center justify-between px-2 py-1.5 border-t border-aether-border/5">
                             <span className="text-[9px] text-white/15 font-mono">
-                              共 {showingFiltered} 条目，{totalPages} 页
+                              共 {filtered.length} 条目，{totalPages} 页
                             </span>
                             <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => setPage(book.id, page - 1)}
-                                disabled={page <= 1}
-                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed"
-                              >
+                              <button onClick={() => setPage(book.id, page - 1)} disabled={page <= 1}
+                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed">
                                 <ChevronLeft size={12} />
                               </button>
                               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                                 let p: number;
-                                if (totalPages <= 5) {
-                                  p = i + 1;
-                                } else if (page <= 3) {
-                                  p = i + 1;
-                                } else if (page >= totalPages - 2) {
-                                  p = totalPages - 4 + i;
-                                } else {
-                                  p = page - 2 + i;
-                                }
+                                if (totalPages <= 5) p = i + 1;
+                                else if (page <= 3) p = i + 1;
+                                else if (page >= totalPages - 2) p = totalPages - 4 + i;
+                                else p = page - 2 + i;
                                 return (
-                                  <button
-                                    key={p}
-                                    onClick={() => setPage(book.id, p)}
+                                  <button key={p} onClick={() => setPage(book.id, p)}
                                     className={`text-[9px] w-5 h-5 rounded font-mono transition-colors ${
-                                      p === page
-                                        ? 'bg-aether-purple/20 text-aether-purple/60'
-                                        : 'text-white/25 hover:text-white/50'
-                                    }`}
-                                  >
-                                    {p}
-                                  </button>
+                                      p === page ? 'bg-aether-purple/20 text-aether-purple/60' : 'text-white/25 hover:text-white/50'
+                                    }`}>{p}</button>
                                 );
                               })}
-                              <button
-                                onClick={() => setPage(book.id, page + 1)}
-                                disabled={page >= totalPages}
-                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed"
-                              >
+                              <button onClick={() => setPage(book.id, page + 1)} disabled={page >= totalPages}
+                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed">
                                 <ChevronRight size={12} />
                               </button>
                             </div>
@@ -454,11 +373,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
         <div className="bg-aether-dark/20 rounded-lg border border-aether-border/15 p-3 mt-4">
           <p className="text-[10px] text-white/20 leading-relaxed">
             <span className="text-aether-purple/40 font-semibold">世界书注入：</span>
-            条目按触发词匹配后，根据 ST position 注入到预设的对应锚点：
-            <code className="text-aether-purple/30">worldInfoBefore</code>（角色定位之前）、
-            <code className="text-aether-purple/30">worldInfoAfter</code>（角色定位之后）、
-            <code className="text-aether-purple/30">worldInfoD2Before</code>（D2之前）或{' '}
-            <code className="text-aether-purple/30">worldInfoD2After</code>（D2之后）。
+            条目按触发词匹配后，根据 ST position 注入到预设的对应锚点。
             开启「递归」后，匹配到的条目内容也会触发新的匹配。
           </p>
         </div>
@@ -479,6 +394,158 @@ export default function LorebookTab({ draft, setDraft }: Props) {
           >
             {toast.type === 'success' ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
             {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Individual Entry Row render helper (called directly, not via JSX) ──
+function renderEntry({
+  entry,
+  isExpanded,
+  onToggleExpand,
+  onUpdate,
+}: {
+  entry: LorebookEntry;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onUpdate: (patch: Partial<LorebookEntry>) => void;
+}) {
+  const isConstant = entry.constant;
+  const isPosition0 = entry.position === 0;
+  const hasKeys = entry.keys.length > 0;
+
+  const triggerLabel = isConstant ? '常驻' : '关键词';
+  const positionLabel = POSITION_OPTIONS.find(o => o.value === entry.position)?.label || '角色定位之后';
+
+  return (
+    <div className={`rounded border transition-all ${
+      entry.enabled
+        ? 'border-aether-border/10 bg-aether-dark/25'
+        : 'border-aether-border/5 bg-aether-dark/15 opacity-60'
+    }`}>
+      {/* ── Collapsed row: inline controls ── */}
+      <div className="flex items-center gap-1.5 px-2 py-1.5 min-w-0">
+        {/* Enable toggle */}
+        <button
+          onClick={() => onUpdate({ enabled: !entry.enabled })}
+          className={`shrink-0 w-3.5 h-3.5 rounded-sm border transition-all ${
+            entry.enabled
+              ? 'bg-aether-purple/60 border-aether-purple/40'
+              : 'bg-transparent border-aether-border/20'
+          }`}
+          title={entry.enabled ? '已启用' : '已禁用'}
+        />
+
+        {/* Trigger strategy */}
+        <select
+          value={isConstant ? 'constant' : 'keyword'}
+          onChange={e => onUpdate({ constant: e.target.value === 'constant' })}
+          onClick={e => e.stopPropagation()}
+          className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded font-mono border-0 outline-none cursor-pointer transition-colors ${
+            isConstant
+              ? 'bg-aether-blue/10 text-aether-blue/40'
+              : 'bg-aether-cyan/5 text-aether-cyan/35'
+          }`}
+        >
+          {TRIGGER_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
+        {/* Position */}
+        <select
+          value={entry.position}
+          onChange={e => onUpdate({ position: Number(e.target.value) })}
+          onClick={e => e.stopPropagation()}
+          className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-aether-purple/5 text-aether-purple/35 border-0 outline-none cursor-pointer font-mono"
+        >
+          {POSITION_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
+        {/* Depth — only for position 0 (before_char / D0) */}
+        {isPosition0 && (
+          <span className="shrink-0 flex items-center gap-0.5 text-[9px] text-white/15 font-mono">
+            深度
+            <input
+              type="number"
+              value={entry.depth ?? 4}
+              min={0}
+              max={99}
+              onChange={e => onUpdate({ depth: Number(e.target.value) || 0 })}
+              onClick={e => e.stopPropagation()}
+              className="w-8 bg-aether-dark/60 border border-aether-border/20 rounded px-1 py-0.5 text-[9px] text-white/40 focus:outline-none focus:border-aether-purple/40 text-center font-mono"
+            />
+          </span>
+        )}
+
+        {/* Order */}
+        <span className="shrink-0 flex items-center gap-0.5 text-[9px] text-white/15 font-mono">
+          顺序
+          <input
+            type="number"
+            value={entry.order ?? 100}
+            min={0}
+            max={9999}
+            onChange={e => onUpdate({ order: Number(e.target.value) || 0 })}
+            onClick={e => e.stopPropagation()}
+            className="w-9 bg-aether-dark/60 border border-aether-border/20 rounded px-1 py-0.5 text-[9px] text-white/40 focus:outline-none focus:border-aether-purple/40 text-center font-mono"
+          />
+        </span>
+
+        {/* Separator */}
+        <span className="text-white/8 shrink-0">|</span>
+
+        {/* Comment / name — clickable to expand */}
+        <button
+          onClick={onToggleExpand}
+          className="flex-1 text-left flex items-center gap-1 min-w-0"
+        >
+          <span className="text-[8px] text-white/12 shrink-0">{isExpanded ? '▾' : '▸'}</span>
+          <span className={`text-[11px] truncate ${entry.enabled ? 'text-white/55' : 'text-white/30'}`}>
+            {entry.comment || '未命名条目'}
+          </span>
+        </button>
+
+        {/* Keywords preview */}
+        {hasKeys && (
+          <span className="text-[8px] text-white/12 font-mono truncate max-w-[140px] shrink-0 hidden sm:inline">
+            {entry.keys.slice(0, 3).join(' ')}
+          </span>
+        )}
+      </div>
+
+      {/* ── Expanded content ── */}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="px-2 pb-2 border-t border-aether-border/5 pt-1.5">
+              {/* Keyword tags */}
+              {hasKeys && (
+                <div className="flex flex-wrap gap-1 mb-1.5">
+                  {entry.keys.map((k, i) => (
+                    <span key={i} className="text-[8px] bg-aether-cyan/5 border border-aether-cyan/10 text-aether-cyan/35 px-1 rounded font-mono">{k}</span>
+                  ))}
+                  {entry.secondaryKeys.map((k, i) => (
+                    <span key={`s-${i}`} className="text-[8px] bg-aether-purple/5 border border-aether-purple/10 text-aether-purple/30 px-1 rounded font-mono">{k}</span>
+                  ))}
+                </div>
+              )}
+              {/* Content */}
+              <pre className="text-[10px] text-white/40 whitespace-pre-wrap leading-relaxed font-mono max-h-[200px] overflow-y-auto bg-aether-dark/30 rounded p-2">
+                {entry.content}
+              </pre>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

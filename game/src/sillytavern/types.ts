@@ -93,6 +93,9 @@ export interface LorebookEntry {
   position: number;        // ST position 0-7, mapped via LOREBOOK_POSITION_MAP
   order: number;
   constant: boolean;       // always inject, ignore keywords
+  depth: number;           // insertion depth, meaningful for position 0 (before_char)
+  selective: boolean;      // use selective logic (AND/OR) for multiple keys
+  selectiveLogic: number;  // 0=AND, 1=OR
 }
 
 export interface Lorebook {

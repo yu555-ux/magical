@@ -24,6 +24,9 @@ interface STEntry {
   position?: number;
   order?: number;
   excluded?: boolean;
+  depth?: number;
+  selective?: boolean;
+  selectiveLogic?: number;
 }
 
 export function importLorebookFromJson(raw: Record<string, any>, fileName?: string): Lorebook {
@@ -42,6 +45,9 @@ export function importLorebookFromJson(raw: Record<string, any>, fileName?: stri
     position: e.position ?? 0,
     order: e.order ?? 100,
     constant: e.constant ?? false,
+    depth: e.depth ?? 4,
+    selective: e.selective ?? false,
+    selectiveLogic: e.selectiveLogic ?? 0,
   }));
 
   // Derive name: prefer JSON's name field, then filename without extension, then fallback
@@ -70,6 +76,9 @@ export function exportLorebookToJson(book: Lorebook): Record<string, any> {
       disable: !entry.enabled,
       position: entry.position,
       order: entry.order,
+      depth: entry.depth ?? 4,
+      selective: entry.selective ?? false,
+      selectiveLogic: entry.selectiveLogic ?? 0,
     };
   });
 
