@@ -19,18 +19,69 @@ export interface ApiSettings {
 
 /** ST position → preset injection anchor */
 export const LOREBOOK_POSITION_MAP: Record<number, string> = {
-  0: 'worldInfoBefore',  // before_char → 角色定位之前
-  1: 'worldInfoAfter',   // after_char → 角色定位之后
-  2: 'worldInfoAfter',   // before_example → 角色定位之后
-  3: 'worldInfoAfter',   // after_example → 角色定位之后
-  4: 'worldInfoAfter',   // at_depth → 角色定位之后
-  5: 'worldInfoAfter',   // example_msg_top → 角色定位之后
-  6: 'worldInfoAfter',   // example_msg_bottom → 角色定位之后
-  7: 'worldInfoAfter',   // outlet → 角色定位之后
+  0: 'worldInfoBefore',      // before_char → 角色定义之前
+  1: 'worldInfoAfter',       // after_char → 角色定义之后
+  2: 'worldInfoD2Before',    // before_example → D2之前 (@D_before)
+  3: 'worldInfoD2After',     // after_example → D2之后 (@D_after)
+  4: 'worldInfoD2After',     // at_depth → 深度设定，走D2之后
+  5: 'worldInfoAfter',       // example_msg_top → 回退
+  6: 'worldInfoAfter',       // example_msg_bottom → 回退
+  7: 'worldInfoAfter',       // outlet → 回退
 };
 
 /** Preset block identifiers that act as lorebook injection anchors */
-export const INJECTION_ANCHORS = ['worldInfoBefore', 'worldInfoAfter'] as const;
+export const INJECTION_ANCHORS = [
+  'worldInfoBefore',
+  'worldInfoAfter',
+  'worldInfoD2Before',
+  'worldInfoD2After',
+] as const;
+
+export type InjectionAnchor = (typeof INJECTION_ANCHORS)[number];
+
+/** Detection rules for matching preset blocks to injection anchors */
+export interface AnchorDetectionRule {
+  anchor: InjectionAnchor;
+  /** Block identifier matches (case-insensitive) */
+  idPatterns: string[];
+  /** Block name contains any of these (case-insensitive) */
+  namePatterns: string[];
+  /** Block content contains any of these markers */
+  contentMarkers: string[];
+  /** Display label for the anchor */
+  label: string;
+}
+
+export const INJECTION_ANCHOR_RULES: AnchorDetectionRule[] = [
+  {
+    anchor: 'worldInfoBefore',
+    idPatterns: ['worldinfobefore'],
+    namePatterns: ['角色定位之前', '角色前', '角色定义之前', 'world info (before)'],
+    contentMarkers: [],
+    label: '角色定位之前',
+  },
+  {
+    anchor: 'worldInfoAfter',
+    idPatterns: ['worldinfoafter'],
+    namePatterns: ['角色定位之后', '角色后', '角色定义之后', 'world info (after)'],
+    contentMarkers: [],
+    label: '角色定位之后',
+  },
+  {
+    anchor: 'worldInfoD2Before',
+    idPatterns: ['worldinfod2before'],
+    namePatterns: ['d2之前', 'd2 before'],
+    contentMarkers: ['<|@D_before|>'],
+    label: 'D2之前',
+  },
+  {
+    anchor: 'worldInfoD2After',
+    idPatterns: ['worldinfod2after'],
+    namePatterns: ['d2之后', 'd2 after'],
+    contentMarkers: ['<|@D_after|>'],
+    label: 'D2之后',
+  },
+];
 
 export interface LorebookEntry {
   id: string;

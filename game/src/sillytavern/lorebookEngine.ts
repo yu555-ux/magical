@@ -1,18 +1,27 @@
 /**
  * Lorebook matching engine — keyword-based activation + recursive scanning
  */
-import type { Lorebook, LorebookEntry } from './types';
-import { LOREBOOK_POSITION_MAP } from './types';
+import type { Lorebook, LorebookEntry, InjectionAnchor } from './types';
+import { LOREBOOK_POSITION_MAP, INJECTION_ANCHORS } from './types';
 
 export interface MatchedEntry {
   entry: LorebookEntry;
   matchedKeywords: string[];
-  anchorId: string;  // which injection anchor (worldInfoBefore / worldInfoAfter)
+  anchorId: string;  // which injection anchor
 }
 
 export interface ScanResult {
-  before: MatchedEntry[];  // → worldInfoBefore
-  after: MatchedEntry[];   // → worldInfoAfter
+  /** Entries grouped by injection anchor ID */
+  groups: Record<string, MatchedEntry[]>;
+}
+
+/** Empty scan result with all known anchors initialized */
+function emptyScanResult(): ScanResult {
+  const groups: Record<string, MatchedEntry[]> = {};
+  for (const anchor of INJECTION_ANCHORS) {
+    groups[anchor] = [];
+  }
+  return { groups };
 }
 
 /**
@@ -24,27 +33,28 @@ export function scanLorebooks(
   userInput: string,
   historyText: string,
 ): ScanResult {
-  const before: MatchedEntry[] = [];
-  const after: MatchedEntry[] = [];
+  const result = emptyScanResult();
   const scanText = userInput + ' ' + historyText;
 
   for (const book of lorebooks) {
     const matched = scanBook(book, scanText);
     for (const m of matched) {
       const anchorId = LOREBOOK_POSITION_MAP[m.entry.position] || 'worldInfoAfter';
-      if (anchorId === 'worldInfoBefore') {
-        before.push(m);
+      if (result.groups[anchorId]) {
+        result.groups[anchorId].push(m);
       } else {
-        after.push(m);
+        // Unknown anchor — fallback to worldInfoAfter
+        result.groups['worldInfoAfter'].push(m);
       }
     }
   }
 
   // Sort by order within each group
-  before.sort((a, b) => (a.entry.order ?? 100) - (b.entry.order ?? 100));
-  after.sort((a, b) => (a.entry.order ?? 100) - (b.entry.order ?? 100));
+  for (const anchor of INJECTION_ANCHORS) {
+    result.groups[anchor].sort((a, b) => (a.entry.order ?? 100) - (b.entry.order ?? 100));
+  }
 
-  return { before, after };
+  return result;
 }
 
 function scanBook(book: Lorebook, text: string): MatchedEntry[] {

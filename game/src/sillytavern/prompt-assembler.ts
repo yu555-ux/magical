@@ -1,6 +1,7 @@
-import type { ChatMessage, PresetBlock, Lorebook } from './types';
+import type { ChatMessage, PresetBlock, Lorebook, InjectionAnchor } from './types';
+import { INJECTION_ANCHORS, INJECTION_ANCHOR_RULES } from './types';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
-import type { ScanResult } from './lorebookEngine';
+import type { ScanResult, MatchedEntry } from './lorebookEngine';
 
 export interface PromptSection {
   identifier: string;
@@ -68,6 +69,31 @@ function resolveContent(
   return result;
 }
 
+// ── Anchor detection ──
+
+/** Match a preset block to an injection anchor using layered detection rules */
+function detectAnchor(block: PresetBlock): InjectionAnchor | null {
+  const id = block.identifier.toLowerCase();
+  const name = block.name.toLowerCase();
+  const content = block.content || '';
+
+  for (const rule of INJECTION_ANCHOR_RULES) {
+    // 1) Exact identifier match
+    if (rule.idPatterns.some(p => id === p)) return rule.anchor;
+    // 2) Name contains keyword
+    if (rule.namePatterns.some(p => name.includes(p))) return rule.anchor;
+    // 3) Content contains marker token
+    if (rule.contentMarkers.some(m => content.includes(m))) return rule.anchor;
+  }
+  return null;
+}
+
+/** Anchor labels for section display */
+const ANCHOR_LABELS: Record<string, string> = {};
+for (const rule of INJECTION_ANCHOR_RULES) {
+  ANCHOR_LABELS[rule.anchor] = rule.label;
+}
+
 // ── Main assembler ──
 
 export function assemblePrompt(options: AssembleOptions): AssembleResult {
@@ -83,30 +109,39 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
   // ── Scan lorebooks ──
   const historyText = history.slice(-6).map(m => m.content).join(' ');
-  let scanResult: ScanResult = { before: [], after: [] };
+  let scanResult: ScanResult = { groups: {} };
   if (lorebooks && lorebooks.length > 0) {
     scanResult = scanLorebooks(lorebooks, userInput, historyText);
   }
 
-  // ── Anchor detection by name + identifier ──
-  const isBeforeAnchor = (block: PresetBlock): boolean => {
-    const id = block.identifier.toLowerCase();
-    const name = block.name.toLowerCase();
-    return id === 'worldinfobefore' ||
-      name.includes('角色定位之前') || name.includes('角色前') ||
-      name.includes('worldinfobefore') || name.includes('角色定位（前');
-  };
-  const isAfterAnchor = (block: PresetBlock): boolean => {
-    const id = block.identifier.toLowerCase();
-    const name = block.name.toLowerCase();
-    return id === 'worldinfoafter' ||
-      name.includes('角色定位之后') || name.includes('角色后') ||
-      name.includes('worldinfoafter') || name.includes('角色定位（后');
+  // Track which anchors have been injected via preset blocks
+  const injected = new Set<InjectionAnchor>();
+
+  // ── Helpers for macro replacement on lorebook content ──
+  const applyMacros = (content: string): string =>
+    content
+      .replace(/\{\{user\}\}/g, macroCtx.userName)
+      .replace(/\{\{char\}\}/g, macroCtx.characterName)
+      .replace(/\{\{original\}\}/g, macroCtx.userInput);
+
+  const pushSection = (anchor: InjectionAnchor, content: string) => {
+    sections.push({
+      identifier: anchor,
+      name: `世界书（${ANCHOR_LABELS[anchor] || anchor}）`,
+      role: 'system',
+      enabled: true,
+      content,
+      source: 'lorebook',
+    });
+    injected.add(anchor);
   };
 
-  // Track whether lorebook was injected via preset anchors
-  let injectedBefore = false;
-  let injectedAfter = false;
+  /** Get formatted + macro-replaced content for an anchor group */
+  const getGroupContent = (anchor: InjectionAnchor): string => {
+    const entries = scanResult.groups[anchor];
+    if (!entries || entries.length === 0) return '';
+    return applyMacros(formatMatchedEntries(entries));
+  };
 
   // Process preset blocks in order
   if (presetBlocks && presetBlocks.length > 0) {
@@ -126,19 +161,16 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       // Handle chatHistory insertion
       if (block.identifier === 'chatHistory') {
         hasChatHistory = true;
-        // Inject worldInfoAfter lorebook if not already done via anchor
-        if (!injectedAfter && scanResult.after.length > 0) {
-          const lorebookContent = formatMatchedEntries(scanResult.after)
-            .replace(/\{\{user\}\}/g, macroCtx.userName)
-            .replace(/\{\{char\}\}/g, macroCtx.characterName);
-          if (lorebookContent.trim()) {
-            systemAccumulator += (systemAccumulator ? '\n\n' : '') + lorebookContent;
-            sections.push({
-              identifier: 'worldInfoAfter', name: '世界书（角色定位之后）',
-              role: 'system', enabled: true, content: lorebookContent, source: 'lorebook',
-            });
+        // Inject remaining "after" type lorebook anchors not yet placed
+        const afterAnchors: InjectionAnchor[] = ['worldInfoAfter', 'worldInfoD2After'];
+        for (const anchor of afterAnchors) {
+          if (!injected.has(anchor)) {
+            const c = getGroupContent(anchor);
+            if (c.trim()) {
+              systemAccumulator += (systemAccumulator ? '\n\n' : '') + c;
+              pushSection(anchor, c);
+            }
           }
-          injectedAfter = true;
         }
         if (systemAccumulator.trim()) {
           assembledMessages.push({ role: 'system', content: systemAccumulator });
@@ -153,33 +185,23 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
         continue;
       }
 
-      // Resolve content — first check if this is an injection anchor
+      // Resolve content — first check if this block is an injection anchor
       let content: string | null = null;
       let source: PromptSection['source'] = 'preset';
 
-      // Check if this block is a lorebook injection anchor (by name or identifier)
-      const isBefore = isBeforeAnchor(block);
-      const isAfter = isAfterAnchor(block);
-      if (isBefore || isAfter) {
-        const entries = isBefore ? scanResult.before : scanResult.after;
-        if (entries.length > 0) {
-          content = formatMatchedEntries(entries);
+      const matchedAnchor = detectAnchor(block);
+      if (matchedAnchor) {
+        const groupContent = getGroupContent(matchedAnchor);
+        if (groupContent.trim()) {
+          content = groupContent;
           source = 'lorebook';
-          if (isBefore) injectedBefore = true;
-          else injectedAfter = true;
+          pushSection(matchedAnchor, groupContent);
         }
       }
 
       if (!content) {
         const rawContent = block.content?.trim();
         content = rawContent ? resolveContent(rawContent, presetVars, macroCtx) : null;
-      }
-
-      if (content && source === 'lorebook') {
-        content = content
-          .replace(/\{\{user\}\}/g, macroCtx.userName)
-          .replace(/\{\{char\}\}/g, macroCtx.characterName)
-          .replace(/\{\{original\}\}/g, macroCtx.userInput);
       }
 
       if (!content || !content.trim()) {
@@ -204,33 +226,37 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     }
   }
 
-  // ── Inject worldInfoBefore if not done via anchor ──
-  if (!injectedBefore && scanResult.before.length > 0) {
-    const beforeContent = formatMatchedEntries(scanResult.before)
-      .replace(/\{\{user\}\}/g, macroCtx.userName)
-      .replace(/\{\{char\}\}/g, macroCtx.characterName);
-    if (beforeContent.trim()) {
-      systemAccumulator = beforeContent + (systemAccumulator ? '\n\n' : '') + systemAccumulator;
-      sections.unshift({
-        identifier: 'worldInfoBefore', name: '世界书（角色定位之前）',
-        role: 'system', enabled: true, content: beforeContent, source: 'lorebook',
-      });
-      injectedBefore = true;
+  // ── Fallback: inject remaining anchor groups that weren't placed ──
+
+  // "Before" anchors → prepend to system accumulator
+  const beforeAnchors: InjectionAnchor[] = ['worldInfoBefore', 'worldInfoD2Before'];
+  let prependContent = '';
+  for (const anchor of beforeAnchors) {
+    if (!injected.has(anchor)) {
+      const c = getGroupContent(anchor);
+      if (c.trim()) {
+        prependContent += (prependContent ? '\n\n' : '') + c;
+        pushSection(anchor, c);
+      }
     }
   }
+  if (prependContent.trim()) {
+    systemAccumulator = prependContent + (systemAccumulator ? '\n\n' : '') + systemAccumulator;
+  }
 
-  // ── Inject worldInfoAfter if not done via anchor ──
-  if (!injectedAfter && scanResult.after.length > 0) {
-    const afterContent = formatMatchedEntries(scanResult.after)
-      .replace(/\{\{user\}\}/g, macroCtx.userName)
-      .replace(/\{\{char\}\}/g, macroCtx.characterName);
-    if (afterContent.trim()) {
-      systemAccumulator += (systemAccumulator ? '\n\n' : '') + afterContent;
-      sections.push({
-        identifier: 'worldInfoAfter', name: '世界书（角色定位之后）',
-        role: 'system', enabled: true, content: afterContent, source: 'lorebook',
-      });
-      injectedAfter = true;
+  // "After" anchors → inject at chatHistory time (if chatHistory already processed)
+  // or append to system accumulator
+  const afterAnchors: InjectionAnchor[] = ['worldInfoAfter', 'worldInfoD2After'];
+  if (hasChatHistory) {
+    // Chat history already placed; append remaining after-anchor content
+    for (const anchor of afterAnchors) {
+      if (!injected.has(anchor)) {
+        const c = getGroupContent(anchor);
+        if (c.trim()) {
+          systemAccumulator += (systemAccumulator ? '\n\n' : '') + c;
+          pushSection(anchor, c);
+        }
+      }
     }
   }
 
@@ -241,6 +267,16 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
   // Chat history (if not already inserted by a chatHistory preset block)
   if (!hasChatHistory) {
+    // Inject remaining "after" anchors just before chat history
+    for (const anchor of afterAnchors) {
+      if (!injected.has(anchor)) {
+        const c = getGroupContent(anchor);
+        if (c.trim()) {
+          assembledMessages.push({ role: 'system', content: c });
+          pushSection(anchor, c);
+        }
+      }
+    }
     const recentHistory = buildRecentHistory(history);
     if (recentHistory.length > 0) {
       assembledMessages.push(...recentHistory);

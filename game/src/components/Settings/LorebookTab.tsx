@@ -15,6 +15,8 @@ interface Props {
 const POSITION_LABELS: Record<string, string> = {
   worldInfoBefore: '角色定位之前',
   worldInfoAfter: '角色定位之后',
+  worldInfoD2Before: 'D2之前',
+  worldInfoD2After: 'D2之后',
 };
 
 export default function LorebookTab({ draft, setDraft }: Props) {
@@ -247,8 +249,12 @@ export default function LorebookTab({ draft, setDraft }: Props) {
         <div className="bg-aether-dark/20 rounded-lg border border-aether-border/15 p-3 mt-4">
           <p className="text-[10px] text-white/20 leading-relaxed">
             <span className="text-aether-purple/40 font-semibold">世界书注入：</span>
-            条目按触发词匹配后注入到预设的 <code className="text-aether-purple/30">worldInfoBefore</code>（角色定位之前）或{' '}
-            <code className="text-aether-purple/30">worldInfoAfter</code>（角色定位之后）锚点位置。开启「递归」后，匹配到的条目内容也会触发新的匹配。
+            条目按触发词匹配后，根据 ST position 注入到预设的对应锚点：
+            <code className="text-aether-purple/30">worldInfoBefore</code>（角色定位之前）、
+            <code className="text-aether-purple/30">worldInfoAfter</code>（角色定位之后）、
+            <code className="text-aether-purple/30">worldInfoD2Before</code>（D2之前）或{' '}
+            <code className="text-aether-purple/30">worldInfoD2After</code>（D2之后）。
+            开启「递归」后，匹配到的条目内容也会触发新的匹配。
           </p>
         </div>
       </section>
