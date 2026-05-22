@@ -92,6 +92,20 @@ function detectAnchor(block: PresetBlock): InjectionAnchor | null {
   return null;
 }
 
+/** Match a preset block to chatHistory insertion point */
+const CHAT_HISTORY_PATTERNS = {
+  idPatterns: ['chathistory'],
+  namePatterns: ['chat history', '对话历史', '聊天记录', 'chat'],
+};
+
+function detectChatHistory(block: PresetBlock): boolean {
+  const id = block.identifier.toLowerCase();
+  const name = block.name.toLowerCase();
+  if (CHAT_HISTORY_PATTERNS.idPatterns.some(p => id === p || id.includes(p))) return true;
+  if (CHAT_HISTORY_PATTERNS.namePatterns.some(p => name.includes(p))) return true;
+  return false;
+}
+
 /** Anchor labels for section display */
 const ANCHOR_LABELS: Record<string, string> = {};
 for (const rule of INJECTION_ANCHOR_RULES) {
@@ -164,8 +178,9 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
         continue;
       }
 
-      // Handle chatHistory insertion
-      if (block.identifier === 'chatHistory') {
+      // Handle chatHistory insertion — detected by identifier or name
+      const isChatHistory = detectChatHistory(block);
+      if (isChatHistory && !hasChatHistory) {
         hasChatHistory = true;
         // Inject remaining "after" type lorebook anchors not yet placed
         const afterAnchors: InjectionAnchor[] = ['worldInfoAfter', 'worldInfoD2After'];
