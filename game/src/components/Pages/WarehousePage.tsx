@@ -69,7 +69,7 @@ export default function WarehousePage() {
   const clearSearch = () => { setSearchQuery(''); searchInputRef.current?.focus(); };
 
   return (
-    <div className="h-full flex flex-col p-4 md:p-8 space-y-5 overflow-hidden">
+    <div className="h-full flex flex-col p-4 md:p-8 space-y-5 overflow-hidden bg-aether-deep">
       {/* ===== Header ===== */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}

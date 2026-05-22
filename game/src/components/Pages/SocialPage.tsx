@@ -132,7 +132,7 @@ export default function SocialPage() {
   const isTopLevel = animPhase >= 1;
 
   return (
-    <div className="h-full flex flex-col p-3 md:p-5 space-y-3 relative">
+    <div className="h-full flex flex-col p-3 md:p-5 space-y-3 relative bg-aether-deep">
       {/* ── Header ── */}
       <div className="relative z-10 flex items-center gap-3 px-2">
         <div className="w-1 h-5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.4)]" />
