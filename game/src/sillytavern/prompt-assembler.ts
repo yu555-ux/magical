@@ -205,7 +205,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
       if (!content) {
         const matchedAnchor = detectAnchor(block);
-        if (matchedAnchor) {
+        if (matchedAnchor && !injected.has(matchedAnchor)) {
           const groupContent = getGroupContent(matchedAnchor);
           if (groupContent.trim()) {
             content = groupContent;
