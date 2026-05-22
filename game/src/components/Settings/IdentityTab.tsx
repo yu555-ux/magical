@@ -10,8 +10,8 @@ interface Props {
 export default function IdentityTab({ draft, setDraft }: Props) {
   return (
     <div className="p-5">
-      <section className="bg-aether-dark/30 rounded-lg border border-aether-border/20 p-4 max-w-lg">
-        <div className="flex items-center gap-3 mb-4">
+      <section className="bg-aether-dark/30 rounded-lg border border-aether-border/20 p-5">
+        <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-full border-2 border-aether-cyan/40 bg-aether-cyan/10 flex items-center justify-center flex-shrink-0">
             <User size={20} className="text-aether-cyan" />
           </div>
