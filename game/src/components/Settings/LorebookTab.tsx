@@ -1,10 +1,10 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Plus, Upload, Trash2, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+import { BookOpen, Plus, Upload, Download, Trash2, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 import { SectionHeader } from './SettingsFields';
 import type { AppSettings, Lorebook, LorebookEntry } from '../../sillytavern/types';
 import { LOREBOOK_POSITION_MAP } from '../../sillytavern/types';
-import { importLorebookFromJson } from '../../sillytavern/lorebookImporter';
+import { importLorebookFromJson, exportLorebookToJson } from '../../sillytavern/lorebookImporter';
 import { saveSettings } from '../../sillytavern/database';
 
 interface Props {
@@ -50,7 +50,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
       const text = await file.text();
       console.log('[LorebookTab] File size:', (text.length / 1024).toFixed(1), 'KB');
       const raw = JSON.parse(text);
-      const book = importLorebookFromJson(raw);
+      const book = importLorebookFromJson(raw, file.name);
       console.log('[LorebookTab] Imported book:', book.name, 'entries:', book.entries.length);
       const contentSize = book.entries.reduce((s, e) => s + e.content.length, 0);
       console.log('[LorebookTab] Total content size:', (contentSize / 1024).toFixed(1), 'KB');
@@ -88,6 +88,20 @@ export default function LorebookTab({ draft, setDraft }: Props) {
 
   const removeBook = async (bookId: string) => {
     await save(lorebooks.filter(b => b.id !== bookId));
+  };
+
+  const exportBook = (book: Lorebook) => {
+    const data = exportLorebookToJson(book);
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${book.name}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const anchorLabel = (pos: number) => POSITION_LABELS[LOREBOOK_POSITION_MAP[pos]] || '角色定位之后';
@@ -152,6 +166,11 @@ export default function LorebookTab({ draft, setDraft }: Props) {
                     <button onClick={() => removeBook(book.id)}
                       className="text-white/12 hover:text-aether-red/50 transition-colors">
                       <Trash2 size={12} />
+                    </button>
+                    <button onClick={() => exportBook(book)}
+                      className="text-white/12 hover:text-aether-purple/50 transition-colors"
+                      title="导出世界书">
+                      <Download size={12} />
                     </button>
                   </div>
 

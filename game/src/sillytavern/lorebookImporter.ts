@@ -26,7 +26,7 @@ interface STEntry {
   excluded?: boolean;
 }
 
-export function importLorebookFromJson(raw: Record<string, any>): Lorebook {
+export function importLorebookFromJson(raw: Record<string, any>, fileName?: string): Lorebook {
   const data = raw as STExport;
 
   const rawEntries = Object.values(data.entries || {})
@@ -44,12 +44,42 @@ export function importLorebookFromJson(raw: Record<string, any>): Lorebook {
     constant: e.constant ?? false,
   }));
 
+  // Derive name: prefer JSON's name field, then filename without extension, then fallback
+  const fallbackName = fileName ? fileName.replace(/\.json$/i, '') : undefined;
+  const name = data.name || fallbackName || '导入的世界书';
+
   return {
     id: crypto.randomUUID(),
-    name: data.name || '导入的世界书',
+    name,
     entries,
     recursive: data.settings?.recursive_scanning ?? false,
     createdAt: Date.now(),
+  };
+}
+
+export function exportLorebookToJson(book: Lorebook): Record<string, any> {
+  const entries: Record<string, any> = {};
+  book.entries.forEach((entry, i) => {
+    entries[String(i)] = {
+      uid: i,
+      key: entry.keys,
+      keysecondary: entry.secondaryKeys,
+      comment: entry.comment,
+      content: entry.content,
+      constant: entry.constant,
+      disable: !entry.enabled,
+      position: entry.position,
+      order: entry.order,
+    };
+  });
+
+  return {
+    name: book.name,
+    description: '',
+    entries,
+    settings: {
+      recursive_scanning: book.recursive,
+    },
   };
 }
 
