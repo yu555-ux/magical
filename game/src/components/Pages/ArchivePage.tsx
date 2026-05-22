@@ -131,7 +131,7 @@ export default function ArchivePage() {
   };
 
   return (
-    <div className="h-full flex relative overflow-hidden bg-gradient-to-b from-aether-deep/95 via-aether-dark/80 to-aether-dark/60">
+    <div className="h-full flex relative overflow-hidden">
       {/* ==================== LEFT PANEL — Character List ==================== */}
       <div className="w-64 md:w-72 shrink-0 border-r border-aether-border/30 flex flex-col bg-aether-dark/40">
         <div className="px-4 pt-5 pb-3 space-y-3 shrink-0">
