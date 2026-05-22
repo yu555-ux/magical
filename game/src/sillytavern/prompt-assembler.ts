@@ -220,7 +220,9 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
         content = rawContent ? resolveContent(rawContent, presetVars, macroCtx) : null;
       }
 
-      if (!content || !content.trim()) {
+      const hasContent = content && content.trim();
+
+      if (!hasContent) {
         sections.push({
           identifier: block.identifier, name: block.name, role: block.role,
           enabled: true, content: null, source: 'preset',
@@ -228,7 +230,10 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
         continue;
       }
 
-      sections.push({ identifier: block.identifier, name: block.name, role: block.role, enabled: true, content, source });
+      // Only push a section if pushSection hasn't already added one for this anchor
+      if (source !== 'lorebook') {
+        sections.push({ identifier: block.identifier, name: block.name, role: block.role, enabled: true, content, source });
+      }
 
       if (block.role === 'system') {
         systemAccumulator += (systemAccumulator ? '\n\n' : '') + content;
@@ -262,12 +267,30 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   // User input
   assembledMessages.push({ role: 'user', content: userInput });
 
-  const systemPrompt = assembledMessages
+  // ── Dedup: remove duplicate content blocks from system messages ──
+  const seenBlocks = new Set<string>();
+  for (let i = 0; i < assembledMessages.length; i++) {
+    const m = assembledMessages[i];
+    if (m.role === 'system') {
+      const blocks = m.content.split('\n\n');
+      const unique = blocks.filter(b => {
+        const trimmed = b.trim();
+        if (!trimmed || seenBlocks.has(trimmed)) return false;
+        seenBlocks.add(trimmed);
+        return true;
+      });
+      assembledMessages[i] = { ...m, content: unique.join('\n\n') };
+    }
+  }
+  // Remove empty system messages
+  const deduped = assembledMessages.filter(m => m.content.trim());
+
+  const systemPrompt = deduped
     .filter(m => m.role === 'system')
     .map(m => m.content)
     .join('\n\n');
 
-  return { messages: assembledMessages, systemPrompt, sections };
+  return { messages: deduped, systemPrompt, sections };
 }
 
 function buildRecentHistory(history: ChatMessage[]): { role: 'system' | 'user' | 'assistant'; content: string }[] {
