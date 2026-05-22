@@ -187,12 +187,24 @@ export const DEFAULT_PRESET_PARAMS: PresetParams = {
 
 // ========== Settings Types ==========
 
+export interface SavedPreset {
+  id: string;
+  name: string;
+  source?: string;
+  description?: string;
+  blocks: PresetBlock[];
+  params?: PresetParams;
+  createdAt: number;
+}
+
 export interface AppSettings {
   key?: string;
   api: ApiSettings;
   apiMode: 'single' | 'dual';
   presetParams?: PresetParams;
   presetBlocks: PresetBlock[];
+  presets: SavedPreset[];
+  activePresetId: string | null;
   lorebooks: Lorebook[];
   userName: string;
   characterName: string;
@@ -284,6 +296,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   apiMode: 'dual',
   presetBlocks: DEFAULT_PRESET_BLOCKS,
+  presets: [],
+  activePresetId: null,
   lorebooks: [],
   userName: '用户',
   characterName: 'AI',

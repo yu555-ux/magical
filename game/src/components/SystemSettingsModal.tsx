@@ -50,7 +50,9 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       || (draft.scenario ?? '') !== (ss.settings.scenario ?? '')
       || JSON.stringify(draft.presetBlocks) !== JSON.stringify(ss.settings.presetBlocks)
       || JSON.stringify(draft.lorebooks) !== JSON.stringify(ss.settings.lorebooks)
-      || JSON.stringify(draft.presetParams) !== JSON.stringify(ss.settings.presetParams);
+      || JSON.stringify(draft.presetParams) !== JSON.stringify(ss.settings.presetParams)
+      || JSON.stringify(draft.presets) !== JSON.stringify(ss.settings.presets)
+      || draft.activePresetId !== ss.settings.activePresetId;
   }, [draft, ss.settings]);
 
   const handleSave = async () => {
@@ -63,6 +65,8 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
         presetBlocks: draft.presetBlocks,
         lorebooks: draft.lorebooks,
         presetParams: draft.presetParams,
+        presets: draft.presets,
+        activePresetId: draft.activePresetId,
       });
       showToast('配置已保存', 'success');
     } catch { showToast('保存失败', 'error'); }
