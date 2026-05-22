@@ -84,7 +84,7 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
 
   useEffect(() => { setNameDraft(entry.comment); }, [entry.comment]);
   useEffect(() => {
-    if (editingName && nameRef.current) { nameRef.current.focus(); nameRef.current.select(); }
+    if (editingName && nameRef.current) { nameRef.current.focus(); }
   }, [editingName]);
 
   const commitName = () => {
@@ -121,9 +121,9 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
               onClick={e => e.stopPropagation()}
               className="w-full bg-aether-dark/50 border border-aether-purple/30 rounded px-1.5 py-0.5 text-[11px] text-white/70 focus:outline-none focus:border-aether-purple/50 font-mono" />
           ) : (
-            <div onDoubleClick={() => setEditingName(true)}
-              className="w-full text-left text-[11px] truncate px-1.5 py-0.5 rounded border border-aether-border/30 bg-aether-dark/35 cursor-default"
-              title="双击编辑名称"
+            <div onClick={() => setEditingName(true)}
+              className="w-full text-left text-[11px] truncate px-1.5 py-0.5 rounded border border-aether-border/30 bg-aether-dark/35 cursor-pointer hover:border-aether-purple/30 transition-colors"
+              title="点击编辑名称"
               style={{ color: entry.enabled ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.3)' }}>
               {entry.comment || '未命名条目'}
             </div>
@@ -212,79 +212,75 @@ function EntryEditor({ entry, onUpdate }: { entry: LorebookEntry; onUpdate: (p: 
   };
 
   return (
-    <>
+    <div className="space-y-3">
       {/* Keywords */}
       <div>
-        <div className="flex items-center gap-1.5 mb-1">
-          <span className="text-[9px] text-white/20 font-mono shrink-0">关键词</span>
-          <div className="flex-1 flex items-center gap-1 flex-wrap min-w-0">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-xs text-white/25 font-mono shrink-0">关键词</span>
+          <div className="flex-1 flex items-center gap-1.5 flex-wrap min-w-0">
             {entry.keys.map(k => (
-              <span key={k} className="inline-flex items-center gap-0.5 text-[9px] bg-aether-cyan/10 border border-aether-cyan/20 text-aether-cyan/45 px-1.5 py-0.5 rounded font-mono">
+              <span key={k} className="inline-flex items-center gap-1 text-[11px] bg-aether-cyan/10 border border-aether-cyan/25 text-aether-cyan/50 px-2 py-0.5 rounded font-mono">
                 {k}
-                <button onClick={() => removeKey(k)} className="text-aether-cyan/25 hover:text-aether-red/50 leading-none">&times;</button>
+                <button onClick={() => removeKey(k)} className="text-aether-cyan/30 hover:text-aether-red/50 leading-none text-sm">&times;</button>
               </span>
             ))}
             {entry.keys.length === 0 && (
-              <span className="text-[9px] text-white/10 italic">无</span>
+              <span className="text-[11px] text-white/10 italic">无</span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1 ml-9">
+        <div className="flex items-center gap-1.5 ml-14">
           <input type="text" value={keyInput}
             onChange={e => setKeyInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') addKey(); }}
             placeholder="添加关键词…"
-            className="flex-1 bg-aether-dark/50 border border-aether-border/20 rounded px-1.5 py-0.5 text-[9px] text-white/50 placeholder:text-white/10 focus:outline-none focus:border-aether-purple/40 font-mono" />
+            className="flex-1 bg-aether-dark/50 border border-aether-border/30 rounded px-2 py-1 text-[11px] text-white/55 placeholder:text-white/10 focus:outline-none focus:border-aether-purple/50 font-mono" />
           <button onClick={addKey}
-            className="text-[9px] px-2 py-0.5 rounded border border-aether-border/20 text-white/25 hover:text-aether-purple/50 hover:border-aether-purple/30 font-mono transition-colors">+</button>
+            className="text-xs px-2.5 py-1 rounded border border-aether-border/25 text-white/30 hover:text-aether-purple/50 hover:border-aether-purple/35 font-mono transition-colors">+</button>
         </div>
         {/* Secondary keys */}
-        <div className="flex items-center gap-1.5 mt-1">
-          <span className="text-[8px] text-white/12 font-mono shrink-0 ml-9">次要</span>
-          <div className="flex-1 flex items-center gap-1 flex-wrap min-w-0">
+        <div className="flex items-center gap-2 mt-1.5">
+          <span className="text-[10px] text-white/15 font-mono shrink-0 ml-14">次要</span>
+          <div className="flex-1 flex items-center gap-1.5 flex-wrap min-w-0">
             {entry.secondaryKeys.map(k => (
-              <span key={k} className="inline-flex items-center gap-0.5 text-[8px] bg-aether-purple/5 border border-aether-purple/15 text-aether-purple/35 px-1.5 py-0.5 rounded font-mono">
+              <span key={k} className="inline-flex items-center gap-1 text-[10px] bg-aether-purple/5 border border-aether-purple/20 text-aether-purple/40 px-2 py-0.5 rounded font-mono">
                 {k}
-                <button onClick={() => removeSecKey(k)} className="text-aether-purple/25 hover:text-aether-red/50 leading-none">&times;</button>
+                <button onClick={() => removeSecKey(k)} className="text-aether-purple/30 hover:text-aether-red/50 leading-none text-sm">&times;</button>
               </span>
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-1 mt-1 ml-9">
+        <div className="flex items-center gap-1.5 mt-1 ml-14">
           <input type="text" value={secKeyInput}
             onChange={e => setSecKeyInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') addSecKey(); }}
             placeholder="添加次要关键词…"
-            className="flex-1 bg-aether-dark/50 border border-aether-border/20 rounded px-1.5 py-0.5 text-[8px] text-white/40 placeholder:text-white/10 focus:outline-none focus:border-aether-purple/40 font-mono" />
+            className="flex-1 bg-aether-dark/50 border border-aether-border/30 rounded px-2 py-1 text-[10px] text-white/45 placeholder:text-white/10 focus:outline-none focus:border-aether-purple/50 font-mono" />
           <button onClick={addSecKey}
-            className="text-[8px] px-2 py-0.5 rounded border border-aether-border/20 text-white/20 hover:text-aether-purple/40 hover:border-aether-purple/30 font-mono transition-colors">+</button>
+            className="text-[10px] px-2.5 py-1 rounded border border-aether-border/25 text-white/25 hover:text-aether-purple/45 hover:border-aether-purple/35 font-mono transition-colors">+</button>
         </div>
       </div>
 
       {/* Settings row */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {/* excludeRecursion */}
-        <label className="flex items-center gap-1 cursor-pointer select-none">
+      <div className="flex items-center gap-4 flex-wrap py-1.5 px-3 rounded border border-aether-border/15 bg-aether-dark/20">
+        <label className="flex items-center gap-1.5 cursor-pointer select-none">
           <input type="checkbox" checked={entry.excludeRecursion ?? false}
             onChange={() => onUpdate({ excludeRecursion: !entry.excludeRecursion })}
-            className="accent-aether-purple h-3 w-3" />
-          <span className="text-[9px] text-white/30 font-mono">不可递归</span>
+            className="accent-aether-purple h-3.5 w-3.5" />
+          <span className="text-[11px] text-white/35 font-mono">不可递归</span>
         </label>
-        {/* preventRecursion */}
-        <label className="flex items-center gap-1 cursor-pointer select-none">
+        <label className="flex items-center gap-1.5 cursor-pointer select-none">
           <input type="checkbox" checked={entry.preventRecursion ?? false}
             onChange={() => onUpdate({ preventRecursion: !entry.preventRecursion })}
-            className="accent-aether-purple h-3 w-3" />
-          <span className="text-[9px] text-white/30 font-mono">防止递归</span>
+            className="accent-aether-purple h-3.5 w-3.5" />
+          <span className="text-[11px] text-white/35 font-mono">防止递归</span>
         </label>
-        {/* Selective toggle */}
-        <label className="flex items-center gap-1 cursor-pointer select-none">
+        <label className="flex items-center gap-1.5 cursor-pointer select-none">
           <input type="checkbox" checked={entry.selective ?? false}
             onChange={() => onUpdate({ selective: !entry.selective })}
-            className="accent-aether-purple h-3 w-3" />
-          <span className="text-[9px] text-white/30 font-mono">选择性</span>
+            className="accent-aether-purple h-3.5 w-3.5" />
+          <span className="text-[11px] text-white/35 font-mono">选择性</span>
         </label>
-        {/* Selective logic — only when selective is true */}
         {entry.selective && (
           <MiniSelect
             value={entry.selectiveLogic ?? 0}
@@ -292,15 +288,12 @@ function EntryEditor({ entry, onUpdate }: { entry: LorebookEntry; onUpdate: (p: 
             onChange={(v) => onUpdate({ selectiveLogic: v as number })}
           />
         )}
-      </div>
-
-      {/* Probability */}
-      <div className="flex items-center gap-2">
-        <label className="flex items-center gap-1 cursor-pointer select-none">
+        {/* Probability */}
+        <label className="flex items-center gap-1.5 cursor-pointer select-none">
           <input type="checkbox" checked={entry.useProbability ?? false}
             onChange={() => onUpdate({ useProbability: !entry.useProbability })}
-            className="accent-aether-purple h-3 w-3" />
-          <span className="text-[9px] text-white/30 font-mono">触发概率</span>
+            className="accent-aether-purple h-3.5 w-3.5" />
+          <span className="text-[11px] text-white/35 font-mono">触发概率</span>
         </label>
         {entry.useProbability && (
           <div className="flex items-center gap-1.5">
@@ -308,19 +301,22 @@ function EntryEditor({ entry, onUpdate }: { entry: LorebookEntry; onUpdate: (p: 
               value={entry.probability ?? 100}
               onChange={e => onUpdate({ probability: Number(e.target.value) })}
               className="h-3 w-20 accent-aether-purple" />
-            <span className="text-[9px] text-aether-purple/40 font-mono w-7">{entry.probability ?? 100}%</span>
+            <span className="text-[11px] text-aether-purple/45 font-mono w-8">{entry.probability ?? 100}%</span>
           </div>
         )}
       </div>
 
-      {/* Content */}
+      {/* Content — editable */}
       <div>
-        <div className="text-[9px] text-white/15 font-mono mb-0.5">内容</div>
-        <pre className="text-[10px] text-white/40 whitespace-pre-wrap leading-relaxed font-mono max-h-[200px] overflow-y-auto bg-aether-dark/30 rounded p-2">
-          {entry.content}
-        </pre>
+        <div className="text-[11px] text-white/20 font-mono mb-1">内容</div>
+        <textarea
+          value={entry.content}
+          onChange={e => onUpdate({ content: e.target.value })}
+          rows={8}
+          className="w-full bg-aether-dark/40 border border-aether-border/25 rounded p-3 text-xs text-white/55 placeholder:text-white/10 focus:outline-none focus:border-aether-purple/50 transition-colors font-mono whitespace-pre-wrap leading-relaxed resize-y"
+        />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -389,7 +385,6 @@ export default function LorebookTab({ draft, setDraft }: Props) {
   useEffect(() => {
     if (editingBookId && bookNameRef.current) {
       bookNameRef.current.focus();
-      bookNameRef.current.select();
     }
   }, [editingBookId]);
 
@@ -469,7 +464,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
 
   return (
     <div className="p-5">
-      <section className="max-w-2xl">
+      <section>
         {/* Toolbar */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <label className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] tracking-wide border border-aether-border/30 text-white/40 hover:text-white/70 hover:border-aether-purple/40 cursor-pointer transition-all font-display">
