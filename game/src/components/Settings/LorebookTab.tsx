@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Upload, Download, Trash2, AlertTriangle, CheckCircle, RefreshCw, Plus, Search, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { Upload, Download, Trash2, AlertTriangle, CheckCircle, Plus, Search, ChevronLeft, ChevronRight, ChevronDown, Pencil, X, Settings } from 'lucide-react';
 import type { AppSettings, Lorebook, LorebookEntry } from '../../sillytavern/types';
 import { importLorebookFromJson, exportLorebookToJson } from '../../sillytavern/lorebookImporter';
 import { saveSettings } from '../../sillytavern/database';
@@ -25,18 +25,10 @@ const TRIGGER_OPTIONS = [
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100, 200];
 
-// ── MiniSelect: custom dark-themed dropdown to fix native select brightness & lag ──
+// ── MiniSelect ──
 function MiniSelect<V extends string | number>({
-  value,
-  options,
-  onChange,
-  className = '',
-}: {
-  value: V;
-  options: { value: V; label: string }[];
-  onChange: (v: V) => void;
-  className?: string;
-}) {
+  value, options, onChange, className = '',
+}: { value: V; options: { value: V; label: string }[]; onChange: (v: V) => void; className?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const selected = options.find(o => o.value === value);
@@ -52,36 +44,22 @@ function MiniSelect<V extends string | number>({
 
   return (
     <div ref={ref} className={`relative shrink-0 ${className}`}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded font-mono bg-aether-dark/40 border border-aether-border/15 text-white/35 hover:text-white/55 hover:border-aether-border/25 transition-colors"
-      >
+      <button type="button" onClick={() => setOpen(!open)}
+        className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded font-mono bg-aether-dark/40 border border-aether-border/15 text-white/35 hover:text-white/55 hover:border-aether-border/25 transition-colors">
         <span className="truncate max-w-[80px]">{selected?.label ?? value}</span>
         <ChevronDown size={8} className="text-white/20 shrink-0" />
       </button>
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.96 }}
+            initial={{ opacity: 0, y: -4, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.96 }}
             transition={{ duration: 0.12 }}
-            className="absolute top-full left-0 mt-1 z-50 min-w-full rounded-md border border-aether-border/25 bg-aether-dark/95 backdrop-blur-md shadow-lg shadow-black/40 overflow-hidden"
-          >
+            className="absolute top-full left-0 mt-1 z-50 min-w-full rounded-md border border-aether-border/25 bg-aether-dark/95 backdrop-blur-md shadow-lg shadow-black/40 overflow-hidden">
             {options.map(o => (
-              <button
-                key={String(o.value)}
-                type="button"
-                onClick={() => { onChange(o.value); setOpen(false); }}
+              <button key={String(o.value)} type="button" onClick={() => { onChange(o.value); setOpen(false); }}
                 className={`block w-full text-left text-[10px] px-2.5 py-1.5 font-mono transition-colors ${
-                  o.value === value
-                    ? 'text-aether-purple/70 bg-aether-purple/8'
-                    : 'text-white/40 hover:text-white/65 hover:bg-white/[0.04]'
-                }`}
-              >
-                {o.label}
-              </button>
+                  o.value === value ? 'text-aether-purple/70 bg-aether-purple/8' : 'text-white/40 hover:text-white/65 hover:bg-white/[0.04]'
+                }`}>{o.label}</button>
             ))}
           </motion.div>
         )}
@@ -96,31 +74,23 @@ interface EntryRowProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   onUpdate: (patch: Partial<LorebookEntry>) => void;
+  onDelete: () => void;
 }
 
-const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, onUpdate }) => {
+const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, onUpdate, onDelete }) => {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(entry.comment);
   const nameRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => { setNameDraft(entry.comment); }, [entry.comment]);
   useEffect(() => {
-    setNameDraft(entry.comment);
-  }, [entry.comment]);
-
-  useEffect(() => {
-    if (editingName && nameRef.current) {
-      nameRef.current.focus();
-      nameRef.current.select();
-    }
+    if (editingName && nameRef.current) { nameRef.current.focus(); nameRef.current.select(); }
   }, [editingName]);
 
   const commitName = () => {
     const trimmed = nameDraft.trim();
-    if (trimmed && trimmed !== entry.comment) {
-      onUpdate({ comment: trimmed });
-    } else {
-      setNameDraft(entry.comment);
-    }
+    if (trimmed && trimmed !== entry.comment) onUpdate({ comment: trimmed });
+    else setNameDraft(entry.comment);
     setEditingName(false);
   };
 
@@ -128,128 +98,86 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
   const hasKeys = entry.keys.length > 0;
 
   return (
-    <div className={`rounded border transition-all ${
-      entry.enabled
-        ? 'border-aether-border/10 bg-aether-dark/25'
-        : 'border-aether-border/5 bg-aether-dark/15 opacity-60'
-    }`}>
-      {/* ── Collapsed row ── */}
+    <div className={`rounded border transition-all ${entry.enabled ? 'border-aether-border/10 bg-aether-dark/25' : 'border-aether-border/5 bg-aether-dark/15 opacity-60'}`}>
       <div className="flex items-center gap-1.5 px-2 py-1.5 min-w-0">
 
-        {/* 1. Expand / collapse arrow */}
-        <button
-          onClick={onToggleExpand}
-          className="shrink-0 w-5 h-5 flex items-center justify-center rounded border border-aether-border/25 bg-aether-dark/30 text-white/35 hover:text-white/65 hover:border-aether-purple/40 hover:bg-aether-purple/10 transition-all"
-        >
-          <ChevronDown
-            size={12}
-            className={`transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`}
-          />
+        {/* 1. Expand arrow */}
+        <button onClick={onToggleExpand}
+          className="shrink-0 w-5 h-5 flex items-center justify-center rounded border border-aether-border/25 bg-aether-dark/30 text-white/35 hover:text-white/65 hover:border-aether-purple/40 hover:bg-aether-purple/10 transition-all">
+          <ChevronDown size={12} className={`transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`} />
         </button>
 
-        {/* 2. Enable toggle — distinct filled/empty states */}
-        <button
-          onClick={() => onUpdate({ enabled: !entry.enabled })}
+        {/* 2. Enable toggle */}
+        <button onClick={() => onUpdate({ enabled: !entry.enabled })}
           className={`shrink-0 w-4 h-4 rounded-full border-2 transition-all duration-200 ${
-            entry.enabled
-              ? 'bg-aether-purple/70 border-aether-purple/50 shadow-[0_0_6px_rgba(139,92,246,0.3)]'
-              : 'bg-transparent border-aether-border/25 hover:border-aether-border/45'
-          }`}
-          title={entry.enabled ? '已启用 — 点击禁用' : '已禁用 — 点击启用'}
-        />
+            entry.enabled ? 'bg-aether-purple/70 border-aether-purple/50 shadow-[0_0_6px_rgba(139,92,246,0.3)]' : 'bg-transparent border-aether-border/25 hover:border-aether-border/45'
+          }`} title={entry.enabled ? '已启用' : '已禁用'} />
 
-        {/* 3. Entry name — wider, inline-editable */}
-        <div className="flex-1 min-w-[100px]">
+        {/* 3. Entry name */}
+        <div className="flex-1 min-w-[80px]">
           {editingName ? (
-            <input
-              ref={nameRef}
-              type="text"
-              value={nameDraft}
-              onChange={e => setNameDraft(e.target.value)}
-              onBlur={commitName}
-              onKeyDown={e => {
-                if (e.key === 'Enter') commitName();
-                if (e.key === 'Escape') { setNameDraft(entry.comment); setEditingName(false); }
-              }}
+            <input ref={nameRef} type="text" value={nameDraft}
+              onChange={e => setNameDraft(e.target.value)} onBlur={commitName}
+              onKeyDown={e => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') { setNameDraft(entry.comment); setEditingName(false); } }}
               onClick={e => e.stopPropagation()}
-              className="w-full bg-aether-dark/50 border border-aether-purple/30 rounded px-1.5 py-0.5 text-[11px] text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/50 font-mono"
-            />
+              className="w-full bg-aether-dark/50 border border-aether-purple/30 rounded px-1.5 py-0.5 text-[11px] text-white/70 focus:outline-none focus:border-aether-purple/50 font-mono" />
           ) : (
-            <div
-              onDoubleClick={() => setEditingName(true)}
+            <div onDoubleClick={() => setEditingName(true)}
               className="w-full text-left text-[11px] truncate px-1.5 py-0.5 rounded border border-aether-border/30 bg-aether-dark/35 cursor-default"
               title="双击编辑名称"
-              style={{ color: entry.enabled ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.3)' }}
-            >
+              style={{ color: entry.enabled ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.3)' }}>
               {entry.comment || '未命名条目'}
             </div>
           )}
         </div>
 
-        {/* 4. Trigger strategy */}
-        <MiniSelect
-          value={entry.constant ? 'constant' : 'keyword'}
+        {/* 4. Trigger */}
+        <MiniSelect value={entry.constant ? 'constant' : 'keyword'}
           options={TRIGGER_OPTIONS as { value: string; label: string }[]}
-          onChange={(v) => onUpdate({ constant: v === 'constant' })}
-        />
+          onChange={(v) => onUpdate({ constant: v === 'constant' })} />
 
-        {/* 5. Insert position */}
-        <MiniSelect
-          value={entry.position}
-          options={POSITION_OPTIONS}
-          onChange={(v) => onUpdate({ position: v as number })}
-        />
+        {/* 5. Position */}
+        <MiniSelect value={entry.position} options={POSITION_OPTIONS}
+          onChange={(v) => onUpdate({ position: v as number })} />
 
-        {/* 6. Depth — only for "在深度" (position 4), shown as D{N} */}
+        {/* 6. Depth D{N} */}
         {showDepth && (
           <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-white/30 font-mono">
             <span className="text-white/15">D</span>
-            <input
-              type="number"
-              value={entry.depth ?? 0}
-              min={0}
-              max={99}
+            <input type="number" value={entry.depth ?? 0} min={0} max={99}
               onChange={e => onUpdate({ depth: Number(e.target.value) || 0 })}
               onClick={e => e.stopPropagation()}
-              className="w-8 bg-aether-dark/40 border border-aether-border/15 rounded px-1 py-0.5 text-[10px] text-white/40 focus:outline-none focus:border-aether-purple/40 text-center font-mono transition-colors"
-            />
+              className="w-8 bg-aether-dark/40 border border-aether-border/15 rounded px-1 py-0.5 text-[10px] text-white/40 focus:outline-none focus:border-aether-purple/40 text-center font-mono transition-colors" />
           </span>
         )}
 
         {/* 7. Order */}
         <span className="shrink-0 flex items-center gap-0.5 text-[9px] text-white/15 font-mono">
           顺序
-          <input
-            type="number"
-            value={entry.order ?? 100}
-            min={0}
-            max={9999}
+          <input type="number" value={entry.order ?? 100} min={0} max={9999}
             onChange={e => onUpdate({ order: Number(e.target.value) || 0 })}
             onClick={e => e.stopPropagation()}
-            className="w-9 bg-aether-dark/40 border border-aether-border/15 rounded px-1 py-0.5 text-[9px] text-white/40 focus:outline-none focus:border-aether-purple/40 text-center font-mono transition-colors"
-          />
+            className="w-9 bg-aether-dark/40 border border-aether-border/15 rounded px-1 py-0.5 text-[9px] text-white/40 focus:outline-none focus:border-aether-purple/40 text-center font-mono transition-colors" />
         </span>
+
+        {/* 8. Delete entry */}
+        <button onClick={onDelete}
+          className="shrink-0 text-white/10 hover:text-aether-red/50 transition-colors p-0.5"
+          title="删除条目">
+          <X size={12} />
+        </button>
       </div>
 
-      {/* ── Expanded content ── */}
+      {/* Expanded content */}
       <AnimatePresence initial={false}>
         {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="overflow-hidden"
-          >
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }} className="overflow-hidden">
             <div className="px-2 pb-2 border-t border-aether-border/5 pt-1.5">
               {hasKeys && (
                 <div className="flex flex-wrap gap-1 mb-1.5">
-                  {entry.keys.map((k, i) => (
-                    <span key={i} className="text-[8px] bg-aether-cyan/5 border border-aether-cyan/10 text-aether-cyan/35 px-1 rounded font-mono">{k}</span>
-                  ))}
-                  {entry.secondaryKeys.map((k, i) => (
-                    <span key={`s-${i}`} className="text-[8px] bg-aether-purple/5 border border-aether-purple/10 text-aether-purple/30 px-1 rounded font-mono">{k}</span>
-                  ))}
+                  {entry.keys.map((k, i) => <span key={i} className="text-[8px] bg-aether-cyan/5 border border-aether-cyan/10 text-aether-cyan/35 px-1 rounded font-mono">{k}</span>)}
+                  {entry.secondaryKeys.map((k, i) => <span key={`s-${i}`} className="text-[8px] bg-aether-purple/5 border border-aether-purple/10 text-aether-purple/30 px-1 rounded font-mono">{k}</span>)}
                 </div>
               )}
               <pre className="text-[10px] text-white/40 whitespace-pre-wrap leading-relaxed font-mono max-h-[200px] overflow-y-auto bg-aether-dark/30 rounded p-2">
@@ -261,7 +189,7 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
       </AnimatePresence>
     </div>
   );
-}
+};
 
 // ── Main ──
 export default function LorebookTab({ draft, setDraft }: Props) {
@@ -273,6 +201,10 @@ export default function LorebookTab({ draft, setDraft }: Props) {
   const [pageSize, setPageSize] = useState(50);
   const [pages, setPages] = useState<Record<string, number>>({});
   const [showSearch, setShowSearch] = useState(false);
+  const [editingBookId, setEditingBookId] = useState<string | null>(null);
+  const [bookNameDraft, setBookNameDraft] = useState('');
+  const [showBookSettings, setShowBookSettings] = useState<Record<string, boolean>>({});
+  const bookNameRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
@@ -283,12 +215,15 @@ export default function LorebookTab({ draft, setDraft }: Props) {
   const save = async (next: Lorebook[]) => {
     const nextDraft = { ...draft, lorebooks: next };
     setDraft(nextDraft);
-    try {
-      await saveSettings(nextDraft);
-    } catch (err) {
+    try { await saveSettings(nextDraft); } catch (err) {
       console.error('[LorebookTab] Save failed:', err);
       showToast('保存失败，请重试', 'error');
     }
+  };
+
+  const updateBook = async (bookId: string, patch: Partial<Lorebook>) => {
+    const next = lorebooks.map(b => b.id !== bookId ? b : { ...b, ...patch });
+    await save(next);
   };
 
   const updateEntry = async (bookId: string, entryId: string, patch: Partial<LorebookEntry>) => {
@@ -297,6 +232,33 @@ export default function LorebookTab({ draft, setDraft }: Props) {
     });
     await save(next);
   };
+
+  const deleteEntry = async (bookId: string, entryId: string) => {
+    const next = lorebooks.map(b => b.id !== bookId ? b : {
+      ...b, entries: b.entries.filter(e => e.id !== entryId),
+    });
+    await save(next);
+  };
+
+  const handleEditBookName = (book: Lorebook) => {
+    setEditingBookId(book.id);
+    setBookNameDraft(book.name);
+  };
+
+  const commitBookName = () => {
+    const trimmed = bookNameDraft.trim();
+    if (trimmed && editingBookId) {
+      updateBook(editingBookId, { name: trimmed });
+    }
+    setEditingBookId(null);
+  };
+
+  useEffect(() => {
+    if (editingBookId && bookNameRef.current) {
+      bookNameRef.current.focus();
+      bookNameRef.current.select();
+    }
+  }, [editingBookId]);
 
   const filterEntries = useCallback((entries: LorebookEntry[]) => {
     if (!searchQuery.trim()) return entries;
@@ -320,7 +282,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
       setDraft({ ...draft, lorebooks: next });
       await saveSettings({ ...draft, lorebooks: next });
       setExpandedBook(book.id);
-      showToast(`已导入「${book.name}」: ${book.entries.length} 个条目 — 已自动保存`, 'success');
+      showToast(`已导入「${book.name}」: ${book.entries.length} 个条目`, 'success');
     } catch (err: any) {
       showToast(`导入失败: ${err?.message || '无法解析'}`, 'error');
     }
@@ -360,13 +322,12 @@ export default function LorebookTab({ draft, setDraft }: Props) {
     showToast('已添加新条目', 'success');
   };
 
-  const toggleRecursive = async (bookId: string) => {
-    const next = lorebooks.map(b => b.id !== bookId ? b : { ...b, recursive: !b.recursive });
-    await save(next);
-  };
-
   const removeBook = async (bookId: string) => {
     await save(lorebooks.filter(b => b.id !== bookId));
+  };
+
+  const toggleBookSetting = (bookId: string) => {
+    setShowBookSettings(prev => ({ ...prev, [bookId]: !prev[bookId] }));
   };
 
   const getPage = (bookId: string) => pages[bookId] || 1;
@@ -391,11 +352,8 @@ export default function LorebookTab({ draft, setDraft }: Props) {
           </button>
           <button onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] tracking-wide border transition-all font-display ${
-              showSearch ? 'border-aether-purple/40 text-aether-purple/60 bg-aether-purple/5'
-                : 'border-aether-border/30 text-white/40 hover:text-white/70 hover:border-aether-purple/40'
-            }`}>
-            <Search size={13} /> 搜索条目
-          </button>
+              showSearch ? 'border-aether-purple/40 text-aether-purple/60 bg-aether-purple/5' : 'border-aether-border/30 text-white/40 hover:text-white/70 hover:border-aether-purple/40'
+            }`}><Search size={13} /> 搜索条目</button>
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-white/20 font-mono">每页</span>
             <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))}
@@ -417,8 +375,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
               <div className="mb-3">
                 <input type="text" value={searchQuery} placeholder="搜索关键词、注释或内容…"
                   onChange={e => { setSearchQuery(e.target.value); setPages({}); }}
-                  className="w-full bg-aether-dark/60 border border-aether-border/25 rounded px-3 py-1.5 text-[11px] text-white/60 placeholder:text-white/12 focus:outline-none focus:border-aether-purple/50 transition-all font-mono"
-                />
+                  className="w-full bg-aether-dark/60 border border-aether-border/25 rounded px-3 py-1.5 text-[11px] text-white/60 placeholder:text-white/12 focus:outline-none focus:border-aether-purple/50 transition-all font-mono" />
               </div>
             </motion.div>
           )}
@@ -427,9 +384,6 @@ export default function LorebookTab({ draft, setDraft }: Props) {
         {/* ── Lorebook list ── */}
         {lorebooks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 text-center bg-aether-dark/20 rounded-lg border border-aether-border/10">
-            <div className="w-10 h-10 rounded-full bg-aether-purple/5 border border-aether-border/20 flex items-center justify-center mb-2">
-              <BookOpen size={18} className="text-white/10" />
-            </div>
             <p className="text-white/15 text-xs font-display tracking-wide mb-1">暂无世界书</p>
             <p className="text-white/8 text-[10px]">点击「导入世界书」加载 .json 格式的世界书文件</p>
           </div>
@@ -444,27 +398,92 @@ export default function LorebookTab({ draft, setDraft }: Props) {
               const start = (page - 1) * pageSize;
               const paged: LorebookEntry[] = filtered.slice(start, start + pageSize);
               const enabledCount = allEntries.filter(e => e.enabled).length;
+              const showSettings = showBookSettings[book.id] ?? false;
 
               return (
                 <div key={book.id} className="rounded-lg border border-aether-border/15 bg-aether-dark/30 overflow-hidden">
                   {/* Book header */}
-                  <div className="flex items-center gap-2 px-3 py-2.5">
-                    <BookOpen size={14} className="text-aether-purple/40 shrink-0" />
-                    <button onClick={() => setExpandedBook(isExpanded ? null : book.id)} className="flex-1 text-left flex items-center gap-1">
-                      <span className="text-[9px] text-white/20">{isExpanded ? '▾' : '▸'}</span>
-                      <span className="text-xs font-display font-medium text-white/60">{book.name}</span>
-                      <span className="text-[10px] text-white/20 ml-1">{enabledCount}/{allEntries.length} 条目</span>
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    {/* Big expand/collapse button */}
+                    <button onClick={() => setExpandedBook(isExpanded ? null : book.id)}
+                      className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md border border-aether-border/25 bg-aether-dark/40 text-white/40 hover:text-white/70 hover:border-aether-purple/40 hover:bg-aether-purple/10 transition-all">
+                      <ChevronDown size={16} className={`transition-transform duration-200 ${isExpanded ? '' : '-rotate-90'}`} />
                     </button>
-                    <button onClick={() => toggleRecursive(book.id)}
-                      className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded transition-colors ${
-                        book.recursive ? 'bg-aether-purple/15 text-aether-purple/60' : 'text-white/15 hover:text-white/30'
-                      }`} title="递归扫描">
-                      <RefreshCw size={10} /> 递归
+
+                    {/* Book name */}
+                    <div className="flex-1 min-w-0">
+                      {editingBookId === book.id ? (
+                        <input ref={bookNameRef} type="text" value={bookNameDraft}
+                          onChange={e => setBookNameDraft(e.target.value)}
+                          onBlur={commitBookName}
+                          onKeyDown={e => { if (e.key === 'Enter') commitBookName(); if (e.key === 'Escape') setEditingBookId(null); }}
+                          className="w-full bg-aether-dark/50 border border-aether-purple/30 rounded px-2 py-0.5 text-xs text-white/70 font-display focus:outline-none focus:border-aether-purple/50" />
+                      ) : (
+                        <span className="text-sm font-display font-medium text-white/65 truncate block">{book.name}</span>
+                      )}
+                    </div>
+
+                    {/* Entry count */}
+                    <span className="text-[10px] text-white/20 font-mono shrink-0">
+                      {enabledCount}/{allEntries.length}
+                    </span>
+
+                    {/* Edit name */}
+                    <button onClick={() => handleEditBookName(book)}
+                      className="text-white/15 hover:text-aether-purple/50 transition-colors p-1"
+                      title="编辑名称">
+                      <Pencil size={13} />
                     </button>
-                    <button onClick={() => removeBook(book.id)} className="text-white/12 hover:text-aether-red/50 transition-colors">
-                      <Trash2 size={12} />
+
+                    {/* Settings toggle */}
+                    <button onClick={() => toggleBookSetting(book.id)}
+                      className={`p-1 rounded transition-colors ${showSettings ? 'text-aether-purple/50 bg-aether-purple/10' : 'text-white/15 hover:text-white/40'}`}
+                      title="世界书设置">
+                      <Settings size={13} />
+                    </button>
+
+                    {/* Delete book */}
+                    <button onClick={() => removeBook(book.id)}
+                      className="text-white/12 hover:text-aether-red/50 transition-colors p-1"
+                      title="删除世界书">
+                      <Trash2 size={13} />
                     </button>
                   </div>
+
+                  {/* Per-book settings panel */}
+                  <AnimatePresence>
+                    {showSettings && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.15 }} className="overflow-hidden">
+                        <div className="px-3 py-2 border-t border-aether-border/8 border-b border-aether-border/8 bg-aether-dark/20">
+                          <div className="flex items-center gap-4">
+                            {/* Recursive */}
+                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                              <input type="checkbox" checked={book.recursive}
+                                onChange={() => updateBook(book.id, { recursive: !book.recursive })}
+                                className="accent-aether-purple h-3 w-3" />
+                              <span className="text-[10px] text-white/35 font-mono">递归扫描</span>
+                            </label>
+                            {/* Case sensitive */}
+                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                              <input type="checkbox" checked={book.caseSensitive ?? false}
+                                onChange={() => updateBook(book.id, { caseSensitive: !book.caseSensitive })}
+                                className="accent-aether-purple h-3 w-3" />
+                              <span className="text-[10px] text-white/35 font-mono">区分大小写</span>
+                            </label>
+                            {/* Match whole words */}
+                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                              <input type="checkbox" checked={book.matchWholeWords ?? false}
+                                onChange={() => updateBook(book.id, { matchWholeWords: !book.matchWholeWords })}
+                                className="accent-aether-purple h-3 w-3" />
+                              <span className="text-[10px] text-white/35 font-mono">全词匹配</span>
+                            </label>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Entries */}
                   <AnimatePresence initial={false}>
@@ -479,14 +498,10 @@ export default function LorebookTab({ draft, setDraft }: Props) {
                             </span>
                             <div className="flex items-center gap-1">
                               <button onClick={() => setPage(book.id, page - 1)} disabled={page <= 1}
-                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed">
-                                <ChevronLeft size={12} />
-                              </button>
+                                className="text-white/20 hover:text-white/50 disabled:opacity-30"><ChevronLeft size={12} /></button>
                               <span className="text-[9px] text-white/25 font-mono w-6 text-center">{page}</span>
                               <button onClick={() => setPage(book.id, page + 1)} disabled={page >= totalPages}
-                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed">
-                                <ChevronRight size={12} />
-                              </button>
+                                className="text-white/20 hover:text-white/50 disabled:opacity-30"><ChevronRight size={12} /></button>
                             </div>
                           </div>
                         )}
@@ -498,12 +513,11 @@ export default function LorebookTab({ draft, setDraft }: Props) {
                             paged.map(entry => {
                               const entryExpanded = expandedEntry === entry.id;
                               return (
-                                <EntryRow
-                                  key={entry.id}
-                                  entry={entry}
+                                <EntryRow key={entry.id} entry={entry}
                                   isExpanded={entryExpanded}
                                   onToggleExpand={() => setExpandedEntry(entryExpanded ? null : entry.id)}
                                   onUpdate={(patch) => { void updateEntry(book.id, entry.id, patch); }}
+                                  onDelete={() => { void deleteEntry(book.id, entry.id); }}
                                 />
                               );
                             })
@@ -516,9 +530,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
                             <span className="text-[9px] text-white/15 font-mono">共 {filtered.length} 条目，{totalPages} 页</span>
                             <div className="flex items-center gap-1">
                               <button onClick={() => setPage(book.id, page - 1)} disabled={page <= 1}
-                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed">
-                                <ChevronLeft size={12} />
-                              </button>
+                                className="text-white/20 hover:text-white/50 disabled:opacity-30"><ChevronLeft size={12} /></button>
                               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                                 let p: number;
                                 if (totalPages <= 5) p = i + 1;
@@ -527,15 +539,11 @@ export default function LorebookTab({ draft, setDraft }: Props) {
                                 else p = page - 2 + i;
                                 return (
                                   <button key={p} onClick={() => setPage(book.id, p)}
-                                    className={`text-[9px] w-5 h-5 rounded font-mono transition-colors ${
-                                      p === page ? 'bg-aether-purple/20 text-aether-purple/60' : 'text-white/25 hover:text-white/50'
-                                    }`}>{p}</button>
+                                    className={`text-[9px] w-5 h-5 rounded font-mono transition-colors ${p === page ? 'bg-aether-purple/20 text-aether-purple/60' : 'text-white/25 hover:text-white/50'}`}>{p}</button>
                                 );
                               })}
                               <button onClick={() => setPage(book.id, page + 1)} disabled={page >= totalPages}
-                                className="text-white/20 hover:text-white/50 disabled:opacity-30 disabled:cursor-not-allowed">
-                                <ChevronRight size={12} />
-                              </button>
+                                className="text-white/20 hover:text-white/50 disabled:opacity-30"><ChevronRight size={12} /></button>
                             </div>
                           </div>
                         )}
@@ -547,15 +555,6 @@ export default function LorebookTab({ draft, setDraft }: Props) {
             })}
           </div>
         )}
-
-        {/* Info */}
-        <div className="bg-aether-dark/20 rounded-lg border border-aether-border/15 p-3 mt-4">
-          <p className="text-[10px] text-white/20 leading-relaxed">
-            <span className="text-aether-purple/40 font-semibold">世界书注入：</span>
-            条目按触发词匹配后，根据 ST position 注入到预设的对应锚点。
-            开启「递归」后，匹配到的条目内容也会触发新的匹配。
-          </p>
-        </div>
       </section>
 
       {/* Toast */}
@@ -564,11 +563,8 @@ export default function LorebookTab({ draft, setDraft }: Props) {
           <motion.div
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
             className={`fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium z-[200] ${
-              toast.type === 'success'
-                ? 'bg-aether-green/20 border border-aether-green/30 text-aether-green'
-                : 'bg-aether-red/20 border border-aether-red/30 text-aether-red'
-            }`}
-          >
+              toast.type === 'success' ? 'bg-aether-green/20 border border-aether-green/30 text-aether-green' : 'bg-aether-red/20 border border-aether-red/30 text-aether-red'
+            }`}>
             {toast.type === 'success' ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
             {toast.message}
           </motion.div>

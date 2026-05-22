@@ -102,7 +102,9 @@ export interface Lorebook {
   id: string;
   name: string;
   entries: LorebookEntry[];
-  recursive: boolean;       // player-enabled recursive scanning
+  recursive: boolean;
+  caseSensitive: boolean;
+  matchWholeWords: boolean;
   createdAt: number;
 }
 

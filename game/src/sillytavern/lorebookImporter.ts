@@ -59,6 +59,8 @@ export function importLorebookFromJson(raw: Record<string, any>, fileName?: stri
     name,
     entries,
     recursive: data.settings?.recursive_scanning ?? false,
+    caseSensitive: false,
+    matchWholeWords: false,
     createdAt: Date.now(),
   };
 }
@@ -88,6 +90,8 @@ export function exportLorebookToJson(book: Lorebook): Record<string, any> {
     entries,
     settings: {
       recursive_scanning: book.recursive,
+      case_sensitive: book.caseSensitive,
+      match_whole_words: book.matchWholeWords,
     },
   };
 }
