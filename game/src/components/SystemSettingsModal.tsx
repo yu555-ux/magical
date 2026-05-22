@@ -102,7 +102,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
           className="absolute inset-0 bg-aether-dark/90 backdrop-blur-md" />
         <motion.div initial={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }} animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[700px] glass-panel border-glow overflow-hidden">
+          className="relative w-full max-w-[900px] glass-panel border-glow overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/40 to-transparent" />
 
           <div className="flex items-center justify-between px-5 py-4 border-b border-aether-border/30 bg-aether-cyan/[0.03]">
