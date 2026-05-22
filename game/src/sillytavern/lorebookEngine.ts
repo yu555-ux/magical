@@ -43,7 +43,11 @@ export function scanLorebooks(
   }
 
   for (const anchor of INJECTION_ANCHORS) {
-    result.groups[anchor].sort((a, b) => (a.entry.order ?? 100) - (b.entry.order ?? 100));
+    result.groups[anchor].sort((a, b) => {
+      const d = (a.entry.order ?? 100) - (b.entry.order ?? 100);
+      if (d !== 0) return d;
+      return (a.entry.depth ?? 0) - (b.entry.depth ?? 0);
+    });
   }
 
   return result;
@@ -90,15 +94,37 @@ function scanBook(book: Lorebook, text: string): MatchedEntry[] {
         const hits = allKeys.filter(k => keyMatches(k, scanText, caseSensitive, wholeWords));
 
         if (entry.selective) {
-          // selective AND: ALL primary keys must match
           const primaryHits = entry.keys.filter(k => keyMatches(k, scanText, caseSensitive, wholeWords));
-          if (entry.selectiveLogic === 0) {
-            isMatch = primaryHits.length === entry.keys.length && entry.keys.length > 0;
-          } else {
-            // selective OR: ANY of the primary keys match
-            isMatch = primaryHits.length > 0;
+          const secHits = entry.secondaryKeys.filter(k => keyMatches(k, scanText, caseSensitive, wholeWords));
+          const hasKeys = entry.keys.length > 0;
+          const hasSecKeys = entry.secondaryKeys.length > 0;
+
+          switch (entry.selectiveLogic) {
+            case 0: // and_any: primary AND, secondary OR
+              isMatch = hasKeys && primaryHits.length === entry.keys.length;
+              if (!isMatch && hasSecKeys) isMatch = secHits.length > 0;
+              if (isMatch) matchedKeys = [...primaryHits, ...secHits];
+              break;
+            case 1: // not_all: primary NOT all, secondary AND
+              isMatch = !hasKeys || primaryHits.length !== entry.keys.length;
+              if (isMatch && hasSecKeys) isMatch = secHits.length === entry.secondaryKeys.length;
+              if (isMatch) matchedKeys = [...primaryHits, ...secHits];
+              break;
+            case 2: // not_any: primary NOT any, secondary OR
+              isMatch = !hasKeys || primaryHits.length === 0;
+              if (isMatch && hasSecKeys) isMatch = secHits.length > 0;
+              if (isMatch) matchedKeys = [...primaryHits, ...secHits];
+              break;
+            case 3: // and_all: primary OR, secondary AND
+              isMatch = hasKeys && primaryHits.length > 0;
+              if (isMatch && hasSecKeys) isMatch = secHits.length === entry.secondaryKeys.length;
+              if (isMatch) matchedKeys = [...primaryHits, ...secHits];
+              break;
+            default: // fallback: primary OR
+              isMatch = primaryHits.length > 0;
+              if (!isMatch && hasSecKeys) isMatch = secHits.length > 0;
+              if (isMatch) matchedKeys = [...primaryHits, ...secHits];
           }
-          if (isMatch) matchedKeys = primaryHits;
         } else {
           // Non-selective: ANY key matches
           if (entry.keys.length > 0) {

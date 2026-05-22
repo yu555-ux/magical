@@ -284,7 +284,12 @@ function EntryEditor({ entry, onUpdate }: { entry: LorebookEntry; onUpdate: (p: 
         {entry.selective && (
           <MiniSelect
             value={entry.selectiveLogic ?? 0}
-            options={[{ value: 0, label: 'AND' }, { value: 1, label: 'OR' }]}
+            options={[
+              { value: 0, label: '主AND次OR' },
+              { value: 1, label: '主非全次AND' },
+              { value: 2, label: '主非任次OR' },
+              { value: 3, label: '主OR次AND' },
+            ]}
             onChange={(v) => onUpdate({ selectiveLogic: v as number })}
           />
         )}
