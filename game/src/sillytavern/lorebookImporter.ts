@@ -27,6 +27,10 @@ interface STEntry {
   depth?: number;
   selective?: boolean;
   selectiveLogic?: number;
+  excludeRecursion?: boolean;
+  preventRecursion?: boolean;
+  probability?: number;
+  useProbability?: boolean;
 }
 
 export function importLorebookFromJson(raw: Record<string, any>, fileName?: string): Lorebook {
@@ -48,6 +52,10 @@ export function importLorebookFromJson(raw: Record<string, any>, fileName?: stri
     depth: e.depth ?? 4,
     selective: e.selective ?? false,
     selectiveLogic: e.selectiveLogic ?? 0,
+    excludeRecursion: e.excludeRecursion ?? false,
+    preventRecursion: e.preventRecursion ?? false,
+    probability: e.probability ?? 100,
+    useProbability: e.useProbability ?? false,
   }));
 
   // Derive name: prefer JSON's name field, then filename without extension, then fallback
@@ -81,6 +89,10 @@ export function exportLorebookToJson(book: Lorebook): Record<string, any> {
       depth: entry.depth ?? 4,
       selective: entry.selective ?? false,
       selectiveLogic: entry.selectiveLogic ?? 0,
+      excludeRecursion: entry.excludeRecursion ?? false,
+      preventRecursion: entry.preventRecursion ?? false,
+      probability: entry.probability ?? 100,
+      useProbability: entry.useProbability ?? false,
     };
   });
 

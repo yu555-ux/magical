@@ -90,12 +90,16 @@ export interface LorebookEntry {
   content: string;
   comment: string;
   enabled: boolean;
-  position: number;        // ST position 0-7, mapped via LOREBOOK_POSITION_MAP
+  position: number;
   order: number;
-  constant: boolean;       // always inject, ignore keywords
-  depth: number;           // insertion depth, meaningful for position 0 (before_char)
-  selective: boolean;      // use selective logic (AND/OR) for multiple keys
-  selectiveLogic: number;  // 0=AND, 1=OR
+  constant: boolean;
+  depth: number;
+  selective: boolean;
+  selectiveLogic: number;     // 0=AND, 1=OR
+  excludeRecursion: boolean;  // content won't be scanned for further matches
+  preventRecursion: boolean;  // won't be triggered by recursive scanning
+  probability: number;        // trigger probability 0-100
+  useProbability: boolean;    // whether to use probability
 }
 
 export interface Lorebook {

@@ -95,7 +95,6 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
   };
 
   const showDepth = entry.position === 4;
-  const hasKeys = entry.keys.length > 0;
 
   return (
     <div className={`rounded border transition-all ${entry.enabled ? 'border-aether-border/10 bg-aether-dark/25' : 'border-aether-border/5 bg-aether-dark/15 opacity-60'}`}>
@@ -173,16 +172,8 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
         {isExpanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.15 }} className="overflow-hidden">
-            <div className="px-2 pb-2 border-t border-aether-border/5 pt-1.5">
-              {hasKeys && (
-                <div className="flex flex-wrap gap-1 mb-1.5">
-                  {entry.keys.map((k, i) => <span key={i} className="text-[8px] bg-aether-cyan/5 border border-aether-cyan/10 text-aether-cyan/35 px-1 rounded font-mono">{k}</span>)}
-                  {entry.secondaryKeys.map((k, i) => <span key={`s-${i}`} className="text-[8px] bg-aether-purple/5 border border-aether-purple/10 text-aether-purple/30 px-1 rounded font-mono">{k}</span>)}
-                </div>
-              )}
-              <pre className="text-[10px] text-white/40 whitespace-pre-wrap leading-relaxed font-mono max-h-[200px] overflow-y-auto bg-aether-dark/30 rounded p-2">
-                {entry.content}
-              </pre>
+            <div className="px-2 pb-2 border-t border-aether-border/5 pt-1.5 space-y-2">
+              <EntryEditor entry={entry} onUpdate={onUpdate} />
             </div>
           </motion.div>
         )}
@@ -190,6 +181,148 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
     </div>
   );
 };
+
+// ── EntryEditor: expanded content ──
+function EntryEditor({ entry, onUpdate }: { entry: LorebookEntry; onUpdate: (p: Partial<LorebookEntry>) => void }) {
+  const [keyInput, setKeyInput] = useState('');
+  const [secKeyInput, setSecKeyInput] = useState('');
+
+  const addKey = () => {
+    const k = keyInput.trim();
+    if (k && !entry.keys.includes(k)) {
+      onUpdate({ keys: [...entry.keys, k] });
+      setKeyInput('');
+    }
+  };
+
+  const removeKey = (k: string) => {
+    onUpdate({ keys: entry.keys.filter(x => x !== k) });
+  };
+
+  const addSecKey = () => {
+    const k = secKeyInput.trim();
+    if (k && !entry.secondaryKeys.includes(k)) {
+      onUpdate({ secondaryKeys: [...entry.secondaryKeys, k] });
+      setSecKeyInput('');
+    }
+  };
+
+  const removeSecKey = (k: string) => {
+    onUpdate({ secondaryKeys: entry.secondaryKeys.filter(x => x !== k) });
+  };
+
+  return (
+    <>
+      {/* Keywords */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-[9px] text-white/20 font-mono shrink-0">关键词</span>
+          <div className="flex-1 flex items-center gap-1 flex-wrap min-w-0">
+            {entry.keys.map(k => (
+              <span key={k} className="inline-flex items-center gap-0.5 text-[9px] bg-aether-cyan/10 border border-aether-cyan/20 text-aether-cyan/45 px-1.5 py-0.5 rounded font-mono">
+                {k}
+                <button onClick={() => removeKey(k)} className="text-aether-cyan/25 hover:text-aether-red/50 leading-none">&times;</button>
+              </span>
+            ))}
+            {entry.keys.length === 0 && (
+              <span className="text-[9px] text-white/10 italic">无</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 ml-9">
+          <input type="text" value={keyInput}
+            onChange={e => setKeyInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addKey(); }}
+            placeholder="添加关键词…"
+            className="flex-1 bg-aether-dark/50 border border-aether-border/20 rounded px-1.5 py-0.5 text-[9px] text-white/50 placeholder:text-white/10 focus:outline-none focus:border-aether-purple/40 font-mono" />
+          <button onClick={addKey}
+            className="text-[9px] px-2 py-0.5 rounded border border-aether-border/20 text-white/25 hover:text-aether-purple/50 hover:border-aether-purple/30 font-mono transition-colors">+</button>
+        </div>
+        {/* Secondary keys */}
+        <div className="flex items-center gap-1.5 mt-1">
+          <span className="text-[8px] text-white/12 font-mono shrink-0 ml-9">次要</span>
+          <div className="flex-1 flex items-center gap-1 flex-wrap min-w-0">
+            {entry.secondaryKeys.map(k => (
+              <span key={k} className="inline-flex items-center gap-0.5 text-[8px] bg-aether-purple/5 border border-aether-purple/15 text-aether-purple/35 px-1.5 py-0.5 rounded font-mono">
+                {k}
+                <button onClick={() => removeSecKey(k)} className="text-aether-purple/25 hover:text-aether-red/50 leading-none">&times;</button>
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 mt-1 ml-9">
+          <input type="text" value={secKeyInput}
+            onChange={e => setSecKeyInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addSecKey(); }}
+            placeholder="添加次要关键词…"
+            className="flex-1 bg-aether-dark/50 border border-aether-border/20 rounded px-1.5 py-0.5 text-[8px] text-white/40 placeholder:text-white/10 focus:outline-none focus:border-aether-purple/40 font-mono" />
+          <button onClick={addSecKey}
+            className="text-[8px] px-2 py-0.5 rounded border border-aether-border/20 text-white/20 hover:text-aether-purple/40 hover:border-aether-purple/30 font-mono transition-colors">+</button>
+        </div>
+      </div>
+
+      {/* Settings row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* excludeRecursion */}
+        <label className="flex items-center gap-1 cursor-pointer select-none">
+          <input type="checkbox" checked={entry.excludeRecursion ?? false}
+            onChange={() => onUpdate({ excludeRecursion: !entry.excludeRecursion })}
+            className="accent-aether-purple h-3 w-3" />
+          <span className="text-[9px] text-white/30 font-mono">不可递归</span>
+        </label>
+        {/* preventRecursion */}
+        <label className="flex items-center gap-1 cursor-pointer select-none">
+          <input type="checkbox" checked={entry.preventRecursion ?? false}
+            onChange={() => onUpdate({ preventRecursion: !entry.preventRecursion })}
+            className="accent-aether-purple h-3 w-3" />
+          <span className="text-[9px] text-white/30 font-mono">防止递归</span>
+        </label>
+        {/* Selective toggle */}
+        <label className="flex items-center gap-1 cursor-pointer select-none">
+          <input type="checkbox" checked={entry.selective ?? false}
+            onChange={() => onUpdate({ selective: !entry.selective })}
+            className="accent-aether-purple h-3 w-3" />
+          <span className="text-[9px] text-white/30 font-mono">选择性</span>
+        </label>
+        {/* Selective logic — only when selective is true */}
+        {entry.selective && (
+          <MiniSelect
+            value={entry.selectiveLogic ?? 0}
+            options={[{ value: 0, label: 'AND' }, { value: 1, label: 'OR' }]}
+            onChange={(v) => onUpdate({ selectiveLogic: v as number })}
+          />
+        )}
+      </div>
+
+      {/* Probability */}
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-1 cursor-pointer select-none">
+          <input type="checkbox" checked={entry.useProbability ?? false}
+            onChange={() => onUpdate({ useProbability: !entry.useProbability })}
+            className="accent-aether-purple h-3 w-3" />
+          <span className="text-[9px] text-white/30 font-mono">触发概率</span>
+        </label>
+        {entry.useProbability && (
+          <div className="flex items-center gap-1.5">
+            <input type="range" min={0} max={100}
+              value={entry.probability ?? 100}
+              onChange={e => onUpdate({ probability: Number(e.target.value) })}
+              className="h-3 w-20 accent-aether-purple" />
+            <span className="text-[9px] text-aether-purple/40 font-mono w-7">{entry.probability ?? 100}%</span>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div>
+        <div className="text-[9px] text-white/15 font-mono mb-0.5">内容</div>
+        <pre className="text-[10px] text-white/40 whitespace-pre-wrap leading-relaxed font-mono max-h-[200px] overflow-y-auto bg-aether-dark/30 rounded p-2">
+          {entry.content}
+        </pre>
+      </div>
+    </>
+  );
+}
 
 // ── Main ──
 export default function LorebookTab({ draft, setDraft }: Props) {
@@ -312,6 +445,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
       id: crypto.randomUUID(), keys: [], secondaryKeys: [], content: '',
       comment: '新条目', enabled: true, position: 1, order: 100,
       constant: false, depth: 4, selective: false, selectiveLogic: 0,
+      excludeRecursion: false, preventRecursion: false, probability: 100, useProbability: false,
     };
     const next = lorebooks.map(b =>
       b.id !== targetId ? b : { ...b, entries: [...b.entries, newEntry] }
