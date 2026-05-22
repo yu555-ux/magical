@@ -91,6 +91,7 @@ export function useSillytavern() {
       // DB takes priority for these fields (may be updated by PresetTab/LorebookTab auto-save)
       presetBlocks: latestSettings?.presetBlocks ?? settings?.presetBlocks ?? DEFAULT_PRESET_BLOCKS,
       lorebooks: latestSettings?.lorebooks ?? settings?.lorebooks ?? DEFAULT_SETTINGS.lorebooks,
+      presetParams: latestSettings?.presetParams ?? settings?.presetParams,
     };
 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now() };
@@ -117,7 +118,18 @@ export function useSillytavern() {
     const freshRouter = createApiRouter(effectiveApi);
     parser.start();
     try {
-      const { response } = await freshRouter.call('story', { messages, stream: true });
+      const { response } = await freshRouter.call('story', {
+        messages,
+        stream: true,
+        ...(effectiveSettings.presetParams ? {
+          temperature: effectiveSettings.presetParams.temperature,
+          top_p: effectiveSettings.presetParams.top_p,
+          top_k: effectiveSettings.presetParams.top_k,
+          frequency_penalty: effectiveSettings.presetParams.frequency_penalty,
+          presence_penalty: effectiveSettings.presetParams.presence_penalty,
+          max_tokens: effectiveSettings.presetParams.openai_max_tokens,
+        } : {}),
+      });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No body');

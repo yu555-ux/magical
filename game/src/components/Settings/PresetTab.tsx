@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sliders, Plus, Upload, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Sliders, Plus, Upload, AlertTriangle, CheckCircle, Settings2 } from 'lucide-react';
 import { SectionHeader } from './SettingsFields';
-import type { AppSettings, PresetBlock } from '../../sillytavern/types';
+import type { AppSettings, PresetBlock, PresetParams } from '../../sillytavern/types';
+import { DEFAULT_PRESET_PARAMS } from '../../sillytavern/types';
 import { importPresetFromJson } from '../../sillytavern/chaoxiAdapter';
 import type { ImportResult } from '../../sillytavern/chaoxiAdapter';
 import { saveSettings } from '../../sillytavern/database';
@@ -30,7 +31,10 @@ const ROLE_COLORS: Record<string, string> = {
 
 export default function PresetTab({ draft, setDraft }: Props) {
   const blocks: PresetBlock[] = draft.presetBlocks ?? [];
+  const params: PresetParams = draft.presetParams ?? DEFAULT_PRESET_PARAMS;
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [paramsExpanded, setParamsExpanded] = useState(false);
+  const [templatesExpanded, setTemplatesExpanded] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [pendingImport, setPendingImport] = useState<ImportResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -73,6 +77,10 @@ export default function PresetTab({ draft, setDraft }: Props) {
     setExpandedIds(prev => { const s = new Set(prev); s.add(b.identifier); return s; });
   };
 
+  const updateParams = (patch: Partial<PresetParams>) => {
+    setDraft({ ...draft, presetParams: { ...params, ...patch } });
+  };
+
   // ── Import ──
 
   const handleFilePicked = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,7 +111,13 @@ export default function PresetTab({ draft, setDraft }: Props) {
       identifier: crypto.randomUUID(),
     }));
     const nextBlocks = mode === 'replace' ? importedBlocks : [...blocks, ...importedBlocks];
-    const nextDraft = { ...draft, presetBlocks: nextBlocks };
+    const nextDraft: AppSettings = {
+      ...draft,
+      presetBlocks: nextBlocks,
+      presetParams: mode === 'replace'
+        ? pendingImport.params
+        : (draft.presetParams ?? pendingImport.params),
+    };
     setDraft(nextDraft);
 
     try {
@@ -128,6 +142,115 @@ export default function PresetTab({ draft, setDraft }: Props) {
     <div className="p-5">
       <section className="max-w-2xl">
         <SectionHeader icon={Sliders} label="预设配置" accent="bg-aether-purple" />
+
+        {/* ── Preset Parameters Card ── */}
+        <div className={`rounded-lg border mb-3 overflow-hidden transition-all ${
+          paramsExpanded ? 'border-aether-purple/20 bg-aether-dark/30' : 'border-aether-border/10 bg-aether-dark/20'
+        }`}>
+          <button
+            onClick={() => setParamsExpanded(!paramsExpanded)}
+            className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-aether-purple/[0.03] transition-colors"
+          >
+            <Settings2 size={14} className="text-aether-purple/40 shrink-0" />
+            <span className="text-xs font-display font-medium text-white/55">预设参数</span>
+            <span className="text-[9px] text-white/15 ml-auto">{paramsExpanded ? '▴ 收起' : '▾ 展开'}</span>
+          </button>
+
+          <AnimatePresence initial={false}>
+            {paramsExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="overflow-hidden border-t border-aether-border/8"
+              >
+                <div className="px-3 py-3 space-y-3">
+
+                  {/* ── Sampling ── */}
+                  <div>
+                    <span className="text-[10px] text-white/25 font-display tracking-wide uppercase">采样参数</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1.5">
+                      <NumberField label="温度" value={params.temperature} onChange={v => updateParams({ temperature: v })} step={0.1} min={0} max={2} />
+                      <NumberField label="Top P" value={params.top_p} onChange={v => updateParams({ top_p: v })} step={0.05} min={0} max={1} />
+                      <NumberField label="Top K" value={params.top_k} onChange={v => updateParams({ top_k: v })} min={0} max={1000} />
+                      <NumberField label="Top A" value={params.top_a} onChange={v => updateParams({ top_a: v })} step={0.05} min={0} max={1} />
+                      <NumberField label="Min P" value={params.min_p} onChange={v => updateParams({ min_p: v })} step={0.05} min={0} max={1} />
+                      <NumberField label="频率惩罚" value={params.frequency_penalty} onChange={v => updateParams({ frequency_penalty: v })} step={0.1} min={-2} max={2} />
+                      <NumberField label="存在惩罚" value={params.presence_penalty} onChange={v => updateParams({ presence_penalty: v })} step={0.1} min={-2} max={2} />
+                      <NumberField label="重复惩罚" value={params.repetition_penalty} onChange={v => updateParams({ repetition_penalty: v })} step={0.1} min={1} max={2} />
+                    </div>
+                  </div>
+
+                  {/* ── Context ── */}
+                  <div>
+                    <span className="text-[10px] text-white/25 font-display tracking-wide uppercase">上下文</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1.5">
+                      <NumberField label="最大上下文" value={params.openai_max_context} onChange={v => updateParams({ openai_max_context: v })} min={1000} max={4000000} />
+                      <NumberField label="最大输出Token" value={params.openai_max_tokens} onChange={v => updateParams({ openai_max_tokens: v })} min={256} max={128000} />
+                    </div>
+                  </div>
+
+                  {/* ── Options ── */}
+                  <div>
+                    <span className="text-[10px] text-white/25 font-display tracking-wide uppercase">选项</span>
+                    <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                      <CheckField label="流式输出" checked={params.stream_openai} onChange={v => updateParams({ stream_openai: v })} />
+                      <CheckField label="引号包裹" checked={params.wrap_in_quotes} onChange={v => updateParams({ wrap_in_quotes: v })} />
+                      <CheckField label="解锁上下文" checked={params.max_context_unlocked} onChange={v => updateParams({ max_context_unlocked: v })} />
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] text-white/20">名字行为</span>
+                        <input
+                          type="number"
+                          value={params.names_behavior}
+                          onChange={e => updateParams({ names_behavior: Number(e.target.value) })}
+                          className="w-14 bg-aether-dark/60 border border-aether-border/25 rounded px-1.5 py-0.5 text-[10px] text-white/55 focus:outline-none focus:border-aether-purple/50 transition-all"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Templates ── */}
+                  <div>
+                    <button
+                      onClick={() => setTemplatesExpanded(!templatesExpanded)}
+                      className="flex items-center gap-1.5 text-[10px] text-white/25 font-display tracking-wide uppercase hover:text-white/40 transition-colors"
+                    >
+                      <span className="text-[8px]">{templatesExpanded ? '▾' : '▸'}</span>
+                      提示模板 ({TEMPLATE_FIELDS.length})
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {templatesExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-2 mt-1.5">
+                            {TEMPLATE_FIELDS.map(f => (
+                              <div key={f.key}>
+                                <label className="text-[9px] text-white/20 font-mono block mb-0.5">{f.label}</label>
+                                <textarea
+                                  value={(params as any)[f.key] || ''}
+                                  onChange={e => updateParams({ [f.key]: e.target.value } as any)}
+                                  rows={2}
+                                  className="w-full bg-aether-dark/60 border border-aether-border/25 rounded px-2 py-1 text-[10px] text-white/50 placeholder:text-white/8 focus:outline-none focus:border-aether-purple/50 transition-all resize-none font-mono leading-relaxed"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* ── Toolbar ── */}
         <div className="flex items-center gap-2 mb-3">
@@ -342,3 +465,63 @@ export default function PresetTab({ draft, setDraft }: Props) {
     </div>
   );
 }
+
+// ── Helper sub-components ──
+
+function NumberField({ label, value, onChange, step = 1, min, max }: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  step?: number;
+  min?: number;
+  max?: number;
+}) {
+  return (
+    <label className="flex items-center gap-2 bg-aether-dark/40 border border-aether-border/15 rounded px-2 py-1">
+      <span className="text-[9px] text-white/20 shrink-0 font-mono">{label}</span>
+      <input
+        type="number"
+        value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        step={step}
+        min={min}
+        max={max}
+        className="flex-1 min-w-0 bg-transparent text-[10px] text-white/55 focus:outline-none text-right font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+    </label>
+  );
+}
+
+function CheckField({ label, checked, onChange }: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-1.5 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={e => onChange(e.target.checked)}
+        className="accent-aether-purple h-3 w-3 shrink-0"
+      />
+      <span className={`text-[9px] font-mono transition-colors ${checked ? 'text-white/40' : 'text-white/15'}`}>
+        {label}
+      </span>
+    </label>
+  );
+}
+
+const TEMPLATE_FIELDS: { key: keyof PresetParams; label: string }[] = [
+  { key: 'impersonation_prompt', label: '扮演提示 (impersonation_prompt)' },
+  { key: 'new_chat_prompt', label: '新聊天提示 (new_chat_prompt)' },
+  { key: 'new_group_chat_prompt', label: '新群聊提示 (new_group_chat_prompt)' },
+  { key: 'new_example_chat_prompt', label: '示例聊天提示 (new_example_chat_prompt)' },
+  { key: 'continue_nudge_prompt', label: '继续推动 (continue_nudge_prompt)' },
+  { key: 'group_nudge_prompt', label: '群聊推动 (group_nudge_prompt)' },
+  { key: 'wi_format', label: '世界书格式 (wi_format)' },
+  { key: 'scenario_format', label: '场景格式 (scenario_format)' },
+  { key: 'personality_format', label: '性格格式 (personality_format)' },
+  { key: 'send_if_empty', label: '空时发送 (send_if_empty)' },
+  { key: 'bias_preset_selected', label: '偏置预设 (bias_preset_selected)' },
+];

@@ -9,7 +9,8 @@
  *   - Standard ST: { settings: { prompt_order: [...], prompts: [...] } }
  *   - Character card: { data: { prompt_order: {...}, prompts: [...] } }
  */
-import type { PresetBlock } from './types';
+import type { PresetBlock, PresetParams } from './types';
+import { DEFAULT_PRESET_PARAMS } from './types';
 
 interface RawPromptEntry {
   identifier: string;
@@ -31,6 +32,7 @@ export interface ImportResult {
   name: string;
   description: string;
   source: 'prompts' | 'prompt_order';
+  params: PresetParams;
 }
 
 export function importPresetFromJson(raw: Record<string, any>): ImportResult {
@@ -97,5 +99,34 @@ export function importPresetFromJson(raw: Record<string, any>): ImportResult {
   const name = merged.name || merged.preset || '导入的预设';
   const description = merged.description || '';
 
-  return { blocks, name, description, source };
+  // ── Extract preset parameters ──
+  const params: PresetParams = {
+    temperature: Number(merged.temperature ?? DEFAULT_PRESET_PARAMS.temperature),
+    frequency_penalty: Number(merged.frequency_penalty ?? DEFAULT_PRESET_PARAMS.frequency_penalty),
+    presence_penalty: Number(merged.presence_penalty ?? DEFAULT_PRESET_PARAMS.presence_penalty),
+    top_p: Number(merged.top_p ?? DEFAULT_PRESET_PARAMS.top_p),
+    top_k: Number(merged.top_k ?? DEFAULT_PRESET_PARAMS.top_k),
+    top_a: Number(merged.top_a ?? DEFAULT_PRESET_PARAMS.top_a),
+    min_p: Number(merged.min_p ?? DEFAULT_PRESET_PARAMS.min_p),
+    repetition_penalty: Number(merged.repetition_penalty ?? DEFAULT_PRESET_PARAMS.repetition_penalty),
+    openai_max_context: Number(merged.openai_max_context ?? DEFAULT_PRESET_PARAMS.openai_max_context),
+    openai_max_tokens: Number(merged.openai_max_tokens ?? DEFAULT_PRESET_PARAMS.openai_max_tokens),
+    stream_openai: merged.stream_openai ?? DEFAULT_PRESET_PARAMS.stream_openai,
+    wrap_in_quotes: merged.wrap_in_quotes ?? DEFAULT_PRESET_PARAMS.wrap_in_quotes,
+    names_behavior: Number(merged.names_behavior ?? DEFAULT_PRESET_PARAMS.names_behavior),
+    max_context_unlocked: merged.max_context_unlocked ?? DEFAULT_PRESET_PARAMS.max_context_unlocked,
+    impersonation_prompt: String(merged.impersonation_prompt ?? DEFAULT_PRESET_PARAMS.impersonation_prompt),
+    new_chat_prompt: String(merged.new_chat_prompt ?? DEFAULT_PRESET_PARAMS.new_chat_prompt),
+    new_group_chat_prompt: String(merged.new_group_chat_prompt ?? DEFAULT_PRESET_PARAMS.new_group_chat_prompt),
+    new_example_chat_prompt: String(merged.new_example_chat_prompt ?? DEFAULT_PRESET_PARAMS.new_example_chat_prompt),
+    continue_nudge_prompt: String(merged.continue_nudge_prompt ?? DEFAULT_PRESET_PARAMS.continue_nudge_prompt),
+    group_nudge_prompt: String(merged.group_nudge_prompt ?? DEFAULT_PRESET_PARAMS.group_nudge_prompt),
+    wi_format: String(merged.wi_format ?? DEFAULT_PRESET_PARAMS.wi_format),
+    scenario_format: String(merged.scenario_format ?? DEFAULT_PRESET_PARAMS.scenario_format),
+    personality_format: String(merged.personality_format ?? DEFAULT_PRESET_PARAMS.personality_format),
+    send_if_empty: String(merged.send_if_empty ?? DEFAULT_PRESET_PARAMS.send_if_empty),
+    bias_preset_selected: String(merged.bias_preset_selected ?? DEFAULT_PRESET_PARAMS.bias_preset_selected),
+  };
+
+  return { blocks, name, description, source, params };
 }

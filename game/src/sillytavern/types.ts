@@ -113,12 +113,76 @@ export interface PresetBlock {
   content: string;
 }
 
+// ========== Preset Parameters ==========
+
+/** Sampling + context + template parameters extracted from a Chaoxi/ST preset JSON */
+export interface PresetParams {
+  // Sampling
+  temperature: number;
+  frequency_penalty: number;
+  presence_penalty: number;
+  top_p: number;
+  top_k: number;
+  top_a: number;
+  min_p: number;
+  repetition_penalty: number;
+  // Context
+  openai_max_context: number;
+  openai_max_tokens: number;
+  // Options
+  stream_openai: boolean;
+  wrap_in_quotes: boolean;
+  names_behavior: number;
+  max_context_unlocked: boolean;
+  // Templates
+  impersonation_prompt: string;
+  new_chat_prompt: string;
+  new_group_chat_prompt: string;
+  new_example_chat_prompt: string;
+  continue_nudge_prompt: string;
+  group_nudge_prompt: string;
+  wi_format: string;
+  scenario_format: string;
+  personality_format: string;
+  send_if_empty: string;
+  bias_preset_selected: string;
+}
+
+export const DEFAULT_PRESET_PARAMS: PresetParams = {
+  temperature: 1,
+  frequency_penalty: 0,
+  presence_penalty: 0,
+  top_p: 0.9,
+  top_k: 500,
+  top_a: 0,
+  min_p: 0,
+  repetition_penalty: 1,
+  openai_max_context: 2000000,
+  openai_max_tokens: 64000,
+  stream_openai: true,
+  wrap_in_quotes: false,
+  names_behavior: 0,
+  max_context_unlocked: true,
+  impersonation_prompt: "[Write your next reply from the point of view of {{user}}, using the chat history so far as a guideline for the writing style of {{user}}. Don't write as {{char}} or system. Don't describe actions of {{char}}.]",
+  new_chat_prompt: '',
+  new_group_chat_prompt: '[Start a new group chat. Group members: {{group}}]',
+  new_example_chat_prompt: '[Example Chat]',
+  continue_nudge_prompt: '[Continue your last message without repeating its original content.]',
+  group_nudge_prompt: '[Write the next reply only as {{char}}.]',
+  wi_format: '{0}',
+  scenario_format: '{{scenario}}',
+  personality_format: '{{personality}}',
+  send_if_empty: '',
+  bias_preset_selected: 'Default (none)',
+};
+
 // ========== Settings Types ==========
 
 export interface AppSettings {
   key?: string;
   api: ApiSettings;
   apiMode: 'single' | 'dual';
+  presetParams?: PresetParams;
   presetBlocks: PresetBlock[];
   lorebooks: Lorebook[];
   userName: string;
