@@ -11,9 +11,9 @@ interface Props {
 }
 
 const POSITION_OPTIONS = [
-  { value: 0, label: '角色之前' },
-  { value: 1, label: '角色之后' },
-  { value: 4, label: '深度' },
+  { value: 0, label: '角色定位之前' },
+  { value: 1, label: '角色定位之后' },
+  { value: 4, label: '在深度' },
   { value: 2, label: '示例之前' },
   { value: 3, label: '示例之后' },
 ];
@@ -124,7 +124,7 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
     setEditingName(false);
   };
 
-  const isPosition0 = entry.position === 0;
+  const showDepth = entry.position === 4;
   const hasKeys = entry.keys.length > 0;
 
   return (
@@ -177,7 +177,7 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
           ) : (
             <div
               onDoubleClick={() => setEditingName(true)}
-              className="w-full text-left text-[11px] truncate px-1.5 py-0.5 rounded border border-aether-border/15 bg-aether-dark/20 cursor-default"
+              className="w-full text-left text-[11px] truncate px-1.5 py-0.5 rounded border border-aether-border/30 bg-aether-dark/35 cursor-default"
               title="双击编辑名称"
               style={{ color: entry.enabled ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.3)' }}
             >
@@ -200,18 +200,18 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
           onChange={(v) => onUpdate({ position: v as number })}
         />
 
-        {/* 6. Depth — only for position 0 (before_char / @D0) */}
-        {isPosition0 && (
-          <span className="shrink-0 flex items-center gap-0.5 text-[9px] text-white/15 font-mono">
-            深度
+        {/* 6. Depth — only for "在深度" (position 4), shown as D{N} */}
+        {showDepth && (
+          <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-white/30 font-mono">
+            <span className="text-white/15">D</span>
             <input
               type="number"
-              value={entry.depth ?? 4}
+              value={entry.depth ?? 0}
               min={0}
               max={99}
               onChange={e => onUpdate({ depth: Number(e.target.value) || 0 })}
               onClick={e => e.stopPropagation()}
-              className="w-8 bg-aether-dark/40 border border-aether-border/15 rounded px-1 py-0.5 text-[9px] text-white/40 focus:outline-none focus:border-aether-purple/40 text-center font-mono transition-colors"
+              className="w-8 bg-aether-dark/40 border border-aether-border/15 rounded px-1 py-0.5 text-[10px] text-white/40 focus:outline-none focus:border-aether-purple/40 text-center font-mono transition-colors"
             />
           </span>
         )}
