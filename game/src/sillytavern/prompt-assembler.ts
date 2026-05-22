@@ -195,13 +195,23 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       let content: string | null = null;
       let source: PromptSection['source'] = 'preset';
 
-      const matchedAnchor = detectAnchor(block);
-      if (matchedAnchor) {
-        const groupContent = getGroupContent(matchedAnchor);
-        if (groupContent.trim()) {
-          content = groupContent;
-          source = 'lorebook';
-          pushSection(matchedAnchor, groupContent);
+      // personaDescription / charDescription: inject from IdentityTab settings
+      const blockId = block.identifier.toLowerCase();
+      if (blockId === 'personadescription' && playerDescription?.trim()) {
+        content = playerDescription;
+      } else if (blockId === 'chardescription' && characterDescription?.trim()) {
+        content = characterDescription;
+      }
+
+      if (!content) {
+        const matchedAnchor = detectAnchor(block);
+        if (matchedAnchor) {
+          const groupContent = getGroupContent(matchedAnchor);
+          if (groupContent.trim()) {
+            content = groupContent;
+            source = 'lorebook';
+            pushSection(matchedAnchor, groupContent);
+          }
         }
       }
 
@@ -232,40 +242,6 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     }
   }
 
-  // ── Fallback: inject remaining anchor groups that weren't placed ──
-
-  // "Before" anchors → prepend to system accumulator
-  const beforeAnchors: InjectionAnchor[] = ['worldInfoBefore', 'worldInfoD2Before'];
-  let prependContent = '';
-  for (const anchor of beforeAnchors) {
-    if (!injected.has(anchor)) {
-      const c = getGroupContent(anchor);
-      if (c.trim()) {
-        prependContent += (prependContent ? '\n\n' : '') + c;
-        pushSection(anchor, c);
-      }
-    }
-  }
-  if (prependContent.trim()) {
-    systemAccumulator = prependContent + (systemAccumulator ? '\n\n' : '') + systemAccumulator;
-  }
-
-  // "After" anchors → inject at chatHistory time (if chatHistory already processed)
-  // or append to system accumulator
-  const afterAnchors: InjectionAnchor[] = ['worldInfoAfter', 'worldInfoD2After'];
-  if (hasChatHistory) {
-    // Chat history already placed; append remaining after-anchor content
-    for (const anchor of afterAnchors) {
-      if (!injected.has(anchor)) {
-        const c = getGroupContent(anchor);
-        if (c.trim()) {
-          systemAccumulator += (systemAccumulator ? '\n\n' : '') + c;
-          pushSection(anchor, c);
-        }
-      }
-    }
-  }
-
   // Flush remaining system accumulator
   if (systemAccumulator.trim()) {
     assembledMessages.unshift({ role: 'system', content: systemAccumulator });
@@ -273,16 +249,6 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
   // Chat history (if not already inserted by a chatHistory preset block)
   if (!hasChatHistory) {
-    // Inject remaining "after" anchors just before chat history
-    for (const anchor of afterAnchors) {
-      if (!injected.has(anchor)) {
-        const c = getGroupContent(anchor);
-        if (c.trim()) {
-          assembledMessages.push({ role: 'system', content: c });
-          pushSection(anchor, c);
-        }
-      }
-    }
     const recentHistory = buildRecentHistory(history);
     if (recentHistory.length > 0) {
       assembledMessages.push(...recentHistory);
