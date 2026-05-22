@@ -11,10 +11,11 @@ interface Props {
 }
 
 const POSITION_OPTIONS = [
-  { value: 0, label: '角色定位之前' },
-  { value: 1, label: '角色定位之后' },
-  { value: 2, label: 'D2 之前' },
-  { value: 3, label: 'D2 之后' },
+  { value: 0, label: '角色之前' },
+  { value: 1, label: '角色之后' },
+  { value: 4, label: '深度' },
+  { value: 2, label: '示例之前' },
+  { value: 3, label: '示例之后' },
 ];
 
 const TRIGGER_OPTIONS = [
@@ -138,7 +139,7 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
         {/* 1. Expand / collapse arrow */}
         <button
           onClick={onToggleExpand}
-          className="shrink-0 text-white/15 hover:text-white/40 transition-colors p-0.5"
+          className="shrink-0 w-5 h-5 flex items-center justify-center rounded border border-aether-border/25 bg-aether-dark/30 text-white/35 hover:text-white/65 hover:border-aether-purple/40 hover:bg-aether-purple/10 transition-all"
         >
           <ChevronDown
             size={12}
@@ -174,15 +175,14 @@ const EntryRow: React.FC<EntryRowProps> = ({ entry, isExpanded, onToggleExpand, 
               className="w-full bg-aether-dark/50 border border-aether-purple/30 rounded px-1.5 py-0.5 text-[11px] text-white/70 placeholder:text-white/15 focus:outline-none focus:border-aether-purple/50 font-mono"
             />
           ) : (
-            <button
-              onClick={onToggleExpand}
+            <div
               onDoubleClick={() => setEditingName(true)}
-              className="w-full text-left text-[11px] truncate hover:text-white/65 transition-colors cursor-pointer"
-              title="双击编辑名称，单击展开内容"
+              className="w-full text-left text-[11px] truncate px-1.5 py-0.5 rounded border border-aether-border/15 bg-aether-dark/20 cursor-default"
+              title="双击编辑名称"
               style={{ color: entry.enabled ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.3)' }}
             >
               {entry.comment || '未命名条目'}
-            </button>
+            </div>
           )}
         </div>
 
