@@ -10,6 +10,7 @@ import {
 import { Modal } from '../Feedback';
 import { getDatabase } from '../../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
+import { moveItem } from '../../sillytavern/variables';
 
 /* ==============================================================
    TYPE / CONSTANT HELPERS
@@ -605,6 +606,17 @@ export default function PersonaPage() {
                   </div>
                 </div>
               )}
+            </div>
+            <div className="flex justify-end pt-2 border-t border-white/10">
+              <button
+                onClick={async () => {
+                  const ok = await moveItem(selectedItem.name, selectedItem.category, 'unequip');
+                  if (ok) setSelectedItem(null);
+                }}
+                className="px-4 py-2 text-xs font-display tracking-wider border border-aether-red/40 text-aether-red hover:bg-aether-red/10 transition-all"
+              >
+                卸下
+              </button>
             </div>
           </div>
         )})()}

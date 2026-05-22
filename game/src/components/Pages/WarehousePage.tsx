@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Diamond, Skull, Package, Search, X, LayoutGrid, List, SlidersHorizontal } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { getDatabase } from '../../sillytavern/database';
+import { moveItem } from '../../sillytavern/variables';
 
 type ViewMode = 'grid' | 'list';
 type CatFilter = '全部' | '灵宝' | '诡物' | '物品';
@@ -32,6 +33,7 @@ export default function WarehousePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [categoryFilter, setCategoryFilter] = useState<CatFilter>('全部');
   const [searchFocused, setSearchFocused] = useState(false);
+  const [equipping, setEquipping] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -237,6 +239,34 @@ export default function WarehousePage() {
               {selectedItem?.副作用 && Object.keys(selectedItem.副作用).length > 0 && (
                 <div><h4 className="text-[10px] text-aether-red uppercase tracking-widest mb-3 font-mono">副作用</h4><div className="space-y-2">{Object.entries(selectedItem.副作用 as Record<string, string>).map(([k,v]) => <div key={k} className="p-3 bg-aether-red/[0.04] border border-aether-red/20"><h5 className="text-[11px] font-display font-bold text-aether-red/70 mb-1">{k}</h5><p className="text-[11px] text-white/60 leading-relaxed">{v}</p></div>)}</div></div>
               )}
+            </div>
+            <div className="flex justify-end pt-2 border-t border-white/10">
+              <button
+                onClick={async () => {
+                  setEquipping(true);
+                  const ok = await moveItem(selectedItem.name, selectedItem.category, 'equip');
+                  setEquipping(false);
+                  if (ok) {
+                    setSelectedItem(null);
+                    // Force immediate refresh
+                    const db = getDatabase();
+                    const chats = await db.chats.toArray();
+                    const warehouse = chats[chats.length - 1]?.variables?.仓库 ?? {};
+                    const all: WarehouseItem[] = [];
+                    for (const cat of ['灵宝', '诡物', '物品'] as const) {
+                      const catItems = warehouse[cat] ?? {};
+                      for (const [name, data] of Object.entries(catItems as Record<string, any>)) {
+                        all.push({ name, category: cat, data });
+                      }
+                    }
+                    setItems(all);
+                  }
+                }}
+                disabled={equipping}
+                className="px-4 py-2 text-xs font-display tracking-wider border border-aether-green/40 text-aether-green hover:bg-aether-green/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {equipping ? '装备中…' : '装备'}
+              </button>
             </div>
           </div>
         )})()}

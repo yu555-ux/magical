@@ -127,6 +127,54 @@ export function aggregateEvents(events: ParserEvent[]): ParsedTags {
   return parsed;
 }
 
+import { getDatabase } from './database';
+
+/**
+ * Move an item between 仓库 and 主角.持有物品 in the latest chat's variables.
+ * @param itemName   — item key name
+ * @param category   — '灵宝' | '诡物' | '物品'
+ * @param direction  — 'equip' (仓库→持有) or 'unequip' (持有→仓库)
+ */
+export async function moveItem(
+  itemName: string,
+  category: string,
+  direction: 'equip' | 'unequip',
+): Promise<boolean> {
+  try {
+    const db = getDatabase();
+    const chats = await db.chats.toArray();
+    const chat = chats[chats.length - 1];
+    if (!chat) return false;
+
+    const vars = JSON.parse(JSON.stringify(chat.variables ?? {}));
+    const warehouse = vars.仓库 ?? {};
+    const held = vars.主角?.持有物品 ?? {};
+
+    const src = direction === 'equip' ? (warehouse[category] ?? {}) : (held[category] ?? {});
+    const dst = direction === 'equip' ? (held[category] ?? {}) : (warehouse[category] ?? {});
+
+    if (!src[itemName]) return false;
+
+    // Move item
+    dst[itemName] = src[itemName];
+    delete src[itemName];
+
+    // Write back
+    if (direction === 'equip') {
+      vars.仓库 = { ...warehouse, [category]: src };
+      vars.主角 = { ...(vars.主角 ?? {}), 持有物品: { ...held, [category]: dst } };
+    } else {
+      vars.主角 = { ...(vars.主角 ?? {}), 持有物品: { ...held, [category]: src } };
+      vars.仓库 = { ...warehouse, [category]: dst };
+    }
+
+    await db.chats.put({ ...chat, variables: vars, updatedAt: Date.now() });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function applyParsedToChat(
   current: Record<string, any>,
   parsed: ParsedTags,
