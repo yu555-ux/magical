@@ -3,20 +3,42 @@
  * and formats them as prompt-ready text for the 4 character macros.
  */
 import { resolvePath } from './variables';
+import { formatMap } from './map-filter';
 
 // ── types ──
 
 type Gender = 'female' | 'male';
 type CharType = 'stranger' | 'normal';
-type CharLevel = 'L0' | 'L1' | 'L2';
+type CharLevel = 'L0' | 'L1' | 'L2a' | 'L2b';
+
+// ── helpers ──
+
+function hasNonEmptyItems(items: Record<string, any> | undefined): boolean {
+  if (!items || typeof items !== 'object') return false;
+  return (
+    (items['灵宝'] && Object.keys(items['灵宝']).length > 0) ||
+    (items['诡物'] && Object.keys(items['诡物']).length > 0) ||
+    (items['物品'] && Object.keys(items['物品']).length > 0)
+  );
+}
+
+function isMentioned(charData: Record<string, any>, contextStr: string): boolean {
+  const terms = charData['检索词'];
+  if (!terms || !Array.isArray(terms)) return false;
+  return terms.some((word: string) => contextStr.includes(word));
+}
 
 // ── level determination ──
 
 function determineLevel(
   protagonistPath: string[] | null,
   npcPath: string[] | null,
+  charData: Record<string, any>,
+  contextStr: string,
 ): CharLevel {
-  if (!protagonistPath || !npcPath) return 'L2';
+  if (!protagonistPath || !npcPath) {
+    return isMentioned(charData, contextStr) ? 'L2a' : 'L2b';
+  }
 
   let common = 0;
   const minLen = Math.min(protagonistPath.length, npcPath.length);
@@ -34,18 +56,7 @@ function determineLevel(
     return 'L1';
   }
 
-  return 'L2';
-}
-
-// ── helpers ──
-
-function hasNonEmptyItems(items: Record<string, any> | undefined): boolean {
-  if (!items || typeof items !== 'object') return false;
-  return (
-    (items['灵宝'] && Object.keys(items['灵宝']).length > 0) ||
-    (items['诡物'] && Object.keys(items['诡物']).length > 0) ||
-    (items['物品'] && Object.keys(items['物品']).length > 0)
-  );
+  return isMentioned(charData, contextStr) ? 'L2a' : 'L2b';
 }
 
 // ── L0: full detail (same node) ──
@@ -135,9 +146,30 @@ function buildL1(
   return n;
 }
 
-// ── L2: minimal detail (same district / far) ──
+// ── L2a: mentioned in chat (not present/nearby, but being talked about) ──== L1 + 技能 + 所持物品
 
-function buildL2(charData: Record<string, any>, gender: Gender): Record<string, any> {
+function buildL2a(
+  charData: Record<string, any>,
+  gender: Gender,
+  type: CharType,
+): Record<string, any> {
+  const n = buildL1(charData, gender, type);
+
+  if (type === 'stranger') {
+    if (charData['技能'] && Object.keys(charData['技能']).length > 0) {
+      n['技能'] = charData['技能'];
+    }
+    if (hasNonEmptyItems(charData['所持物品'])) {
+      n['所持物品'] = charData['所持物品'];
+    }
+  }
+
+  return n;
+}
+
+// ── L2b: not present, not nearby, not mentioned ──
+
+function buildL2b(charData: Record<string, any>, gender: Gender): Record<string, any> {
   const n: Record<string, any> = {};
 
   n['年龄'] = charData['年龄'] ?? 0;
@@ -161,7 +193,8 @@ function buildL2(charData: Record<string, any>, gender: Gender): Record<string, 
 // ── group processor ──
 
 /**
- * Filter a single character group (e.g. 女性.异人) by proximity and dream state.
+ * Filter a single character group (e.g. 女性.异人) by proximity, dream state,
+ * and recent chat mentions.
  * Returns filtered dict keyed by character name, ready for text formatting.
  */
 export function filterCharacterGroup(
@@ -171,6 +204,7 @@ export function filterCharacterGroup(
   mapTree: Record<string, any>,
   gender: Gender,
   type: CharType,
+  contextStr: string,
 ): Record<string, any> {
   const result: Record<string, any> = {};
   if (!group || typeof group !== 'object') return result;
@@ -184,23 +218,27 @@ export function filterCharacterGroup(
 
     const charLocation = charData['当前位置'] || '';
     const npcPath = resolvePath(charLocation, mapTree);
-    const level = determineLevel(protagonistPath, npcPath);
+    const level = determineLevel(protagonistPath, npcPath, charData, contextStr);
 
-    if (level === 'L0') {
-      result[charName] = buildL0(charData, gender, type);
-    } else if (level === 'L1') {
-      result[charName] = buildL1(charData, gender, type);
-    } else {
-      result[charName] = buildL2(charData, gender);
+    switch (level) {
+      case 'L0':
+        result[charName] = buildL0(charData, gender, type);
+        break;
+      case 'L1':
+        result[charName] = buildL1(charData, gender, type);
+        break;
+      case 'L2a':
+        result[charName] = buildL2a(charData, gender, type);
+        break;
+      default:
+        result[charName] = buildL2b(charData, gender);
     }
   }
 
   return result;
 }
 
-// ── text formatter (same format as map-filter) ──
-
-import { formatMap } from './map-filter';
+// ── text formatter ──
 
 /**
  * Format a filtered character group to indented prompt text.

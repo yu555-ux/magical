@@ -161,16 +161,19 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       : null;
     const isDream = options.isDream ?? false;
 
-    const fs = filterCharacterGroup(options.characters['女性']?.['异人'], protagonistPath, isDream, options.mapTree, 'female', 'stranger');
+    // Build context string from last 5 chat messages (for isMentioned check)
+    const contextStr = history.slice(-5).map(m => m.content).join('\n');
+
+    const fs = filterCharacterGroup(options.characters['女性']?.['异人'], protagonistPath, isDream, options.mapTree, 'female', 'stranger', contextStr);
     macroCtx.femaleStrangerText = formatCharacterGroup(fs);
 
-    const fn = filterCharacterGroup(options.characters['女性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'female', 'normal');
+    const fn = filterCharacterGroup(options.characters['女性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'female', 'normal', contextStr);
     macroCtx.femaleNormalText = formatCharacterGroup(fn);
 
-    const ms = filterCharacterGroup(options.characters['男性']?.['异人'], protagonistPath, isDream, options.mapTree, 'male', 'stranger');
+    const ms = filterCharacterGroup(options.characters['男性']?.['异人'], protagonistPath, isDream, options.mapTree, 'male', 'stranger', contextStr);
     macroCtx.maleStrangerText = formatCharacterGroup(ms);
 
-    const mn = filterCharacterGroup(options.characters['男性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'male', 'normal');
+    const mn = filterCharacterGroup(options.characters['男性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'male', 'normal', contextStr);
     macroCtx.maleNormalText = formatCharacterGroup(mn);
   }
 
