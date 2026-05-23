@@ -145,12 +145,16 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   const macroCtx: MacroContext = { userName, characterName, userInput, playerDescription, characterDescription };
   const presetVars: Record<string, string> = {};
 
+  // Build context string from last 5 chat messages (for isMentioned checks)
+  const contextStr = history.slice(-5).map(m => m.content).join('\n');
+
   // ── Pre-compute map text for {{MAP}} macro ──
   if (options.mapTree) {
     macroCtx.mapText = processMapForPrompt(
       options.mapTree,
       options.currentLocation ?? '',
       options.isDream ?? false,
+      contextStr,
     );
   }
 
@@ -160,9 +164,6 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       ? resolvePath(options.currentLocation, options.mapTree)
       : null;
     const isDream = options.isDream ?? false;
-
-    // Build context string from last 5 chat messages (for isMentioned check)
-    const contextStr = history.slice(-5).map(m => m.content).join('\n');
 
     const fs = filterCharacterGroup(options.characters['女性']?.['异人'], protagonistPath, isDream, options.mapTree, 'female', 'stranger', contextStr);
     macroCtx.femaleStrangerText = formatCharacterGroup(fs);
