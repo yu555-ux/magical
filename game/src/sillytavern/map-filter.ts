@@ -239,7 +239,7 @@ export function formatMap(tree: Record<string, any>, indentLevel: number = 0): s
   const indent = '  '.repeat(indentLevel);
   let output = '';
 
-  const keys = Object.keys(tree).filter(k => !isMetaKey(k));
+  const keys = Object.keys(tree);
 
   // Sort keys: put known fields in order, then other keys alphabetically
   const knownKeys = keys.filter(k => FIELD_ORDER.includes(k));
