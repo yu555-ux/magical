@@ -161,7 +161,8 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       .replace(/\{\{char\}\}/g, macroCtx.characterName)
       .replace(/\{\{original\}\}/g, macroCtx.userInput)
       .replace(/\{\{player_description\}\}/g, macroCtx.playerDescription ?? '')
-      .replace(/\{\{char_description\}\}/g, macroCtx.characterDescription ?? '');
+      .replace(/\{\{char_description\}\}/g, macroCtx.characterDescription ?? '')
+      .replace(/\{\{MAP\}\}/g, macroCtx.mapText ?? '');
 
   const pushSection = (anchor: InjectionAnchor, content: string) => {
     sections.push({
