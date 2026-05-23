@@ -99,6 +99,8 @@ export function useSillytavern() {
     await db.chats.put(updatedChat);
     setChats(prev => prev.map(c => c.id === updatedChat.id ? updatedChat : c));
 
+    const chatVars = updatedChat.variables ?? {};
+
     const { messages, systemPrompt, sections } = assemblePrompt({
       userInput: userText,
       history: updatedChat.messages,
@@ -108,6 +110,9 @@ export function useSillytavern() {
       characterName: effectiveSettings.characterName,
       playerDescription: effectiveSettings.playerDescription,
       characterDescription: effectiveSettings.characterDescription,
+      mapTree: chatVars['地图'],
+      currentLocation: chatVars['世界']?.['现实']?.['地点'] ?? '',
+      isDream: chatVars['世界']?.['梦境定位']?.['位于梦境'] ?? false,
     });
 
     setLastPrompt({

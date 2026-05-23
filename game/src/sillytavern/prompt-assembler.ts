@@ -2,6 +2,7 @@ import type { ChatMessage, PresetBlock, Lorebook, InjectionAnchor } from './type
 import { INJECTION_ANCHORS, INJECTION_ANCHOR_RULES } from './types';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
 import type { ScanResult, MatchedEntry } from './lorebookEngine';
+import { processMapForPrompt } from './map-filter';
 
 export interface PromptSection {
   identifier: string;
@@ -21,6 +22,12 @@ export interface AssembleOptions {
   characterName: string;
   playerDescription?: string;
   characterDescription?: string;
+  /** Full map tree from chat variables (stat_data.地图) */
+  mapTree?: Record<string, any>;
+  /** Current location string (e.g. '601室') */
+  currentLocation?: string;
+  /** Whether the player is currently in dream world */
+  isDream?: boolean;
 }
 
 export interface AssembleResult {
@@ -67,7 +74,10 @@ function resolveContent(
     .replace(/\{\{player_description\}\}/g, macroCtx.playerDescription ?? '')
     .replace(/\{\{char_description\}\}/g, macroCtx.characterDescription ?? '');
 
-  // 6) Strip {{trim}}
+  // 6) {{MAP}} → map context
+  result = result.replace(/\{\{MAP\}\}/g, macroCtx.mapText ?? '');
+
+  // 7) Strip {{trim}}
   result = result.replace(/\{\{trim\}\}/gi, '');
 
   return result;
@@ -124,6 +134,15 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
   const macroCtx: MacroContext = { userName, characterName, userInput, playerDescription, characterDescription };
   const presetVars: Record<string, string> = {};
+
+  // ── Pre-compute map text for {{MAP}} macro ──
+  if (options.mapTree) {
+    macroCtx.mapText = processMapForPrompt(
+      options.mapTree,
+      options.currentLocation ?? '',
+      options.isDream ?? false,
+    );
+  }
 
   // ── Scan lorebooks ──
   const historyText = history.slice(-6).map(m => m.content).join(' ');
@@ -328,6 +347,7 @@ interface MacroContext {
   userInput: string;
   playerDescription?: string;
   characterDescription?: string;
+  mapText?: string;
 }
 
 export function replaceMacros(template: string, context: MacroContext): string {
@@ -341,6 +361,7 @@ export const SUPPORTED_MACROS = [
   { name: '{{original}}', description: '用户原始输入' },
   { name: '{{player_description}}', description: '玩家设定（IdentityTab）' },
   { name: '{{char_description}}', description: '角色设定（IdentityTab）' },
+  { name: '{{MAP}}', description: '地图上下文（自动按位置距离过滤）' },
   { name: '{{setvar::name::value}}', description: '设置预设变量' },
   { name: '{{addvar::name::value}}', description: '追加预设变量' },
   { name: '{{getvar::name}}', description: '获取预设变量值' },

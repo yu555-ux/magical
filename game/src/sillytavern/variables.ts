@@ -175,6 +175,80 @@ export async function moveItem(
   }
 }
 
+// ========== map path resolution ==========
+
+const MAP_META_KEYS = ['检索词', '方位', '现实', '梦境', '子地图'];
+
+/**
+ * Search the map tree for a location string.
+ * Match priority: exact key name → exact 检索词 → fuzzy key name → fuzzy 检索词.
+ * Returns the path array from root to the matched node, or null.
+ */
+export function resolvePath(
+  currentLocation: string,
+  mapTree: Record<string, any>,
+): string[] | null {
+  if (!currentLocation || !mapTree) return null;
+
+  // Collect all matches with their priority
+  const matches: { path: string[]; priority: number }[] = [];
+
+  function search(node: Record<string, any>, path: string[]): void {
+    if (!node || typeof node !== 'object') return;
+
+    for (const key of Object.keys(node)) {
+      if (MAP_META_KEYS.includes(key)) continue;
+      const child = node[key];
+      if (!child || typeof child !== 'object') continue;
+
+      // Priority 1: exact key name match
+      if (key === currentLocation) {
+        matches.push({ path: [...path, key], priority: 1 });
+        continue;
+      }
+
+      const terms = child['检索词'];
+      if (Array.isArray(terms)) {
+        // Priority 2: exact search term match
+        if (terms.some((t: string) => t === currentLocation)) {
+          matches.push({ path: [...path, key], priority: 2 });
+          continue;
+        }
+        // Priority 3: fuzzy search term match
+        if (terms.some((t: string) => t.includes(currentLocation) || currentLocation.includes(t))) {
+          matches.push({ path: [...path, key], priority: 3 });
+          continue;
+        }
+      }
+
+      // Priority 4: fuzzy key name match
+      if (key.includes(currentLocation) || currentLocation.includes(key)) {
+        matches.push({ path: [...path, key], priority: 4 });
+        continue;
+      }
+    }
+
+    // Recurse into sub-maps (only if no high-priority matches found at this level)
+    for (const key of Object.keys(node)) {
+      if (MAP_META_KEYS.includes(key)) continue;
+      const child = node[key];
+      if (!child || typeof child !== 'object') continue;
+      const subMap = child['子地图'];
+      if (subMap && typeof subMap === 'object') {
+        search(subMap, [...path, key]);
+      }
+    }
+  }
+
+  search(mapTree, []);
+
+  if (matches.length === 0) return null;
+
+  // Return the highest-priority match (lowest priority number)
+  matches.sort((a, b) => a.priority - b.priority);
+  return matches[0].path;
+}
+
 export function applyParsedToChat(
   current: Record<string, any>,
   parsed: ParsedTags,
