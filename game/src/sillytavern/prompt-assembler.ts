@@ -3,6 +3,8 @@ import { INJECTION_ANCHORS, INJECTION_ANCHOR_RULES } from './types';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
 import type { ScanResult, MatchedEntry } from './lorebookEngine';
 import { processMapForPrompt } from './map-filter';
+import { resolvePath } from './variables';
+import { filterCharacterGroup, formatCharacterGroup } from './character-filter';
 
 export interface PromptSection {
   identifier: string;
@@ -28,6 +30,8 @@ export interface AssembleOptions {
   currentLocation?: string;
   /** Whether the player is currently in dream world */
   isDream?: boolean;
+  /** Full character tree from chat variables (主要人物) */
+  characters?: Record<string, any>;
 }
 
 export interface AssembleResult {
@@ -76,6 +80,12 @@ function resolveContent(
 
   // 6) {{MAP}} → map context
   result = result.replace(/\{\{MAP\}\}/g, macroCtx.mapText ?? '');
+
+  // 6b) Character macros
+  result = result.replace(/\{\{FEMALE_STRANGER\}\}/g, macroCtx.femaleStrangerText ?? '');
+  result = result.replace(/\{\{FEMALE_NORMAL\}\}/g, macroCtx.femaleNormalText ?? '');
+  result = result.replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '');
+  result = result.replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '');
 
   // 7) Strip {{trim}}
   result = result.replace(/\{\{trim\}\}/gi, '');
@@ -144,6 +154,26 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     );
   }
 
+  // ── Pre-compute character texts for {{FEMALE_STRANGER}} etc. ──
+  if (options.characters && options.mapTree) {
+    const protagonistPath = options.currentLocation
+      ? resolvePath(options.currentLocation, options.mapTree)
+      : null;
+    const isDream = options.isDream ?? false;
+
+    const fs = filterCharacterGroup(options.characters['女性']?.['异人'], protagonistPath, isDream, options.mapTree, 'female', 'stranger');
+    macroCtx.femaleStrangerText = formatCharacterGroup(fs);
+
+    const fn = filterCharacterGroup(options.characters['女性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'female', 'normal');
+    macroCtx.femaleNormalText = formatCharacterGroup(fn);
+
+    const ms = filterCharacterGroup(options.characters['男性']?.['异人'], protagonistPath, isDream, options.mapTree, 'male', 'stranger');
+    macroCtx.maleStrangerText = formatCharacterGroup(ms);
+
+    const mn = filterCharacterGroup(options.characters['男性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'male', 'normal');
+    macroCtx.maleNormalText = formatCharacterGroup(mn);
+  }
+
   // ── Scan lorebooks ──
   const historyText = history.slice(-6).map(m => m.content).join(' ');
   let scanResult: ScanResult = { groups: {} };
@@ -162,7 +192,11 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       .replace(/\{\{original\}\}/g, macroCtx.userInput)
       .replace(/\{\{player_description\}\}/g, macroCtx.playerDescription ?? '')
       .replace(/\{\{char_description\}\}/g, macroCtx.characterDescription ?? '')
-      .replace(/\{\{MAP\}\}/g, macroCtx.mapText ?? '');
+      .replace(/\{\{MAP\}\}/g, macroCtx.mapText ?? '')
+      .replace(/\{\{FEMALE_STRANGER\}\}/g, macroCtx.femaleStrangerText ?? '')
+      .replace(/\{\{FEMALE_NORMAL\}\}/g, macroCtx.femaleNormalText ?? '')
+      .replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '')
+      .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '');
 
   const pushSection = (anchor: InjectionAnchor, content: string) => {
     sections.push({
@@ -349,6 +383,10 @@ interface MacroContext {
   playerDescription?: string;
   characterDescription?: string;
   mapText?: string;
+  femaleStrangerText?: string;
+  femaleNormalText?: string;
+  maleStrangerText?: string;
+  maleNormalText?: string;
 }
 
 export function replaceMacros(template: string, context: MacroContext): string {
@@ -363,6 +401,10 @@ export const SUPPORTED_MACROS = [
   { name: '{{player_description}}', description: '玩家设定（IdentityTab）' },
   { name: '{{char_description}}', description: '角色设定（IdentityTab）' },
   { name: '{{MAP}}', description: '地图上下文（自动按位置距离过滤）' },
+  { name: '{{FEMALE_STRANGER}}', description: '女性异人信息（按位置距离过滤）' },
+  { name: '{{FEMALE_NORMAL}}', description: '女性普通人信息（按位置距离过滤）' },
+  { name: '{{MALE_STRANGER}}', description: '男性异人信息（按位置距离过滤）' },
+  { name: '{{MALE_NORMAL}}', description: '男性普通人信息（按位置距离过滤）' },
   { name: '{{setvar::name::value}}', description: '设置预设变量' },
   { name: '{{addvar::name::value}}', description: '追加预设变量' },
   { name: '{{getvar::name}}', description: '获取预设变量值' },

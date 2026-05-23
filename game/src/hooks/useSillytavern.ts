@@ -113,6 +113,7 @@ export function useSillytavern() {
       mapTree: chatVars['地图'],
       currentLocation: chatVars['世界']?.['现实']?.['地点'] ?? '',
       isDream: chatVars['世界']?.['梦境定位']?.['位于梦境'] ?? false,
+      characters: chatVars['主要人物'],
     });
 
     setLastPrompt({
