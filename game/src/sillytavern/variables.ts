@@ -179,9 +179,22 @@ export async function moveItem(
 
 const MAP_META_KEYS = ['检索词', '方位', '现实', '梦境', '子地图'];
 
+interface PathMatch {
+  path: string[];
+  priority: number;
+  parentMatch: boolean;
+}
+
 /**
  * Search the map tree for a location string.
- * Match priority: exact key name → exact 检索词 → fuzzy key name → fuzzy 检索词.
+ *
+ * When the target contains "-" (e.g. '11号楼-601室'), it is split into
+ * parentHint + leafSearch. The leaf is matched exactly against key names
+ * or 检索词, and matches whose parent key equals parentHint are preferred.
+ *
+ * Falls back to full-string fuzzy matching when the leaf isn't found,
+ * preserving compatibility with suffix formats like '<user>家-客厅'.
+ *
  * Returns the path array from root to the matched node, or null.
  */
 export function resolvePath(
@@ -190,45 +203,71 @@ export function resolvePath(
 ): string[] | null {
   if (!currentLocation || !mapTree) return null;
 
-  // Collect all matches with their priority
-  const matches: { path: string[]; priority: number }[] = [];
+  // ── parse "xx-xx" format ──
+  const segments = currentLocation.split('-');
+  const hasParentHint = segments.length >= 2;
+  const leafSearch = hasParentHint ? segments[segments.length - 1] : currentLocation;
+  const parentHint = hasParentHint ? segments[segments.length - 2] : undefined;
+
+  const matches: PathMatch[] = [];
 
   function search(node: Record<string, any>, path: string[]): void {
     if (!node || typeof node !== 'object') return;
+
+    const parentKey = path.length > 0 ? path[path.length - 1] : '';
 
     for (const key of Object.keys(node)) {
       if (MAP_META_KEYS.includes(key)) continue;
       const child = node[key];
       if (!child || typeof child !== 'object') continue;
 
-      // Priority 1: exact key name match
-      if (key === currentLocation) {
-        matches.push({ path: [...path, key], priority: 1 });
-        continue;
-      }
-
-      const terms = child['检索词'];
-      if (Array.isArray(terms)) {
-        // Priority 2: exact search term match
-        if (terms.some((t: string) => t === currentLocation)) {
-          matches.push({ path: [...path, key], priority: 2 });
+      if (hasParentHint) {
+        // ── split mode: exact match on leaf only ──
+        // Priority 1: exact key name match
+        if (key === leafSearch) {
+          matches.push({ path: [...path, key], priority: 1, parentMatch: parentKey === parentHint });
           continue;
         }
-        // Priority 3: fuzzy search term match
-        if (terms.some((t: string) => t.includes(currentLocation) || currentLocation.includes(t))) {
-          matches.push({ path: [...path, key], priority: 3 });
+
+        const terms = child['检索词'];
+        if (Array.isArray(terms)) {
+          // Priority 2: exact search term match
+          if (terms.some((t: string) => t === leafSearch)) {
+            matches.push({ path: [...path, key], priority: 2, parentMatch: parentKey === parentHint });
+            continue;
+          }
+        }
+      } else {
+        // ── normal mode: exact → fuzzy ──
+        // Priority 1: exact key name match
+        if (key === currentLocation) {
+          matches.push({ path: [...path, key], priority: 1, parentMatch: true });
           continue;
         }
-      }
 
-      // Priority 4: fuzzy key name match
-      if (key.includes(currentLocation) || currentLocation.includes(key)) {
-        matches.push({ path: [...path, key], priority: 4 });
-        continue;
+        const terms = child['检索词'];
+        if (Array.isArray(terms)) {
+          // Priority 2: exact search term match
+          if (terms.some((t: string) => t === currentLocation)) {
+            matches.push({ path: [...path, key], priority: 2, parentMatch: true });
+            continue;
+          }
+          // Priority 3: fuzzy search term match
+          if (terms.some((t: string) => t.includes(currentLocation) || currentLocation.includes(t))) {
+            matches.push({ path: [...path, key], priority: 3, parentMatch: true });
+            continue;
+          }
+        }
+
+        // Priority 4: fuzzy key name match
+        if (key.includes(currentLocation) || currentLocation.includes(key)) {
+          matches.push({ path: [...path, key], priority: 4, parentMatch: true });
+          continue;
+        }
       }
     }
 
-    // Recurse into sub-maps (only if no high-priority matches found at this level)
+    // Recurse into sub-maps
     for (const key of Object.keys(node)) {
       if (MAP_META_KEYS.includes(key)) continue;
       const child = node[key];
@@ -242,11 +281,103 @@ export function resolvePath(
 
   search(mapTree, []);
 
+  // ── split mode: fallback to full-string fuzzy if leaf not found ──
+  if (hasParentHint && matches.length === 0) {
+    return resolvePathFallback(currentLocation, mapTree);
+  }
+
   if (matches.length === 0) return null;
 
-  // Return the highest-priority match (lowest priority number)
+  // Sort: parentMatch first, then by priority
+  matches.sort((a, b) => {
+    if (a.parentMatch !== b.parentMatch) return a.parentMatch ? -1 : 1;
+    return a.priority - b.priority;
+  });
+
+  return matches[0].path;
+}
+
+/** Fallback: full-string fuzzy matching for suffix formats like '<user>家-客厅' */
+function resolvePathFallback(
+  target: string,
+  mapTree: Record<string, any>,
+): string[] | null {
+  const matches: PathMatch[] = [];
+
+  function search(node: Record<string, any>, path: string[]): void {
+    if (!node || typeof node !== 'object') return;
+
+    for (const key of Object.keys(node)) {
+      if (MAP_META_KEYS.includes(key)) continue;
+      const child = node[key];
+      if (!child || typeof child !== 'object') continue;
+
+      // Priority 2: exact search term match
+      const terms = child['检索词'];
+      if (Array.isArray(terms)) {
+        if (terms.some((t: string) => t === target)) {
+          matches.push({ path: [...path, key], priority: 2, parentMatch: true });
+          continue;
+        }
+        // Priority 3: fuzzy
+        if (terms.some((t: string) => t.includes(target) || target.includes(t))) {
+          matches.push({ path: [...path, key], priority: 3, parentMatch: true });
+          continue;
+        }
+      }
+
+      // Priority 4: fuzzy key name
+      if (key.includes(target) || target.includes(key)) {
+        matches.push({ path: [...path, key], priority: 4, parentMatch: true });
+        continue;
+      }
+    }
+
+    for (const key of Object.keys(node)) {
+      if (MAP_META_KEYS.includes(key)) continue;
+      const child = node[key];
+      if (!child || typeof child !== 'object') continue;
+      const subMap = child['子地图'];
+      if (subMap && typeof subMap === 'object') {
+        search(subMap, [...path, key]);
+      }
+    }
+  }
+
+  search(mapTree, []);
+  if (matches.length === 0) return null;
   matches.sort((a, b) => a.priority - b.priority);
   return matches[0].path;
+}
+
+/**
+ * Convert an AI-output location string into the parent-leaf concatenated
+ * format for variable storage. E.g. '601室' → '11号楼-601室'.
+ *
+ * Falls back to the original string if the location cannot be resolved.
+ */
+export function formatLocation(
+  raw: string,
+  mapTree: Record<string, any>,
+): string {
+  if (!raw || !mapTree) return raw;
+  const path = resolvePath(raw, mapTree);
+  if (!path || path.length === 0) return raw;
+  if (path.length === 1) return path[0];
+  return path[path.length - 2] + '-' + path[path.length - 1];
+}
+
+/** Recursively normalize 当前位置 and 地点 string fields to parent-leaf format. */
+function normalizeLocations(obj: Record<string, any>, mapTree: Record<string, any>): void {
+  if (!obj || typeof obj !== 'object') return;
+  for (const key of Object.keys(obj)) {
+    const val = obj[key];
+    if ((key === '当前位置' || key === '地点') && typeof val === 'string' && val.trim()) {
+      obj[key] = formatLocation(val, mapTree);
+    } else if (val && typeof val === 'object' && !Array.isArray(val)) {
+      normalizeLocations(val, mapTree);
+    }
+  }
 }
 
 export function applyParsedToChat(
@@ -254,6 +385,10 @@ export function applyParsedToChat(
   parsed: ParsedTags,
 ): { nextVariables: Record<string, any>; snapshot: Record<string, any> } {
   const next = applyVarsPatch(current, parsed.varsCommands);
+  const mapTree = next['地图'];
+  if (mapTree) {
+    normalizeLocations(next, mapTree);
+  }
   const snapshot = JSON.parse(JSON.stringify(next));
   return { nextVariables: next, snapshot };
 }
