@@ -110,7 +110,28 @@ function buildTypeC(
   const proto = getRealityPrototype(node, isDream);
   if (proto) result['现实原型'] = proto;
 
-  // No 地点细节
+  // Only immediate parent gets 地点细节 (same level as Type B)
+  const isImmediateParent = pathIndex === path.length - 1;
+  if (isImmediateParent) {
+    const layer = getLayer(node, isDream);
+    const detail = layer?.['地点细节'];
+    if (detail) {
+      const d: Record<string, any> = {};
+      if (detail['信息']?.length > 0) d['信息'] = [...detail['信息']];
+      if (detail['异常'] && Object.keys(detail['异常']).length > 0) {
+        d['异常'] = {};
+        for (const [anomalyKey, anomaly] of Object.entries(detail['异常'])) {
+          if (anomaly && typeof anomaly === 'object') {
+            d['异常'][anomalyKey] = {
+              评级: (anomaly as any)['评级'],
+              描述: (anomaly as any)['描述'],
+            };
+          }
+        }
+      }
+      if (Object.keys(d).length > 0) result['地点细节'] = d;
+    }
+  }
 
   // Expand sub-map (path continues down)
   if (node['子地图'] && typeof node['子地图'] === 'object') {
