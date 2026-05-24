@@ -672,7 +672,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
             <h2 className="font-display text-xl tracking-widest uppercase text-white/90">技能</h2>
             <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-[3px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-1">
             {Object.entries(p.技能 as Record<string, any>).map(([skillName, skill]) => {
               const rank = skill.等级 || '微尘';
               const rs = RATING_STYLES[rank] || RATING_STYLES['微尘'];
@@ -731,7 +731,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
               <h2 className="font-display text-xl tracking-widest uppercase text-white/90">{meta.label}</h2>
               <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-[3px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-1">
               {itemEntries.map(([itemName, itemData]: [string, any]) => {
                 const itemRating = itemData.等级 ? ITEM_RANK_STYLES[itemData.等级] : null;
                 const qty = itemData.数量 ?? 1;

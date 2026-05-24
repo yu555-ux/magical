@@ -151,7 +151,7 @@ export default function WarehousePage() {
             <p className="text-white/20 text-sm font-display tracking-wide">无匹配物品</p>
           </div>
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-[3px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-1">
             {filtered.map(item => {
               const isItem = item.category === '物品';
               const rank = item.data?.等级 || '';
@@ -165,7 +165,7 @@ export default function WarehousePage() {
                 <motion.button
                   key={item.name}
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
-                  className={`relative p-5 text-left group transition-all duration-200 overflow-hidden clickable ${cardStyle} hover:brightness-110 hover:scale-[1.02] hover:z-10`}
+                  className={`relative p-5 text-left group transition-all duration-200 overflow-hidden clickable ${cardStyle} hover:brightness-110 hover:scale-[1.02] hover:z-10 hover:shadow-[0_0_24px_rgba(255,255,255,0.06)]`}
                 >
                   <h3 className={`font-display font-bold text-lg group-hover:text-aether-cyan transition-colors pr-4 truncate ${nameColor}`}>
                     {item.name}

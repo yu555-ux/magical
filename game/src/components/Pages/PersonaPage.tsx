@@ -334,7 +334,7 @@ export default function PersonaPage() {
             <p className="text-xs text-white/30 font-display tracking-wider">暂无技能</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-[3px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-1">
             {Object.entries(skills).map(([skillName, skillData]: [string, any]) => {
               const rank = skillData?.等级 || '微尘';
               const rs = SKILL_RANK_STYLES[rank] || SKILL_RANK_STYLES['微尘'];
@@ -406,7 +406,7 @@ export default function PersonaPage() {
               <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-[3px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-1">
               {Object.entries(items).map(([itemName, itemData]: [string, any]) => {
                 const rank = itemData?.等级 || '';
                 const irs = ITEM_RANK_STYLES[rank] || null;
