@@ -78,7 +78,10 @@ export function useSillytavern() {
   }, []);
 
   // ── streaming parser ──
-  const parser = useStreamParser(settings?.customTags ?? [...DEFAULT_TAGS], [...DEFAULT_OPAQUE_TAGS]);
+  const parser = useStreamParser(
+    [...new Set([...(settings?.customTags ?? []), ...DEFAULT_TAGS])],
+    [...DEFAULT_OPAQUE_TAGS],
+  );
 
   const sendGameMessage = useCallback(async (userText: string) => {
     if (!activeChat || !settings) return;
@@ -127,6 +130,7 @@ export function useSillytavern() {
 
     const freshRouter = createApiRouter(effectiveApi);
     parser.start();
+    let rawContent = '';
     try {
       const { response } = await freshRouter.call('story', {
         messages,
@@ -155,7 +159,7 @@ export function useSillytavern() {
           for (const line of part.split('\n').filter(l => l.startsWith('data: '))) {
             const data = line.slice(6).trim();
             if (data === '[DONE]') continue;
-            try { const json = JSON.parse(data); const delta = json?.choices?.[0]?.delta?.content ?? ''; if (delta) parser.feed(delta); } catch { /* ignore */ }
+            try { const json = JSON.parse(data); const delta = json?.choices?.[0]?.delta?.content ?? ''; if (delta) { rawContent += delta; parser.feed(delta); } } catch { /* ignore */ }
           }
         }
       }
@@ -222,7 +226,7 @@ export function useSillytavern() {
 
     const assistantMsg: ChatMessage = {
       id: crypto.randomUUID(), role: 'assistant',
-      content: events.filter(e => e.type === 'tag-chunk' || e.type === 'raw').map((e: any) => e.chunk).join(''),
+      content: rawContent,
       timestamp: Date.now(), parsed, variablesAfter: snapshot, apiUsed,
     };
     const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, updatedAt: Date.now() };
