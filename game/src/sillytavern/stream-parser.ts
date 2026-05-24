@@ -39,6 +39,7 @@ export class StreamTagParser {
   private optionBuf = '';
   private events: ParserEvent[] = [];
   private stack: StackFrame[] = [];
+  private priorState: State = 'NORMAL';
 
   constructor(
     private readonly tags: string[],
@@ -74,6 +75,7 @@ export class StreamTagParser {
 
   reset() {
     this.state = 'NORMAL';
+    this.priorState = 'NORMAL';
     this.partial = '';
     this.currentTag = '';
     this.currentBuf = '';
@@ -108,6 +110,7 @@ export class StreamTagParser {
   private consumeChar(ch: string) {
     if (this.state === 'NORMAL') {
       if (ch === '<') {
+        this.priorState = 'NORMAL';
         this.state = 'BUFFER_TAG';
         this.partial = '';
       } else {
@@ -146,6 +149,7 @@ export class StreamTagParser {
     }
     if (this.state === 'TAGGED') {
       if (ch === '<') {
+        this.priorState = 'TAGGED';
         this.state = 'BUFFER_TAG';
         this.partial = '';
         return;
@@ -221,11 +225,12 @@ export class StreamTagParser {
       return;
     }
 
-    // Opening a nested tag — push parent onto stack
-    if (this.state === 'TAGGED' || this.state === 'OPAQUE') {
+    // Opening a nested tag — push parent onto stack (use priorState since we're in BUFFER_TAG now)
+    if (this.priorState === 'TAGGED' || this.priorState === 'OPAQUE') {
       console.log('[parser] push parent:', this.currentTag, '→ open child:', name);
       this.pushParent();
     }
+    this.priorState = 'NORMAL';
 
     this.currentTag = name;
     this.currentBuf = '';
