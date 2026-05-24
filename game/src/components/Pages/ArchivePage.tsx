@@ -305,11 +305,17 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
   const uterusSemen = uterus?.['宫内精液'] as { 总量?: number; 来源?: string } | undefined;
   const uterusPreg = uterus?.['怀孕状态'] as { 状态?: string; 父方?: string } | undefined;
   const hasUterus = !!uterusPhase;
+  const uterusPregActive = uterusPreg?.['状态'] && uterusPreg['状态'] !== '未孕';
+  const uterusHasSemen = uterusSemen?.['总量'] && uterusSemen['总量'] > 0;
   const uterusTitle = hasUterus
-    ? (uterusPreg?.['状态'] && uterusPreg['状态'] !== '未孕'
-        ? `子宫 · ${uterusPreg['状态']}` + (uterusPreg['父方'] ? ` · ${uterusPreg['父方']}` : '')
-        : `子宫 · ${uterusPhase}` + (uterusSemen?.['总量'] && uterusSemen['总量'] > 0 ? ` · 体内 ${uterusSemen['总量']}ml` : ''))
+    ? (uterusPregActive
+        ? `子宫 · ${uterusPreg!['状态']}` + (uterusPreg!['父方'] ? ` · ${uterusPreg!['父方']}` : '')
+        : `子宫 · ${uterusPhase}` + (uterusHasSemen ? ` · 体内 ${uterusSemen!['总量']}ml` : ''))
     : '';
+
+  // 孕程进度
+  const pregWeeks = uterusPregActive && uterus?.['怀孕状态']?.['受孕日期']
+    ? Math.floor((Date.now() - new Date('2026-04-06').getTime()) / 86400000 / 7) + 2 : 0;
   const bodyAttr = p.身体属性;
   const baseAttr = p.基础属性;
   const specialAttr = p.特殊属性;
@@ -531,18 +537,24 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
         </section>
       )}
 
-      {/* ===== 子宫 (collapsed by default, female only) ===== */}
+      {/* ===== 子宫 ===== */}
       {hasUterus && (
-        <section className="border border-dashed border-pink-400/15 bg-pink-400/[0.02] px-5 py-4 space-y-4">
+        <section className="border border-pink-400/10 bg-gradient-to-b from-pink-400/[0.03] to-transparent overflow-hidden">
           <button
             onClick={() => setUterusOpen(!uterusOpen)}
-            className="flex items-center gap-3 w-full text-left group"
+            className="flex items-center gap-3 w-full text-left group px-5 py-4 hover:bg-pink-400/[0.02] transition-colors"
           >
-            <span className="font-display text-sm tracking-[0.15em] uppercase text-pink-300/60 group-hover:text-pink-300/85 transition-colors">
+            <div className={`w-2 h-2 rounded-full shrink-0 ${
+              uterusPregActive ? 'bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.5)]' :
+              uterusPhase === '排卵期' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)]' :
+              uterusPhase === '经期' ? 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.4)]' :
+              'bg-sky-400/60'
+            }`} />
+            <span className="font-display text-sm tracking-[0.1em] text-pink-200/65 group-hover:text-pink-200/90 transition-colors">
               {uterusTitle}
             </span>
-            <div className="flex-1 h-px bg-[repeating-linear-gradient(to_right,transparent,transparent_3px,rgba(244,114,182,0.15)_3px,rgba(244,114,182,0.15)_5px)]" />
-            <span className="text-[10px] font-mono text-pink-300/30 group-hover:text-pink-300/50 transition-colors shrink-0">
+            <div className="flex-1 h-px bg-[repeating-linear-gradient(to_right,transparent,transparent_3px,rgba(244,114,182,0.12)_3px,rgba(244,114,182,0.12)_5px)]" />
+            <span className="text-[9px] font-mono text-pink-300/25 group-hover:text-pink-300/45 transition-colors shrink-0">
               {uterusOpen ? '收起 ▲' : '展开 ▼'}
             </span>
           </button>
@@ -550,64 +562,92 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className="space-y-3 overflow-hidden"
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
             >
-              {/* 周期阶段 */}
-              <div className="flex items-center gap-4 p-3 border border-pink-400/20 bg-black/45">
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-mono text-pink-300/30 tracking-wider">周期</span>
-                  <span className={`text-[11px] font-display font-bold ${
-                    uterusPhase === '排卵期' ? 'text-amber-200/85' :
-                    uterusPhase === '经期' ? 'text-red-300/75' :
-                    'text-sky-200/75'
-                  }`}>{uterusPhase}</span>
-                </div>
-                {uterusPreg?.['状态'] && uterusPreg['状态'] !== '未孕' && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] font-mono text-pink-300/30 tracking-wider">状态</span>
-                    <span className={`text-[11px] font-display font-bold ${
-                      uterusPreg['状态'] === '受精' ? 'text-violet-300/80' :
-                      uterusPreg['状态'] === '早孕' ? 'text-rose-300/80' :
-                      uterusPreg['状态'] === '中孕' ? 'text-rose-400/85' :
-                      uterusPreg['状态'] === '晚孕' ? 'text-red-400/85' :
-                      'text-amber-300/75'
-                    }`}>{uterusPreg['状态']}</span>
+              <div className="px-5 pb-5 space-y-4">
+
+                {/* ── 怀孕状态卡片 ── */}
+                {uterusPregActive && (
+                  <div className="relative overflow-hidden border border-rose-400/15 bg-gradient-to-br from-rose-400/[0.06] to-rose-400/[0.01] p-4">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-rose-400/[0.03] rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+                    <div className="relative flex items-start justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-mono tracking-[0.2em] text-rose-300/40 uppercase">妊娠</span>
+                          <span className={`text-xs font-display font-bold ${
+                            uterusPreg!['状态'] === '受精' ? 'text-violet-300' :
+                            uterusPreg!['状态'] === '早孕' ? 'text-rose-300' :
+                            uterusPreg!['状态'] === '中孕' ? 'text-rose-400' :
+                            uterusPreg!['状态'] === '晚孕' ? 'text-red-400' :
+                            'text-amber-300'
+                          }`}>{uterusPreg!['状态']}</span>
+                          <span className="text-[10px] font-mono text-rose-300/25">· 第 {pregWeeks} 周</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px] font-mono text-white/20">
+                          <span>父方 <span className="text-white/40">{uterusPreg!['父方'] || '—'}</span></span>
+                          <span className="text-white/10">|</span>
+                          <span>受孕 <span className="text-white/40">{uterus?.['怀孕状态']?.['受孕日期'] || '—'}</span></span>
+                        </div>
+                      </div>
+                      {/* 孕周进度环 */}
+                      <div className="shrink-0 w-12 h-12 rounded-full border-2 border-rose-400/15 flex items-center justify-center bg-black/40">
+                        <span className="text-sm font-display font-bold text-rose-300/70">{Math.min(pregWeeks, 38)}</span>
+                        <span className="text-[7px] font-mono text-rose-300/25 ml-0.5 mt-1">/38w</span>
+                      </div>
+                    </div>
                   </div>
                 )}
-                <div className="flex-1" />
-                {uterusPreg?.['父方'] && (
-                  <span className="text-[10px] font-mono text-white/25">父方 · {uterusPreg['父方']}</span>
-                )}
-              </div>
 
-              {/* 精液信息 */}
-              {uterusSemen?.['总量'] && uterusSemen['总量'] > 0 && (
-                <div className="flex items-center gap-4 p-3 border border-pink-400/20 bg-black/45">
-                  <span className="text-[10px] font-mono text-pink-300/30 tracking-wider">宫内精液</span>
-                  <span className="text-[11px] font-display font-bold text-white/70">
-                    {uterusSemen['总量']}ml
-                  </span>
-                  {uterusSemen['来源'] && (
+                {/* ── 生理周期条 ── */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-1.5 h-1.5 rounded-full ${
+                      uterusPhase === '排卵期' ? 'bg-amber-400/80' :
+                      uterusPhase === '经期' ? 'bg-red-400/70' :
+                      'bg-sky-400/50'
+                    }`} />
+                    <span className="text-[10px] font-mono tracking-wider text-white/25 uppercase">周期</span>
+                  </div>
+                  <span className={`text-[13px] font-display font-bold ${
+                    uterusPhase === '排卵期' ? 'text-amber-200/85' :
+                    uterusPhase === '经期' ? 'text-red-300/80' :
+                    'text-sky-200/75'
+                  }`}>{uterusPhase}</span>
+                  {!uterusPregActive && (
                     <>
-                      <span className="text-[10px] font-mono text-white/15">·</span>
-                      <span className="text-[10px] font-mono text-white/35">{uterusSemen['来源']}</span>
+                      <span className="text-white/10">·</span>
+                      <span className="text-[10px] font-mono text-white/20 italic">
+                        {uterusPhase === '经期' ? '子宫内膜脱落中' :
+                         uterusPhase === '排卵期' ? '窗口期，可受精' :
+                         '受孕概率极低'}
+                      </span>
                     </>
                   )}
                 </div>
-              )}
 
-              {/* 空态 */}
-              {(!uterusSemen || !uterusSemen['总量'] || uterusSemen['总量'] <= 0) &&
-               (!uterusPreg || !uterusPreg['状态'] || uterusPreg['状态'] === '未孕') && (
-                <div className="p-3 border border-pink-400/10 bg-black/45">
-                  <span className="text-[10px] font-mono text-white/15 italic">
-                    {uterusPhase === '经期' ? '经期中，子宫内膜脱落。' :
-                     uterusPhase === '排卵期' ? '排卵窗口，可受精。' :
-                     '安全期，受孕概率极低。'}
-                  </span>
-                </div>
-              )}
+                {/* ── 宫内精液卡片 ── */}
+                {uterusHasSemen && (
+                  <div className="border border-amber-400/10 bg-gradient-to-r from-amber-400/[0.04] to-transparent p-3 flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[8px]">💧</span>
+                      <span className="text-[10px] font-mono tracking-wider text-amber-200/35 uppercase">宫内精液</span>
+                    </div>
+                    <span className="text-sm font-display font-bold text-amber-200/70">{uterusSemen!['总量']} ml</span>
+                    {uterusSemen!['来源'] && (
+                      <>
+                        <span className="text-white/10">·</span>
+                        <span className="text-[10px] font-mono text-white/30">{uterusSemen!['来源']}</span>
+                      </>
+                    )}
+                    <div className="flex-1" />
+                    {uterus?.['宫内精液']?.['注入时间'] && (
+                      <span className="text-[9px] font-mono text-white/12">{uterus['宫内精液']['注入时间']}</span>
+                    )}
+                  </div>
+                )}
+
+              </div>
             </motion.div>
           )}
         </section>
