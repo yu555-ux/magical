@@ -443,8 +443,8 @@ export function applyParsedToChat(
     ? applyJsonPatch(current, parsed.varsCommands.patches)
     : applyVarsPatch(current, parsed.varsCommands);
   console.log('[applyParsedToChat] after apply, variables top keys:', Object.keys(next).join(', '));
-  // Check a specific path
   console.log('[applyParsedToChat] 世界.现实.时间 =', next['世界']?.['现实']?.['时间']);
+  const mapTree = next['地图'];
   if (mapTree) {
     normalizeLocations(next, mapTree);
   }
