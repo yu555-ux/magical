@@ -154,23 +154,15 @@ export function aggregateEvents(events: ParserEvent[]): ParsedTags {
     varsCommands: { merge: {} },
     unknown: {},
   };
-  const tagCloses: string[] = [];
   for (const ev of events) {
     if (ev.type === 'tag-close') {
-      tagCloses.push(ev.tag);
       if (ev.tag === 'thinking' || ev.tag === 'think') parsed.thinking = ev.full;
       else if (ev.tag === 'maintext') parsed.maintext = ev.full;
       else if (ev.tag === 'history') parsed.history = parseHistoryBlock(ev.full);
-      else if (ev.tag === 'JSONPatch') {
-        console.log('[aggregateEvents] JSONPatch tag-close, full len:', ev.full.length);
-        parsed.unknown['JSONPatch'] = ev.full;
-      }
+      else if (ev.tag === 'JSONPatch') parsed.unknown['JSONPatch'] = ev.full;
       else if (ev.tag === 'vars') {
         parsed.varsRaw = ev.full;
-        const patchSource = parsed.unknown['JSONPatch'] || ev.full;
-        console.log('[aggregateEvents] vars tag-close, hasJSONPatch:', !!parsed.unknown['JSONPatch']);
-        parsed.varsCommands = parseVarsBlock(patchSource);
-        console.log('[aggregateEvents] varsCommands patches:', parsed.varsCommands.patches?.length, 'merge:', Object.keys(parsed.varsCommands.merge).length);
+        parsed.varsCommands = parseVarsBlock(parsed.unknown['JSONPatch'] || ev.full);
       } else if (ev.tag === 'option') {
         // option-line events accumulate options below
       } else {
@@ -180,7 +172,6 @@ export function aggregateEvents(events: ParserEvent[]): ParsedTags {
       parsed.options.push(ev.line);
     }
   }
-  console.log('[aggregateEvents] all tag-close order:', tagCloses.join(' → '));
   return parsed;
 }
 
@@ -441,12 +432,9 @@ export function applyParsedToChat(
   current: Record<string, any>,
   parsed: ParsedTags,
 ): { nextVariables: Record<string, any>; snapshot: Record<string, any> } {
-  console.log('[applyParsedToChat] patches:', parsed.varsCommands.patches?.length, 'merge keys:', Object.keys(parsed.varsCommands.merge).length);
   const next = parsed.varsCommands.patches?.length
     ? applyJsonPatch(current, parsed.varsCommands.patches)
     : applyVarsPatch(current, parsed.varsCommands);
-  console.log('[applyParsedToChat] after apply, variables top keys:', Object.keys(next).join(', '));
-  console.log('[applyParsedToChat] 世界.现实.时间 =', next['世界']?.['现实']?.['时间']);
   const mapTree = next['地图'];
   if (mapTree) {
     normalizeLocations(next, mapTree);

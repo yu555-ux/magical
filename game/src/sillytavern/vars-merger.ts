@@ -2,36 +2,24 @@ import type { VarsPatch, JsonPatchOp } from './types';
 
 export function parseVarsBlock(raw: string): VarsPatch {
   const trimmed = raw.trim();
-  console.log('[parseVarsBlock] len:', raw.length, 'trimmed:', trimmed.length, 'preview:', trimmed.slice(0, 150));
   if (!trimmed) return { merge: {} };
 
   // 1) New format: <JSONPatch>[...]</JSONPatch> (with optional <Analysis> before it)
   const jpMatch = trimmed.match(/<JSONPatch>\s*([\s\S]*?)\s*<\/JSONPatch>/);
   if (jpMatch) {
-    console.log('[parseVarsBlock] matched <JSONPatch> tag');
     try {
       const parsed = JSON.parse(jpMatch[1]);
-      if (Array.isArray(parsed)) {
-        console.log('[parseVarsBlock] → patches:', parsed.length);
-        return { merge: {}, patches: parsed as JsonPatchOp[] };
-      }
-    } catch { console.log('[parseVarsBlock] JSONPatch parse fail'); }
+      if (Array.isArray(parsed)) return { merge: {}, patches: parsed as JsonPatchOp[] };
+    } catch { /* fall through */ }
   }
 
   // 2) Legacy format: pure JSON (array → patches, object → deep merge)
   try {
     const parsed = JSON.parse(trimmed);
-    if (Array.isArray(parsed)) {
-      console.log('[parseVarsBlock] → legacy patches:', parsed.length);
-      return { merge: {}, patches: parsed as JsonPatchOp[] };
-    }
-    if (parsed && typeof parsed === 'object') {
-      console.log('[parseVarsBlock] → merge, keys:', Object.keys(parsed).length);
-      return { merge: parsed as Record<string, any> };
-    }
-  } catch { console.log('[parseVarsBlock] legacy parse fail'); }
+    if (Array.isArray(parsed)) return { merge: {}, patches: parsed as JsonPatchOp[] };
+    if (parsed && typeof parsed === 'object') return { merge: parsed as Record<string, any> };
+  } catch { /* fall through */ }
 
-  console.log('[parseVarsBlock] → EMPTY');
   return { merge: {} };
 }
 
@@ -84,7 +72,7 @@ function resolveParent(
 
 function patchReplace(state: Record<string, any>, op: JsonPatchOp): void {
   const r = resolveParent(state, op.path);
-  if (!r) { console.log('[patchReplace] FAIL path:', op.path); return; }
+  if (!r) return;
   if (Array.isArray(r.parent) && typeof r.key === 'number') {
     r.parent[r.key] = op.value;
   } else if (!Array.isArray(r.parent)) {
@@ -94,7 +82,7 @@ function patchReplace(state: Record<string, any>, op: JsonPatchOp): void {
 
 function patchDelta(state: Record<string, any>, op: JsonPatchOp): void {
   const r = resolveParent(state, op.path);
-  if (!r) { console.log('[patchDelta] FAIL path:', op.path); return; }
+  if (!r) return;
   const current = r.parent[r.key];
   if (typeof current === 'number' && typeof op.value === 'number') {
     r.parent[r.key] = current + op.value;
