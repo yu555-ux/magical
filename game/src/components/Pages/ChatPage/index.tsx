@@ -27,7 +27,6 @@ export default function ChatPage({
   const [saveOpen, setSaveOpen] = useState(false);
   const [promptOpen, setPromptOpen] = useState(false);
   const [rawViewOpen, setRawViewOpen] = useState(false);
-  const [rawViewPos, setRawViewPos] = useState({ x: 0, y: 0 });
   const [rawContent, setRawContent] = useState('');
   const [editedRaw, setEditedRaw] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
@@ -341,7 +340,6 @@ export default function ChatPage({
             >
               <button
                 onClick={() => {
-                  setRawViewPos({ x: ctxMenu.x, y: ctxMenu.y });
                   setCtxMenu({ x: 0, y: 0, visible: false });
                   const content = latestAssistant?.content ?? '';
                   setRawContent(content);
@@ -371,7 +369,7 @@ export default function ChatPage({
       {/* ── Raw XML View Modal ── */}
       <AnimatePresence>
         {rawViewOpen && (
-          <div className="fixed inset-0 z-[140] p-4">
+          <div className="fixed inset-0 z-[140] flex items-center justify-center p-8">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -384,12 +382,7 @@ export default function ChatPage({
               animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
               exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              style={{
-                position: 'absolute',
-                left: Math.min(rawViewPos.x, window.innerWidth - 740),
-                top: Math.min(rawViewPos.y + 12, window.innerHeight - 500),
-              }}
-              className="w-[720px] max-h-[80vh] glass-panel border-glow overflow-hidden flex flex-col"
+              className="relative w-full max-w-[960px] h-[85vh] glass-panel border-glow overflow-hidden flex flex-col"
             >
               <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/40 to-transparent" />
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-aether-border/30 bg-aether-cyan/[0.03] shrink-0">

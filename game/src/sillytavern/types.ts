@@ -221,8 +221,8 @@ export interface AppSettings {
   scenario?: string;
 }
 
-export const DEFAULT_TAGS = ['maintext', 'option', 'history', 'vars', 'thinking', 'think'] as const;
-export const DEFAULT_OPAQUE_TAGS = ['thinking', 'think'] as const;
+export const DEFAULT_TAGS = ['maintext', 'option', 'history', 'vars', 'thinking', 'think', 'Analysis', 'JSONPatch'] as const;
+export const DEFAULT_OPAQUE_TAGS = ['thinking', 'think', 'Analysis'] as const;
 
 export const DEFAULT_PRESET_BLOCKS: PresetBlock[] = [
   {

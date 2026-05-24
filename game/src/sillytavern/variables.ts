@@ -159,9 +159,12 @@ export function aggregateEvents(events: ParserEvent[]): ParsedTags {
       if (ev.tag === 'thinking' || ev.tag === 'think') parsed.thinking = ev.full;
       else if (ev.tag === 'maintext') parsed.maintext = ev.full;
       else if (ev.tag === 'history') parsed.history = parseHistoryBlock(ev.full);
+      else if (ev.tag === 'JSONPatch') parsed.unknown['JSONPatch'] = ev.full;
       else if (ev.tag === 'vars') {
         parsed.varsRaw = ev.full;
-        parsed.varsCommands = parseVarsBlock(ev.full);
+        // Prefer JSONPatch sub-tag content over raw vars content
+        const patchSource = parsed.unknown['JSONPatch'] || ev.full;
+        parsed.varsCommands = parseVarsBlock(patchSource);
       } else if (ev.tag === 'option') {
         // option-line events accumulate options below
       } else {
