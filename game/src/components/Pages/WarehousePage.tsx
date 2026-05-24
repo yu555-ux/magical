@@ -165,7 +165,6 @@ export default function WarehousePage() {
                 <motion.button
                   key={item.name}
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
-                  whileHover={{ y: -3 }}
                   className={`relative p-5 text-left group transition-all overflow-hidden clickable ${cardStyle} hover:brightness-110`}
                 >
                   <h3 className={`font-display font-bold text-lg group-hover:text-aether-cyan transition-colors pr-4 truncate ${nameColor}`}>
