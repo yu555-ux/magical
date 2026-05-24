@@ -151,7 +151,7 @@ export default function WarehousePage() {
             <p className="text-white/20 text-sm font-display tracking-wide">无匹配物品</p>
           </div>
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-[3px]">
             {filtered.map(item => {
               const isItem = item.category === '物品';
               const rank = item.data?.等级 || '';
