@@ -10,18 +10,18 @@ type CatFilter = '全部' | '灵宝' | '诡物' | '物品';
 type WarehouseItem = { name: string; category: string; data: any };
 
 const ITEM_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string; card: string }> = {
-  灭世: { text: 'text-red-500',   border: 'border-red-500/60',   glow: 'shadow-[0_0_24px_rgba(239,68,68,0.6)]',    bg: 'bg-red-500/12',   card: 'border-red-500/50 bg-red-500/[0.08] shadow-[0_0_24px_rgba(239,68,68,0.35)]' },
-  绝域: { text: 'text-fuchsia-400',border: 'border-fuchsia-400/50',glow: 'shadow-[0_0_18px_rgba(217,70,219,0.45)]',bg: 'bg-fuchsia-400/10',card: 'border-fuchsia-400/40 bg-fuchsia-400/[0.06] shadow-[0_0_16px_rgba(217,70,219,0.25)]' },
-  倾国: { text: 'text-violet-400',border: 'border-violet-400/50',glow: 'shadow-[0_0_14px_rgba(167,139,250,0.4)]',bg: 'bg-violet-400/10',card: 'border-violet-400/35 bg-violet-400/[0.05] shadow-[0_0_14px_rgba(167,139,250,0.2)]' },
-  祸城: { text: 'text-orange-400',border: 'border-orange-400/50',glow: 'shadow-[0_0_14px_rgba(251,146,60,0.4)]', bg: 'bg-orange-400/10',card: 'border-orange-400/35 bg-orange-400/[0.05] shadow-[0_0_12px_rgba(251,146,60,0.22)]' },
-  凶煞: { text: 'text-amber-400', border: 'border-amber-400/50', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.35)]',bg: 'bg-amber-400/10', card: 'border-amber-400/30 bg-amber-400/[0.04] shadow-[0_0_10px_rgba(251,191,36,0.18)]' },
-  微末: { text: 'text-slate-400', border: 'border-slate-400/30', glow: 'shadow-[0_0_6px_rgba(148,163,184,0.15)]',bg: 'bg-slate-400/5',  card: 'border-slate-400/20 bg-slate-400/[0.02]' },
+  灭世: { text: 'text-red-500',   border: 'border-red-500/60',   glow: 'shadow-[0_0_24px_rgba(239,68,68,0.6)]',    bg: 'bg-red-500/20',   card: 'border-red-500/50 bg-red-500/20 shadow-[0_0_24px_rgba(239,68,68,0.35)]' },
+  绝域: { text: 'text-fuchsia-400',border: 'border-fuchsia-400/50',glow: 'shadow-[0_0_18px_rgba(217,70,219,0.45)]',bg: 'bg-fuchsia-400/18',card: 'border-fuchsia-400/40 bg-fuchsia-400/18 shadow-[0_0_16px_rgba(217,70,219,0.25)]' },
+  倾国: { text: 'text-violet-400',border: 'border-violet-400/50',glow: 'shadow-[0_0_14px_rgba(167,139,250,0.4)]',bg: 'bg-violet-400/16', card: 'border-violet-400/35 bg-violet-400/16 shadow-[0_0_14px_rgba(167,139,250,0.2)]' },
+  祸城: { text: 'text-orange-400',border: 'border-orange-400/50',glow: 'shadow-[0_0_14px_rgba(251,146,60,0.4)]', bg: 'bg-orange-400/14', card: 'border-orange-400/35 bg-orange-400/14 shadow-[0_0_12px_rgba(251,146,60,0.22)]' },
+  凶煞: { text: 'text-amber-400', border: 'border-amber-400/50', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.35)]',bg: 'bg-amber-400/12', card: 'border-amber-400/30 bg-amber-400/12 shadow-[0_0_10px_rgba(251,191,36,0.18)]' },
+  微末: { text: 'text-slate-400', border: 'border-slate-400/30', glow: 'shadow-[0_0_6px_rgba(148,163,184,0.15)]',bg: 'bg-slate-400/10', card: 'border-slate-400/20 bg-slate-400/10' },
 };
 
 const CATEGORY_STYLES: Record<string, { border: string; bg: string; text: string }> = {
-  灵宝: { border: 'border-aether-cyan/30 hover:border-aether-cyan/50', bg: 'bg-aether-cyan/[0.03]', text: 'text-aether-cyan' },
-  诡物: { border: 'border-aether-purple/30 hover:border-aether-purple/50', bg: 'bg-aether-purple/[0.03]', text: 'text-aether-purple' },
-  物品: { border: 'border-white/[0.06] hover:border-white/[0.12]', bg: 'bg-white/[0.01]', text: 'text-white/60' },
+  灵宝: { border: 'border-cyan-400/35 hover:border-cyan-400/55', bg: 'bg-cyan-950/50', text: 'text-cyan-300' },
+  诡物: { border: 'border-purple-400/35 hover:border-purple-400/55', bg: 'bg-purple-950/40', text: 'text-purple-300' },
+  物品: { border: 'border-white/15 hover:border-white/25', bg: 'bg-white/[0.06]', text: 'text-white/70' },
 };
 
 const CatIcon = (cat: string) => cat === '灵宝' ? Diamond : cat === '诡物' ? Skull : Package;
@@ -166,7 +166,7 @@ export default function WarehousePage() {
                   key={item.name}
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
                   whileHover={{ y: -3 }}
-                  className={`relative p-5 text-left group transition-all overflow-hidden clickable ${cardStyle} hover:brightness-110`}
+                  className={`relative p-5 text-left group transition-all duration-200 overflow-hidden clickable ${cardStyle} hover:brightness-110 hover:scale-[1.02]`}
                 >
                   <h3 className={`font-display font-bold text-lg group-hover:text-aether-cyan transition-colors pr-4 truncate ${nameColor}`}>
                     {item.name}
@@ -192,7 +192,7 @@ export default function WarehousePage() {
                 <motion.button
                   key={item.name}
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
-                  className={`w-full flex items-center gap-4 px-4 py-3 text-left transition-all clickable hover:brightness-110 ${rowStyle}`}
+                  className={`w-full flex items-center gap-4 px-4 py-3 text-left transition-all duration-200 clickable hover:brightness-110 hover:scale-[1.01] ${rowStyle}`}
                 >
                   {(() => { const I = CatIcon(item.category); return <I size={16} className="text-white/15 shrink-0" />; })()}
                   <div className="flex-1 min-w-0">
