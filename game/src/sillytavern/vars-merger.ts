@@ -3,6 +3,19 @@ import type { VarsPatch, JsonPatchOp } from './types';
 export function parseVarsBlock(raw: string): VarsPatch {
   const trimmed = raw.trim();
   if (!trimmed) return { merge: {} };
+
+  // 1) New format: <JSONPatch>[...]</JSONPatch> (with optional <Analysis> before it)
+  const jpMatch = trimmed.match(/<JSONPatch>\s*([\s\S]*?)\s*<\/JSONPatch>/);
+  if (jpMatch) {
+    try {
+      const parsed = JSON.parse(jpMatch[1]);
+      if (Array.isArray(parsed)) {
+        return { merge: {}, patches: parsed as JsonPatchOp[] };
+      }
+    } catch { /* fall through */ }
+  }
+
+  // 2) Legacy format: pure JSON (array → patches, object → deep merge)
   try {
     const parsed = JSON.parse(trimmed);
     if (Array.isArray(parsed)) {
@@ -11,10 +24,9 @@ export function parseVarsBlock(raw: string): VarsPatch {
     if (parsed && typeof parsed === 'object') {
       return { merge: parsed as Record<string, any> };
     }
-    return { merge: {} };
-  } catch {
-    return { merge: {} };
-  }
+  } catch { /* fall through */ }
+
+  return { merge: {} };
 }
 
 export function applyVarsPatch(
