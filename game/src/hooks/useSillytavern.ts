@@ -6,6 +6,7 @@ import { assemblePrompt } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, type AppSettings, type ChatSession, type ChatMessage } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
+import { tickAllFemales } from '../sillytavern/physiology';
 
 const db = getDatabase();
 
@@ -187,6 +188,35 @@ export function useSillytavern() {
           }
         } catch { /* fallback to primary vars */ }
       }
+    }
+
+    // 生理系统 tick（双轨：现实 + 梦境）
+    const world = nextVariables?.['世界'];
+    if (world) {
+      const sysKey = '_生理系统';
+      if (!nextVariables[sysKey]) nextVariables[sysKey] = {};
+
+      // 现实轨 — 非梦境 NPC 走现实时钟
+      const realTime = world?.['现实']?.['时间'];
+      if (realTime) {
+        const lastReal = nextVariables[sysKey]?.['上次现实tick日期'] ?? null;
+        nextVariables[sysKey]['上次现实tick日期'] = tickAllFemales(
+          nextVariables, realTime, typeof lastReal === 'string' ? lastReal : null,
+          { dreamOnly: false },
+        );
+      }
+
+      // 梦境轨 — 梦境 NPC 走梦境时钟
+      const dreamTime = world?.['梦境存档']?.['时间'];
+      if (dreamTime) {
+        const lastDream = nextVariables[sysKey]?.['上次梦境tick日期'] ?? null;
+        nextVariables[sysKey]['上次梦境tick日期'] = tickAllFemales(
+          nextVariables, dreamTime, typeof lastDream === 'string' ? lastDream : null,
+          { dreamOnly: true },
+        );
+      }
+
+      snapshot = JSON.parse(JSON.stringify(nextVariables));
     }
 
     const assistantMsg: ChatMessage = {

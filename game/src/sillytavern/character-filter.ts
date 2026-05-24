@@ -22,6 +22,35 @@ function hasNonEmptyItems(items: Record<string, any> | undefined): boolean {
   );
 }
 
+// ── 子宫过滤（精简为 AI 叙事所需字段） ──
+
+function filterUterusForAI(uterus: Record<string, any>): Record<string, any> | null {
+  if (!uterus || typeof uterus !== 'object') return null;
+  const result: Record<string, any> = {};
+  const cycle = uterus['生理周期'];
+  const semen = uterus['宫内精液'];
+  const preg = uterus['怀孕状态'];
+
+  if (cycle?.['当前阶段']) {
+    result['生理周期'] = { 当前阶段: cycle['当前阶段'] };
+  }
+  if (semen?.['总量'] > 0) {
+    result['宫内精液'] = {
+      总量: semen['总量'],
+      来源: semen['来源'],
+      注入时间: semen['注入时间'],
+    };
+  }
+  if (preg?.['状态'] && preg['状态'] !== '未孕') {
+    result['怀孕状态'] = {
+      状态: preg['状态'],
+      父方: preg['父方'],
+      受孕日期: preg['受孕日期'],
+    };
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
 function isMentioned(charData: Record<string, any>, contextStr: string): boolean {
   const terms = charData['检索词'];
   if (!terms || !Array.isArray(terms)) return false;
@@ -97,6 +126,10 @@ function buildL0(
   if (gender === 'female' && charData['身体开发']) {
     n['身体开发'] = charData['身体开发'];
   }
+  if (gender === 'female' && charData['子宫']) {
+    const fu = filterUterusForAI(charData['子宫']);
+    if (fu) n['子宫'] = fu;
+  }
 
   if (type === 'stranger') {
     if (charData['技能'] && Object.keys(charData['技能']).length > 0) {
@@ -141,6 +174,10 @@ function buildL1(
 
   if (gender === 'female' && charData['身体开发']) {
     n['身体开发'] = charData['身体开发'];
+  }
+  if (gender === 'female' && charData['子宫']) {
+    const fu = filterUterusForAI(charData['子宫']);
+    if (fu) n['子宫'] = fu;
   }
 
   return n;
