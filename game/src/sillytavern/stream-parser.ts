@@ -8,6 +8,9 @@
  *                 nested `<` re-enters BUFFER_TAG so closing tag can be detected.
  *   OPAQUE      — inside `thinking`/`think`-style tag; chars emit as `tag-chunk`
  *                 but inner `<...>` is NOT parsed; we only watch for `</tagname>`.
+ *
+ * Tag nesting: when a registered tag opens inside another, the parent state is
+ * pushed onto a stack and restored when the child closes.
  */
 
 export type ParserEvent =
@@ -19,6 +22,13 @@ export type ParserEvent =
 
 type State = 'NORMAL' | 'BUFFER_TAG' | 'TAGGED' | 'OPAQUE';
 
+interface StackFrame {
+  state: State;
+  currentTag: string;
+  currentBuf: string;
+  optionBuf: string;
+}
+
 const PARTIAL_LIMIT = 64;
 
 export class StreamTagParser {
@@ -28,6 +38,7 @@ export class StreamTagParser {
   private currentBuf = '';
   private optionBuf = '';
   private events: ParserEvent[] = [];
+  private stack: StackFrame[] = [];
 
   constructor(
     private readonly tags: string[],
@@ -46,7 +57,8 @@ export class StreamTagParser {
       this.events.push({ type: 'raw', chunk: '<' + this.partial });
       this.partial = '';
     }
-    if (this.state === 'TAGGED' || this.state === 'OPAQUE') {
+    // Flush from innermost to outermost
+    while (this.state === 'TAGGED' || this.state === 'OPAQUE') {
       if (this.state === 'TAGGED' && this.currentTag === 'option' && this.optionBuf) {
         this.events.push({ type: 'option-line', line: this.optionBuf });
         this.optionBuf = '';
@@ -54,9 +66,43 @@ export class StreamTagParser {
       this.events.push({ type: 'tag-close', tag: this.currentTag, full: this.currentBuf });
       this.currentBuf = '';
       this.currentTag = '';
+      this.restoreParent();
     }
     this.state = 'NORMAL';
     return this.events;
+  }
+
+  reset() {
+    this.state = 'NORMAL';
+    this.partial = '';
+    this.currentTag = '';
+    this.currentBuf = '';
+    this.optionBuf = '';
+    this.stack = [];
+  }
+
+  private pushParent() {
+    this.stack.push({
+      state: this.state,
+      currentTag: this.currentTag,
+      currentBuf: this.currentBuf,
+      optionBuf: this.optionBuf,
+    });
+  }
+
+  private restoreParent() {
+    if (this.stack.length > 0) {
+      const frame = this.stack.pop()!;
+      this.state = frame.state;
+      this.currentTag = frame.currentTag;
+      this.currentBuf = frame.currentBuf;
+      this.optionBuf = frame.optionBuf;
+    } else {
+      this.state = 'NORMAL';
+      this.currentTag = '';
+      this.currentBuf = '';
+      this.optionBuf = '';
+    }
   }
 
   private consumeChar(ch: string) {
@@ -90,9 +136,9 @@ export class StreamTagParser {
         const full = this.currentBuf.slice(0, -closeMarker.length);
         this.events.push({ type: 'tag-chunk', tag: this.currentTag, chunk: ch });
         this.events.push({ type: 'tag-close', tag: this.currentTag, full });
-        this.state = 'NORMAL';
         this.currentBuf = '';
         this.currentTag = '';
+        this.restoreParent();
       } else {
         this.events.push({ type: 'tag-chunk', tag: this.currentTag, chunk: ch });
       }
@@ -124,6 +170,7 @@ export class StreamTagParser {
 
     if (isClose) {
       if (this.currentTag && this.currentTag === name) {
+        // Matching close for current tag
         if (this.currentTag === 'option' && this.optionBuf) {
           this.events.push({ type: 'option-line', line: this.optionBuf });
           this.optionBuf = '';
@@ -131,8 +178,35 @@ export class StreamTagParser {
         this.events.push({ type: 'tag-close', tag: this.currentTag, full: this.currentBuf });
         this.currentBuf = '';
         this.currentTag = '';
-        this.state = 'NORMAL';
+        this.restoreParent();
+      } else if (this.stack.some(f => f.currentTag === name)) {
+        // Close tag matches a parent — auto-close current tag, then retry
+        if (this.currentTag && this.currentBuf) {
+          if (this.currentTag === 'option' && this.optionBuf) {
+            this.events.push({ type: 'option-line', line: this.optionBuf });
+            this.optionBuf = '';
+          }
+          this.events.push({ type: 'tag-close', tag: this.currentTag, full: this.currentBuf });
+        }
+        this.currentBuf = '';
+        this.currentTag = '';
+        this.restoreParent();
+        // Re-process the close tag against the now-restored parent
+        if (this.currentTag === name) {
+          if (this.currentTag === 'option' && this.optionBuf) {
+            this.events.push({ type: 'option-line', line: this.optionBuf });
+            this.optionBuf = '';
+          }
+          this.events.push({ type: 'tag-close', tag: this.currentTag, full: this.currentBuf });
+          this.currentBuf = '';
+          this.currentTag = '';
+          this.restoreParent();
+        } else {
+          this.events.push({ type: 'raw', chunk: `</${name}>` });
+          this.state = 'NORMAL';
+        }
       } else {
+        // Stray close
         this.events.push({ type: 'raw', chunk: `</${name}>` });
         this.state = 'NORMAL';
       }
@@ -143,6 +217,11 @@ export class StreamTagParser {
       this.events.push({ type: 'raw', chunk: `<${name}>` });
       this.state = 'NORMAL';
       return;
+    }
+
+    // Opening a nested tag — push parent onto stack
+    if (this.state === 'TAGGED' || this.state === 'OPAQUE') {
+      this.pushParent();
     }
 
     this.currentTag = name;
