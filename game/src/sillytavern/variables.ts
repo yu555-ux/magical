@@ -4,7 +4,7 @@
 
 import type { ChatSession, ParsedTags, SavePoint } from './types';
 import type { ParserEvent } from './stream-parser';
-import { parseVarsBlock, applyVarsPatch } from './vars-merger';
+import { parseVarsBlock, applyVarsPatch, applyJsonPatch } from './vars-merger';
 
 export function extractVariables(text: string): { cleanedText: string; updates: Record<string, string | number> } {
   const updates: Record<string, string | number> = {};
@@ -30,7 +30,7 @@ export function formatVariablesForPrompt(variables: Record<string, any>): string
   if (!variables || Object.keys(variables).length === 0) return '';
   const lines: string[] = [];
   treeFormat(variables, lines, 0);
-  return `[当前状态]\n${lines.join('\n')}`;
+  return lines.join('\n');
 }
 
 function treeFormat(obj: Record<string, any>, lines: string[], depth: number) {
@@ -43,6 +43,53 @@ function treeFormat(obj: Record<string, any>, lines: string[], depth: number) {
       lines.push(`${indent}${key}: [${value.join(', ')}]`);
     } else {
       lines.push(`${indent}${key}: ${value}`);
+    }
+  }
+}
+
+// ── Variable list (type reference for AI) ──
+
+const SKIP_INTERNAL = new Set(['检索词', '梦境NPC', '方位']);
+
+function leafType(v: any): string {
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return 'string[]';
+  switch (typeof v) {
+    case 'string': return 'string';
+    case 'number': return 'number';
+    case 'boolean': return 'boolean';
+    default: return 'object';
+  }
+}
+
+export function formatVarsList(variables: Record<string, any>): string {
+  if (!variables || Object.keys(variables).length === 0) return '';
+  const lines: string[] = [];
+  varsListWalk(variables, lines, 0);
+  return lines.join('\n');
+}
+
+function varsListWalk(obj: Record<string, any>, lines: string[], depth: number): void {
+  const indent = '  '.repeat(depth);
+
+  for (const key of Object.keys(obj)) {
+    if (SKIP_INTERNAL.has(key)) continue;
+    const value = obj[key];
+
+    if (value === null) {
+      lines.push(`${indent}${key}: null`);
+    } else if (Array.isArray(value)) {
+      lines.push(`${indent}${key}: string[]`);
+    } else if (typeof value === 'object') {
+      const visibleKeys = Object.keys(value).filter(k => !SKIP_INTERNAL.has(k));
+      if (visibleKeys.length === 0) {
+        lines.push(`${indent}${key}: object`);
+      } else {
+        lines.push(`${indent}${key}:`);
+        varsListWalk(value, lines, depth + 1);
+      }
+    } else {
+      lines.push(`${indent}${key}: ${leafType(value)}`);
     }
   }
 }
@@ -384,7 +431,9 @@ export function applyParsedToChat(
   current: Record<string, any>,
   parsed: ParsedTags,
 ): { nextVariables: Record<string, any>; snapshot: Record<string, any> } {
-  const next = applyVarsPatch(current, parsed.varsCommands);
+  const next = parsed.varsCommands.patches?.length
+    ? applyJsonPatch(current, parsed.varsCommands.patches)
+    : applyVarsPatch(current, parsed.varsCommands);
   const mapTree = next['地图'];
   if (mapTree) {
     normalizeLocations(next, mapTree);

@@ -3,7 +3,7 @@ import { INJECTION_ANCHORS, INJECTION_ANCHOR_RULES } from './types';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
 import type { ScanResult, MatchedEntry } from './lorebookEngine';
 import { processMapForPrompt } from './map-filter';
-import { resolvePath } from './variables';
+import { resolvePath, formatVariablesForPrompt } from './variables';
 import { filterCharacterGroup, formatCharacterGroup } from './character-filter';
 
 export interface PromptSection {
@@ -32,6 +32,8 @@ export interface AssembleOptions {
   isDream?: boolean;
   /** Full character tree from chat variables (主要人物) */
   characters?: Record<string, any>;
+  /** Full variable tree for {{VARS_LIST}} macro */
+  fullVariables?: Record<string, any>;
 }
 
 export interface AssembleResult {
@@ -86,6 +88,9 @@ function resolveContent(
   result = result.replace(/\{\{FEMALE_NORMAL\}\}/g, macroCtx.femaleNormalText ?? '');
   result = result.replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '');
   result = result.replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '');
+
+  // 6c) {{VARS_LIST}} → full variable tree with values
+  result = result.replace(/\{\{VARS_LIST\}\}/g, macroCtx.varsListText ?? '');
 
   // 7) Strip {{trim}}
   result = result.replace(/\{\{trim\}\}/gi, '');
@@ -176,6 +181,11 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
     const mn = filterCharacterGroup(options.characters['男性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'male', 'normal', contextStr);
     macroCtx.maleNormalText = formatCharacterGroup(mn);
+  }
+
+  // ── Pre-compute vars list for {{VARS_LIST}} macro ──
+  if (options.fullVariables) {
+    macroCtx.varsListText = formatVariablesForPrompt(options.fullVariables);
   }
 
   // ── Scan lorebooks ──
@@ -391,6 +401,7 @@ interface MacroContext {
   femaleNormalText?: string;
   maleStrangerText?: string;
   maleNormalText?: string;
+  varsListText?: string;
 }
 
 export function replaceMacros(template: string, context: MacroContext): string {
@@ -409,6 +420,7 @@ export const SUPPORTED_MACROS = [
   { name: '{{FEMALE_NORMAL}}', description: '女性普通人信息（按位置距离过滤）' },
   { name: '{{MALE_STRANGER}}', description: '男性异人信息（按位置距离过滤）' },
   { name: '{{MALE_NORMAL}}', description: '男性普通人信息（按位置距离过滤）' },
+  { name: '{{VARS_LIST}}', description: '当前全部变量及值（树形缩进）' },
   { name: '{{setvar::name::value}}', description: '设置预设变量' },
   { name: '{{addvar::name::value}}', description: '追加预设变量' },
   { name: '{{getvar::name}}', description: '获取预设变量值' },

@@ -10,3 +10,5 @@ coverage/
 *.db
 *.sqlite
 .playwright-mcp/
+
+.vercel

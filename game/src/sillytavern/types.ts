@@ -357,8 +357,15 @@ export interface ParsedTags {
   unknown: Record<string, string>;
 }
 
+export interface JsonPatchOp {
+  op: 'replace' | 'delta' | 'insert' | 'remove';
+  path: string;
+  value?: any;
+}
+
 export interface VarsPatch {
   merge: Record<string, any>;
+  patches?: JsonPatchOp[];
 }
 
 export type Task = 'story' | 'summary' | 'vars';
