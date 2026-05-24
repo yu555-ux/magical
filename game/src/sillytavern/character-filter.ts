@@ -36,7 +36,7 @@ function filterUterusForAI(uterus: Record<string, any>): Record<string, any> | n
   }
   if (semen?.['总量'] > 0) {
     result['宫内精液'] = {
-      总量: semen['总量'],
+      总量: `${semen['总量']}ml`,
       来源: semen['来源'],
       注入时间: semen['注入时间'],
     };

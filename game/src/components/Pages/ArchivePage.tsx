@@ -309,7 +309,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
   const uterusHasSemen = uterusSemen?.['总量'] && uterusSemen['总量'] > 0;
   const uterusTitle = hasUterus
     ? (uterusPregActive
-        ? `子宫 · ${uterusPreg!['状态']}` + (uterusPreg!['父方'] ? ` · ${uterusPreg!['父方']}` : '')
+        ? `子宫 · ${uterusPreg!['状态']}`
         : `子宫 · ${uterusPhase}` + (uterusHasSemen ? ` · 体内 ${uterusSemen!['总量']}ml` : ''))
     : '';
 
@@ -590,11 +590,6 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
                           <span>受孕 <span className="text-white/40">{uterus?.['怀孕状态']?.['受孕日期'] || '—'}</span></span>
                         </div>
                       </div>
-                      {/* 孕周进度环 */}
-                      <div className="shrink-0 w-12 h-12 rounded-full border-2 border-rose-400/15 flex items-center justify-center bg-black/40">
-                        <span className="text-sm font-display font-bold text-rose-300/70">{Math.min(pregWeeks, 38)}</span>
-                        <span className="text-[7px] font-mono text-rose-300/25 ml-0.5 mt-1">/38w</span>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -633,13 +628,10 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
                       <span className="text-[8px]">💧</span>
                       <span className="text-[10px] font-mono tracking-wider text-amber-200/35 uppercase">宫内精液</span>
                     </div>
-                    <span className="text-sm font-display font-bold text-amber-200/70">{uterusSemen!['总量']} ml</span>
-                    {uterusSemen!['来源'] && (
-                      <>
-                        <span className="text-white/10">·</span>
-                        <span className="text-[10px] font-mono text-white/30">{uterusSemen!['来源']}</span>
-                      </>
-                    )}
+                    <span className="text-sm font-display font-bold text-amber-200/70">
+                      {uterusSemen!['总量']}ml
+                      {uterusSemen!['来源'] && <span className="text-amber-200/40 font-normal">（{uterusSemen!['来源']}）</span>}
+                    </span>
                     <div className="flex-1" />
                     {uterus?.['宫内精液']?.['注入时间'] && (
                       <span className="text-[9px] font-mono text-white/12">{uterus['宫内精液']['注入时间']}</span>
