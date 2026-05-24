@@ -165,7 +165,7 @@ export default function WarehousePage() {
                 <motion.button
                   key={item.name}
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
-                  className={`relative p-5 text-left group transition-all overflow-hidden clickable ${cardStyle} hover:brightness-110`}
+                  className={`relative p-5 text-left group transition-all duration-200 overflow-hidden clickable ${cardStyle} hover:brightness-110 hover:scale-[1.02] hover:z-10`}
                 >
                   <h3 className={`font-display font-bold text-lg group-hover:text-aether-cyan transition-colors pr-4 truncate ${nameColor}`}>
                     {item.name}
