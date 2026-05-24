@@ -344,7 +344,7 @@ export default function PersonaPage() {
                   onClick={() => setSelectedSkill({ name: skillName, ...skillData })}
                   whileHover={{ y: -4 }}
                   transition={{ type: 'spring', damping: 15, stiffness: 250 }}
-                  className="relative p-5 bg-cyan-950/55 border border-cyan-400/25 hover:border-cyan-400/50 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] text-left group transition-all duration-200 overflow-hidden clickable shadow-[0_0_20px_rgba(6,182,212,0.06)]"
+                  className="relative p-5 bg-cyan-950/55 border border-cyan-400/25 hover:border-cyan-400/50 hover:scale-[1.02] hover:z-10 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] text-left group transition-all duration-200 overflow-hidden clickable shadow-[0_0_20px_rgba(6,182,212,0.06)]"
                 >
                   <div className="absolute top-3 right-3 flex items-center gap-1.5">
                     {(() => {
@@ -417,7 +417,7 @@ export default function PersonaPage() {
                     onClick={() => setSelectedItem({ name: itemName, category, ...itemData })}
                     whileHover={{ y: -4 }}
                     transition={{ type: 'spring', damping: 15, stiffness: 250 }}
-                    className="relative p-5 bg-cyan-950/55 border border-cyan-400/25 hover:border-cyan-400/50 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] text-left group transition-all duration-200 overflow-hidden clickable shadow-[0_0_20px_rgba(6,182,212,0.06)]"
+                    className="relative p-5 bg-cyan-950/55 border border-cyan-400/25 hover:border-cyan-400/50 hover:scale-[1.02] hover:z-10 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] text-left group transition-all duration-200 overflow-hidden clickable shadow-[0_0_20px_rgba(6,182,212,0.06)]"
                   >
                     <div className="absolute top-3 right-3">
                       {irs && (
