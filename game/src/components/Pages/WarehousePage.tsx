@@ -166,7 +166,7 @@ export default function WarehousePage() {
                   key={item.name}
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
                   whileHover={{ y: -3 }}
-                  className={`relative p-5 text-left group transition-all duration-200 overflow-hidden clickable ${cardStyle} hover:brightness-110 hover:scale-[1.02]`}
+                  className={`relative p-5 text-left group transition-all overflow-hidden clickable ${cardStyle} hover:brightness-110`}
                 >
                   <h3 className={`font-display font-bold text-lg group-hover:text-aether-cyan transition-colors pr-4 truncate ${nameColor}`}>
                     {item.name}
@@ -192,7 +192,7 @@ export default function WarehousePage() {
                 <motion.button
                   key={item.name}
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
-                  className={`w-full flex items-center gap-4 px-4 py-3 text-left transition-all duration-200 clickable hover:brightness-110 hover:scale-[1.01] ${rowStyle}`}
+                  className={`w-full flex items-center gap-4 px-4 py-3 text-left transition-all clickable hover:brightness-110 ${rowStyle}`}
                 >
                   {(() => { const I = CatIcon(item.category); return <I size={16} className="text-white/15 shrink-0" />; })()}
                   <div className="flex-1 min-w-0">
