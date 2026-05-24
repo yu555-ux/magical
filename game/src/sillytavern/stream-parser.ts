@@ -87,7 +87,7 @@ export class StreamTagParser {
 
   private pushParent() {
     this.stack.push({
-      state: this.state,
+      state: this.priorState,
       currentTag: this.currentTag,
       currentBuf: this.currentBuf,
       optionBuf: this.optionBuf,
