@@ -2,30 +2,36 @@ import type { VarsPatch, JsonPatchOp } from './types';
 
 export function parseVarsBlock(raw: string): VarsPatch {
   const trimmed = raw.trim();
+  console.log('[parseVarsBlock] len:', raw.length, 'trimmed:', trimmed.length, 'preview:', trimmed.slice(0, 150));
   if (!trimmed) return { merge: {} };
 
   // 1) New format: <JSONPatch>[...]</JSONPatch> (with optional <Analysis> before it)
   const jpMatch = trimmed.match(/<JSONPatch>\s*([\s\S]*?)\s*<\/JSONPatch>/);
   if (jpMatch) {
+    console.log('[parseVarsBlock] matched <JSONPatch> tag');
     try {
       const parsed = JSON.parse(jpMatch[1]);
       if (Array.isArray(parsed)) {
+        console.log('[parseVarsBlock] → patches:', parsed.length);
         return { merge: {}, patches: parsed as JsonPatchOp[] };
       }
-    } catch { /* fall through */ }
+    } catch { console.log('[parseVarsBlock] JSONPatch parse fail'); }
   }
 
   // 2) Legacy format: pure JSON (array → patches, object → deep merge)
   try {
     const parsed = JSON.parse(trimmed);
     if (Array.isArray(parsed)) {
+      console.log('[parseVarsBlock] → legacy patches:', parsed.length);
       return { merge: {}, patches: parsed as JsonPatchOp[] };
     }
     if (parsed && typeof parsed === 'object') {
+      console.log('[parseVarsBlock] → merge, keys:', Object.keys(parsed).length);
       return { merge: parsed as Record<string, any> };
     }
-  } catch { /* fall through */ }
+  } catch { console.log('[parseVarsBlock] legacy parse fail'); }
 
+  console.log('[parseVarsBlock] → EMPTY');
   return { merge: {} };
 }
 

@@ -159,12 +159,16 @@ export function aggregateEvents(events: ParserEvent[]): ParsedTags {
       if (ev.tag === 'thinking' || ev.tag === 'think') parsed.thinking = ev.full;
       else if (ev.tag === 'maintext') parsed.maintext = ev.full;
       else if (ev.tag === 'history') parsed.history = parseHistoryBlock(ev.full);
-      else if (ev.tag === 'JSONPatch') parsed.unknown['JSONPatch'] = ev.full;
+      else if (ev.tag === 'JSONPatch') {
+        console.log('[aggregateEvents] JSONPatch tag-close, full length:', ev.full.length, 'preview:', ev.full.slice(0, 100));
+        parsed.unknown['JSONPatch'] = ev.full;
+      }
       else if (ev.tag === 'vars') {
         parsed.varsRaw = ev.full;
-        // Prefer JSONPatch sub-tag content over raw vars content
         const patchSource = parsed.unknown['JSONPatch'] || ev.full;
+        console.log('[aggregateEvents] vars tag-close, varsRaw len:', ev.full.length, 'hasJSONPatch:', !!parsed.unknown['JSONPatch']);
         parsed.varsCommands = parseVarsBlock(patchSource);
+        console.log('[aggregateEvents] varsCommands result — merge keys:', Object.keys(parsed.varsCommands.merge).length, 'patches:', parsed.varsCommands.patches?.length);
       } else if (ev.tag === 'option') {
         // option-line events accumulate options below
       } else {
@@ -434,10 +438,13 @@ export function applyParsedToChat(
   current: Record<string, any>,
   parsed: ParsedTags,
 ): { nextVariables: Record<string, any>; snapshot: Record<string, any> } {
+  console.log('[applyParsedToChat] patches:', parsed.varsCommands.patches?.length, 'merge keys:', Object.keys(parsed.varsCommands.merge).length);
   const next = parsed.varsCommands.patches?.length
     ? applyJsonPatch(current, parsed.varsCommands.patches)
     : applyVarsPatch(current, parsed.varsCommands);
-  const mapTree = next['地图'];
+  console.log('[applyParsedToChat] after apply, variables top keys:', Object.keys(next).join(', '));
+  // Check a specific path
+  console.log('[applyParsedToChat] 世界.现实.时间 =', next['世界']?.['现实']?.['时间']);
   if (mapTree) {
     normalizeLocations(next, mapTree);
   }
