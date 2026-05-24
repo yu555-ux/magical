@@ -154,21 +154,23 @@ export function aggregateEvents(events: ParserEvent[]): ParsedTags {
     varsCommands: { merge: {} },
     unknown: {},
   };
+  const tagCloses: string[] = [];
   for (const ev of events) {
     if (ev.type === 'tag-close') {
+      tagCloses.push(ev.tag);
       if (ev.tag === 'thinking' || ev.tag === 'think') parsed.thinking = ev.full;
       else if (ev.tag === 'maintext') parsed.maintext = ev.full;
       else if (ev.tag === 'history') parsed.history = parseHistoryBlock(ev.full);
       else if (ev.tag === 'JSONPatch') {
-        console.log('[aggregateEvents] JSONPatch tag-close, full length:', ev.full.length, 'preview:', ev.full.slice(0, 100));
+        console.log('[aggregateEvents] JSONPatch tag-close, full len:', ev.full.length);
         parsed.unknown['JSONPatch'] = ev.full;
       }
       else if (ev.tag === 'vars') {
         parsed.varsRaw = ev.full;
         const patchSource = parsed.unknown['JSONPatch'] || ev.full;
-        console.log('[aggregateEvents] vars tag-close, varsRaw len:', ev.full.length, 'hasJSONPatch:', !!parsed.unknown['JSONPatch']);
+        console.log('[aggregateEvents] vars tag-close, hasJSONPatch:', !!parsed.unknown['JSONPatch']);
         parsed.varsCommands = parseVarsBlock(patchSource);
-        console.log('[aggregateEvents] varsCommands result — merge keys:', Object.keys(parsed.varsCommands.merge).length, 'patches:', parsed.varsCommands.patches?.length);
+        console.log('[aggregateEvents] varsCommands patches:', parsed.varsCommands.patches?.length, 'merge:', Object.keys(parsed.varsCommands.merge).length);
       } else if (ev.tag === 'option') {
         // option-line events accumulate options below
       } else {
@@ -178,6 +180,7 @@ export function aggregateEvents(events: ParserEvent[]): ParsedTags {
       parsed.options.push(ev.line);
     }
   }
+  console.log('[aggregateEvents] all tag-close order:', tagCloses.join(' → '));
   return parsed;
 }
 

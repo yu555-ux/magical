@@ -171,6 +171,7 @@ export class StreamTagParser {
     if (isClose) {
       if (this.currentTag && this.currentTag === name) {
         // Matching close for current tag
+        console.log('[parser] close tag:', name, 'buf len:', this.currentBuf.length);
         if (this.currentTag === 'option' && this.optionBuf) {
           this.events.push({ type: 'option-line', line: this.optionBuf });
           this.optionBuf = '';
@@ -180,6 +181,7 @@ export class StreamTagParser {
         this.currentTag = '';
         this.restoreParent();
       } else if (this.stack.some(f => f.currentTag === name)) {
+        console.log('[parser] auto-close to match parent:', name);
         // Close tag matches a parent — auto-close current tag, then retry
         if (this.currentTag && this.currentBuf) {
           if (this.currentTag === 'option' && this.optionBuf) {
@@ -221,12 +223,14 @@ export class StreamTagParser {
 
     // Opening a nested tag — push parent onto stack
     if (this.state === 'TAGGED' || this.state === 'OPAQUE') {
+      console.log('[parser] push parent:', this.currentTag, '→ open child:', name);
       this.pushParent();
     }
 
     this.currentTag = name;
     this.currentBuf = '';
     this.optionBuf = '';
+    console.log('[parser] open tag:', name, this.opaqueTags.includes(name) ? '(opaque)' : '(tagged)');
     this.events.push({ type: 'tag-open', tag: name });
     this.state = this.opaqueTags.includes(name) ? 'OPAQUE' : 'TAGGED';
   }
