@@ -84,7 +84,7 @@ function resolveParent(
 
 function patchReplace(state: Record<string, any>, op: JsonPatchOp): void {
   const r = resolveParent(state, op.path);
-  if (!r) return;
+  if (!r) { console.log('[patchReplace] FAIL path:', op.path); return; }
   if (Array.isArray(r.parent) && typeof r.key === 'number') {
     r.parent[r.key] = op.value;
   } else if (!Array.isArray(r.parent)) {
@@ -94,7 +94,7 @@ function patchReplace(state: Record<string, any>, op: JsonPatchOp): void {
 
 function patchDelta(state: Record<string, any>, op: JsonPatchOp): void {
   const r = resolveParent(state, op.path);
-  if (!r) return;
+  if (!r) { console.log('[patchDelta] FAIL path:', op.path); return; }
   const current = r.parent[r.key];
   if (typeof current === 'number' && typeof op.value === 'number') {
     r.parent[r.key] = current + op.value;
