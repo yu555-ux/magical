@@ -9,13 +9,13 @@ type ViewMode = 'grid' | 'list';
 type CatFilter = '全部' | '灵宝' | '诡物' | '物品';
 type WarehouseItem = { name: string; category: string; data: any };
 
-const ITEM_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string; card: string }> = {
-  灭世: { text: 'text-red-500',   border: 'border-red-500/60',   glow: 'shadow-[0_0_24px_rgba(239,68,68,0.6)]',    bg: 'bg-red-500/20',   card: 'border-red-500/50 bg-red-500/20 shadow-[0_0_24px_rgba(239,68,68,0.35)]' },
-  绝域: { text: 'text-fuchsia-400',border: 'border-fuchsia-400/50',glow: 'shadow-[0_0_18px_rgba(217,70,219,0.45)]',bg: 'bg-fuchsia-400/18',card: 'border-fuchsia-400/40 bg-fuchsia-400/18 shadow-[0_0_16px_rgba(217,70,219,0.25)]' },
-  倾国: { text: 'text-violet-400',border: 'border-violet-400/50',glow: 'shadow-[0_0_14px_rgba(167,139,250,0.4)]',bg: 'bg-violet-400/16', card: 'border-violet-400/35 bg-violet-400/16 shadow-[0_0_14px_rgba(167,139,250,0.2)]' },
-  祸城: { text: 'text-orange-400',border: 'border-orange-400/50',glow: 'shadow-[0_0_14px_rgba(251,146,60,0.4)]', bg: 'bg-orange-400/14', card: 'border-orange-400/35 bg-orange-400/14 shadow-[0_0_12px_rgba(251,146,60,0.22)]' },
-  凶煞: { text: 'text-amber-400', border: 'border-amber-400/50', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.35)]',bg: 'bg-amber-400/12', card: 'border-amber-400/30 bg-amber-400/12 shadow-[0_0_10px_rgba(251,191,36,0.18)]' },
-  微末: { text: 'text-slate-400', border: 'border-slate-400/30', glow: 'shadow-[0_0_6px_rgba(148,163,184,0.15)]',bg: 'bg-slate-400/10', card: 'border-slate-400/20 bg-slate-400/10' },
+const ITEM_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string; card: string; hoverGlow: string }> = {
+  灭世: { text: 'text-red-500',   border: 'border-red-500/60',   glow: 'shadow-[0_0_24px_rgba(239,68,68,0.6)]',    bg: 'bg-red-500/20',   card: 'border-red-500/50 bg-red-500/20 shadow-[0_0_24px_rgba(239,68,68,0.35)]', hoverGlow: 'hover:shadow-[0_0_36px_rgba(239,68,68,0.5)]' },
+  绝域: { text: 'text-fuchsia-400',border: 'border-fuchsia-400/50',glow: 'shadow-[0_0_18px_rgba(217,70,219,0.45)]',bg: 'bg-fuchsia-400/18',card: 'border-fuchsia-400/40 bg-fuchsia-400/18 shadow-[0_0_16px_rgba(217,70,219,0.25)]', hoverGlow: 'hover:shadow-[0_0_30px_rgba(217,70,219,0.45)]' },
+  倾国: { text: 'text-violet-400',border: 'border-violet-400/50',glow: 'shadow-[0_0_14px_rgba(167,139,250,0.4)]',bg: 'bg-violet-400/16', card: 'border-violet-400/35 bg-violet-400/16 shadow-[0_0_14px_rgba(167,139,250,0.2)]', hoverGlow: 'hover:shadow-[0_0_26px_rgba(167,139,250,0.4)]' },
+  祸城: { text: 'text-orange-400',border: 'border-orange-400/50',glow: 'shadow-[0_0_14px_rgba(251,146,60,0.4)]', bg: 'bg-orange-400/14', card: 'border-orange-400/35 bg-orange-400/14 shadow-[0_0_12px_rgba(251,146,60,0.22)]', hoverGlow: 'hover:shadow-[0_0_26px_rgba(251,146,60,0.4)]' },
+  凶煞: { text: 'text-amber-400', border: 'border-amber-400/50', glow: 'shadow-[0_0_12px_rgba(251,191,36,0.35)]',bg: 'bg-amber-400/12', card: 'border-amber-400/30 bg-amber-400/12 shadow-[0_0_10px_rgba(251,191,36,0.18)]', hoverGlow: 'hover:shadow-[0_0_22px_rgba(251,191,36,0.38)]' },
+  微末: { text: 'text-slate-400', border: 'border-slate-400/30', glow: 'shadow-[0_0_6px_rgba(148,163,184,0.15)]',bg: 'bg-slate-400/10', card: 'border-slate-400/20 bg-slate-400/10', hoverGlow: 'hover:shadow-[0_0_14px_rgba(148,163,184,0.2)]' },
 };
 
 const CATEGORY_STYLES: Record<string, { border: string; bg: string; text: string }> = {
@@ -161,11 +161,12 @@ export default function WarehousePage() {
                 ? `border ${cs.border} ${cs.bg}`
                 : irs ? `border ${irs.card}` : `border ${cs.border} ${cs.bg}`;
               const nameColor = isItem ? cs.text : (irs?.text || cs.text);
+              const hg = isItem ? 'hover:shadow-[0_0_20px_rgba(255,255,255,0.1)]' : (irs?.hoverGlow || '');
               return (
+                <div key={item.name} className="p-[4px]">
                 <motion.button
-                  key={item.name}
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
-                  className={`relative p-5 text-left group transition-all duration-200 overflow-hidden clickable ${cardStyle} hover:brightness-110 hover:scale-[1.02] hover:z-10 hover:shadow-[0_0_24px_rgba(255,255,255,0.06)]`}
+                  className={`relative p-5 text-left group transition-all duration-200 overflow-hidden clickable w-full ${cardStyle} hover:brightness-110 hover:scale-[1.02] hover:z-10 ${hg}`}
                 >
                   <h3 className={`font-display font-bold text-lg group-hover:text-aether-cyan transition-colors pr-4 truncate ${nameColor}`}>
                     {item.name}
@@ -173,6 +174,7 @@ export default function WarehousePage() {
                   </h3>
                   <p className="mt-3 text-xs text-white/45 leading-relaxed line-clamp-2 group-hover:text-white/65 transition-colors">{item.data?.描述 || ''}</p>
                 </motion.button>
+                </div>
               );
             })}
           </div>
