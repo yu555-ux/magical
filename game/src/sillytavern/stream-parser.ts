@@ -54,12 +54,14 @@ export class StreamTagParser {
 
   finish(): ParserEvent[] {
     this.events = [];
+    console.log('[parser] finish() called, state:', this.state, 'currentTag:', this.currentTag, 'stack depth:', this.stack.length);
     if (this.state === 'BUFFER_TAG' && this.partial) {
       this.events.push({ type: 'raw', chunk: '<' + this.partial });
       this.partial = '';
     }
     // Flush from innermost to outermost
     while (this.state === 'TAGGED' || this.state === 'OPAQUE') {
+      console.log('[parser] finish flush:', this.currentTag, 'buf len:', this.currentBuf.length);
       if (this.state === 'TAGGED' && this.currentTag === 'option' && this.optionBuf) {
         this.events.push({ type: 'option-line', line: this.optionBuf });
         this.optionBuf = '';
@@ -136,6 +138,7 @@ export class StreamTagParser {
       this.currentBuf += ch;
       const closeMarker = `</${this.currentTag}>`;
       if (this.currentBuf.endsWith(closeMarker)) {
+        console.log('[parser] opaque close:', this.currentTag, 'buf len:', this.currentBuf.length);
         const full = this.currentBuf.slice(0, -closeMarker.length);
         this.events.push({ type: 'tag-chunk', tag: this.currentTag, chunk: ch });
         this.events.push({ type: 'tag-close', tag: this.currentTag, full });
