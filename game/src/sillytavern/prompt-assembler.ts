@@ -360,31 +360,52 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       // Known stage identifiers
       const stageName = STAGE_IDENTITY_MAP[block.identifier.toLowerCase()];
       if (stageName) {
-        // Determine lorebook anchor
         let anchor: InjectionAnchor | undefined;
         if (stageName === 'worldInfoBefore') anchor = 'worldInfoBefore';
         else if (stageName === 'worldInfoAfter') anchor = 'worldInfoAfter';
 
-        processBlock(block, stageName, anchor);
+        if (anchor) {
+          // Anchor block: block IS the injection point — merge lorebook with block content
+          const lb = getLorebookContent(anchor);
+          const blockRaw = block.content?.trim();
+          const blockContent = blockRaw ? resolveContent(blockRaw, presetVars, macroCtx) : '';
+
+          if (lb.trim() && !injected.has(anchor)) {
+            injected.add(anchor);
+            const merged = [blockContent, lb.trim()].filter(Boolean).join('\n\n');
+            const msg = buildMessage('system', merged, block.identifier);
+            if (msg) stages.get(stageName)!.push(msg);
+            addSection(block.identifier, block.name, 'system', true, merged, 'lorebook', stageName);
+          } else if (blockContent) {
+            const msg = buildMessage(block.role, blockContent, block.identifier);
+            if (msg) stages.get(stageName)!.push(msg);
+            addSection(block.identifier, block.name, block.role, true, blockContent, 'preset', stageName);
+          }
+          // No content + no lorebook → nothing to show (PHASE 2 will inject if lorebook exists)
+        } else {
+          processBlock(block, stageName);
+        }
         assignedBlocks.add(block.identifier.toLowerCase());
         continue;
       }
 
-      // Detect as lorebook anchor
-      const anchor = detectAnchor(block);
-      if (anchor) {
-        const lbContent = getLorebookContent(anchor);
-        if (lbContent.trim() && !injected.has(anchor)) {
-          injected.add(anchor);
-          const msg = buildMessage('system', lbContent, block.identifier);
-          if (msg) {
-            // Place at the appropriate stage based on anchor
-            const targetStage: StageName = anchor === 'worldInfoBefore' ? 'worldInfoBefore'
-              : anchor === 'worldInfoD2Before' ? 'worldInfoBefore'
-              : 'worldInfoAfter';
-            stages.get(targetStage)!.push(msg);
-          }
-          addSection(block.identifier, block.name, 'system', true, lbContent, 'lorebook', 'worldInfoAfter');
+      // Detect as lorebook anchor (by name/content matching, not identifier)
+      const detectedAnchor = detectAnchor(block);
+      if (detectedAnchor) {
+        const lbContent = getLorebookContent(detectedAnchor);
+        const blockRaw = block.content?.trim();
+        const blockContent = blockRaw ? resolveContent(blockRaw, presetVars, macroCtx) : '';
+
+        if (lbContent.trim() && !injected.has(detectedAnchor)) {
+          injected.add(detectedAnchor);
+          const merged = [blockContent, lbContent.trim()].filter(Boolean).join('\n\n');
+          const targetStage: StageName = detectedAnchor === 'worldInfoBefore' || detectedAnchor === 'worldInfoD2Before'
+            ? 'worldInfoBefore' : 'worldInfoAfter';
+          const msg = buildMessage('system', merged, block.identifier);
+          if (msg) stages.get(targetStage)!.push(msg);
+          addSection(block.identifier, block.name, 'system', true, merged, 'lorebook', targetStage);
+        } else if (blockContent) {
+          processBlock(block, 'systemBlocks');
         }
         assignedBlocks.add(block.identifier.toLowerCase());
         continue;
