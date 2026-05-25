@@ -80,6 +80,28 @@ function detectAnchor(block: PresetBlock): InjectionAnchor | null {
   return null;
 }
 
+// ── Variable macro resolver ──
+// Recursively resolve {{user}} / <user> / {{char}} in all string values & keys.
+// Returns a new object; does not mutate the original.
+
+function deepResolveMacros(obj: any, userName: string, characterName: string): any {
+  if (typeof obj === 'string') {
+    return obj.replace(/\{\{user\}\}/g, userName).replace(/<user>/g, userName).replace(/\{\{char\}\}/g, characterName);
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(v => deepResolveMacros(v, userName, characterName));
+  }
+  if (obj !== null && typeof obj === 'object') {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const resolvedKey = key.replace(/\{\{user\}\}/g, userName).replace(/<user>/g, userName).replace(/\{\{char\}\}/g, characterName);
+      result[resolvedKey] = deepResolveMacros(value, userName, characterName);
+    }
+    return result;
+  }
+  return obj;
+}
+
 // ── Macro engine ──
 
 interface MacroContext {
@@ -134,35 +156,34 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   const maxOutput = options.maxOutputTokens ?? 64000;
   const tokenBudget = maxContext - maxOutput;
 
+  // ── Resolve {{user}}/<user>/{{char}} in all variable values at the source ──
+  const resolvedVars = options.fullVariables
+    ? deepResolveMacros(options.fullVariables, userName, characterName)
+    : undefined;
+  const mapTree: any = resolvedVars?.['地图'] ?? (options.mapTree as any);
+  const characters: any = resolvedVars?.['主要人物'] ?? (options.characters as any);
+  const currentLocation: string = (resolvedVars?.['世界']?.['现实']?.['地点'] ?? options.currentLocation ?? '') as string;
+  const isDream: boolean = (resolvedVars?.['世界']?.['现实']?.['是否梦境'] ?? options.isDream ?? false) as boolean;
+
   // ── Macro context ──
   const macroCtx: MacroContext = { userName, characterName, userInput, playerDescription, characterDescription };
   const presetVars: Record<string, string> = {};
 
   // ── Pre-compute map/character/vars text ──
   const contextStr = history.slice(-5).map(m => m.content).join('\n');
-  if (options.mapTree) {
-    macroCtx.mapText = processMapForPrompt(options.mapTree, options.currentLocation ?? '', options.isDream ?? false, contextStr);
+  if (mapTree) {
+    macroCtx.mapText = processMapForPrompt(mapTree, currentLocation, isDream, contextStr);
   }
-  if (options.characters && options.mapTree) {
-    const pp = options.currentLocation ? resolvePath(options.currentLocation, options.mapTree) : null;
-    const id = options.isDream ?? false;
-    macroCtx.femaleStrangerText = formatCharacterGroup(filterCharacterGroup(options.characters['女性']?.['异人'], pp, id, options.mapTree, 'female', 'stranger', contextStr));
-    macroCtx.femaleNormalText = formatCharacterGroup(filterCharacterGroup(options.characters['女性']?.['普通人'], pp, id, options.mapTree, 'female', 'normal', contextStr));
-    macroCtx.maleStrangerText = formatCharacterGroup(filterCharacterGroup(options.characters['男性']?.['异人'], pp, id, options.mapTree, 'male', 'stranger', contextStr));
-    macroCtx.maleNormalText = formatCharacterGroup(filterCharacterGroup(options.characters['男性']?.['普通人'], pp, id, options.mapTree, 'male', 'normal', contextStr));
+  if (characters && mapTree) {
+    const pp = currentLocation ? resolvePath(currentLocation, mapTree) : null;
+    macroCtx.femaleStrangerText = formatCharacterGroup(filterCharacterGroup(characters['女性']?.['异人'], pp, isDream, mapTree, 'female', 'stranger', contextStr));
+    macroCtx.femaleNormalText = formatCharacterGroup(filterCharacterGroup(characters['女性']?.['普通人'], pp, isDream, mapTree, 'female', 'normal', contextStr));
+    macroCtx.maleStrangerText = formatCharacterGroup(filterCharacterGroup(characters['男性']?.['异人'], pp, isDream, mapTree, 'male', 'stranger', contextStr));
+    macroCtx.maleNormalText = formatCharacterGroup(filterCharacterGroup(characters['男性']?.['普通人'], pp, isDream, mapTree, 'male', 'normal', contextStr));
   }
-  if (options.fullVariables) {
-    macroCtx.varsListText = formatVariablesForPrompt(options.fullVariables);
+  if (resolvedVars) {
+    macroCtx.varsListText = formatVariablesForPrompt(resolvedVars);
   }
-
-  // Apply user/char macros to all pre-computed texts (MAP, characters, VARS_LIST)
-  const replaceUser = (t: string | undefined) => t?.replace(/\{\{user\}\}/g, macroCtx.userName).replace(/<user>/g, macroCtx.userName).replace(/\{\{char\}\}/g, macroCtx.characterName);
-  macroCtx.mapText = replaceUser(macroCtx.mapText);
-  macroCtx.femaleStrangerText = replaceUser(macroCtx.femaleStrangerText);
-  macroCtx.femaleNormalText = replaceUser(macroCtx.femaleNormalText);
-  macroCtx.maleStrangerText = replaceUser(macroCtx.maleStrangerText);
-  macroCtx.maleNormalText = replaceUser(macroCtx.maleNormalText);
-  macroCtx.varsListText = replaceUser(macroCtx.varsListText);
 
   // ── Lorebook scan ──
   const historyText = history.slice(-6).map(m => m.content).join(' ');
