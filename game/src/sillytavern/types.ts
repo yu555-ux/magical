@@ -120,7 +120,36 @@ export interface PresetBlock {
   role: 'system' | 'user' | 'assistant';
   enabled: boolean;
   content: string;
+  /** 0=RELATIVE (default), 1=ABSOLUTE, 2=ATTACH_EXISTING */
+  injection_position?: number;
+  /** Depth in chat history for ABSOLUTE injection */
+  injection_depth?: number;
+  /** Sort key within same depth for ABSOLUTE injection */
+  injection_order?: number;
+  /** Gen-type triggers: ['story','continue','impersonate','cycle'] */
+  injection_trigger?: string[];
+  /** Structural marker block (e.g. chatHistory) — content is not editable */
+  marker?: boolean;
+  /** Prevent character card from overriding this block */
+  forbid_overrides?: boolean;
+  /** ATTACH_EXISTING: target message role */
+  attach_role?: 'system' | 'user' | 'assistant';
+  /** ATTACH_EXISTING: 1-based message index */
+  attach_index?: number;
+  /** ATTACH_EXISTING: prepend or append */
+  attach_side?: 'start' | 'end';
 }
+
+export const INJECTION_POSITION = {
+  RELATIVE: 0,
+  ABSOLUTE: 1,
+  ATTACH_EXISTING: 2,
+} as const;
+
+export type InjectionPosition = (typeof INJECTION_POSITION)[keyof typeof INJECTION_POSITION];
+
+export const INJECTION_TRIGGER_OPTIONS = ['story', 'continue', 'impersonate', 'cycle'] as const;
+export type InjectionTrigger = (typeof INJECTION_TRIGGER_OPTIONS)[number];
 
 // ========== Preset Parameters ==========
 
@@ -219,6 +248,8 @@ export interface AppSettings {
   playerDescription?: string;
   characterDescription?: string;
   scenario?: string;
+  /** Merge consecutive system messages into one */
+  squashSystemMessages: boolean;
 }
 
 export const DEFAULT_TAGS = ['maintext', 'option', 'history', 'vars', 'thinking', 'think', 'Analysis', 'JSONPatch'] as const;
@@ -308,6 +339,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   uiMode: 'game',
   customTags: ['maintext', 'option', 'history', 'vars', 'thinking', 'think'],
   thinkingDisplay: 'fold',
+  squashSystemMessages: false,
 };
 
 // ========== Chat Types ==========

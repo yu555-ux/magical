@@ -66,6 +66,10 @@ export function importPresetFromJson(raw: Record<string, any>): ImportResult {
           : 'system' as const,
         enabled: p.enabled !== false,
         content: p.content || '',
+        marker: p.marker ?? undefined,
+        forbid_overrides: p.forbid_overrides ?? undefined,
+        injection_position: p.injection_position ?? undefined,
+        injection_trigger: p.injection_trigger ?? undefined,
       }));
     source = 'prompts';
   } else if (hasPromptOrder) {

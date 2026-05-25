@@ -34,12 +34,15 @@ export interface AssembleOptions {
   characters?: Record<string, any>;
   /** Full variable tree for {{VARS_LIST}} macro */
   fullVariables?: Record<string, any>;
+  /** Merge consecutive system messages into one */
+  squashSystemMessages?: boolean;
 }
 
 export interface AssembleResult {
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
   systemPrompt: string;
   sections: PromptSection[];
+  totalTokens: number;
 }
 
 // ── Chaoxi-style variable macro engine ──
@@ -370,15 +373,34 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       assembledMessages[i] = { ...m, content: unique.join('\n\n') };
     }
   }
-  // Remove empty system messages
-  const deduped = assembledMessages.filter(m => m.content.trim());
+  // Remove empty messages
+  let final = assembledMessages.filter(m => m.content.trim());
 
-  const systemPrompt = deduped
+  // ── Squash consecutive system messages ──
+  if (options.squashSystemMessages) {
+    const squashed: typeof final = [];
+    for (let i = 0; i < final.length; i++) {
+      const cur = final[i];
+      if (cur.role === 'system' && squashed.length > 0 && squashed[squashed.length - 1].role === 'system') {
+        squashed[squashed.length - 1] = {
+          ...squashed[squashed.length - 1],
+          content: squashed[squashed.length - 1].content + '\n\n' + cur.content,
+        };
+      } else {
+        squashed.push({ ...cur });
+      }
+    }
+    final = squashed;
+  }
+
+  const systemPrompt = final
     .filter(m => m.role === 'system')
     .map(m => m.content)
     .join('\n\n');
 
-  return { messages: deduped, systemPrompt, sections };
+  const totalTokens = Math.round(final.reduce((sum, m) => sum + m.content.length / 4, 0));
+
+  return { messages: final, systemPrompt, sections, totalTokens };
 }
 
 function buildRecentHistory(history: ChatMessage[]): { role: 'system' | 'user' | 'assistant'; content: string }[] {

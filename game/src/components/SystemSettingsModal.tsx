@@ -7,7 +7,7 @@ import { DEFAULT_SETTINGS } from '../sillytavern/types';
 import { fetchModels, testConnection } from '../sillytavern/api-tools';
 import ApiTab from './Settings/ApiTab';
 import IdentityTab from './Settings/IdentityTab';
-import PresetTab from './Settings/PresetTab';
+import PromptManagerRoot from './Settings/PresetManager/PromptManagerRoot';
 import LorebookTab from './Settings/LorebookTab';
 
 type TabId = 'api' | 'lorebook' | 'preset' | 'identity';
@@ -135,7 +135,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
                     onFetchModels={handleFetchModels} onTestConnection={handleTestConnection} />
                 )}
                 {tab === 'lorebook' && draft && <LorebookTab draft={draft} setDraft={setDraft} />}
-                {tab === 'preset' && draft && <PresetTab draft={draft} setDraft={setDraft} />}
+                {tab === 'preset' && draft && <PromptManagerRoot draft={draft} setDraft={setDraft} />}
                 {tab === 'identity' && draft && <IdentityTab draft={draft} setDraft={setDraft} />}
               </motion.div>
             </AnimatePresence>

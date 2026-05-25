@@ -92,7 +92,7 @@ export function useSillytavern() {
       ...(latestSettings ?? DEFAULT_SETTINGS),
       ...(settings ?? {}),
       api: effectiveApi,
-      // DB takes priority for these fields (may be updated by PresetTab/LorebookTab auto-save)
+      // DB takes priority for these fields (may be updated by PresetManager/LorebookTab auto-save)
       presetBlocks: latestSettings?.presetBlocks ?? settings?.presetBlocks ?? DEFAULT_PRESET_BLOCKS,
       lorebooks: latestSettings?.lorebooks ?? settings?.lorebooks ?? DEFAULT_SETTINGS.lorebooks,
       presetParams: latestSettings?.presetParams ?? settings?.presetParams,
@@ -105,7 +105,7 @@ export function useSillytavern() {
 
     const chatVars = updatedChat.variables ?? {};
 
-    const { messages, systemPrompt, sections } = assemblePrompt({
+    const { messages, systemPrompt, sections, totalTokens } = assemblePrompt({
       userInput: userText,
       history: updatedChat.messages,
       presetBlocks: effectiveSettings.presetBlocks,
@@ -119,13 +119,14 @@ export function useSillytavern() {
       isDream: chatVars['世界']?.['梦境定位']?.['位于梦境'] ?? false,
       characters: chatVars['主要人物'],
       fullVariables: chatVars,
+      squashSystemMessages: effectiveSettings.squashSystemMessages,
     });
 
     setLastPrompt({
       messages: messages.map(m => ({ role: m.role, content: m.content })),
       systemPrompt,
       sections,
-      estimatedTokens: Math.round(messages.reduce((sum, m) => sum + m.content.length / 4, 0)),
+      estimatedTokens: totalTokens,
     });
 
     const freshRouter = createApiRouter(effectiveApi);
