@@ -115,12 +115,10 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                     const tk = tokens[id] || 0;
                     const isOpen = !collapsed.has(id);
                     const isHistory = id.toLowerCase().includes('chathistory');
-                    const isUserInput = id === 'userInput';
 
                     return (
                       <div key={id}
                         className={`rounded border border-aether-border/8 bg-aether-dark/20 border-l-2 ${
-                          isUserInput ? 'border-l-aether-cyan/35' :
                           isHistory ? 'border-l-aether-cyan/25' :
                           'border-l-aether-purple/25'
                         }`}>
@@ -130,7 +128,7 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                         >
                           {isOpen ? <ChevronDown size={10} className="text-white/18" /> : <ChevronRight size={10} className="text-white/10" />}
                           <span className="text-[10px] font-display font-semibold tracking-wide text-white/40 flex-1 truncate">
-                            {i + 1}. {names[id] || id}
+                            {names[id] || id}
                           </span>
                           <span className="text-[8px] text-white/12 font-mono">{blockMsgs.length} msg</span>
                           <span className={`text-[8px] font-mono w-10 text-right ${tk > 500 ? 'text-aether-yellow/40' : 'text-white/15'}`}>

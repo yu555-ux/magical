@@ -198,10 +198,10 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       const blockId = block.identifier.toLowerCase();
       const blockMsgs: Message[] = [];
 
-      // ── chatHistory marker → insert chat messages ──
+      // ── chatHistory marker → insert chat messages (including user input, per Ttavern semantics) ──
       if (detectChatHistory(block) && !hasChatHistory) {
         hasChatHistory = true;
-        const historyMsgs = buildRecentHistory(history.slice(0, -1), tokenBudget);
+        const historyMsgs = buildRecentHistory(history, tokenBudget);
         for (const hm of historyMsgs) {
           blockMsgs.push({ role: hm.role, content: hm.content });
         }
@@ -248,6 +248,16 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     }
   }
 
+  // ── Fallback: if no chatHistory block exists, add history at end ──
+  if (!hasChatHistory) {
+    const historyMsgs = buildRecentHistory(history, tokenBudget);
+    const fallbackMsgs: Message[] = [];
+    for (const hm of historyMsgs) {
+      fallbackMsgs.push({ role: hm.role, content: hm.content });
+    }
+    ordered.push({ id: 'chatHistory', msgs: fallbackMsgs });
+  }
+
   // ── Inject remaining lorebook entries ──
   // Place them next to related anchor blocks if possible, otherwise prepend
 
@@ -285,10 +295,6 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     }
   }
 
-  // ── Append user input at end ──
-  const userMsg = makeMsg('user', userInput);
-  if (userMsg) messageList.push(userMsg);
-
   // ── Dedup system message blocks ──
   const seenBlocks = new Set<string>();
   for (let i = 0; i < messageList.length; i++) {
@@ -323,11 +329,6 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       stageMessages[entry.id] = entry.msgs.map(m => ({ role: m.role, content: m.content }));
     }
   }
-  // Add user input
-  if (userMsg) {
-    stageMessages['userInput'] = [{ role: 'user', content: userInput }];
-  }
-
   // ── Compute stage tokens ──
   const stageTokens: Record<string, number> = {};
   for (const [id, msgs] of Object.entries(stageMessages)) {
@@ -340,8 +341,6 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   const totalTokens = Math.round(final.reduce((s, m) => s + m.content.length / 4, 0));
 
   const stageOrder = ordered.map(e => e.id);
-  // Only add userInput to stageOrder if it has content
-  if (userMsg) stageOrder.push('userInput');
 
   // ── Build stageNames: display name for each identifier ──
   const stageNames: Record<string, string> = {};
@@ -351,8 +350,10 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       stageNames[block.identifier] = block.name || block.identifier;
     }
   }
-  // Known non-block identifiers
-  stageNames['userInput'] = '用户输入';
+  // Fallback chatHistory name
+  if (!stageNames['chatHistory']) {
+    stageNames['chatHistory'] = '聊天记录';
+  }
   // Remaining lorebook anchors
   for (const entry of remainingMsgs) {
     if (!stageNames[entry.id]) {
