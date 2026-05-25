@@ -108,6 +108,7 @@ function resolveContent(content: string, presetVars: Record<string, string>, mac
   result = result.replace(/\{\{getvar::([^}]+)\}\}/g, (_, name: string) => presetVars[name.trim()] ?? '');
   result = result
     .replace(/\{\{user\}\}/g, macroCtx.userName)
+    .replace(/<user>/g, macroCtx.userName)
     .replace(/\{\{char\}\}/g, macroCtx.characterName)
     .replace(/\{\{original\}\}/g, macroCtx.userInput)
     .replace(/\{\{player_description\}\}/g, macroCtx.playerDescription ?? '')
@@ -151,10 +152,17 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     macroCtx.maleNormalText = formatCharacterGroup(filterCharacterGroup(options.characters['男性']?.['普通人'], pp, id, options.mapTree, 'male', 'normal', contextStr));
   }
   if (options.fullVariables) {
-    macroCtx.varsListText = formatVariablesForPrompt(options.fullVariables)
-      .replace(/\{\{user\}\}/g, macroCtx.userName)
-      .replace(/\{\{char\}\}/g, macroCtx.characterName);
+    macroCtx.varsListText = formatVariablesForPrompt(options.fullVariables);
   }
+
+  // Apply user/char macros to all pre-computed texts (MAP, characters, VARS_LIST)
+  const replaceUser = (t: string | undefined) => t?.replace(/\{\{user\}\}/g, macroCtx.userName).replace(/<user>/g, macroCtx.userName).replace(/\{\{char\}\}/g, macroCtx.characterName);
+  macroCtx.mapText = replaceUser(macroCtx.mapText);
+  macroCtx.femaleStrangerText = replaceUser(macroCtx.femaleStrangerText);
+  macroCtx.femaleNormalText = replaceUser(macroCtx.femaleNormalText);
+  macroCtx.maleStrangerText = replaceUser(macroCtx.maleStrangerText);
+  macroCtx.maleNormalText = replaceUser(macroCtx.maleNormalText);
+  macroCtx.varsListText = replaceUser(macroCtx.varsListText);
 
   // ── Lorebook scan ──
   const historyText = history.slice(-6).map(m => m.content).join(' ');
@@ -166,6 +174,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
   const applyLorebookMacros = (c: string): string =>
     c.replace(/\{\{user\}\}/g, macroCtx.userName)
+     .replace(/<user>/g, macroCtx.userName)
      .replace(/\{\{char\}\}/g, macroCtx.characterName)
      .replace(/\{\{original\}\}/g, macroCtx.userInput)
      .replace(/\{\{player_description\}\}/g, macroCtx.playerDescription ?? '')
