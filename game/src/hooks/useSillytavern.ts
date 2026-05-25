@@ -175,22 +175,22 @@ export function useSillytavern() {
       }
     } catch (e) {
       parser.reset();
-      if (e instanceof DOMException && e.name === 'AbortError') {
-        // Retract: remove last user message, restore variables from previous assistant
+      // Retract: remove last user message, restore variables from previous assistant
+      const retract = async () => {
         const msgs = updatedChat.messages;
         const lastUserIdx = [...msgs].reverse().findIndex(m => m.role === 'user');
-        if (lastUserIdx >= 0) {
-          const targetIdx = msgs.length - 1 - lastUserIdx;
-          const truncated = msgs.slice(0, targetIdx);
-          const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
-          const restoredVars = lastAssistant?.variablesAfter ?? updatedChat.variables ?? {};
-          const next: ChatSession = { ...updatedChat, messages: truncated, variables: restoredVars, updatedAt: Date.now() };
-          await db.chats.put(next);
-          setChats(prev => prev.map(c => c.id === next.id ? next : c));
-          return { aborted: true, retractedText: userText };
-        }
-        return { aborted: true };
-      }
+        if (lastUserIdx < 0) return;
+        const targetIdx = msgs.length - 1 - lastUserIdx;
+        const truncated = msgs.slice(0, targetIdx);
+        const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
+        const restoredVars = lastAssistant?.variablesAfter ?? updatedChat.variables ?? {};
+        const next: ChatSession = { ...updatedChat, messages: truncated, variables: restoredVars, updatedAt: Date.now() };
+        await db.chats.put(next);
+        setChats(prev => prev.map(c => c.id === next.id ? next : c));
+      };
+      const isAbort = e instanceof DOMException && e.name === 'AbortError';
+      await retract();
+      if (isAbort) return { aborted: true, retractedText: userText };
       throw e;
     }
 
