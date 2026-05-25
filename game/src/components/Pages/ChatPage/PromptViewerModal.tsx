@@ -1,15 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, FileText, EyeOff, CheckCircle2, Circle, Layers, BookOpen, ChevronDown, ChevronRight, MessageSquare, User, Bot } from 'lucide-react';
-import type { PromptSection } from '../../../sillytavern/prompt-assembler';
+import { X, FileText, ChevronDown, ChevronRight, MessageSquare, User, Bot } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   prompt: {
     messages: Array<{ role: string; content: string }>;
-    systemPrompt: string;
-    sections: PromptSection[];
     estimatedTokens: number;
     stageTokens: Record<string, number>;
     stageMessages: Record<string, Array<{ role: string; content: string }>>;
@@ -17,7 +14,7 @@ interface Props {
   replyText?: string;
 }
 
-// ── Stage display config ──
+// ── Stage config ──
 
 const STAGE_ORDER = [
   'worldInfoBefore', 'main', 'worldInfoAfter',
@@ -27,143 +24,115 @@ const STAGE_ORDER = [
 ] as const;
 
 const STAGE_LABELS: Record<string, string> = {
-  worldInfoBefore: '世界书（角色前）',
-  main: '主提示词',
-  worldInfoAfter: '世界书（角色后）',
-  charDescription: '角色描述',
-  charPersonality: '角色性格',
-  scenario: '场景设定',
-  personaDescription: '玩家设定',
+  worldInfoBefore: '角色定义之前 (worldInfoBefore)',
+  main: '主提示词 (main)',
+  worldInfoAfter: '角色定义之后 (worldInfoAfter)',
+  charDescription: '角色描述 (charDescription)',
+  charPersonality: '角色性格 (charPersonality)',
+  scenario: '场景设定 (scenario)',
+  personaDescription: '玩家设定 (personaDescription)',
   systemBlocks: '系统提示块',
   userBlocks: '用户提示块',
   assistantBlocks: 'AI 提示块',
-  enhanceDefinitions: '增强定义',
-  chatHistory: '对话历史',
+  enhanceDefinitions: '增强定义 (enhanceDefinitions)',
+  chatHistory: '对话历史 (chatHistory)',
   postHistory: '后置内容',
   userInput: '用户输入',
 };
 
-const STAGE_COLORS: Record<string, string> = {
-  worldInfoBefore: 'border-l-aether-purple/40',
-  worldInfoAfter: 'border-l-aether-purple/40',
-  main: 'border-l-aether-cyan/50',
-  charDescription: 'border-l-aether-blue/30',
-  charPersonality: 'border-l-aether-blue/30',
-  scenario: 'border-l-aether-blue/30',
-  personaDescription: 'border-l-aether-green/30',
-  systemBlocks: 'border-l-white/15',
-  userBlocks: 'border-l-aether-green/20',
-  assistantBlocks: 'border-l-aether-blue/20',
-  enhanceDefinitions: 'border-l-white/10',
-  chatHistory: 'border-l-aether-cyan/30',
-  postHistory: 'border-l-white/10',
-  userInput: 'border-l-aether-cyan/40',
+const STAGE_BORDER: Record<string, string> = {
+  worldInfoBefore: 'border-l-aether-purple/30',
+  worldInfoAfter: 'border-l-aether-purple/30',
+  main: 'border-l-aether-cyan/40',
+  charDescription: 'border-l-aether-blue/25',
+  charPersonality: 'border-l-aether-blue/25',
+  scenario: 'border-l-aether-blue/25',
+  personaDescription: 'border-l-aether-green/25',
+  chatHistory: 'border-l-aether-cyan/25',
+  userInput: 'border-l-aether-cyan/35',
 };
 
-const SOURCE_ICONS: Record<string, any> = {
-  preset: Layers,
-  lorebook: BookOpen,
-  chat: FileText,
-};
+// ── Role icon ──
 
-const SOURCE_LABELS: Record<string, string> = {
-  preset: '预设',
-  lorebook: '世界书',
-  chat: '对话',
-};
-
-const ROLE_ICONS: Record<string, any> = {
-  system: Bot,
-  user: User,
-  assistant: MessageSquare,
-};
-
-const ROLE_COLORS: Record<string, string> = {
-  system: 'text-aether-cyan/40',
-  user: 'text-aether-green/45',
-  assistant: 'text-aether-blue/40',
-};
+function RoleIcon({ role }: { role: string }) {
+  const cls = 'shrink-0 mt-0.5';
+  switch (role) {
+    case 'system': return <Bot size={12} className={`${cls} text-aether-cyan/30`} />;
+    case 'user': return <User size={12} className={`${cls} text-aether-green/35`} />;
+    case 'assistant': return <MessageSquare size={12} className={`${cls} text-aether-blue/35`} />;
+    default: return <MessageSquare size={12} className={`${cls} text-white/15`} />;
+  }
+}
 
 // ── Token bar ──
 
-function TokenBar({ used, total, label }: { used: number; total: number; label: string }) {
+function TokenBar({ used, total }: { used: number; total: number }) {
   const pct = Math.min(100, Math.round((used / total) * 100));
-  const barColor = pct > 80 ? 'bg-aether-red/60' : pct > 60 ? 'bg-aether-yellow/50' : 'bg-aether-cyan/50';
+  const color = pct > 90 ? 'bg-aether-red/50' : pct > 70 ? 'bg-aether-yellow/40' : 'bg-aether-cyan/40';
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[9px] text-white/20 font-mono w-10 text-right shrink-0">{label}</span>
-      <div className="flex-1 h-1.5 bg-aether-dark/60 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+      <div className="flex-1 h-1 bg-aether-dark/60 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-[9px] text-white/25 font-mono w-16 text-right shrink-0">{used}/{total} tk</span>
-      {pct > 80 && <span className="text-[8px] text-aether-red/60 font-mono">⚠️</span>}
+      <span className="text-[9px] text-white/20 font-mono">{used} / {total} tk</span>
     </div>
   );
 }
 
-// ── Pipeline flow ──
+// ── Stage card ──
 
-function PipelineFlow({ activeStages }: { activeStages: string[] }) {
+function StageCard({
+  name, label, msgs, defaultOpen,
+}: {
+  name: (typeof STAGE_ORDER)[number]; label: string; msgs: Array<{ role: string; content: string }>; defaultOpen: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const tokens = msgs.reduce((s, m) => s + Math.round(m.content.length / 4), 0);
+  const border = STAGE_BORDER[name] || 'border-l-white/8';
+
   return (
-    <div className="flex items-center gap-1 overflow-x-auto py-2 px-1 text-[9px] font-mono text-white/15 no-scrollbar">
-      {STAGE_ORDER.filter(s => activeStages.includes(s)).map((stage, i, arr) => (
-        <span key={stage} className="flex items-center gap-1 shrink-0">
-          <span className={activeStages.includes(stage) ? 'text-white/35' : 'text-white/10'}>
-            {STAGE_LABELS[stage] || stage}
-          </span>
-          {i < arr.length - 1 && <span className="text-white/8">→</span>}
+    <div className={`rounded border border-aether-border/8 bg-aether-dark/20 border-l-2 ${border}`}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-aether-cyan/[0.02] transition-colors text-left"
+      >
+        {open ? <ChevronDown size={11} className="text-white/20 shrink-0" /> : <ChevronRight size={11} className="text-white/12 shrink-0" />}
+        <span className="text-[11px] font-display font-semibold tracking-wide text-white/45 flex-1">{label}</span>
+        <span className="text-[9px] text-white/15 font-mono">{msgs.length} msg</span>
+        <span className={`text-[9px] font-mono w-12 text-right ${tokens > 500 ? 'text-aether-yellow/45' : 'text-white/20'}`}>
+          ~{tokens} tk
         </span>
-      ))}
+      </button>
+      {open && (
+        <div className="border-t border-aether-border/5">
+          {msgs.map((msg, i) => (
+            <div key={i} className="flex items-start gap-2 px-3 py-2 border-b border-aether-border/3 last:border-b-0">
+              <RoleIcon role={msg.role} />
+              <pre className="text-[10px] text-white/45 leading-relaxed font-mono whitespace-pre-wrap flex-1 max-h-[200px] overflow-y-auto">
+                {msg.content}
+              </pre>
+              <span className="text-[7px] text-white/10 font-mono shrink-0 mt-0.5">
+                {Math.round(msg.content.length / 4)} tk
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Main component ──
+// ── Main ──
 
 export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }: Props) {
   const replyTokens = replyText ? Math.round(replyText.length / 4) : 0;
   const promptTokens = prompt?.estimatedTokens ?? 0;
-
-  // Max context from preset or default
   const maxContext = 2000000;
-  const maxOutput = 64000;
-  const budget = maxContext - maxOutput;
+  const budget = maxContext - 64000;
 
-  // Build stage→sections mapping
-  const stageSections = new Map<string, PromptSection[]>();
-  if (prompt?.sections) {
-    for (const sec of prompt.sections) {
-      const stage = sec.stage || 'systemBlocks';
-      if (!stageSections.has(stage)) stageSections.set(stage, []);
-      stageSections.get(stage)!.push(sec);
-    }
-  }
-
-  // Use exact stage→messages mapping from the pipeline (not a heuristic)
+  // Active stages from stageMessages
   const stageMsgMap = prompt?.stageMessages || {};
-
-  // Compute per-stage token totals from the actual messages
-  const stageTokenTotals = new Map<string, number>();
-  for (const [stage, msgs] of Object.entries(stageMsgMap)) {
-    stageTokenTotals.set(stage, msgs.reduce((s, m) => s + Math.round(m.content.length / 4), 0));
-  }
-
-  // Active stages: have messages OR have sections
-  const activeStages = STAGE_ORDER.filter(s => {
-    const msgs = stageMsgMap[s];
-    const secs = stageSections.get(s);
-    return (msgs && msgs.length > 0) || (secs && secs.length > 0);
-  });
-
-  const [collapsedStages, setCollapsedStages] = useState<Set<string>>(new Set());
-
-  const toggleCollapse = (stage: string) => {
-    setCollapsedStages(prev => {
-      const s = new Set(prev);
-      s.has(stage) ? s.delete(stage) : s.add(stage);
-      return s;
-    });
-  };
+  const activeStages = STAGE_ORDER.filter(s => stageMsgMap[s] && stageMsgMap[s].length > 0);
 
   if (!isOpen) return null;
 
@@ -186,16 +155,13 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
           {/* Header */}
           <div className="relative z-10 flex items-center justify-between px-5 py-3.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
-                <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
-              </div>
+              <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
               <FileText size={18} className="text-aether-cyan/80" />
               <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">发送给 AI 的提示词</h2>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-mono text-aether-cyan/40">
-                {activeStages.length} stages · {promptTokens} + {replyTokens} = {promptTokens + replyTokens} tk
+                {promptTokens} + {replyTokens} = {promptTokens + replyTokens} tk
               </span>
               <button onClick={onClose} className="text-white/20 hover:text-aether-cyan transition-colors p-1.5 clickable hover:bg-aether-cyan/[0.06] rounded">
                 <X size={17} />
@@ -204,161 +170,50 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {!prompt ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <FileText size={36} className="text-white/8 mb-3" />
                 <p className="text-white/20 text-xs font-display tracking-wide">暂无请求数据</p>
               </div>
             ) : (
-              <div className="p-4 space-y-3">
-                {/* ── Token budget bar ── */}
-                <div className="rounded-lg border border-aether-border/10 bg-aether-dark/30 p-3 space-y-2">
-                  <TokenBar used={promptTokens + replyTokens} total={budget} label="总用量" />
-                  <div className="flex gap-3 text-[9px] font-mono text-white/15">
-                    {prompt?.stageTokens && Object.entries(prompt.stageTokens).filter(([, t]) => t > 0).slice(0, 6).map(([name, tokens]) => (
-                      <span key={name}>{STAGE_LABELS[name] || name}: {tokens}tk</span>
+              <>
+                {/* Token budget */}
+                <div className="rounded border border-aether-border/10 bg-aether-dark/25 px-3 py-2.5">
+                  <TokenBar used={promptTokens + replyTokens} total={budget} />
+                  <div className="flex gap-2 mt-1.5 flex-wrap">
+                    {activeStages.map(s => (
+                      <span key={s} className="text-[9px] text-white/15 font-mono">
+                        {STAGE_LABELS[s]?.split(' (')[0] || s}: {prompt?.stageTokens?.[s] || 0}tk
+                      </span>
                     ))}
-                    {(Object.entries(prompt?.stageTokens || {}).filter(([, t]) => t > 0).length > 6) && (
-                      <span className="text-white/8">...</span>
-                    )}
                   </div>
                 </div>
 
-                {/* ── Pipeline flow ── */}
-                <div className="rounded-lg border border-aether-border/10 bg-aether-dark/20 px-3 overflow-hidden">
-                  <PipelineFlow activeStages={activeStages} />
+                {/* Pipeline flow */}
+                <div className="flex items-center gap-1 overflow-x-auto py-1.5 px-1 text-[9px] font-mono text-white/12 no-scrollbar">
+                  {activeStages.map((s, i) => (
+                    <span key={s} className="flex items-center gap-1 shrink-0">
+                      <span>{STAGE_LABELS[s]?.split(' (')[0] || s}</span>
+                      {i < activeStages.length - 1 && <span>→</span>}
+                    </span>
+                  ))}
                 </div>
 
-                {/* ── Stages ── */}
+                {/* Stage cards */}
                 <div className="space-y-1.5">
-                  {activeStages.map(stageName => {
-                    const secs = stageSections.get(stageName) || [];
-                    const msgs = stageMsgMap[stageName] || [];
-                    const stageTokens = stageTokenTotals.get(stageName) || 0;
-                    const isCollapsed = collapsedStages.has(stageName);
-                    const colorClass = STAGE_COLORS[stageName] || 'border-l-white/10';
-                    const allDisabled = secs.length > 0 && secs.every(s => !s.enabled);
-
-                    return (
-                      <div key={stageName}
-                        className={`rounded-lg border border-aether-border/10 bg-aether-dark/25 overflow-hidden border-l-2 ${colorClass} ${
-                          allDisabled ? 'opacity-30' : ''
-                        }`}>
-                        {/* Stage header */}
-                        <button
-                          onClick={() => toggleCollapse(stageName)}
-                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-aether-cyan/[0.02] transition-colors text-left"
-                        >
-                          {isCollapsed ? (
-                            <ChevronRight size={11} className="text-white/15 shrink-0" />
-                          ) : (
-                            <ChevronDown size={11} className="text-white/25 shrink-0" />
-                          )}
-                          <span className="text-[11px] font-display font-semibold tracking-wide text-white/50 flex-1">
-                            {STAGE_LABELS[stageName] || stageName}
-                          </span>
-                          {stageTokens > 0 && (
-                            <span className={`text-[9px] font-mono shrink-0 ${
-                              stageTokens > 1000 ? 'text-aether-red/45' : stageTokens > 250 ? 'text-aether-yellow/45' : 'text-white/20'
-                            }`}>
-                              ~{stageTokens} tk
-                            </span>
-                          )}
-                          <span className="text-[8px] text-white/12 font-mono shrink-0">{msgs.length} msg</span>
-                        </button>
-
-                        {/* Stage body */}
-                        <AnimatePresence initial={false}>
-                          {!isCollapsed && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.15 }}
-                              className="overflow-hidden border-t border-aether-border/6"
-                            >
-                              {/* Section list */}
-                              {secs.map((section, i) => {
-                                const SourceIcon = SOURCE_ICONS[section.source] || Layers;
-                                const hasContent = section.content && section.content.trim().length > 0;
-                                return (
-                                  <div key={`${section.identifier}-${i}`}
-                                    className={`border-b border-aether-border/4 last:border-b-0 ${
-                                      !section.enabled ? 'opacity-30' : ''
-                                    }`}>
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-aether-dark/15">
-                                      {section.enabled ? (
-                                        <CheckCircle2 size={10} className="text-aether-green/40 shrink-0" />
-                                      ) : (
-                                        <Circle size={10} className="text-white/8 shrink-0" />
-                                      )}
-                                      <span className={`text-[10px] font-display truncate flex-1 ${
-                                        section.enabled && hasContent ? 'text-white/40' : 'text-white/15'
-                                      }`}>
-                                        {section.name}
-                                      </span>
-                                      <span className="text-[7px] text-white/12 font-mono uppercase">{section.role}</span>
-                                      <span className={`flex items-center gap-0.5 text-[7px] font-mono px-1 py-0.5 rounded ${
-                                        section.source === 'lorebook' ? 'bg-aether-purple/10 text-aether-purple/50' :
-                                        section.source === 'chat' ? 'bg-aether-blue/10 text-aether-blue/50' :
-                                        'bg-aether-cyan/10 text-aether-cyan/50'
-                                      }`}>
-                                        <SourceIcon size={8} />
-                                        {SOURCE_LABELS[section.source]}
-                                      </span>
-                                      {hasContent ? (
-                                        <span className="text-[7px] text-white/12 font-mono">~{section.tokens || Math.round(section.content!.length / 4)} tk</span>
-                                      ) : section.enabled ? (
-                                        <span className="flex items-center gap-0.5 text-[7px] text-white/10 font-mono"><EyeOff size={8} /> 未匹配</span>
-                                      ) : null}
-                                    </div>
-                                    {hasContent && (
-                                      <pre className="px-3 py-1.5 text-[10px] text-white/40 whitespace-pre-wrap leading-relaxed font-mono max-h-[100px] overflow-y-auto">
-                                        {section.content}
-                                      </pre>
-                                    )}
-                                  </div>
-                                );
-                              })}
-
-                              {/* Message preview */}
-                              {msgs.length > 0 && (
-                                <div className="px-3 py-2 space-y-1 bg-aether-dark/10">
-                                  {msgs.slice(0, stageName === 'chatHistory' ? 20 : 5).map((msg, i) => {
-                                    const RoleIcon = ROLE_ICONS[msg.role] || MessageSquare;
-                                    return (
-                                      <div key={i} className="flex items-start gap-1.5">
-                                        <RoleIcon size={12} className={`shrink-0 mt-0.5 ${ROLE_COLORS[msg.role] || 'text-white/20'}`} />
-                                        <pre className="text-[10px] text-white/35 leading-relaxed font-mono line-clamp-3 flex-1">
-                                          {msg.content.slice(0, 300)}{msg.content.length > 300 ? '...' : ''}
-                                        </pre>
-                                        <span className="text-[7px] text-white/10 font-mono shrink-0 mt-0.5">
-                                          {Math.round(msg.content.length / 4)}tk
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                  {msgs.length > 20 && stageName === 'chatHistory' && (
-                                    <p className="text-[9px] text-white/12 text-center py-1">
-                                      ... 还有 {msgs.length - 20} 条消息
-                                    </p>
-                                  )}
-                                  {msgs.length > 5 && stageName !== 'chatHistory' && (
-                                    <p className="text-[9px] text-white/12 text-center py-1">
-                                      ... 还有 {msgs.length - 5} 条消息
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    );
-                  })}
+                  {activeStages.map(s => (
+                    <div key={s}>
+                      <StageCard
+                        name={s}
+                        label={STAGE_LABELS[s] || s}
+                        msgs={stageMsgMap[s]}
+                        defaultOpen={s === 'main' || s === 'chatHistory' || s === 'userInput'}
+                      />
+                    </div>
+                  ))}
                 </div>
-              </div>
+              </>
             )}
           </div>
 
