@@ -265,7 +265,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
           assembledMessages.push({ role: 'system', content: systemAccumulator });
           systemAccumulator = '';
         }
-        const recentHistory = buildRecentHistory(history);
+        const recentHistory = buildRecentHistory(history.slice(0, -1));
         assembledMessages.push(...recentHistory);
         sections.push({
           identifier: 'chatHistory', name: block.name || '对话历史',
@@ -332,12 +332,17 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
   // Flush remaining system accumulator
   if (systemAccumulator.trim()) {
-    assembledMessages.unshift({ role: 'system', content: systemAccumulator });
+    if (hasChatHistory) {
+      // Post-history system content goes after history, before user input
+      assembledMessages.push({ role: 'system', content: systemAccumulator });
+    } else {
+      assembledMessages.unshift({ role: 'system', content: systemAccumulator });
+    }
   }
 
   // Chat history (if not already inserted by a chatHistory preset block)
   if (!hasChatHistory) {
-    const recentHistory = buildRecentHistory(history);
+    const recentHistory = buildRecentHistory(history.slice(0, -1));
     if (recentHistory.length > 0) {
       assembledMessages.push(...recentHistory);
       sections.push({
