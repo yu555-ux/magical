@@ -24,23 +24,7 @@ function RoleIcon({ role }: { role: string }) {
   }
 }
 
-function TokenBar({ used, total }: { used: number; total: number }) {
-  const pct = Math.min(100, Math.round((used / total) * 100));
-  const color = pct > 90 ? 'bg-aether-red/50' : pct > 70 ? 'bg-aether-yellow/40' : 'bg-aether-cyan/40';
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1 bg-aether-dark/60 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-[9px] text-white/20 font-mono">{used}/{total} tk</span>
-    </div>
-  );
-}
-
-export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }: Props) {
-  const replyTokens = replyText ? Math.round(replyText.length / 4) : 0;
-  const promptTokens = prompt?.estimatedTokens ?? 0;
-  const budget = 2000000 - 64000;
+export default function PromptViewerModal({ isOpen, onClose, prompt }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const toggle = (id: string) => setCollapsed(prev => {
@@ -53,7 +37,6 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
 
   const order = prompt?.stageOrder ?? [];
   const msgs = prompt?.stageMessages ?? {};
-  const tokens = prompt?.stageTokens ?? {};
   const names = prompt?.stageNames ?? {};
 
   return (
@@ -77,12 +60,9 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
               <FileText size={16} className="text-aether-cyan/80" />
               <h2 className="font-display font-black text-xs tracking-[0.15em] text-aether-cyan/90 uppercase">发送给 AI 的提示词</h2>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono text-aether-cyan/40">{promptTokens}+{replyTokens}={promptTokens+replyTokens} tk</span>
-              <button onClick={onClose} className="text-white/15 hover:text-aether-cyan transition-colors p-1 clickable rounded">
-                <X size={16} />
-              </button>
-            </div>
+            <button onClick={onClose} className="text-white/15 hover:text-aether-cyan transition-colors p-1 clickable rounded">
+              <X size={16} />
+            </button>
           </div>
 
           {/* Content */}
@@ -94,25 +74,11 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
               </div>
             ) : (
               <>
-                {/* Token bar */}
-                <div className="rounded border border-aether-border/10 bg-aether-dark/25 px-3 py-2.5">
-                  <TokenBar used={promptTokens + replyTokens} total={budget} />
-                  <div className="flex gap-2 mt-1.5 flex-wrap">
-                    {order.map(id => {
-                      const tk = tokens[id] || 0;
-                      if (!tk) return null;
-                      const displayName = names[id] || id;
-                      return <span key={id} className="text-[9px] text-white/15 font-mono">{displayName}: {tk}tk</span>;
-                    })}
-                  </div>
-                </div>
-
                 {/* Block cards — in send order */}
                 <div className="space-y-1">
-                  {order.map((id, i) => {
+                  {order.map((id) => {
                     const blockMsgs = msgs[id];
                     if (!blockMsgs || blockMsgs.length === 0) return null;
-                    const tk = tokens[id] || 0;
                     const isOpen = !collapsed.has(id);
                     const isHistory = id.toLowerCase().includes('chathistory');
 
@@ -131,9 +97,6 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                             {names[id] || id}
                           </span>
                           <span className="text-[8px] text-white/12 font-mono">{blockMsgs.length} msg</span>
-                          <span className={`text-[8px] font-mono w-10 text-right ${tk > 500 ? 'text-aether-yellow/40' : 'text-white/15'}`}>
-                            ~{tk} tk
-                          </span>
                         </button>
                         {isOpen && (
                           <div className="border-t border-aether-border/5">
@@ -143,9 +106,6 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                                 <pre className="text-[10px] text-white/40 leading-relaxed font-mono whitespace-pre-wrap flex-1 max-h-[160px] overflow-y-auto">
                                   {msg.content}
                                 </pre>
-                                <span className="text-[7px] text-white/10 font-mono shrink-0 mt-0.5">
-                                  {Math.round(msg.content.length / 4)}tk
-                                </span>
                               </div>
                             ))}
                           </div>
