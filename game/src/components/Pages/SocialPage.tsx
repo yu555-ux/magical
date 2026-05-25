@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '../Feedback';
 import { useSillytavern } from '../../hooks/useSillytavern';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
+import { deepResolveMacros } from '../../sillytavern/prompt-assembler';
 
 import { getAffectionStage, getFriendlinessStage, getCorruptionStage } from '../../sillytavern/social-stages';
 
@@ -31,10 +32,18 @@ export default function SocialPage() {
   const ss = useSillytavern();
   const liveVars = ss.activeChat?.variables;
   const defaults = DEFAULT_WORLD_VARS as any;
-  const socialData: Record<string, { 关系: string; 社交圈?: Record<string, string> }> =
-    liveVars?.['主角']?.['社交'] ?? defaults.主角?.社交 ?? {};
-  const charData: Record<string, any> = liveVars?.['主要人物'] ?? defaults.主要人物 ?? {};
   const playerName = ss.settings?.userName ?? '我';
+  const characterName = ss.settings?.characterName ?? 'AI';
+
+  // Resolve macros in displayed variable values
+  const socialData: Record<string, { 关系: string; 社交圈?: Record<string, string> }> = useMemo(() => {
+    const raw = liveVars?.['主角']?.['社交'] ?? defaults.主角?.社交 ?? {};
+    return deepResolveMacros(raw, playerName, characterName);
+  }, [liveVars, defaults, playerName, characterName]);
+  const charData: Record<string, any> = useMemo(() => {
+    const raw = liveVars?.['主要人物'] ?? defaults.主要人物 ?? {};
+    return deepResolveMacros(raw, playerName, characterName);
+  }, [liveVars, defaults, playerName, characterName]);
 
   const [selectedNode, setSelectedNode] = useState<LiveNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<LiveNode | null>(null);

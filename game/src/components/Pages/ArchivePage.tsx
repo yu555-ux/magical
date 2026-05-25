@@ -4,6 +4,7 @@ import { Search, User, Heart, Shield, Zap, Database, Diamond, Skull, Package } f
 import { Modal } from '../Feedback';
 import { useSillytavern } from '../../hooks/useSillytavern';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
+import { deepResolveMacros } from '../../sillytavern/prompt-assembler';
 import { getAffectionStage, getFriendlinessStage, getCorruptionStage } from '../../sillytavern/social-stages';
 
 /* ===== Helpers ===== */
@@ -67,7 +68,12 @@ export default function ArchivePage() {
   const ss = useSillytavern();
   const liveVars = ss.activeChat?.variables;
   const defaults = DEFAULT_WORLD_VARS as any;
-  const charData: Record<string, any> = liveVars?.['主要人物'] ?? defaults.主要人物 ?? {};
+  const playerName = ss.settings?.userName ?? '我';
+  const characterName = ss.settings?.characterName ?? 'AI';
+  const charData: Record<string, any> = useMemo(() => {
+    const raw = liveVars?.['主要人物'] ?? defaults.主要人物 ?? {};
+    return deepResolveMacros(raw, playerName, characterName);
+  }, [liveVars, defaults, playerName, characterName]);
 
   const [selected, setSelected] = useState<CharacterCard | null>(null);
   const [search, setSearch] = useState('');

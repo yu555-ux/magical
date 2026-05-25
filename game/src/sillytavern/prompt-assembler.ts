@@ -84,7 +84,7 @@ function detectAnchor(block: PresetBlock): InjectionAnchor | null {
 // Recursively resolve {{user}} / <user> / {{char}} in all string values & keys.
 // Returns a new object; does not mutate the original.
 
-function deepResolveMacros(obj: any, userName: string, characterName: string): any {
+export function deepResolveMacros(obj: any, userName: string, characterName: string): any {
   if (typeof obj === 'string') {
     return obj.replace(/\{\{user\}\}/g, userName).replace(/<user>/g, userName).replace(/\{\{char\}\}/g, characterName);
   }

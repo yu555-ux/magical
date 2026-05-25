@@ -7,6 +7,7 @@ import VariableViewerModal from './VariableViewerModal';
 import SavePointModal from './SavePointModal';
 import PromptViewerModal from './PromptViewerModal';
 import { useSillytavern } from '../../../hooks/useSillytavern';
+import { deepResolveMacros } from '../../../sillytavern/prompt-assembler';
 
 export default function ChatPage({
   addNotification,
@@ -18,6 +19,14 @@ export default function ChatPage({
   ) => void;
 }) {
   const ss = useSillytavern();
+
+  // Resolve {{user}}/<user>/{{char}} macros for UI display
+  const resolvedVariables = useMemo(() => {
+    const vars = ss.activeChat?.variables;
+    if (!vars) return undefined;
+    return deepResolveMacros(vars, ss.settings?.userName ?? '用户', ss.settings?.characterName ?? 'AI');
+  }, [ss.activeChat?.variables, ss.settings?.userName, ss.settings?.characterName]);
+
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [thinkingOpen, setThinkingOpen] = useState(false);
@@ -102,7 +111,7 @@ export default function ChatPage({
     <div className="flex flex-col h-full relative overflow-hidden">
       <div className="flex-1 flex flex-col w-full glass-panel border-glow relative overflow-hidden">
         <ChatHeader
-          variables={ss.activeChat?.variables}
+          variables={resolvedVariables}
           messagesCount={savePointCount}
           hasSavePoints={savePointCount > 0}
           onOpenReader={() => setReaderOpen(true)}
