@@ -24,7 +24,9 @@ function RoleIcon({ role }: { role: string }) {
   }
 }
 
-export default function PromptViewerModal({ isOpen, onClose, prompt }: Props) {
+export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }: Props) {
+  const replyTokens = replyText ? Math.round(replyText.length / 4) : 0;
+  const promptTokens = prompt?.estimatedTokens ?? 0;
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const toggle = (id: string) => setCollapsed(prev => {
@@ -37,6 +39,7 @@ export default function PromptViewerModal({ isOpen, onClose, prompt }: Props) {
 
   const order = prompt?.stageOrder ?? [];
   const msgs = prompt?.stageMessages ?? {};
+  const tokens = prompt?.stageTokens ?? {};
   const names = prompt?.stageNames ?? {};
 
   return (
@@ -60,9 +63,12 @@ export default function PromptViewerModal({ isOpen, onClose, prompt }: Props) {
               <FileText size={16} className="text-aether-cyan/80" />
               <h2 className="font-display font-black text-xs tracking-[0.15em] text-aether-cyan/90 uppercase">发送给 AI 的提示词</h2>
             </div>
-            <button onClick={onClose} className="text-white/15 hover:text-aether-cyan transition-colors p-1 clickable rounded">
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-mono text-aether-cyan/40">{promptTokens}+{replyTokens}={promptTokens+replyTokens} tk</span>
+              <button onClick={onClose} className="text-white/15 hover:text-aether-cyan transition-colors p-1 clickable rounded">
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Content */}
@@ -97,6 +103,9 @@ export default function PromptViewerModal({ isOpen, onClose, prompt }: Props) {
                             {names[id] || id}
                           </span>
                           <span className="text-[8px] text-white/12 font-mono">{blockMsgs.length} msg</span>
+                          <span className={`text-[8px] font-mono w-10 text-right ${(tokens[id] || 0) > 500 ? 'text-aether-yellow/40' : 'text-white/15'}`}>
+                            ~{tokens[id] || 0} tk
+                          </span>
                         </button>
                         {isOpen && (
                           <div className="border-t border-aether-border/5">
