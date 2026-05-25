@@ -10,6 +10,7 @@ interface Props {
     stageTokens: Record<string, number>;
     stageMessages: Record<string, Array<{ role: string; content: string }>>;
     stageOrder: string[];
+    stageNames: Record<string, string>;
   } | null;
   replyText?: string;
 }
@@ -53,6 +54,7 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
   const order = prompt?.stageOrder ?? [];
   const msgs = prompt?.stageMessages ?? {};
   const tokens = prompt?.stageTokens ?? {};
+  const names = prompt?.stageNames ?? {};
 
   return (
     <AnimatePresence>
@@ -99,8 +101,8 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                     {order.map(id => {
                       const tk = tokens[id] || 0;
                       if (!tk) return null;
-                      // Find the preset block name from the key
-                      return <span key={id} className="text-[9px] text-white/15 font-mono">{id}: {tk}tk</span>;
+                      const displayName = names[id] || id;
+                      return <span key={id} className="text-[9px] text-white/15 font-mono">{displayName}: {tk}tk</span>;
                     })}
                   </div>
                 </div>
@@ -128,7 +130,7 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                         >
                           {isOpen ? <ChevronDown size={10} className="text-white/18" /> : <ChevronRight size={10} className="text-white/10" />}
                           <span className="text-[10px] font-display font-semibold tracking-wide text-white/40 flex-1 truncate">
-                            {i + 1}. {id}
+                            {i + 1}. {names[id] || id}
                           </span>
                           <span className="text-[8px] text-white/12 font-mono">{blockMsgs.length} msg</span>
                           <span className={`text-[8px] font-mono w-10 text-right ${tk > 500 ? 'text-aether-yellow/40' : 'text-white/15'}`}>
@@ -159,7 +161,7 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                 <div className="flex items-center gap-1 overflow-x-auto text-[9px] font-mono text-white/10 py-1 no-scrollbar">
                   {order.filter(id => msgs[id]?.length > 0).map((id, i, arr) => (
                     <span key={id} className="flex items-center gap-1 shrink-0">
-                      <span className="text-white/20">{id}</span>
+                      <span className="text-white/20">{names[id] || id}</span>
                       {i < arr.length - 1 && <span>→</span>}
                     </span>
                   ))}

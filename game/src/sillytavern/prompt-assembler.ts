@@ -40,6 +40,8 @@ export interface AssembleResult {
   stageMessages: Record<string, { role: 'system' | 'user' | 'assistant'; content: string }[]>;
   /** Block identifiers in send order */
   stageOrder: string[];
+  /** Display names keyed by identifier */
+  stageNames: Record<string, string>;
 }
 
 // ── Internal Message ──
@@ -341,7 +343,25 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   // Only add userInput to stageOrder if it has content
   if (userMsg) stageOrder.push('userInput');
 
-  return { messages: finalMsgs, systemPrompt, totalTokens, stageTokens, stageMessages, stageOrder };
+  // ── Build stageNames: display name for each identifier ──
+  const stageNames: Record<string, string> = {};
+  // From preset blocks
+  if (presetBlocks) {
+    for (const block of presetBlocks) {
+      stageNames[block.identifier] = block.name || block.identifier;
+    }
+  }
+  // Known non-block identifiers
+  stageNames['userInput'] = '用户输入';
+  // Remaining lorebook anchors
+  for (const entry of remainingMsgs) {
+    if (!stageNames[entry.id]) {
+      const rule = INJECTION_ANCHOR_RULES.find(r => r.anchor === entry.id);
+      stageNames[entry.id] = rule?.label ?? entry.id;
+    }
+  }
+
+  return { messages: finalMsgs, systemPrompt, totalTokens, stageTokens, stageMessages, stageOrder, stageNames };
 }
 
 // ── History builder ──
