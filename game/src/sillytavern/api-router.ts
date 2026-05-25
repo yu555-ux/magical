@@ -34,7 +34,7 @@ export function createApiRouter(settings: ApiSettings, deps: RouterDeps = {}) {
     return { baseUrl: settings.baseUrl, apiKey: settings.apiKey, model: settings.model };
   }
 
-  async function callOnce(target: ApiTarget, body: ChatRequest): Promise<Response> {
+  async function callOnce(target: ApiTarget, body: ChatRequest, signal?: AbortSignal): Promise<Response> {
     const ep = endpointFor(target);
     return await fetchImpl(`${ep.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -43,22 +43,23 @@ export function createApiRouter(settings: ApiSettings, deps: RouterDeps = {}) {
         Authorization: `Bearer ${ep.apiKey}`,
       },
       body: JSON.stringify({ ...body, model: ep.model }),
+      signal,
     });
   }
 
-  async function call(task: Task, payload: ChatRequest): Promise<CallResult> {
+  async function call(task: Task, payload: ChatRequest, signal?: AbortSignal): Promise<CallResult> {
     const target = targetFor(task);
     if (target === 'secondary') {
       try {
-        const res = await callOnce('secondary', payload);
+        const res = await callOnce('secondary', payload, signal);
         if (!res.ok) throw new Error(`secondary HTTP ${res.status}`);
         return { targetUsed: 'secondary', response: res };
       } catch {
-        const res = await callOnce('primary', payload);
+        const res = await callOnce('primary', payload, signal);
         return { targetUsed: 'primary', response: res };
       }
     }
-    const res = await callOnce('primary', payload);
+    const res = await callOnce('primary', payload, signal);
     return { targetUsed: 'primary', response: res };
   }
 

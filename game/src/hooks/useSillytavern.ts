@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat } from '../sillytavern/variables';
@@ -26,6 +26,7 @@ export function useSillytavern() {
 
   const [toast, setToast] = useState<string | null>(null);
   const showToast = useCallback((message: string) => { setToast(message); setTimeout(() => setToast(null), 2000); }, []);
+  const abortRef = useRef<AbortController | null>(null);
 
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId) ?? null, [chats, activeChatId]);
 
@@ -85,8 +86,8 @@ export function useSillytavern() {
     [...DEFAULT_OPAQUE_TAGS],
   );
 
-  const sendGameMessage = useCallback(async (userText: string) => {
-    if (!activeChat || !settings) return;
+  const sendGameMessage = useCallback(async (userText: string): Promise<{ aborted: boolean; retractedText?: string }> => {
+    if (!activeChat || !settings) return { aborted: false };
 
     const latestSettings = await getSettings();
     const effectiveApi = latestSettings?.api ?? settings.api ?? DEFAULT_SETTINGS.api;
@@ -137,6 +138,8 @@ export function useSillytavern() {
 
     const freshRouter = createApiRouter(effectiveApi);
     parser.start();
+    const controller = new AbortController();
+    abortRef.current = controller;
     let rawContent = '';
     try {
       const { response } = await freshRouter.call('story', {
@@ -150,7 +153,7 @@ export function useSillytavern() {
           presence_penalty: effectiveSettings.presetParams.presence_penalty,
           max_tokens: effectiveSettings.presetParams.openai_max_tokens,
         } : {}),
-      });
+      }, controller.signal);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No body');
@@ -170,7 +173,26 @@ export function useSillytavern() {
           }
         }
       }
-    } catch (e) { parser.reset(); throw e; }
+    } catch (e) {
+      parser.reset();
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        // Retract: remove last user message, restore variables from previous assistant
+        const msgs = updatedChat.messages;
+        const lastUserIdx = [...msgs].reverse().findIndex(m => m.role === 'user');
+        if (lastUserIdx >= 0) {
+          const targetIdx = msgs.length - 1 - lastUserIdx;
+          const truncated = msgs.slice(0, targetIdx);
+          const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
+          const restoredVars = lastAssistant?.variablesAfter ?? updatedChat.variables ?? {};
+          const next: ChatSession = { ...updatedChat, messages: truncated, variables: restoredVars, updatedAt: Date.now() };
+          await db.chats.put(next);
+          setChats(prev => prev.map(c => c.id === next.id ? next : c));
+          return { aborted: true, retractedText: userText };
+        }
+        return { aborted: true };
+      }
+      throw e;
+    }
 
     const { events, parsed } = parser.finish();
     let { nextVariables, snapshot } = applyParsedToChat(updatedChat.variables ?? {}, parsed);
@@ -239,6 +261,8 @@ export function useSillytavern() {
     const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, updatedAt: Date.now() };
     await db.chats.put(finalChat);
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
+    abortRef.current = null;
+    return { aborted: false };
   }, [activeChat, settings, parser]);
 
   const jumpToFloor = useCallback(async (messageId: string) => {
@@ -276,7 +300,7 @@ export function useSillytavern() {
     settings, chats, activeChat, initialized, lastPrompt,
     createChat, selectChat, removeChat, sendGameMessage, jumpToFloor, regenerateLast,
     updateSettings, setChatVariables,
-    streamState: parser.state, abortStream: () => {},
+    streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
     toast, showToast,
   };
 }

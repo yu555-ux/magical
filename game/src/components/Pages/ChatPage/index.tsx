@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, ChevronRight, Loader2, Send, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Send, Square, X } from 'lucide-react';
 import ChatHeader from './ChatHeader';
 import PlotReaderModal from './PlotReaderModal';
 import VariableViewerModal from './VariableViewerModal';
@@ -91,9 +91,13 @@ export default function ChatPage({
   const handleSend = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
     if (!msg || isStreaming) return;
+    const wasOption = !!text;
     setInput('');
     try {
-      await ss.sendGameMessage(msg);
+      const result = await ss.sendGameMessage(msg);
+      if (result?.aborted && !wasOption) {
+        setInput(result.retractedText ?? msg);
+      }
     } catch (err) {
       addNotification?.('发送失败', String(err), 'error');
     }
@@ -275,8 +279,8 @@ export default function ChatPage({
                   className="flex-1 bg-transparent px-5 py-3.5 text-[14px] text-white/75 font-display tracking-[0.06em] placeholder:text-white/20 disabled:opacity-40 focus:outline-none"
                 />
                 <button
-                  onClick={() => handleSend()}
-                  disabled={!input.trim() || isStreaming}
+                  onClick={() => isStreaming ? ss.abortStream() : handleSend()}
+                  disabled={!isStreaming && !input.trim()}
                   className={`shrink-0 self-stretch px-5 transition-all duration-300 clickable flex items-center ${
                     isStreaming
                       ? 'text-aether-cyan drop-shadow-[0_0_12px_rgba(0,242,255,0.6)]'
@@ -284,10 +288,10 @@ export default function ChatPage({
                         ? 'text-aether-cyan drop-shadow-[0_0_10px_rgba(0,242,255,0.5)]'
                         : 'text-aether-cyan/45'
                   } enabled:hover:text-aether-cyan enabled:hover:bg-aether-cyan/[0.04] enabled:active:scale-95 disabled:opacity-40`}
-                  title={isStreaming ? 'AI 生成中...' : '发送'}
+                  title={isStreaming ? '停止生成' : '发送'}
                 >
                   {isStreaming ? (
-                    <Loader2 size={18} className="animate-spin" />
+                    <Square size={16} />
                   ) : (
                     <Send size={18} />
                   )}
