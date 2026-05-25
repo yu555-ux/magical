@@ -299,7 +299,14 @@ export function useSillytavern() {
   const refreshPrompt = useCallback(async () => {
     if (!activeChat || !settings) return;
     const latestSettings = await getSettings();
-    const effectiveSettings = { ...(latestSettings ?? DEFAULT_SETTINGS), ...(settings ?? {}) };
+    const effectiveSettings = {
+      ...(latestSettings ?? DEFAULT_SETTINGS),
+      ...(settings ?? {}),
+      // DB takes priority for these fields (may be updated by PresetManager/LorebookTab auto-save)
+      presetBlocks: latestSettings?.presetBlocks ?? settings?.presetBlocks ?? DEFAULT_PRESET_BLOCKS,
+      lorebooks: latestSettings?.lorebooks ?? settings?.lorebooks ?? DEFAULT_SETTINGS.lorebooks,
+      presetParams: latestSettings?.presetParams ?? settings?.presetParams,
+    };
     const chatVars = activeChat.variables ?? {};
     const lastUser = [...activeChat.messages].reverse().find(m => m.role === 'user');
     const userInput = lastUser?.content ?? '';
@@ -312,13 +319,14 @@ export function useSillytavern() {
       characterName: effectiveSettings.characterName ?? DEFAULT_SETTINGS.characterName,
       playerDescription: effectiveSettings.playerDescription,
       characterDescription: effectiveSettings.characterDescription,
-      maxContextTokens: effectiveSettings.maxContextTokens,
-      maxOutputTokens: effectiveSettings.maxOutputTokens,
+      squashSystemMessages: effectiveSettings.squashSystemMessages,
+      maxContextTokens: effectiveSettings.presetParams?.openai_max_context ?? 2000000,
+      maxOutputTokens: effectiveSettings.presetParams?.openai_max_tokens ?? 64000,
       mapTree: chatVars['地图'],
       characters: chatVars['主要人物'],
       fullVariables: chatVars,
-      currentLocation: chatVars['世界']?.['现实']?.['地点'],
-      isDream: chatVars['世界']?.['现实']?.['是否梦境'],
+      currentLocation: chatVars['世界']?.['现实']?.['地点'] ?? '',
+      isDream: chatVars['世界']?.['梦境定位']?.['位于梦境'] ?? false,
     });
     setLastPrompt({
       messages: messages.map(m => ({ role: m.role, content: m.content })),
