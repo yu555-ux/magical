@@ -47,6 +47,8 @@ export interface AssembleResult {
   totalTokens: number;
   /** Per-stage token breakdown */
   stageTokens: Record<string, number>;
+  /** Messages grouped by pipeline stage (exact order sent to AI) */
+  stageMessages: Record<string, { role: 'system' | 'user' | 'assistant'; content: string }[]>;
 }
 
 // ── Message ──
@@ -456,9 +458,15 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   // ── PHASE 5: Flatten stages into message array ──
 
   const assembledMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
+  const stageMessages: Record<string, { role: 'system' | 'user' | 'assistant'; content: string }[]> = {};
+
   for (const stageName of PIPELINE_STAGES) {
     const col = stages.get(stageName)!;
-    for (const msg of col.getMessages()) {
+    const msgs = col.getMessages();
+    if (msgs.length > 0) {
+      stageMessages[stageName] = msgs.map(m => ({ role: m.role, content: m.content }));
+    }
+    for (const msg of msgs) {
       assembledMessages.push({ role: msg.role, content: msg.content });
     }
   }
@@ -515,7 +523,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     stageTokens[name] = col.tokenCount;
   }
 
-  return { messages: final, systemPrompt, sections, totalTokens, stageTokens };
+  return { messages: final, systemPrompt, sections, totalTokens, stageTokens, stageMessages };
 }
 
 // ── History builder ──

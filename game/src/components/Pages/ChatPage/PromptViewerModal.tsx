@@ -12,6 +12,7 @@ interface Props {
     sections: PromptSection[];
     estimatedTokens: number;
     stageTokens: Record<string, number>;
+    stageMessages: Record<string, Array<{ role: string; content: string }>>;
   } | null;
   replyText?: string;
 }
@@ -138,61 +139,18 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
     }
   }
 
-  // Build stage→messages mapping
-  // Messages are in pipeline stage order; assign each message to the stage
-  // whose sections appear at or before its position
-  const stageMessages = new Map<string, Array<{ role: string; content: string }>>();
-  if (prompt?.messages) {
-    const msgList = prompt.messages;
-    let msgIdx = 0;
+  // Use exact stage→messages mapping from the pipeline (not a heuristic)
+  const stageMsgMap = prompt?.stageMessages || {};
 
-    for (const stageName of STAGE_ORDER) {
-      const msgs: Array<{ role: string; content: string }> = [];
-      const secs = stageSections.get(stageName) || [];
-
-      if (stageName === 'chatHistory') {
-        // Consume all non-system messages that aren't the last user message
-        while (msgIdx < msgList.length && msgList[msgIdx].role !== 'system') {
-          const m = msgList[msgIdx];
-          // If this is a user message and it's the last one in the array, it's userInput
-          const remainingNonSystem = msgList.slice(msgIdx + 1).filter(x => x.role !== 'system').length;
-          if (m.role === 'user' && remainingNonSystem === 0) break;
-          msgs.push(m);
-          msgIdx++;
-        }
-        if (msgs.length > 0) stageMessages.set(stageName, msgs);
-        continue;
-      }
-
-      if (stageName === 'userInput') {
-        if (msgIdx < msgList.length) {
-          msgs.push(msgList[msgIdx]);
-          stageMessages.set(stageName, msgs);
-        }
-        continue;
-      }
-
-      // System stages: consume consecutive system messages
-      while (msgIdx < msgList.length && msgList[msgIdx].role === 'system') {
-        msgs.push(msgList[msgIdx]);
-        msgIdx++;
-      }
-      if (msgs.length > 0 || secs.length > 0) {
-        stageMessages.set(stageName, msgs);
-      }
-    }
-  }
-
-  // Compute per-stage token totals
+  // Compute per-stage token totals from the actual messages
   const stageTokenTotals = new Map<string, number>();
-  for (const [stage, msgs] of stageMessages) {
-    const t = msgs.reduce((s, m) => s + Math.round(m.content.length / 4), 0);
-    stageTokenTotals.set(stage, t);
+  for (const [stage, msgs] of Object.entries(stageMsgMap)) {
+    stageTokenTotals.set(stage, msgs.reduce((s, m) => s + Math.round(m.content.length / 4), 0));
   }
 
-  // Active stages (have content)
+  // Active stages: have messages OR have sections
   const activeStages = STAGE_ORDER.filter(s => {
-    const msgs = stageMessages.get(s);
+    const msgs = stageMsgMap[s];
     const secs = stageSections.get(s);
     return (msgs && msgs.length > 0) || (secs && secs.length > 0);
   });
@@ -276,7 +234,7 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                 <div className="space-y-1.5">
                   {activeStages.map(stageName => {
                     const secs = stageSections.get(stageName) || [];
-                    const msgs = stageMessages.get(stageName) || [];
+                    const msgs = stageMsgMap[stageName] || [];
                     const stageTokens = stageTokenTotals.get(stageName) || 0;
                     const isCollapsed = collapsedStages.has(stageName);
                     const colorClass = STAGE_COLORS[stageName] || 'border-l-white/10';
