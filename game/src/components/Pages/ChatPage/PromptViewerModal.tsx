@@ -86,7 +86,7 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                     const blockMsgs = msgs[id];
                     if (!blockMsgs || blockMsgs.length === 0) return null;
                     const isOpen = !collapsed.has(id);
-                    const isHistory = id.toLowerCase().includes('chathistory');
+                    const isHistory = /^chathistory$/i.test(id);
 
                     return (
                       <div key={id}

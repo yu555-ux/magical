@@ -55,7 +55,7 @@ interface Message {
 
 const CHAT_HISTORY_PATTERNS = {
   idPatterns: ['chathistory'],
-  namePatterns: ['chat history', '对话历史', '聊天记录'],
+  namePatterns: ['chat history'],
 };
 
 function detectChatHistory(block: PresetBlock): boolean {
