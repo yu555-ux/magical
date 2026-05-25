@@ -151,7 +151,9 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     macroCtx.maleNormalText = formatCharacterGroup(filterCharacterGroup(options.characters['男性']?.['普通人'], pp, id, options.mapTree, 'male', 'normal', contextStr));
   }
   if (options.fullVariables) {
-    macroCtx.varsListText = formatVariablesForPrompt(options.fullVariables);
+    macroCtx.varsListText = formatVariablesForPrompt(options.fullVariables)
+      .replace(/\{\{user\}\}/g, macroCtx.userName)
+      .replace(/\{\{char\}\}/g, macroCtx.characterName);
   }
 
   // ── Lorebook scan ──
