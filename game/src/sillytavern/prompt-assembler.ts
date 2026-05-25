@@ -378,9 +378,14 @@ function buildRecentHistory(history: ChatMessage[], budget: number): HistoryMess
   for (let i = history.length - 1; i >= 0; i--) {
     const msg = history[i];
     if (msg.role === 'system') continue;
-    const t = Math.round(msg.content.length / 4);
+    // For assistant messages, only keep <maintext> to avoid polluting context with XML tags
+    const text = msg.role === 'assistant' && msg.parsed?.maintext
+      ? msg.parsed.maintext.trim()
+      : msg.content;
+    if (!text) continue;
+    const t = Math.round(text.length / 4);
     if (remaining - t < 0) break;
-    recent.unshift({ role: msg.role as 'user' | 'assistant', content: msg.content });
+    recent.unshift({ role: msg.role as 'user' | 'assistant', content: text });
     remaining -= t;
   }
   return recent;
