@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, FileText, ChevronDown, ChevronRight, User, Bot } from 'lucide-react';
+import { X, FileText, ChevronDown, ChevronRight, User, Bot, RefreshCw } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  onRefresh?: () => void;
   prompt: {
     estimatedTokens: number;
     stageTokens: Record<string, number>;
@@ -24,7 +25,7 @@ function RoleIcon({ role }: { role: string }) {
   }
 }
 
-export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }: Props) {
+export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, replyText }: Props) {
   const replyTokens = replyText ? Math.round(replyText.length / 4) : 0;
   const promptTokens = prompt?.estimatedTokens ?? 0;
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -64,7 +65,14 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
               <h2 className="font-display font-black text-xs tracking-[0.15em] text-aether-cyan/90 uppercase">发送给 AI 的提示词</h2>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono text-aether-cyan/40">{promptTokens}+{replyTokens}={promptTokens+replyTokens} tk</span>
+              <span className="text-[10px] font-mono text-aether-cyan/40">
+                {promptTokens}<span className="text-white/20">(提示词)</span>+{replyTokens}<span className="text-white/20">(回复)</span>={promptTokens+replyTokens} tk
+              </span>
+              {onRefresh && (
+                <button onClick={onRefresh} className="text-white/15 hover:text-aether-cyan transition-colors p-1 clickable rounded" title="刷新提示词">
+                  <RefreshCw size={14} />
+                </button>
+              )}
               <button onClick={onClose} className="text-white/15 hover:text-aether-cyan transition-colors p-1 clickable rounded">
                 <X size={16} />
               </button>
@@ -124,15 +132,6 @@ export default function PromptViewerModal({ isOpen, onClose, prompt, replyText }
                   })}
                 </div>
 
-                {/* Send order summary */}
-                <div className="flex items-center gap-1 overflow-x-auto text-[9px] font-mono text-white/10 py-1 no-scrollbar">
-                  {order.filter(id => msgs[id]?.length > 0).map((id, i, arr) => (
-                    <span key={id} className="flex items-center gap-1 shrink-0">
-                      <span className="text-white/20">{names[id] || id}</span>
-                      {i < arr.length - 1 && <span>→</span>}
-                    </span>
-                  ))}
-                </div>
               </>
             )}
           </div>

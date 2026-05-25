@@ -296,10 +296,44 @@ export function useSillytavern() {
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
   }, [activeChat]);
 
+  const refreshPrompt = useCallback(async () => {
+    if (!activeChat || !settings) return;
+    const latestSettings = await getSettings();
+    const effectiveSettings = { ...(latestSettings ?? DEFAULT_SETTINGS), ...(settings ?? {}) };
+    const chatVars = activeChat.variables ?? {};
+    const lastUser = [...activeChat.messages].reverse().find(m => m.role === 'user');
+    const userInput = lastUser?.content ?? '';
+    const { messages, totalTokens, stageTokens, stageMessages, stageOrder, stageNames } = assemblePrompt({
+      userInput,
+      history: activeChat.messages,
+      presetBlocks: effectiveSettings.presetBlocks,
+      lorebooks: effectiveSettings.lorebooks,
+      userName: effectiveSettings.userName ?? DEFAULT_SETTINGS.userName,
+      characterName: effectiveSettings.characterName ?? DEFAULT_SETTINGS.characterName,
+      playerDescription: effectiveSettings.playerDescription,
+      characterDescription: effectiveSettings.characterDescription,
+      maxContextTokens: effectiveSettings.maxContextTokens,
+      maxOutputTokens: effectiveSettings.maxOutputTokens,
+      mapTree: chatVars['地图'],
+      characters: chatVars['主要人物'],
+      fullVariables: chatVars,
+      currentLocation: chatVars['世界']?.['现实']?.['地点'],
+      isDream: chatVars['世界']?.['现实']?.['是否梦境'],
+    });
+    setLastPrompt({
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      estimatedTokens: totalTokens,
+      stageTokens,
+      stageMessages,
+      stageOrder,
+      stageNames,
+    });
+  }, [activeChat, settings]);
+
   return {
     settings, chats, activeChat, initialized, lastPrompt,
     createChat, selectChat, removeChat, sendGameMessage, jumpToFloor, regenerateLast,
-    updateSettings, setChatVariables,
+    updateSettings, setChatVariables, refreshPrompt,
     streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
     toast, showToast,
   };
