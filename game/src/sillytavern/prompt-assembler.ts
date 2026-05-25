@@ -1,10 +1,12 @@
 import type { ChatMessage, PresetBlock, Lorebook, InjectionAnchor } from './types';
-import { INJECTION_ANCHORS, INJECTION_ANCHOR_RULES } from './types';
+import { INJECTION_ANCHOR_RULES } from './types';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
-import type { ScanResult, MatchedEntry } from './lorebookEngine';
+import type { ScanResult } from './lorebookEngine';
 import { processMapForPrompt } from './map-filter';
 import { resolvePath, formatVariablesForPrompt } from './variables';
 import { filterCharacterGroup, formatCharacterGroup } from './character-filter';
+
+// ── Types ──
 
 export interface PromptSection {
   identifier: string;
@@ -13,6 +15,8 @@ export interface PromptSection {
   enabled: boolean;
   content: string | null;
   source: 'preset' | 'lorebook' | 'chat';
+  stage: string;
+  tokens: number;
 }
 
 export interface AssembleOptions {
@@ -24,18 +28,16 @@ export interface AssembleOptions {
   characterName: string;
   playerDescription?: string;
   characterDescription?: string;
-  /** Full map tree from chat variables (stat_data.地图) */
   mapTree?: Record<string, any>;
-  /** Current location string (e.g. '601室') */
   currentLocation?: string;
-  /** Whether the player is currently in dream world */
   isDream?: boolean;
-  /** Full character tree from chat variables (主要人物) */
   characters?: Record<string, any>;
-  /** Full variable tree for {{VARS_LIST}} macro */
   fullVariables?: Record<string, any>;
-  /** Merge consecutive system messages into one */
   squashSystemMessages?: boolean;
+  /** Max context tokens (from preset params) */
+  maxContextTokens?: number;
+  /** Max output tokens (reserved from context) */
+  maxOutputTokens?: number;
 }
 
 export interface AssembleResult {
@@ -43,9 +45,101 @@ export interface AssembleResult {
   systemPrompt: string;
   sections: PromptSection[];
   totalTokens: number;
+  /** Per-stage token breakdown */
+  stageTokens: Record<string, number>;
 }
 
-// ── Chaoxi-style variable macro engine ──
+// ── Message ──
+
+interface Message {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+  identifier: string;
+}
+
+// ── MessageCollection ──
+
+class MessageCollection {
+  readonly name: string;
+  private messages: Message[] = [];
+
+  constructor(name: string) {
+    this.name = name;
+  }
+
+  push(msg: Message): void {
+    this.messages.push(msg);
+  }
+
+  unshift(msg: Message): void {
+    this.messages.unshift(msg);
+  }
+
+  pushAll(msgs: Message[]): void {
+    for (const m of msgs) this.messages.push(m);
+  }
+
+  getMessages(): Message[] {
+    return this.messages;
+  }
+
+  get tokenCount(): number {
+    return Math.round(this.messages.reduce((s, m) => s + m.content.length / 4, 0));
+  }
+
+  get isEmpty(): boolean {
+    return this.messages.every(m => !m.content.trim());
+  }
+}
+
+// ── Pipeline stage order (TTavern) ──
+
+const PIPELINE_STAGES = [
+  'worldInfoBefore',
+  'main',
+  'worldInfoAfter',
+  'charDescription',
+  'charPersonality',
+  'scenario',
+  'personaDescription',
+  'systemBlocks',
+  'userBlocks',
+  'assistantBlocks',
+  'enhanceDefinitions',
+  'chatHistory',
+  'postHistory',
+  'userInput',
+] as const;
+
+type StageName = (typeof PIPELINE_STAGES)[number];
+
+/** Known identifiers that map to specific stages */
+const STAGE_IDENTITY_MAP: Record<string, StageName> = {
+  worldinfobefore: 'worldInfoBefore',
+  worldinfoafter: 'worldInfoAfter',
+  main: 'main',
+  chardescription: 'charDescription',
+  charpersonality: 'charPersonality',
+  scenario: 'scenario',
+  personadescription: 'personaDescription',
+  enhancedefinitions: 'enhanceDefinitions',
+};
+
+// ── Macro engine ──
+
+interface MacroContext {
+  userName: string;
+  characterName: string;
+  userInput: string;
+  playerDescription?: string;
+  characterDescription?: string;
+  mapText?: string;
+  femaleStrangerText?: string;
+  femaleNormalText?: string;
+  maleStrangerText?: string;
+  maleNormalText?: string;
+  varsListText?: string;
+}
 
 function resolveContent(
   content: string,
@@ -53,74 +147,37 @@ function resolveContent(
   macroCtx: MacroContext,
 ): string {
   let result = content;
-
-  // 1) Strip {{// comment}}
   result = result.replace(/\{\{\s*\/\/[^}]*\}\}/g, '');
-
-  // 2) Process {{setvar::name::value}}
   result = result.replace(/\{\{setvar::([^:}]+)::([^}]*)\}\}/g, (_, name: string, value: string) => {
     presetVars[name.trim()] = value;
     return '';
   });
-
-  // 3) Process {{addvar::name::value}}
   result = result.replace(/\{\{addvar::([^:}]+)::([^}]*)\}\}/g, (_, name: string, value: string) => {
     const key = name.trim();
     presetVars[key] = (presetVars[key] || '') + value;
     return '';
   });
-
-  // 4) Process {{getvar::name}}
   result = result.replace(/\{\{getvar::([^}]+)\}\}/g, (_, name: string) => {
     return presetVars[name.trim()] ?? '';
   });
-
-  // 5) Standard macros
   result = result
     .replace(/\{\{user\}\}/g, macroCtx.userName)
     .replace(/\{\{char\}\}/g, macroCtx.characterName)
     .replace(/\{\{original\}\}/g, macroCtx.userInput)
     .replace(/\{\{player_description\}\}/g, macroCtx.playerDescription ?? '')
-    .replace(/\{\{char_description\}\}/g, macroCtx.characterDescription ?? '');
-
-  // 6) {{MAP}} → map context
-  result = result.replace(/\{\{MAP\}\}/g, macroCtx.mapText ?? '');
-
-  // 6b) Character macros
-  result = result.replace(/\{\{FEMALE_STRANGER\}\}/g, macroCtx.femaleStrangerText ?? '');
-  result = result.replace(/\{\{FEMALE_NORMAL\}\}/g, macroCtx.femaleNormalText ?? '');
-  result = result.replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '');
-  result = result.replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '');
-
-  // 6c) {{VARS_LIST}} → full variable tree with values
-  result = result.replace(/\{\{VARS_LIST\}\}/g, macroCtx.varsListText ?? '');
-
-  // 7) Strip {{trim}}
-  result = result.replace(/\{\{trim\}\}/gi, '');
-
+    .replace(/\{\{char_description\}\}/g, macroCtx.characterDescription ?? '')
+    .replace(/\{\{MAP\}\}/g, macroCtx.mapText ?? '')
+    .replace(/\{\{FEMALE_STRANGER\}\}/g, macroCtx.femaleStrangerText ?? '')
+    .replace(/\{\{FEMALE_NORMAL\}\}/g, macroCtx.femaleNormalText ?? '')
+    .replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '')
+    .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '')
+    .replace(/\{\{VARS_LIST\}\}/g, macroCtx.varsListText ?? '')
+    .replace(/\{\{trim\}\}/gi, '');
   return result;
 }
 
 // ── Anchor detection ──
 
-/** Match a preset block to an injection anchor using layered detection rules */
-function detectAnchor(block: PresetBlock): InjectionAnchor | null {
-  const id = block.identifier.toLowerCase();
-  const name = block.name.toLowerCase();
-  const content = block.content || '';
-
-  for (const rule of INJECTION_ANCHOR_RULES) {
-    // 1) Exact identifier match
-    if (rule.idPatterns.some(p => id === p)) return rule.anchor;
-    // 2) Name contains keyword
-    if (rule.namePatterns.some(p => name.includes(p))) return rule.anchor;
-    // 3) Content contains marker token
-    if (rule.contentMarkers.some(m => content.includes(m))) return rule.anchor;
-  }
-  return null;
-}
-
-/** Match a preset block to chatHistory insertion point */
 const CHAT_HISTORY_PATTERNS = {
   idPatterns: ['chathistory'],
   namePatterns: ['chat history', '对话历史', '聊天记录', 'chat'],
@@ -134,75 +191,78 @@ function detectChatHistory(block: PresetBlock): boolean {
   return false;
 }
 
-/** Anchor labels for section display */
+function detectAnchor(block: PresetBlock): InjectionAnchor | null {
+  const id = block.identifier.toLowerCase();
+  const name = block.name.toLowerCase();
+  const content = block.content || '';
+  for (const rule of INJECTION_ANCHOR_RULES) {
+    if (rule.idPatterns.some(p => id === p)) return rule.anchor;
+    if (rule.namePatterns.some(p => name.includes(p))) return rule.anchor;
+    if (rule.contentMarkers.some(m => content.includes(m))) return rule.anchor;
+  }
+  return null;
+}
+
 const ANCHOR_LABELS: Record<string, string> = {};
 for (const rule of INJECTION_ANCHOR_RULES) {
   ANCHOR_LABELS[rule.anchor] = rule.label;
 }
 
-// ── Main assembler ──
+// ── Main Pipeline ──
 
 export function assemblePrompt(options: AssembleOptions): AssembleResult {
   const { userInput, history, presetBlocks, lorebooks, userName, characterName, playerDescription, characterDescription } = options;
+  const maxContext = options.maxContextTokens ?? 2000000;
+  const maxOutput = options.maxOutputTokens ?? 64000;
+  const tokenBudget = maxContext - maxOutput;
 
-  const sections: PromptSection[] = [];
-  const assembledMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
-  let systemAccumulator = '';
-  let hasChatHistory = false;
+  // ── Stage collections ──
+  const stages = new Map<StageName, MessageCollection>();
+  for (const s of PIPELINE_STAGES) {
+    stages.set(s, new MessageCollection(s));
+  }
 
+  // ── Block lookup ──
+  const blockMap = new Map<string, PresetBlock>();
+  const assignedBlocks = new Set<string>();
+  if (presetBlocks) {
+    for (const b of presetBlocks) {
+      blockMap.set(b.identifier.toLowerCase(), b);
+    }
+  }
+
+  // ── Macro context ──
   const macroCtx: MacroContext = { userName, characterName, userInput, playerDescription, characterDescription };
   const presetVars: Record<string, string> = {};
 
-  // Build context string from last 5 chat messages (for isMentioned checks)
+  // ── Pre-compute map/character/vars text ──
   const contextStr = history.slice(-5).map(m => m.content).join('\n');
-
-  // ── Pre-compute map text for {{MAP}} macro ──
   if (options.mapTree) {
     macroCtx.mapText = processMapForPrompt(
-      options.mapTree,
-      options.currentLocation ?? '',
-      options.isDream ?? false,
-      contextStr,
+      options.mapTree, options.currentLocation ?? '', options.isDream ?? false, contextStr,
     );
   }
-
-  // ── Pre-compute character texts for {{FEMALE_STRANGER}} etc. ──
   if (options.characters && options.mapTree) {
-    const protagonistPath = options.currentLocation
-      ? resolvePath(options.currentLocation, options.mapTree)
-      : null;
+    const protagonistPath = options.currentLocation ? resolvePath(options.currentLocation, options.mapTree) : null;
     const isDream = options.isDream ?? false;
-
-    const fs = filterCharacterGroup(options.characters['女性']?.['异人'], protagonistPath, isDream, options.mapTree, 'female', 'stranger', contextStr);
-    macroCtx.femaleStrangerText = formatCharacterGroup(fs);
-
-    const fn = filterCharacterGroup(options.characters['女性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'female', 'normal', contextStr);
-    macroCtx.femaleNormalText = formatCharacterGroup(fn);
-
-    const ms = filterCharacterGroup(options.characters['男性']?.['异人'], protagonistPath, isDream, options.mapTree, 'male', 'stranger', contextStr);
-    macroCtx.maleStrangerText = formatCharacterGroup(ms);
-
-    const mn = filterCharacterGroup(options.characters['男性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'male', 'normal', contextStr);
-    macroCtx.maleNormalText = formatCharacterGroup(mn);
+    macroCtx.femaleStrangerText = formatCharacterGroup(filterCharacterGroup(options.characters['女性']?.['异人'], protagonistPath, isDream, options.mapTree, 'female', 'stranger', contextStr));
+    macroCtx.femaleNormalText = formatCharacterGroup(filterCharacterGroup(options.characters['女性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'female', 'normal', contextStr));
+    macroCtx.maleStrangerText = formatCharacterGroup(filterCharacterGroup(options.characters['男性']?.['异人'], protagonistPath, isDream, options.mapTree, 'male', 'stranger', contextStr));
+    macroCtx.maleNormalText = formatCharacterGroup(filterCharacterGroup(options.characters['男性']?.['普通人'], protagonistPath, isDream, options.mapTree, 'male', 'normal', contextStr));
   }
-
-  // ── Pre-compute vars list for {{VARS_LIST}} macro ──
   if (options.fullVariables) {
     macroCtx.varsListText = formatVariablesForPrompt(options.fullVariables);
   }
 
-  // ── Scan lorebooks ──
+  // ── Lorebook scan ──
   const historyText = history.slice(-6).map(m => m.content).join(' ');
   let scanResult: ScanResult = { groups: {} };
   if (lorebooks && lorebooks.length > 0) {
     scanResult = scanLorebooks(lorebooks, userInput, historyText);
   }
-
-  // Track which anchors have been injected via preset blocks
   const injected = new Set<InjectionAnchor>();
 
-  // ── Helpers for macro replacement on lorebook content ──
-  const applyMacros = (content: string): string =>
+  const applyLorebookMacros = (content: string): string =>
     content
       .replace(/\{\{user\}\}/g, macroCtx.userName)
       .replace(/\{\{char\}\}/g, macroCtx.characterName)
@@ -215,150 +275,197 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       .replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '')
       .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '');
 
-  const pushSection = (anchor: InjectionAnchor, content: string) => {
-    sections.push({
-      identifier: anchor,
-      name: `世界书（${ANCHOR_LABELS[anchor] || anchor}）`,
-      role: 'system',
-      enabled: true,
-      content,
-      source: 'lorebook',
-    });
-    injected.add(anchor);
-  };
-
-  /** Get formatted + macro-replaced content for an anchor group */
-  const getGroupContent = (anchor: InjectionAnchor): string => {
+  function getLorebookContent(anchor: InjectionAnchor): string {
     const entries = scanResult.groups[anchor];
     if (!entries || entries.length === 0) return '';
-    return applyMacros(formatMatchedEntries(entries));
-  };
+    return applyLorebookMacros(formatMatchedEntries(entries));
+  }
 
-  // Process preset blocks in order
-  if (presetBlocks && presetBlocks.length > 0) {
+  // ── Stage builder helpers ──
+
+  const sections: PromptSection[] = [];
+
+  function addSection(id: string, name: string, role: string, enabled: boolean, content: string | null, source: PromptSection['source'], stage: StageName) {
+    sections.push({
+      identifier: id, name, role, enabled, content, source, stage,
+      tokens: content ? Math.round(content.length / 4) : 0,
+    });
+  }
+
+  function buildMessage(role: 'system' | 'user' | 'assistant', content: string, identifier: string): Message | null {
+    const trimmed = content.trim();
+    if (!trimmed) return null;
+    return { role, content: trimmed, identifier };
+  }
+
+  /** Process a preset block: resolve macros + inject lorebook content */
+  function resolveBlock(block: PresetBlock, lorebookAnchor?: InjectionAnchor): string | null {
+    // Check for personaDescription / charDescription injection
+    const blockId = block.identifier.toLowerCase();
+    if (blockId === 'personadescription' && playerDescription?.trim()) {
+      return playerDescription;
+    }
+    if (blockId === 'chardescription' && characterDescription?.trim()) {
+      return characterDescription;
+    }
+
+    // Check for lorebook injection at this anchor
+    if (lorebookAnchor && !injected.has(lorebookAnchor)) {
+      const lb = getLorebookContent(lorebookAnchor);
+      if (lb.trim()) {
+        injected.add(lorebookAnchor);
+        return lb;
+      }
+    }
+
+    const raw = block.content?.trim();
+    return raw ? resolveContent(raw, presetVars, macroCtx) : null;
+  }
+
+  function processBlock(block: PresetBlock, stage: StageName, lorebookAnchor?: InjectionAnchor): void {
+    const stageCol = stages.get(stage)!;
+    const content = resolveBlock(block, lorebookAnchor);
+
+    if (!content) {
+      addSection(block.identifier, block.name, block.role, false, null, 'preset', stage);
+      return;
+    }
+
+    const anchorLabel = lorebookAnchor && injected.has(lorebookAnchor) ? 'lorebook' as const : 'preset' as const;
+    addSection(block.identifier, block.name, block.role, true, content, anchorLabel, stage);
+
+    const msg = buildMessage(block.role, content, block.identifier);
+    if (msg) stageCol.push(msg);
+  }
+
+  // ── PHASE 1: Assign blocks to stages by identifier ──
+
+  if (presetBlocks) {
     for (const block of presetBlocks) {
       if (!block.enabled) {
-        sections.push({
-          identifier: block.identifier,
-          name: block.name,
-          role: block.role,
-          enabled: false,
-          content: null,
-          source: 'preset',
-        });
+        addSection(block.identifier, block.name, block.role, false, null, 'preset',
+          STAGE_IDENTITY_MAP[block.identifier.toLowerCase()] ?? 'systemBlocks');
         continue;
       }
 
-      // Handle chatHistory insertion — detected by identifier or name
-      const isChatHistory = detectChatHistory(block);
-      if (isChatHistory && !hasChatHistory) {
-        hasChatHistory = true;
-        // Inject remaining "after" type lorebook anchors not yet placed
-        const afterAnchors: InjectionAnchor[] = ['worldInfoAfter', 'worldInfoD2After'];
-        for (const anchor of afterAnchors) {
-          if (!injected.has(anchor)) {
-            const c = getGroupContent(anchor);
-            if (c.trim()) {
-              systemAccumulator += (systemAccumulator ? '\n\n' : '') + c;
-              pushSection(anchor, c);
-            }
+      // chatHistory marker → skip block content, will be replaced by chat history
+      if (detectChatHistory(block)) {
+        addSection(block.identifier, block.name, block.role, true, '[聊天记录占位]', 'preset', 'chatHistory');
+        assignedBlocks.add(block.identifier.toLowerCase());
+        continue;
+      }
+
+      // Known stage identifiers
+      const stageName = STAGE_IDENTITY_MAP[block.identifier.toLowerCase()];
+      if (stageName) {
+        // Determine lorebook anchor
+        let anchor: InjectionAnchor | undefined;
+        if (stageName === 'worldInfoBefore') anchor = 'worldInfoBefore';
+        else if (stageName === 'worldInfoAfter') anchor = 'worldInfoAfter';
+
+        processBlock(block, stageName, anchor);
+        assignedBlocks.add(block.identifier.toLowerCase());
+        continue;
+      }
+
+      // Detect as lorebook anchor
+      const anchor = detectAnchor(block);
+      if (anchor) {
+        const lbContent = getLorebookContent(anchor);
+        if (lbContent.trim() && !injected.has(anchor)) {
+          injected.add(anchor);
+          const msg = buildMessage('system', lbContent, block.identifier);
+          if (msg) {
+            // Place at the appropriate stage based on anchor
+            const targetStage: StageName = anchor === 'worldInfoBefore' ? 'worldInfoBefore'
+              : anchor === 'worldInfoD2Before' ? 'worldInfoBefore'
+              : 'worldInfoAfter';
+            stages.get(targetStage)!.push(msg);
           }
+          addSection(block.identifier, block.name, 'system', true, lbContent, 'lorebook', 'worldInfoAfter');
         }
-        if (systemAccumulator.trim()) {
-          assembledMessages.push({ role: 'system', content: systemAccumulator });
-          systemAccumulator = '';
-        }
-        const recentHistory = buildRecentHistory(history.slice(0, -1));
-        assembledMessages.push(...recentHistory);
-        sections.push({
-          identifier: 'chatHistory', name: block.name || '对话历史',
-          role: 'system', enabled: true, content: `[${recentHistory.length} 条]`, source: 'chat',
-        });
+        assignedBlocks.add(block.identifier.toLowerCase());
         continue;
       }
 
-      // Resolve content — first check if this block is an injection anchor
-      let content: string | null = null;
-      let source: PromptSection['source'] = 'preset';
+      // Unrecognized block → categorize by role
+      const roleStage: StageName =
+        block.role === 'user' ? 'userBlocks'
+        : block.role === 'assistant' ? 'assistantBlocks'
+        : 'systemBlocks';
 
-      // personaDescription / charDescription: inject from IdentityTab settings
-      const blockId = block.identifier.toLowerCase();
-      if (blockId === 'personadescription' && playerDescription?.trim()) {
-        content = playerDescription;
-      } else if (blockId === 'chardescription' && characterDescription?.trim()) {
-        content = characterDescription;
-      }
-
-      if (!content) {
-        const matchedAnchor = detectAnchor(block);
-        if (matchedAnchor && !injected.has(matchedAnchor)) {
-          const groupContent = getGroupContent(matchedAnchor);
-          if (groupContent.trim()) {
-            content = groupContent;
-            source = 'lorebook';
-            pushSection(matchedAnchor, groupContent);
-          }
-        }
-      }
-
-      if (!content) {
-        const rawContent = block.content?.trim();
-        content = rawContent ? resolveContent(rawContent, presetVars, macroCtx) : null;
-      }
-
-      const hasContent = content && content.trim();
-
-      if (!hasContent) {
-        sections.push({
-          identifier: block.identifier, name: block.name, role: block.role,
-          enabled: true, content: null, source: 'preset',
-        });
-        continue;
-      }
-
-      // Only push a section if pushSection hasn't already added one for this anchor
-      if (source !== 'lorebook') {
-        sections.push({ identifier: block.identifier, name: block.name, role: block.role, enabled: true, content, source });
-      }
-
-      if (block.role === 'system') {
-        systemAccumulator += (systemAccumulator ? '\n\n' : '') + content;
-      } else {
-        if (systemAccumulator.trim()) {
-          assembledMessages.push({ role: 'system', content: systemAccumulator });
-          systemAccumulator = '';
-        }
-        assembledMessages.push({ role: block.role, content });
-      }
+      processBlock(block, roleStage);
     }
   }
 
-  // Flush remaining system accumulator
-  if (systemAccumulator.trim()) {
-    if (hasChatHistory) {
-      // Post-history system content goes after history, before user input
-      assembledMessages.push({ role: 'system', content: systemAccumulator });
-    } else {
-      assembledMessages.unshift({ role: 'system', content: systemAccumulator });
+  // ── PHASE 2: Inject remaining lorebook entries ──
+
+  // worldInfoBefore: inject if not yet placed
+  if (!injected.has('worldInfoBefore')) {
+    const lb = getLorebookContent('worldInfoBefore');
+    if (lb.trim()) {
+      injected.add('worldInfoBefore');
+      const msg = buildMessage('system', lb, 'worldInfoBefore');
+      if (msg) stages.get('worldInfoBefore')!.push(msg);
+      addSection('worldInfoBefore', '世界书（角色定位之前）', 'system', true, lb, 'lorebook', 'worldInfoBefore');
+    }
+  }
+  if (!injected.has('worldInfoD2Before')) {
+    const lb = getLorebookContent('worldInfoD2Before');
+    if (lb.trim()) {
+      injected.add('worldInfoD2Before');
+      const msg = buildMessage('system', lb, 'worldInfoD2Before');
+      if (msg) stages.get('worldInfoBefore')!.push(msg);
+      addSection('worldInfoD2Before', '世界书（D2之前）', 'system', true, lb, 'lorebook', 'worldInfoBefore');
     }
   }
 
-  // Chat history (if not already inserted by a chatHistory preset block)
-  if (!hasChatHistory) {
-    const recentHistory = buildRecentHistory(history.slice(0, -1));
-    if (recentHistory.length > 0) {
-      assembledMessages.push(...recentHistory);
-      sections.push({
-        identifier: 'chatHistory', name: '对话历史',
-        role: 'system', enabled: true, content: `[${recentHistory.length} 条]`, source: 'chat',
-      });
+  // worldInfoAfter: inject if not yet placed
+  if (!injected.has('worldInfoAfter')) {
+    const lb = getLorebookContent('worldInfoAfter');
+    if (lb.trim()) {
+      injected.add('worldInfoAfter');
+      const msg = buildMessage('system', lb, 'worldInfoAfter');
+      if (msg) stages.get('worldInfoAfter')!.push(msg);
+      addSection('worldInfoAfter', '世界书（角色定位之后）', 'system', true, lb, 'lorebook', 'worldInfoAfter');
+    }
+  }
+  if (!injected.has('worldInfoD2After')) {
+    const lb = getLorebookContent('worldInfoD2After');
+    if (lb.trim()) {
+      injected.add('worldInfoD2After');
+      const msg = buildMessage('system', lb, 'worldInfoD2After');
+      if (msg) stages.get('worldInfoAfter')!.push(msg);
+      addSection('worldInfoD2After', '世界书（D2之后）', 'system', true, lb, 'lorebook', 'worldInfoAfter');
     }
   }
 
-  // User input
-  assembledMessages.push({ role: 'user', content: userInput });
+  // ── PHASE 3: Build chat history ──
 
-  // ── Dedup: remove duplicate content blocks from system messages ──
+  const recentHistory = buildRecentHistory(history.slice(0, -1), tokenBudget);
+  const chatHistoryStage = stages.get('chatHistory')!;
+  chatHistoryStage.pushAll(recentHistory);
+  addSection('chatHistory', '对话历史', 'system', true, `[${recentHistory.length} 条]`, 'chat', 'chatHistory');
+
+  // ── PHASE 4: User input ──
+
+  const userMsg = buildMessage('user', userInput, 'userInput');
+  if (userMsg) stages.get('userInput')!.push(userMsg);
+  addSection('userInput', '用户输入', 'user', true, userInput, 'preset', 'userInput');
+
+  // ── PHASE 5: Flatten stages into message array ──
+
+  const assembledMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
+  for (const stageName of PIPELINE_STAGES) {
+    const col = stages.get(stageName)!;
+    for (const msg of col.getMessages()) {
+      assembledMessages.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  // ── PHASE 6: Post-process ──
+
+  // Dedup: remove duplicate content blocks from system messages
   const seenBlocks = new Set<string>();
   for (let i = 0; i < assembledMessages.length; i++) {
     const m = assembledMessages[i];
@@ -373,10 +480,11 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       assembledMessages[i] = { ...m, content: unique.join('\n\n') };
     }
   }
+
   // Remove empty messages
   let final = assembledMessages.filter(m => m.content.trim());
 
-  // ── Squash consecutive system messages ──
+  // Squash consecutive system messages
   if (options.squashSystemMessages) {
     const squashed: typeof final = [];
     for (let i = 0; i < final.length; i++) {
@@ -393,6 +501,8 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     final = squashed;
   }
 
+  // ── PHASE 7: Compute results ──
+
   const systemPrompt = final
     .filter(m => m.role === 'system')
     .map(m => m.content)
@@ -400,22 +510,34 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
   const totalTokens = Math.round(final.reduce((sum, m) => sum + m.content.length / 4, 0));
 
-  return { messages: final, systemPrompt, sections, totalTokens };
+  const stageTokens: Record<string, number> = {};
+  for (const [name, col] of stages) {
+    stageTokens[name] = col.tokenCount;
+  }
+
+  return { messages: final, systemPrompt, sections, totalTokens, stageTokens };
 }
 
-function buildRecentHistory(history: ChatMessage[]): { role: 'system' | 'user' | 'assistant'; content: string }[] {
-  let tokenBudget = 3000;
-  const recent: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
+// ── History builder ──
+
+function buildRecentHistory(
+  history: ChatMessage[],
+  budget: number = 3000,
+): Message[] {
+  let tokenBudget = budget;
+  const recent: Message[] = [];
   for (let i = history.length - 1; i >= 0; i--) {
     const msg = history[i];
     if (msg.role === 'system') continue;
     const t = Math.round(msg.content.length / 4);
     if (tokenBudget - t < 0) break;
-    recent.unshift({ role: msg.role, content: msg.content });
+    recent.unshift({ role: msg.role as 'user' | 'assistant', content: msg.content, identifier: msg.id });
     tokenBudget -= t;
   }
   return recent;
 }
+
+// ── Public API ──
 
 interface MacroContext {
   userName: string;

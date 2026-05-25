@@ -20,6 +20,7 @@ export function useSillytavern() {
     systemPrompt: string;
     sections: import('../sillytavern/prompt-assembler').PromptSection[];
     estimatedTokens: number;
+    stageTokens: Record<string, number>;
   } | null>(null);
 
   const [toast, setToast] = useState<string | null>(null);
@@ -105,7 +106,7 @@ export function useSillytavern() {
 
     const chatVars = updatedChat.variables ?? {};
 
-    const { messages, systemPrompt, sections, totalTokens } = assemblePrompt({
+    const { messages, systemPrompt, sections, totalTokens, stageTokens } = assemblePrompt({
       userInput: userText,
       history: updatedChat.messages,
       presetBlocks: effectiveSettings.presetBlocks,
@@ -120,6 +121,8 @@ export function useSillytavern() {
       characters: chatVars['主要人物'],
       fullVariables: chatVars,
       squashSystemMessages: effectiveSettings.squashSystemMessages,
+      maxContextTokens: effectiveSettings.presetParams?.openai_max_context ?? 2000000,
+      maxOutputTokens: effectiveSettings.presetParams?.openai_max_tokens ?? 64000,
     });
 
     setLastPrompt({
@@ -127,6 +130,7 @@ export function useSillytavern() {
       systemPrompt,
       sections,
       estimatedTokens: totalTokens,
+      stageTokens,
     });
 
     const freshRouter = createApiRouter(effectiveApi);
