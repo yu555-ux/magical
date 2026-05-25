@@ -20,6 +20,7 @@ export function useSillytavern() {
     estimatedTokens: number;
     stageTokens: Record<string, number>;
     stageMessages: Record<string, Array<{ role: string; content: string }>>;
+    stageOrder: string[];
   } | null>(null);
 
   const [toast, setToast] = useState<string | null>(null);
@@ -105,7 +106,7 @@ export function useSillytavern() {
 
     const chatVars = updatedChat.variables ?? {};
 
-    const { messages, totalTokens, stageTokens, stageMessages } = assemblePrompt({
+    const { messages, totalTokens, stageTokens, stageMessages, stageOrder } = assemblePrompt({
       userInput: userText,
       history: updatedChat.messages,
       presetBlocks: effectiveSettings.presetBlocks,
@@ -129,6 +130,7 @@ export function useSillytavern() {
       estimatedTokens: totalTokens,
       stageTokens,
       stageMessages,
+      stageOrder,
     });
 
     const freshRouter = createApiRouter(effectiveApi);
