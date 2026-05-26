@@ -553,7 +553,8 @@ export function formatLocation(
   const path = resolvePath(raw, mapTree);
   if (!path || path.length === 0) return raw;
   if (path.length === 1) return path[0];
-  return path[path.length - 2] + '-' + path[path.length - 1];
+  if (path.length === 2) return path[0] + '-' + path[1];
+  return path[path.length - 3] + '-' + path[path.length - 2] + '-' + path[path.length - 1];
 }
 
 /** Recursively normalize 当前位置 and 地点 string fields to parent-leaf format. */
