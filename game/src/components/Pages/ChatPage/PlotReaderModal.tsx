@@ -62,7 +62,7 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-[#0a0a0f]/95 backdrop-blur-md"
+          className="absolute inset-0 bg-aether-dark/92 backdrop-blur-xl"
         />
 
         {/* Panel */}
@@ -71,24 +71,28 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
           animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[720px] max-h-[88vh] bg-[#0d0d14] border border-white/[0.06] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.5)]"
+          className="relative w-full max-w-[720px] max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
         >
           {/* Top accent */}
-          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/30 to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent z-10" />
+          <div className="absolute top-0 left-0 right-0 h-[40px] bg-gradient-to-b from-aether-cyan/[0.03] to-transparent pointer-events-none" />
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.05] shrink-0">
+          <div className="relative z-10 flex items-center justify-between px-6 py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 bg-aether-cyan/60 rounded-full" />
-              <h2 className="font-display font-bold text-sm tracking-[0.2em] text-aether-cyan/70 uppercase">
+              <div className="relative">
+                <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
+                <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
+              </div>
+              <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">
                 剧情回顾
               </h2>
             </div>
             <button
               onClick={onClose}
-              className="text-white/20 hover:text-aether-cyan transition-colors p-1.5"
+              className="text-white/20 hover:text-aether-cyan transition-colors p-1.5 clickable press-scale hover:bg-aether-cyan/[0.06] rounded"
             >
-              <X size={18} />
+              <X size={17} />
             </button>
           </div>
 
@@ -100,25 +104,25 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
           ) : (
             <div className="flex-1 flex flex-col min-h-0">
               {/* Page nav top */}
-              <div className="flex items-center justify-between px-8 py-4 shrink-0">
+              <div className="flex items-center justify-between px-8 py-4 shrink-0 border-b border-aether-cyan/[0.06]">
                 <button
                   onClick={goPrev}
                   disabled={page === 0}
-                  className="flex items-center gap-1 text-[13px] text-white/30 hover:text-aether-cyan disabled:text-white/8 disabled:cursor-default transition-colors font-display tracking-wider"
+                  className="flex items-center gap-1.5 text-[13px] text-white/25 hover:text-aether-cyan disabled:text-white/6 disabled:cursor-default transition-colors font-display tracking-wider"
                 >
-                  <ChevronLeft size={15} />
+                  <ChevronLeft size={16} />
                   上一节
                 </button>
-                <span className="text-[12px] font-mono text-white/15 tracking-wider">
+                <span className="text-[12px] font-mono text-aether-cyan/30 tracking-wider">
                   {page + 1} / {totalPages}
                 </span>
                 <button
                   onClick={goNext}
                   disabled={page >= totalPages - 1}
-                  className="flex items-center gap-1 text-[13px] text-white/30 hover:text-aether-cyan disabled:text-white/8 disabled:cursor-default transition-colors font-display tracking-wider"
+                  className="flex items-center gap-1.5 text-[13px] text-white/25 hover:text-aether-cyan disabled:text-white/6 disabled:cursor-default transition-colors font-display tracking-wider"
                 >
                   下一节
-                  <ChevronRight size={15} />
+                  <ChevronRight size={16} />
                 </button>
               </div>
 
@@ -149,10 +153,10 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
 
               {/* User input toggle at bottom */}
               {chapter?.userInput && (
-                <div className="shrink-0 border-t border-white/[0.04] px-8 py-3">
+                <div className="shrink-0 border-t border-aether-cyan/[0.08] px-8 py-3.5 bg-aether-cyan/[0.01]">
                   <button
                     onClick={() => setUserOpen(!userOpen)}
-                    className="flex items-center gap-1.5 text-[12px] text-white/20 hover:text-white/35 transition-colors font-display tracking-wide"
+                    className="flex items-center gap-1.5 text-[12px] text-white/18 hover:text-white/35 transition-colors font-display tracking-wide"
                   >
                     {userOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                     玩家发言
@@ -165,7 +169,7 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <p className="mt-3 text-[14px] text-white/35 leading-relaxed whitespace-pre-wrap bg-white/[0.02] border border-white/[0.04] rounded px-4 py-3">
+                        <p className="mt-3 text-[14px] text-white/35 leading-relaxed whitespace-pre-wrap bg-aether-dark/30 border border-aether-cyan/[0.06] rounded px-4 py-3">
                           {chapter.userInput}
                         </p>
                       </motion.div>
@@ -176,8 +180,8 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
             </div>
           )}
 
-          {/* Bottom accent */}
-          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/15 to-transparent" />
+          {/* Bottom decorative line */}
+          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/15 to-transparent z-10" />
         </motion.div>
       </div>
     </AnimatePresence>
