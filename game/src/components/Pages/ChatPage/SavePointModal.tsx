@@ -81,20 +81,15 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
           {/* ── Header ── */}
           <div className="relative z-10 flex items-center justify-between px-6 py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
             <div className="flex items-center gap-3">
-              {/* Animated indicator dot */}
               <div className="relative">
                 <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
                 <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
               </div>
-              <Save size={18} className="text-aether-cyan/80" />
               <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">
                 存档点
               </h2>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[12px] font-mono text-white/15 tracking-wider">
-                {savePoints.length} 个记录
-              </span>
               <button
                 onClick={onClose}
                 className="text-white/20 hover:text-aether-cyan transition-colors p-1.5 clickable press-scale
