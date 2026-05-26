@@ -268,16 +268,19 @@ export function useSillytavern() {
   }, [activeChat, settings, parser]);
 
   const jumpToFloor = useCallback(async (messageId: string) => {
-    if (!activeChat) return;
-    const idx = activeChat.messages.findIndex(m => m.id === messageId);
+    // Read latest from DB to avoid stale closure over activeChat
+    const chats = await db.chats.toArray();
+    const chat = chats.find(c => c.id === activeChatId);
+    if (!chat) return;
+    const idx = chat.messages.findIndex(m => m.id === messageId);
     if (idx < 0) return;
-    const truncated = activeChat.messages.slice(0, idx + 1);
+    const truncated = chat.messages.slice(0, idx + 1);
     const target = truncated[truncated.length - 1];
-    const restoredVars = target?.role === 'assistant' && target.variablesAfter ? target.variablesAfter : activeChat.variables ?? {};
-    const next: ChatSession = { ...activeChat, messages: truncated, variables: restoredVars, updatedAt: Date.now() };
+    const restoredVars = target?.role === 'assistant' && target.variablesAfter ? target.variablesAfter : chat.variables ?? {};
+    const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, updatedAt: Date.now() };
     await db.chats.put(next);
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
-  }, [activeChat]);
+  }, [activeChatId]);
 
   const regenerateLast = useCallback(async () => {
     if (!activeChat) return;

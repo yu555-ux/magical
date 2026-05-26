@@ -132,12 +132,21 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.25, ease: 'easeOut' }}
                     >
-                      <button
+                      <div
                         onClick={() => {
                           onJumpToFloor(sp.messageId);
                           onClose();
                         }}
-                        className="w-full text-left group"
+                        className="w-full text-left group cursor-pointer"
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onJumpToFloor(sp.messageId);
+                            onClose();
+                          }
+                        }}
                       >
                         <div className="relative pl-14">
                           {/* Timeline dot */}
@@ -259,7 +268,7 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
                             )}
                           </div>
                         </div>
-                      </button>
+                      </div>
                     </motion.div>
                   ))}
                 </div>
