@@ -72,17 +72,19 @@ export default function ChatPage({
     : (latestAssistant?.parsed?.maintext ?? latestAssistant?.content ?? '');
 
   // Clean and cap options: strip "N|" prefix, limit to 5
-  const savePointCount = useMemo(() => {
-    const msgs = ss.activeChat?.messages ?? [];
-    return msgs.filter(m => m.role === 'assistant' && m.parsed?.history).length;
-  }, [ss.activeChat?.messages]);
-
-  const cleanOption = (raw: string) => raw.replace(/^[^|｜]*[|｜]\s*/, '');
+  const cleanOption = (raw: string) => {
+    // "1|选项一" format
+    if (/^\d+[|｜]/.test(raw)) return raw.replace(/^\d+[|｜]\s*/, '');
+    // "选项1:..." or "选项一：..." format
+    const m = raw.match(/^选项[一二三四五六七八九十\d]+\s*[:：]\s*(.*)/);
+    if (m) return m[1];
+    return raw;
+  };
   const rawOptions = isStreaming
     ? ss.streamState.options
     : (latestAssistant?.parsed?.options ?? []);
   const options = useMemo(
-    () => rawOptions.map(cleanOption).slice(0, 5),
+    () => rawOptions.map(cleanOption).filter(o => o.trim()).slice(0, 5),
     [rawOptions]
   );
 
@@ -116,8 +118,6 @@ export default function ChatPage({
       <div className="flex-1 flex flex-col w-full glass-panel border-glow relative overflow-hidden">
         <ChatHeader
           variables={resolvedVariables}
-          messagesCount={savePointCount}
-          hasSavePoints={savePointCount > 0}
           onOpenReader={() => setReaderOpen(true)}
           onOpenVariables={() => setVarViewerOpen(true)}
           onOpenSave={() => setSaveOpen(true)}

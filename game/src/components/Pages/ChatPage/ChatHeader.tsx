@@ -3,8 +3,6 @@ import { Clock, MapPin, CloudSun, BookOpen, Eye, Hourglass, Moon, Save, FileText
 
 interface ChatHeaderProps {
   variables?: Record<string, any>;
-  messagesCount?: number;
-  hasSavePoints?: boolean;
   onOpenReader?: () => void;
   onOpenVariables?: () => void;
   onOpenSave?: () => void;
@@ -28,7 +26,7 @@ function getDisplayData(vars: Record<string, any> | undefined) {
   return { time, location, weather, countdown, countdownLabel, inDream };
 }
 
-export default function ChatHeader({ variables, messagesCount = 0, hasSavePoints, onOpenReader, onOpenVariables, onOpenSave, onOpenPrompt }: ChatHeaderProps) {
+export default function ChatHeader({ variables, onOpenReader, onOpenVariables, onOpenSave, onOpenPrompt }: ChatHeaderProps) {
   const display = useMemo(() => getDisplayData(variables), [variables]);
 
   const iconColor = display.inDream ? 'text-aether-purple/60' : 'text-aether-blue/70';
@@ -43,7 +41,7 @@ export default function ChatHeader({ variables, messagesCount = 0, hasSavePoints
         <div className="w-px h-4 bg-aether-border/50" />
         <div className="flex items-center gap-2">
           <MapPin size={13} className={iconColor} />
-          <span className="font-display text-[14px] text-white/65 tracking-[0.08em] max-w-[200px] truncate">{display.location}</span>
+          <span className="font-display text-[14px] text-white/65 tracking-[0.08em] truncate">{display.location}</span>
         </div>
         <div className="w-px h-4 bg-aether-border/50" />
         <div className="flex items-center gap-2">
@@ -69,16 +67,9 @@ export default function ChatHeader({ variables, messagesCount = 0, hasSavePoints
       {onOpenSave && (
         <button
           onClick={onOpenSave}
-          className={`relative group flex items-center gap-2 px-3 py-1.5 rounded-sm transition-colors ${
-            hasSavePoints
-              ? 'text-aether-cyan/70 hover:text-aether-cyan hover:bg-aether-cyan/[0.04]'
-              : 'text-white/25 hover:text-white/45 hover:bg-white/[0.02]'
-          }`}
+          className="relative group flex items-center gap-2 px-3 py-1.5 rounded-sm text-white/25 hover:text-white/45 hover:bg-white/[0.02] transition-colors"
         >
           <Save size={17} />
-          {hasSavePoints && (
-            <span className="text-[10px] font-mono text-aether-cyan/40">{messagesCount}</span>
-          )}
           <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
             存档
           </span>

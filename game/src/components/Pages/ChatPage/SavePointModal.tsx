@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Save, ChevronRight, Clock, MapPin, Users, Lightbulb, Eye } from 'lucide-react';
+import { X, Save, ChevronRight, ChevronDown, Clock, MapPin, Users, Lightbulb, Eye } from 'lucide-react';
 import type { ChatMessage } from '../../../sillytavern/types';
 
 interface Props {
@@ -26,6 +26,8 @@ interface SavePointFull {
 }
 
 export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloor }: Props) {
+  const [expandedFs, setExpandedFs] = useState<Set<string>>(new Set());
+
   const savePoints = useMemo<SavePointFull[]>(() => {
     return messages
       .map((m, i) => ({ msg: m, index: i }))
@@ -69,7 +71,7 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
           animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[680px] max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
+          className="relative w-full max-w-[780px] max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
                      shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
         >
           {/* ── Top decorative accent line ── */}
@@ -90,7 +92,7 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
               </h2>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono text-white/15 tracking-wider">
+              <span className="text-[12px] font-mono text-white/15 tracking-wider">
                 {savePoints.length} 个记录
               </span>
               <button
@@ -127,7 +129,7 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
                 <div className="absolute left-[35px] top-6 bottom-6 w-[1px] bg-gradient-to-b
                                 from-aether-cyan/25 via-aether-cyan/10 to-aether-cyan/5" />
 
-                <div className="space-y-5">
+                <div className="space-y-7">
                   {savePoints.map((sp, i) => (
                     <motion.div
                       key={sp.messageId}
@@ -156,19 +158,19 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
                           {/* Card */}
                           <div className="border border-white/[0.05] bg-white/[0.01]
                                           group-hover:border-aether-cyan/15 group-hover:bg-aether-cyan/[0.02]
-                                          transition-all duration-300 p-5
+                                          transition-all duration-300 p-7
                                           shadow-[0_2px_8px_rgba(0,0,0,0.15)] group-hover:shadow-[0_4px_20px_rgba(0,242,255,0.04)]">
                             {/* ── Title row ── */}
                             <div className="flex items-start justify-between gap-3 mb-3">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <h3 className="text-[15px] font-display font-bold text-white/75
+                                  <h3 className="text-[18px] font-display font-bold text-white/75
                                                  group-hover:text-aether-cyan transition-colors duration-300
                                                  tracking-[0.06em] leading-snug">
                                     {sp.title || '(无标题)'}
                                   </h3>
                                   {sp.world && (
-                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono tracking-wide shrink-0 ${
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-sm font-mono tracking-wide shrink-0 ${
                                       sp.world === '梦境'
                                         ? 'bg-aether-purple/10 text-aether-purple/60 border border-aether-purple/20'
                                         : 'bg-aether-blue/10 text-aether-blue/60 border border-aether-blue/20'
@@ -177,33 +179,33 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-3 mt-1.5">
-                                  <span className="text-[10px] font-mono text-aether-cyan/35">
+                                <div className="flex items-center gap-3 mt-2">
+                                  <span className="text-[13px] font-mono text-aether-cyan/35">
                                     第 {sp.sequence} 节
                                   </span>
                                   {sp.date && (
-                                    <span className="text-[10px] font-mono text-white/20">
+                                    <span className="text-[13px] font-mono text-white/20">
                                       {sp.date}
                                     </span>
                                   )}
                                 </div>
                               </div>
-                              <ChevronRight size={15}
+                              <ChevronRight size={18}
                                 className="text-white/8 group-hover:text-aether-cyan/40 group-hover:translate-x-0.5
                                            transition-all duration-300 shrink-0 mt-1" />
                             </div>
 
                             {/* ── Meta grid ── */}
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mb-3">
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
                               {sp.location && (
-                                <div className="flex items-center gap-1.5 text-[10px] text-white/25">
-                                  <MapPin size={10} className="text-aether-purple/40 shrink-0" />
+                                <div className="flex items-center gap-2 text-[13px] text-white/25">
+                                  <MapPin size={13} className="text-aether-purple/40 shrink-0" />
                                   <span className="truncate">{sp.location}</span>
                                 </div>
                               )}
                               {sp.characters && (
-                                <div className="flex items-center gap-1.5 text-[10px] text-white/25">
-                                  <Users size={10} className="text-aether-blue/40 shrink-0" />
+                                <div className="flex items-center gap-2 text-[13px] text-white/25">
+                                  <Users size={13} className="text-aether-blue/40 shrink-0" />
                                   <span className="truncate">{sp.characters}</span>
                                 </div>
                               )}
@@ -211,27 +213,53 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
 
                             {/* ── Description ── */}
                             {sp.description && (
-                              <p className="text-[11px] text-white/45 leading-relaxed mb-3
-                                            line-clamp-2 font-sans tracking-[0.02em]">
+                              <p className="text-[14px] text-white/45 leading-relaxed mb-4
+                                            line-clamp-3 font-sans tracking-[0.02em]">
                                 {sp.description}
                               </p>
                             )}
 
                             {/* ── Key info & Foreshadowing ── */}
                             {(sp.keyInfo.length > 0 || sp.foreshadowing.length > 0) && (
-                              <div className="space-y-1.5 pt-2 border-t border-white/[0.03]">
+                              <div className="space-y-1.5 pt-3 border-t border-white/[0.04]">
                                 {sp.keyInfo.map((item, ki) => (
-                                  <div key={`ki-${ki}`} className="flex items-start gap-1.5 text-[10px]">
-                                    <Lightbulb size={10} className="text-aether-gold/50 shrink-0 mt-0.5" />
-                                    <span className="text-white/25 font-mono tracking-wide">{item}</span>
+                                  <div key={`ki-${ki}`} className="flex items-start gap-2 text-[12px]">
+                                    <Lightbulb size={12} className="text-aether-gold/50 shrink-0 mt-0.5" />
+                                    <span className="text-white/30 font-mono tracking-wide">{item}</span>
                                   </div>
                                 ))}
-                                {sp.foreshadowing.map((item, fi) => (
-                                  <div key={`fs-${fi}`} className="flex items-start gap-1.5 text-[10px]">
-                                    <Eye size={10} className="text-aether-purple/40 shrink-0 mt-0.5" />
-                                    <span className="text-white/18 font-mono tracking-wide italic">{item}</span>
-                                  </div>
-                                ))}
+                                {sp.foreshadowing.length > 0 && (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedFs(prev => {
+                                          const next = new Set(prev);
+                                          if (next.has(sp.messageId)) next.delete(sp.messageId);
+                                          else next.add(sp.messageId);
+                                          return next;
+                                        });
+                                      }}
+                                      className="flex items-center gap-1.5 text-[12px] text-white/18 hover:text-white/35 transition-colors font-mono tracking-wide"
+                                    >
+                                      {expandedFs.has(sp.messageId)
+                                        ? <ChevronDown size={12} className="text-aether-purple/40" />
+                                        : <ChevronRight size={12} className="text-aether-purple/40" />
+                                      }
+                                      <Eye size={12} className="text-aether-purple/40 shrink-0" />
+                                      伏笔 ({sp.foreshadowing.length})
+                                    </button>
+                                    {expandedFs.has(sp.messageId) && (
+                                      <div className="space-y-1 pl-6">
+                                        {sp.foreshadowing.map((item, fi) => (
+                                          <div key={`fs-${fi}`} className="flex items-start gap-2 text-[12px]">
+                                            <span className="text-white/20 font-mono tracking-wide italic">{item}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
@@ -246,7 +274,7 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
 
           {/* ── Footer ── */}
           <div className="relative shrink-0 px-6 py-3 border-t border-white/[0.04] bg-white/[0.005]">
-            <p className="text-[9px] text-white/12 font-mono text-center tracking-wide">
+            <p className="text-[11px] text-white/12 font-mono text-center tracking-wide">
               点击存档点跳转至对应楼层 · 变量将自动回溯至该时刻的快照
             </p>
           </div>
