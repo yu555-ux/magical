@@ -2,7 +2,7 @@
  * Variable System Utilities
  */
 
-import type { ChatSession, ParsedTags, SavePoint } from './types';
+import type { ChatSession, ParsedTags, SavePoint, Lorebook } from './types';
 import type { ParserEvent } from './stream-parser';
 import { parseVarsBlock, applyVarsPatch, applyJsonPatch } from './vars-merger';
 
@@ -129,19 +129,160 @@ export function branchChat(
 // ========== v3: stream parser event aggregation ==========
 
 export function parseHistoryBlock(raw: string): SavePoint | null {
-  const parts = raw.trim().split('|');
-  if (parts.length < 7) return null;
-  return {
-    date: parts[0]?.trim() ?? '',
-    title: parts[1]?.trim() ?? '',
-    location: parts[2]?.trim() ?? '',
-    characters: parts[3]?.trim() ?? '',
-    description: parts[4]?.trim() ?? '',
-    relationships: parts[5]?.trim() ?? '',
-    tags: (parts[6]?.split(',') ?? []).map(t => t.trim()).filter(Boolean),
-    importantInfo: parts[7]?.trim() ?? '',
-    hiddenClues: parts[8]?.trim() ?? '',
+  const result: SavePoint = {
+    sequence: 0,
+    title: '',
+    world: '',
+    date: '',
+    location: '',
+    characters: '',
+    description: '',
+    keyInfo: [],
+    foreshadowing: [],
   };
+
+  const lines = raw.trim().split('\n');
+  let currentListField: 'keyInfo' | 'foreshadowing' | null = null;
+
+  const KEY_MAP: Record<string, keyof SavePoint> = {
+    '序号': 'sequence',
+    '标题': 'title',
+    '世界': 'world',
+    '日期': 'date',
+    '地点': 'location',
+    '相关人物': 'characters',
+    '描述': 'description',
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) { currentListField = null; continue; }
+
+    // List item: "- value" or "  - value"
+    const listMatch = trimmed.match(/^\s*-\s+(.*)$/);
+    if (listMatch) {
+      const item = listMatch[1].trim();
+      if (currentListField) {
+        result[currentListField].push(item);
+      }
+      continue;
+    }
+
+    // Key-value: "key: value" or "key:"
+    const kvMatch = trimmed.match(/^([^:]+):\s*(.*)$/);
+    if (kvMatch) {
+      const key = kvMatch[1].trim();
+      const value = kvMatch[2].trim();
+
+      if (key === '关键信息') {
+        currentListField = 'keyInfo';
+        if (value) result.keyInfo.push(value);
+        continue;
+      }
+      if (key === '伏笔') {
+        currentListField = 'foreshadowing';
+        if (value) result.foreshadowing.push(value);
+        continue;
+      }
+
+      const mapped = KEY_MAP[key];
+      if (mapped) {
+        currentListField = null;
+        if (mapped === 'sequence') {
+          result.sequence = parseInt(value, 10) || 0;
+        } else {
+          (result as any)[mapped] = value;
+        }
+        continue;
+      }
+
+      // Unknown key — ignore, reset list context
+      currentListField = null;
+    }
+  }
+
+  if (!result.sequence || !result.title) return null;
+  return result;
+}
+
+/** Fill 世界/日期/地点 from current game variables */
+export function enrichHistory(sp: SavePoint, variables: Record<string, any>): SavePoint {
+  const inDream = variables?.世界?.梦境定位?.位于梦境 === true;
+  const source = inDream ? (variables?.世界?.梦境存档 ?? {}) : (variables?.世界?.现实 ?? {});
+  return {
+    ...sp,
+    world: inDream ? '梦境' : '现实',
+    date: (typeof source?.时间 === 'string' ? source.时间.split('-')[0] : '') || '',
+    location: source?.地点 ?? '',
+  };
+}
+
+/** Format a SavePoint as a YAML-style <history> block string */
+export function formatHistoryBlock(sp: SavePoint): string {
+  const lines: string[] = [];
+  lines.push(`序号: ${sp.sequence}`);
+  lines.push(`标题: ${sp.title}`);
+  lines.push(`世界: ${sp.world}`);
+  lines.push(`日期: ${sp.date}`);
+  lines.push(`地点: ${sp.location}`);
+  lines.push(`相关人物: ${sp.characters}`);
+  lines.push(`描述: ${sp.description}`);
+  if (sp.keyInfo.length > 0) {
+    lines.push('关键信息:');
+    for (const item of sp.keyInfo) lines.push(`  - ${item}`);
+  }
+  if (sp.foreshadowing.length > 0) {
+    lines.push('伏笔:');
+    for (const item of sp.foreshadowing) lines.push(`- ${item}`);
+  }
+  return `<history>\n${lines.join('\n')}\n</history>`;
+}
+
+/** Parse multi-block lorebook entry content back into SavePoint array */
+function parseHistoryBlocks(content: string): SavePoint[] {
+  if (!content?.trim()) return [];
+  const blocks: SavePoint[] = [];
+  const regex = /<history>([\s\S]*?)<\/history>/g;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    const sp = parseHistoryBlock(match[1].trim());
+    if (sp) blocks.push(sp);
+  }
+  return blocks;
+}
+
+/**
+ * Find the "历史剧情" lorebook entry and insert/replace a SavePoint by sequence number.
+ * Returns updated lorebooks array, or null if no matching entry was found.
+ */
+export function updateLorebookHistory(
+  lorebooks: Lorebook[],
+  newHistory: SavePoint,
+): Lorebook[] | null {
+  let found = false;
+  const updated = lorebooks.map(book => {
+    let changed = false;
+    const entries = book.entries.map(entry => {
+      const isHistoryEntry =
+        entry.comment === '历史剧情' || entry.keys.includes('历史剧情');
+      if (!isHistoryEntry) return entry;
+
+      found = true;
+      changed = true;
+      const blocks = parseHistoryBlocks(entry.content);
+      const idx = blocks.findIndex(b => b.sequence === newHistory.sequence);
+      if (idx >= 0) {
+        blocks[idx] = newHistory;
+      } else {
+        blocks.push(newHistory);
+      }
+      blocks.sort((a, b) => a.sequence - b.sequence);
+      const newContent = blocks.map(formatHistoryBlock).join('\n\n');
+      return { ...entry, content: newContent };
+    });
+    return changed ? { ...book, entries } : book;
+  });
+  return found ? updated : null;
 }
 
 export function aggregateEvents(events: ParserEvent[]): ParsedTags {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
-import { applyParsedToChat } from '../sillytavern/variables';
+import { applyParsedToChat, enrichHistory, updateLorebookHistory } from '../sillytavern/variables';
 import { assemblePrompt } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, type AppSettings, type ChatSession, type ChatMessage } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
@@ -195,7 +195,13 @@ export function useSillytavern() {
     }
 
     const { events, parsed } = parser.finish();
-    let { nextVariables, snapshot } = applyParsedToChat(updatedChat.variables ?? {}, parsed);
+    const preVars = updatedChat.variables ?? {};
+    if (parsed.history) {
+      parsed.history = enrichHistory(parsed.history, preVars);
+    }
+    const oldRealTime = (preVars['世界']?.['现实']?.['时间'] ?? null) as string | null;
+    const oldDreamTime = (preVars['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
+    let { nextVariables, snapshot } = applyParsedToChat(preVars, parsed);
 
     let apiUsed: 'primary' | 'secondary' | 'dual' = 'primary';
     if (effectiveApi.secondary?.enabled && effectiveSettings.apiMode === 'dual' && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
@@ -224,32 +230,17 @@ export function useSillytavern() {
       }
     }
 
-    // 生理系统 tick（双轨：现实 + 梦境）
-    const world = nextVariables?.['世界'];
-    if (world) {
-      const sysKey = '_生理系统';
-      if (!nextVariables[sysKey]) nextVariables[sysKey] = {};
+    // 只有世界时间实际变化时才跑生理 tick
+    const newRealTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? null) as string | null;
+    const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
 
-      // 现实轨 — 非梦境 NPC 走现实时钟
-      const realTime = world?.['现实']?.['时间'];
-      if (realTime) {
-        const lastReal = nextVariables[sysKey]?.['上次现实tick日期'] ?? null;
-        nextVariables[sysKey]['上次现实tick日期'] = tickAllFemales(
-          nextVariables, realTime, typeof lastReal === 'string' ? lastReal : null,
-          { dreamOnly: false },
-        );
-      }
-
-      // 梦境轨 — 梦境 NPC 走梦境时钟
-      const dreamTime = world?.['梦境存档']?.['时间'];
-      if (dreamTime) {
-        const lastDream = nextVariables[sysKey]?.['上次梦境tick日期'] ?? null;
-        nextVariables[sysKey]['上次梦境tick日期'] = tickAllFemales(
-          nextVariables, dreamTime, typeof lastDream === 'string' ? lastDream : null,
-          { dreamOnly: true },
-        );
-      }
-
+    if (newRealTime && newRealTime !== oldRealTime) {
+      tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false });
+    }
+    if (newDreamTime && newDreamTime !== oldDreamTime) {
+      tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true });
+    }
+    if (newRealTime !== oldRealTime || newDreamTime !== oldDreamTime) {
       snapshot = JSON.parse(JSON.stringify(nextVariables));
     }
 
@@ -261,6 +252,17 @@ export function useSillytavern() {
     const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, updatedAt: Date.now() };
     await db.chats.put(finalChat);
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
+
+    // Update "历史剧情" lorebook entry
+    if (parsed.history) {
+      const latestSettings = await getSettings();
+      const currentLorebooks = latestSettings?.lorebooks ?? settings?.lorebooks ?? [];
+      const updatedLorebooks = updateLorebookHistory(currentLorebooks, parsed.history);
+      if (updatedLorebooks) {
+        await updateSettings({ lorebooks: updatedLorebooks });
+      }
+    }
+
     abortRef.current = null;
     return { aborted: false };
   }, [activeChat, settings, parser]);

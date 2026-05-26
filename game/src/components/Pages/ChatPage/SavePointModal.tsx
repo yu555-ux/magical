@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Save, ChevronRight, Clock, MapPin, Users, Tag, FileText, GitBranch, Eye } from 'lucide-react';
+import { X, Save, ChevronRight, Clock, MapPin, Users, Lightbulb, Eye } from 'lucide-react';
 import type { ChatMessage } from '../../../sillytavern/types';
 
 interface Props {
@@ -13,15 +13,15 @@ interface Props {
 interface SavePointFull {
   messageId: string;
   index: number;
-  date: string;
+  sequence: number;
   title: string;
+  world: string;
+  date: string;
   location: string;
   characters: string;
   description: string;
-  relationships: string;
-  tags: string[];
-  importantInfo: string;
-  hiddenClues: string;
+  keyInfo: string[];
+  foreshadowing: string[];
   timestamp: number;
 }
 
@@ -35,15 +35,15 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
         return {
           messageId: msg.id,
           index,
-          date: h.date,
+          sequence: h.sequence,
           title: h.title,
+          world: h.world,
+          date: h.date,
           location: h.location,
           characters: h.characters,
           description: h.description,
-          relationships: h.relationships,
-          tags: h.tags,
-          importantInfo: h.importantInfo,
-          hiddenClues: h.hiddenClues,
+          keyInfo: h.keyInfo,
+          foreshadowing: h.foreshadowing,
           timestamp: msg.timestamp,
         };
       });
@@ -161,14 +161,25 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
                             {/* ── Title row ── */}
                             <div className="flex items-start justify-between gap-3 mb-3">
                               <div className="flex-1 min-w-0">
-                                <h3 className="text-[15px] font-display font-bold text-white/75
-                                               group-hover:text-aether-cyan transition-colors duration-300
-                                               tracking-[0.06em] leading-snug">
-                                  {sp.title || '(无标题)'}
-                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="text-[15px] font-display font-bold text-white/75
+                                                 group-hover:text-aether-cyan transition-colors duration-300
+                                                 tracking-[0.06em] leading-snug">
+                                    {sp.title || '(无标题)'}
+                                  </h3>
+                                  {sp.world && (
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-sm font-mono tracking-wide shrink-0 ${
+                                      sp.world === '梦境'
+                                        ? 'bg-aether-purple/10 text-aether-purple/60 border border-aether-purple/20'
+                                        : 'bg-aether-blue/10 text-aether-blue/60 border border-aether-blue/20'
+                                    }`}>
+                                      {sp.world}
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="flex items-center gap-3 mt-1.5">
                                   <span className="text-[10px] font-mono text-aether-cyan/35">
-                                    第 {sp.index + 1} 回合
+                                    第 {sp.sequence} 节
                                   </span>
                                   {sp.date && (
                                     <span className="text-[10px] font-mono text-white/20">
@@ -206,44 +217,23 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
                               </p>
                             )}
 
-                            {/* ── Tags ── */}
-                            {sp.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 mb-3">
-                                {sp.tags.map((tag, ti) => (
-                                  <span key={ti}
-                                    className="text-[9px] px-2 py-0.5 rounded-sm
-                                               bg-aether-cyan/[0.05] border border-aether-cyan/[0.08]
-                                               text-aether-cyan/45 font-mono tracking-wide
-                                               group-hover:border-aether-cyan/15 group-hover:text-aether-cyan/55
-                                               transition-colors duration-300">
-                                    <Tag size={8} className="inline mr-1 opacity-40" />
-                                    {tag}
-                                  </span>
+                            {/* ── Key info & Foreshadowing ── */}
+                            {(sp.keyInfo.length > 0 || sp.foreshadowing.length > 0) && (
+                              <div className="space-y-1.5 pt-2 border-t border-white/[0.03]">
+                                {sp.keyInfo.map((item, ki) => (
+                                  <div key={`ki-${ki}`} className="flex items-start gap-1.5 text-[10px]">
+                                    <Lightbulb size={10} className="text-aether-gold/50 shrink-0 mt-0.5" />
+                                    <span className="text-white/25 font-mono tracking-wide">{item}</span>
+                                  </div>
+                                ))}
+                                {sp.foreshadowing.map((item, fi) => (
+                                  <div key={`fs-${fi}`} className="flex items-start gap-1.5 text-[10px]">
+                                    <Eye size={10} className="text-aether-purple/40 shrink-0 mt-0.5" />
+                                    <span className="text-white/18 font-mono tracking-wide italic">{item}</span>
+                                  </div>
                                 ))}
                               </div>
                             )}
-
-                            {/* ── Extra fields: relationships / important info / hidden clues ── */}
-                            <div className="space-y-1 pt-2 border-t border-white/[0.03]">
-                              {sp.relationships && (
-                                <div className="flex items-start gap-1.5 text-[10px]">
-                                  <GitBranch size={10} className="text-aether-gold/40 shrink-0 mt-0.5" />
-                                  <span className="text-white/20 font-mono tracking-wide">{sp.relationships}</span>
-                                </div>
-                              )}
-                              {sp.importantInfo && (
-                                <div className="flex items-start gap-1.5 text-[10px]">
-                                  <FileText size={10} className="text-aether-blue/40 shrink-0 mt-0.5" />
-                                  <span className="text-white/20 font-mono tracking-wide">{sp.importantInfo}</span>
-                                </div>
-                              )}
-                              {sp.hiddenClues && (
-                                <div className="flex items-start gap-1.5 text-[10px]">
-                                  <Eye size={10} className="text-aether-purple/40 shrink-0 mt-0.5" />
-                                  <span className="text-white/15 font-mono tracking-wide italic">{sp.hiddenClues}</span>
-                                </div>
-                              )}
-                            </div>
                           </div>
                         </div>
                       </button>
