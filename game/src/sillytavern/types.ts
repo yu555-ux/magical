@@ -360,6 +360,7 @@ export interface ChatMessage {
   timestamp: number;
   parsed?: ParsedTags;
   variablesAfter?: Record<string, any>;
+  plotHistoryAfter?: HistoryTimeline;
   apiUsed?: ApiTarget;
 }
 
@@ -370,6 +371,7 @@ export interface ChatSession {
   characterName: string;
   userName: string;
   variables: Record<string, any>;
+  plotHistory?: HistoryTimeline;
   createdAt: number;
   updatedAt: number;
 }

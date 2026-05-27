@@ -3,7 +3,7 @@ import { INJECTION_ANCHOR_RULES } from './types';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
 import type { ScanResult } from './lorebookEngine';
 import { processMapForPrompt } from './map-filter';
-import { resolvePath, formatVariablesForPrompt, extractHistoryFromMessages } from './variables';
+import { resolvePath, formatVariablesForPrompt } from './variables';
 import { filterCharacterGroup, formatCharacterGroup } from './character-filter';
 
 // ── Types ──
@@ -22,6 +22,7 @@ export interface AssembleOptions {
   isDream?: boolean;
   characters?: Record<string, any>;
   fullVariables?: Record<string, any>;
+  plotHistory?: HistoryTimeline;
   squashSystemMessages?: boolean;
   maxContextTokens?: number;
   maxOutputTokens?: number;
@@ -151,7 +152,7 @@ function resolveContent(content: string, presetVars: Record<string, string>, mac
 // World book anchors, chatHistory marker, and identity blocks inject content at their position.
 
 export function assemblePrompt(options: AssembleOptions): AssembleResult {
-  const { userInput, history, presetBlocks, lorebooks, userName, characterName, playerDescription, characterDescription } = options;
+  const { userInput, history, presetBlocks, lorebooks, userName, characterName, playerDescription, characterDescription, plotHistory } = options;
   const maxContext = options.maxContextTokens ?? 2000000;
   const maxOutput = options.maxOutputTokens ?? 64000;
   const tokenBudget = maxContext - maxOutput;
@@ -235,8 +236,10 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
         hasChatHistory = true;
 
         // 剧情历史板块（独立条目，位于 chatHistory 上方）
-        const timeline = extractHistoryFromMessages(history);
-        const { realityText, dreamText } = formatHistoryForPrompt(timeline, userName);
+        const { realityText, dreamText } = formatHistoryForPrompt(
+          plotHistory ?? { reality: [], dream: [] },
+          userName,
+        );
         const plotMsgs: Message[] = [];
         if (realityText) {
           plotMsgs.push({ role: 'system', content: realityText });

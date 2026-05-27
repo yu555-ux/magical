@@ -2,7 +2,7 @@
  * Variable System Utilities
  */
 
-import type { ChatSession, ChatMessage, ParsedTags, SavePoint, HistoryTimeline } from './types';
+import type { ChatSession, ParsedTags, SavePoint } from './types';
 import type { ParserEvent } from './stream-parser';
 import { parseVarsBlock, applyVarsPatch, applyJsonPatch } from './vars-merger';
 
@@ -218,26 +218,6 @@ export function enrichHistory(sp: SavePoint, variables: Record<string, any>): Sa
 }
 
 /** Format a SavePoint as a YAML-style <history> block string */
-export function extractHistoryFromMessages(
-  messages: ChatMessage[],
-): HistoryTimeline {
-  const reality: SavePoint[] = [];
-  const dream: SavePoint[] = [];
-
-  for (const m of messages) {
-    if (m.role === 'assistant' && m.parsed?.history) {
-      const h = m.parsed.history;
-      if (h.world === '现实') {
-        reality.push({ ...h, sequence: reality.length + 1 });
-      } else if (h.world === '梦境') {
-        dream.push({ ...h, sequence: dream.length + 1 });
-      }
-    }
-  }
-
-  return { reality, dream };
-}
-
 export function aggregateEvents(events: ParserEvent[]): ParsedTags {
   const parsed: ParsedTags = {
     thinking: '',

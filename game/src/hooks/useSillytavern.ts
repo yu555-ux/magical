@@ -3,7 +3,7 @@ import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, enrichHistory } from '../sillytavern/variables';
 import { assemblePrompt } from '../sillytavern/prompt-assembler';
-import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, type AppSettings, type ChatSession, type ChatMessage } from '../sillytavern/types';
+import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 import { tickAllFemales } from '../sillytavern/physiology';
@@ -56,6 +56,7 @@ export function useSillytavern() {
       characterName: settings?.characterName ?? DEFAULT_SETTINGS.characterName,
       userName: settings?.userName ?? DEFAULT_SETTINGS.userName,
       variables: JSON.parse(JSON.stringify(DEFAULT_WORLD_VARS)),
+      plotHistory: { reality: [], dream: [] },
       createdAt: Date.now(), updatedAt: Date.now(),
     };
     await saveChat(chat);
@@ -122,6 +123,7 @@ export function useSillytavern() {
       isDream: chatVars['世界']?.['梦境定位']?.['位于梦境'] ?? false,
       characters: chatVars['主要人物'],
       fullVariables: chatVars,
+      plotHistory: updatedChat.plotHistory,
       squashSystemMessages: effectiveSettings.squashSystemMessages,
       maxContextTokens: effectiveSettings.presetParams?.openai_max_context ?? 2000000,
       maxOutputTokens: effectiveSettings.presetParams?.openai_max_tokens ?? 64000,
@@ -244,6 +246,32 @@ export function useSillytavern() {
     // enrichHistory 使用 postVars（变量更新后的最新状态）
     if (parsed.history) {
       parsed.history = enrichHistory(parsed.history, nextVariables);
+
+      // 增量更新 plotHistory 缓存
+      const prevPH = updatedChat.plotHistory ?? { reality: [], dream: [] };
+      const sp = parsed.history;
+      const plotHistory: HistoryTimeline = {
+        reality: [...prevPH.reality],
+        dream: [...prevPH.dream],
+      };
+      if (sp.world === '现实') {
+        plotHistory.reality.push({ ...sp, sequence: plotHistory.reality.length + 1 });
+      } else if (sp.world === '梦境') {
+        plotHistory.dream.push({ ...sp, sequence: plotHistory.dream.length + 1 });
+      }
+      const plotHistorySnapshot = JSON.parse(JSON.stringify(plotHistory));
+
+      const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(), role: 'assistant',
+        content: rawContent,
+        timestamp: Date.now(), parsed, variablesAfter: snapshot, plotHistoryAfter: plotHistorySnapshot, apiUsed,
+      };
+      const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, plotHistory, updatedAt: Date.now() };
+      await db.chats.put(finalChat);
+      setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
+
+      abortRef.current = null;
+      return { aborted: false };
     }
 
     const assistantMsg: ChatMessage = {
@@ -269,7 +297,8 @@ export function useSillytavern() {
     const truncated = chat.messages.slice(0, idx + 1);
     const target = truncated[truncated.length - 1];
     const restoredVars = target?.role === 'assistant' && target.variablesAfter ? target.variablesAfter : chat.variables ?? {};
-    const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, updatedAt: Date.now() };
+    const restoredPlotHistory = target?.role === 'assistant' && target.plotHistoryAfter ? target.plotHistoryAfter : chat.plotHistory;
+    const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
     await db.chats.put(next);
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
   }, [activeChatId]);
@@ -280,7 +309,11 @@ export function useSillytavern() {
     if (lastUserIdx < 0) return;
     const targetIdx = activeChat.messages.length - 1 - lastUserIdx;
     const truncated = activeChat.messages.slice(0, targetIdx);
-    const next: ChatSession = { ...activeChat, messages: truncated, updatedAt: Date.now() };
+    const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
+    const restoredPlotHistory = lastAssistant?.plotHistoryAfter ?? activeChat.plotHistory;
+    // Restore variables from last assistant too
+    const restoredVars = lastAssistant?.variablesAfter ?? activeChat.variables ?? {};
+    const next: ChatSession = { ...activeChat, messages: truncated, variables: restoredVars, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
     await db.chats.put(next);
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
     await sendGameMessage(activeChat.messages[targetIdx].content);
@@ -324,6 +357,7 @@ export function useSillytavern() {
       fullVariables: chatVars,
       currentLocation: chatVars['世界']?.['现实']?.['地点'] ?? '',
       isDream: chatVars['世界']?.['梦境定位']?.['位于梦境'] ?? false,
+      plotHistory: activeChat.plotHistory,
     });
     setLastPrompt({
       messages: messages.map(m => ({ role: m.role, content: m.content })),
