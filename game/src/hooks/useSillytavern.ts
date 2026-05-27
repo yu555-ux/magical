@@ -196,9 +196,6 @@ export function useSillytavern() {
 
     const { events, parsed } = parser.finish();
     const preVars = updatedChat.variables ?? {};
-    if (parsed.history) {
-      parsed.history = enrichHistory(parsed.history, preVars);
-    }
     const oldRealTime = (preVars['世界']?.['现实']?.['时间'] ?? null) as string | null;
     const oldDreamTime = (preVars['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
     let { nextVariables, snapshot } = applyParsedToChat(preVars, parsed);
@@ -242,6 +239,11 @@ export function useSillytavern() {
     }
     if (newRealTime !== oldRealTime || newDreamTime !== oldDreamTime) {
       snapshot = JSON.parse(JSON.stringify(nextVariables));
+    }
+
+    // enrichHistory 使用 postVars（变量更新后的最新状态）
+    if (parsed.history) {
+      parsed.history = enrichHistory(parsed.history, nextVariables);
     }
 
     const assistantMsg: ChatMessage = {

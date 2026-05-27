@@ -230,20 +230,25 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       const blockId = block.identifier.toLowerCase();
       const blockMsgs: Message[] = [];
 
-      // ── chatHistory marker → inject plot history, then chat messages ──
+      // ── chatHistory marker → inject plot history above, then chat messages ──
       if (detectChatHistory(block) && !hasChatHistory) {
         hasChatHistory = true;
 
-        // 剧情历史板块（紧邻 chatHistory 之前）
+        // 剧情历史板块（独立条目，位于 chatHistory 上方）
         const timeline = extractHistoryFromMessages(history);
         const { realityText, dreamText } = formatHistoryForPrompt(timeline, userName);
+        const plotMsgs: Message[] = [];
         if (realityText) {
-          blockMsgs.push({ role: 'system', content: realityText });
+          plotMsgs.push({ role: 'system', content: realityText });
         }
         if (dreamText) {
-          blockMsgs.push({ role: 'system', content: dreamText });
+          plotMsgs.push({ role: 'system', content: dreamText });
+        }
+        if (plotMsgs.length > 0) {
+          ordered.push({ id: 'plotHistory', msgs: plotMsgs });
         }
 
+        // 聊天记录
         const historyMsgs = buildRecentHistory(history, tokenBudget);
         for (const hm of historyMsgs) {
           blockMsgs.push({ role: hm.role, content: hm.content });
@@ -396,6 +401,9 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   // Fallback chatHistory name
   if (!stageNames['chatHistory']) {
     stageNames['chatHistory'] = '聊天记录';
+  }
+  if (!stageNames['plotHistory']) {
+    stageNames['plotHistory'] = '历史剧情';
   }
   // Remaining lorebook anchors
   for (const entry of remainingMsgs) {
