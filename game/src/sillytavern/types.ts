@@ -270,7 +270,6 @@ export const DEFAULT_PRESET_BLOCKS: PresetBlock[] = [
   状态: 更新角色当前状态
 </vars>
 <history>
-序号: 1
 标题: 剧情节点标题
 相关人物: 角色A；角色B
 描述: 简要描述发生了什么
@@ -286,8 +285,8 @@ export const DEFAULT_PRESET_BLOCKS: PresetBlock[] = [
 - 每个标签必须单独成行，不能嵌套
 - 叙事要生动，注重细节和环境描写
 - 推进剧情的同时更新vars标签中的变量状态
-- history标签使用YAML风格键值对，记录关键剧情节点。序号从1开始递增。关键信息和伏笔为列表字段
-- 世界、日期、地点由系统自动填写，无需手动写出
+- history标签使用YAML风格键值对，记录关键剧情节点。关键信息和伏笔为列表字段
+- 序号、世界、日期、地点由系统自动填写，无需手动写出
 - option标签提供2-5个玩家可选的行动方向`,
   },
   {
@@ -387,6 +386,11 @@ export interface SavePoint {
   description: string;
   keyInfo: string[];
   foreshadowing: string[];
+}
+
+export interface HistoryTimeline {
+  reality: SavePoint[];
+  dream: SavePoint[];
 }
 
 export interface ParsedTags {

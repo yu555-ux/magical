@@ -1,9 +1,9 @@
-import type { ChatMessage, PresetBlock, Lorebook, InjectionAnchor } from './types';
+import type { ChatMessage, PresetBlock, Lorebook, InjectionAnchor, SavePoint, HistoryTimeline } from './types';
 import { INJECTION_ANCHOR_RULES } from './types';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
 import type { ScanResult } from './lorebookEngine';
 import { processMapForPrompt } from './map-filter';
-import { resolvePath, formatVariablesForPrompt } from './variables';
+import { resolvePath, formatVariablesForPrompt, extractHistoryFromMessages } from './variables';
 import { filterCharacterGroup, formatCharacterGroup } from './character-filter';
 
 // ── Types ──
@@ -230,9 +230,20 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       const blockId = block.identifier.toLowerCase();
       const blockMsgs: Message[] = [];
 
-      // ── chatHistory marker → insert chat messages (including user input, per Ttavern semantics) ──
+      // ── chatHistory marker → inject plot history, then chat messages ──
       if (detectChatHistory(block) && !hasChatHistory) {
         hasChatHistory = true;
+
+        // 剧情历史板块（紧邻 chatHistory 之前）
+        const timeline = extractHistoryFromMessages(history);
+        const { realityText, dreamText } = formatHistoryForPrompt(timeline, userName);
+        if (realityText) {
+          blockMsgs.push({ role: 'system', content: realityText });
+        }
+        if (dreamText) {
+          blockMsgs.push({ role: 'system', content: dreamText });
+        }
+
         const historyMsgs = buildRecentHistory(history, tokenBudget);
         for (const hm of historyMsgs) {
           blockMsgs.push({ role: hm.role, content: hm.content });
@@ -395,6 +406,45 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   }
 
   return { messages: finalMsgs, systemPrompt, totalTokens, stageTokens, stageMessages, stageOrder, stageNames };
+}
+
+// ── Plot history formatter ──
+
+function formatSavePointYaml(sp: SavePoint): string {
+  const lines: string[] = [];
+  lines.push(`  序号: ${sp.sequence}`);
+  lines.push(`  标题: ${sp.title}`);
+  lines.push(`  世界: ${sp.world}`);
+  lines.push(`  日期: ${sp.date}`);
+  lines.push(`  地点: ${sp.location}`);
+  lines.push(`  相关人物: ${sp.characters}`);
+  lines.push(`  描述: ${sp.description}`);
+  if (sp.keyInfo.length > 0) {
+    lines.push('  关键信息:');
+    for (const item of sp.keyInfo) lines.push(`    - ${item}`);
+  }
+  if (sp.foreshadowing.length > 0) {
+    lines.push('  伏笔:');
+    for (const item of sp.foreshadowing) lines.push(`    - ${item}`);
+  }
+  return lines.join('\n');
+}
+
+function formatHistoryForPrompt(
+  timeline: HistoryTimeline,
+  userName: string,
+): { realityText: string; dreamText: string } {
+  const buildSection = (tag: string, label: string, list: SavePoint[]): string => {
+    if (list.length === 0) return '';
+    const header = `以下为${userName}在${label}中经历的历史剧情:`;
+    const body = list.map(sp => formatSavePointYaml(sp)).join('\n\n');
+    return `<${tag}>\n${header}\n${body}\n</${tag}>`;
+  };
+
+  return {
+    realityText: buildSection('现实历史剧情', '现实', timeline.reality),
+    dreamText: buildSection('梦境历史剧情', '梦境', timeline.dream),
+  };
 }
 
 // ── History builder ──

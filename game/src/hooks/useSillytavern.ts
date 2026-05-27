@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
-import { applyParsedToChat, enrichHistory, updateLorebookHistory } from '../sillytavern/variables';
+import { applyParsedToChat, enrichHistory } from '../sillytavern/variables';
 import { assemblePrompt } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, type AppSettings, type ChatSession, type ChatMessage } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
@@ -252,16 +252,6 @@ export function useSillytavern() {
     const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, updatedAt: Date.now() };
     await db.chats.put(finalChat);
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
-
-    // Update "历史剧情" lorebook entry
-    if (parsed.history) {
-      const latestSettings = await getSettings();
-      const currentLorebooks = latestSettings?.lorebooks ?? settings?.lorebooks ?? [];
-      const updatedLorebooks = updateLorebookHistory(currentLorebooks, parsed.history);
-      if (updatedLorebooks) {
-        await updateSettings({ lorebooks: updatedLorebooks });
-      }
-    }
 
     abortRef.current = null;
     return { aborted: false };

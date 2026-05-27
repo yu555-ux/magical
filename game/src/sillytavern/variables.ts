@@ -2,7 +2,7 @@
  * Variable System Utilities
  */
 
-import type { ChatSession, ParsedTags, SavePoint, Lorebook } from './types';
+import type { ChatSession, ChatMessage, ParsedTags, SavePoint, HistoryTimeline } from './types';
 import type { ParserEvent } from './stream-parser';
 import { parseVarsBlock, applyVarsPatch, applyJsonPatch } from './vars-merger';
 
@@ -201,7 +201,7 @@ export function parseHistoryBlock(raw: string): SavePoint | null {
     }
   }
 
-  if (!result.sequence || !result.title) return null;
+  if (!result.title) return null;
   return result;
 }
 
@@ -218,71 +218,24 @@ export function enrichHistory(sp: SavePoint, variables: Record<string, any>): Sa
 }
 
 /** Format a SavePoint as a YAML-style <history> block string */
-export function formatHistoryBlock(sp: SavePoint): string {
-  const lines: string[] = [];
-  lines.push(`序号: ${sp.sequence}`);
-  lines.push(`标题: ${sp.title}`);
-  lines.push(`世界: ${sp.world}`);
-  lines.push(`日期: ${sp.date}`);
-  lines.push(`地点: ${sp.location}`);
-  lines.push(`相关人物: ${sp.characters}`);
-  lines.push(`描述: ${sp.description}`);
-  if (sp.keyInfo.length > 0) {
-    lines.push('关键信息:');
-    for (const item of sp.keyInfo) lines.push(`  - ${item}`);
-  }
-  if (sp.foreshadowing.length > 0) {
-    lines.push('伏笔:');
-    for (const item of sp.foreshadowing) lines.push(`- ${item}`);
-  }
-  return `<history>\n${lines.join('\n')}\n</history>`;
-}
+export function extractHistoryFromMessages(
+  messages: ChatMessage[],
+): HistoryTimeline {
+  const reality: SavePoint[] = [];
+  const dream: SavePoint[] = [];
 
-/** Parse multi-block lorebook entry content back into SavePoint array */
-function parseHistoryBlocks(content: string): SavePoint[] {
-  if (!content?.trim()) return [];
-  const blocks: SavePoint[] = [];
-  const regex = /<history>([\s\S]*?)<\/history>/g;
-  let match;
-  while ((match = regex.exec(content)) !== null) {
-    const sp = parseHistoryBlock(match[1].trim());
-    if (sp) blocks.push(sp);
-  }
-  return blocks;
-}
-
-/**
- * Find the "历史剧情" lorebook entry and insert/replace a SavePoint by sequence number.
- * Returns updated lorebooks array, or null if no matching entry was found.
- */
-export function updateLorebookHistory(
-  lorebooks: Lorebook[],
-  newHistory: SavePoint,
-): Lorebook[] | null {
-  let found = false;
-  const updated = lorebooks.map(book => {
-    let changed = false;
-    const entries = book.entries.map(entry => {
-      const isHistoryEntry =
-        entry.comment === '历史剧情' || entry.keys.includes('历史剧情');
-      if (!isHistoryEntry) return entry;
-
-      found = true;
-      changed = true;
-      const blocks = parseHistoryBlocks(entry.content);
-      const idx = blocks.findIndex(b => b.sequence === newHistory.sequence);
-      if (idx >= 0) {
-        blocks[idx] = newHistory;
-      } else {
-        blocks.push(newHistory);
+  for (const m of messages) {
+    if (m.role === 'assistant' && m.parsed?.history) {
+      const h = m.parsed.history;
+      if (h.world === '现实') {
+        reality.push({ ...h, sequence: reality.length + 1 });
+      } else if (h.world === '梦境') {
+        dream.push({ ...h, sequence: dream.length + 1 });
       }
-      blocks.sort((a, b) => a.sequence - b.sequence);
-      const newContent = blocks.map(formatHistoryBlock).join('\n\n');
-      return { ...entry, content: newContent };
-    });
-    return changed ? { ...book, entries } : book;
-  });
-  return found ? updated : null;
+    }
+  }
+
+  return { reality, dream };
 }
 
 export function aggregateEvents(events: ParserEvent[]): ParsedTags {
