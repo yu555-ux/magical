@@ -1,6 +1,6 @@
 import Dexie, { Table } from 'dexie';
 import type { AppSettings, ChatSession } from './types';
-import { DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS } from './types';
+import { DEFAULT_SETTINGS } from './types';
 
 const DB_NAME = 'SillyTavernWebDB';
 const DB_VERSION = 8;
@@ -11,101 +11,9 @@ class AppDatabase extends Dexie {
 
   constructor() {
     super(DB_NAME);
-    this.version(3).stores({
+    this.version(DB_VERSION).stores({
       settings: 'key',
       chats: 'id, name, updatedAt',
-    }).upgrade(async tx => {
-      const s = await tx.table('settings').toCollection().toArray();
-      for (const row of s) {
-        if (row.uiMode === undefined) row.uiMode = 'game';
-        if (row.customTags === undefined) row.customTags = ['maintext', 'option', 'history', 'vars', 'thinking', 'think'];
-        if (row.thinkingDisplay === undefined) row.thinkingDisplay = 'fold';
-        if (row.api?.secondary === undefined) {
-          row.api = { ...row.api, secondary: { enabled: false, baseUrl: '', apiKey: '', model: '' } };
-        }
-        await tx.table('settings').put(row);
-      }
-    });
-    this.version(4).stores({
-      settings: 'key',
-      chats: 'id, name, updatedAt',
-    }).upgrade(async tx => {
-      const s = await tx.table('settings').toCollection().toArray();
-      for (const row of s) {
-        if (!row.presetBlocks || row.presetBlocks.length === 0) {
-          row.presetBlocks = DEFAULT_PRESET_BLOCKS;
-        }
-        await tx.table('settings').put(row);
-      }
-    });
-    this.version(5).stores({
-      settings: 'key',
-      chats: 'id, name, updatedAt',
-    }).upgrade(async tx => {
-      const s = await tx.table('settings').toCollection().toArray();
-      for (const row of s) {
-        if (row.lorebooks === undefined) {
-          row.lorebooks = [];
-        }
-        await tx.table('settings').put(row);
-      }
-    });
-    this.version(6).stores({
-      settings: 'key',
-      chats: 'id, name, updatedAt',
-    }).upgrade(async tx => {
-      const s = await tx.table('settings').toCollection().toArray();
-      for (const row of s) {
-        if (!row.presets) row.presets = [];
-        if (row.activePresetId === undefined) {
-          // Migrate existing presetBlocks into a default saved preset
-          const blocks = row.presetBlocks || DEFAULT_PRESET_BLOCKS;
-          const existing = {
-            id: crypto.randomUUID(),
-            name: '默认预设',
-            source: 'builtin',
-            blocks,
-            params: row.presetParams,
-            createdAt: Date.now(),
-          };
-          row.presets = [existing, ...(row.presets || [])];
-          row.activePresetId = existing.id;
-          row.presetBlocks = blocks;
-          row.presetParams = existing.params;
-        }
-        await tx.table('settings').put(row);
-      }
-    });
-    this.version(7).stores({
-      settings: 'key',
-      chats: 'id, name, updatedAt',
-    }).upgrade(async tx => {
-      const s = await tx.table('settings').toCollection().toArray();
-      for (const row of s) {
-        if (row.customTags) {
-          const need = ['Analysis', 'JSONPatch'];
-          let changed = false;
-          for (const tag of need) {
-            if (!row.customTags.includes(tag)) {
-              row.customTags.push(tag);
-              changed = true;
-            }
-          }
-          if (changed) await tx.table('settings').put(row);
-        }
-      }
-    });
-    this.version(8).stores({
-      settings: 'key',
-      chats: 'id, name, updatedAt',
-    }).upgrade(async tx => {
-      const s = await tx.table('settings').toCollection().toArray();
-      for (const row of s) {
-        if (row.squashSystemMessages === undefined) {
-          row.squashSystemMessages = false;
-          await tx.table('settings').put(row);
-        }
-      }
     });
   }
 }
