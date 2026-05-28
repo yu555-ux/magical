@@ -214,6 +214,29 @@ export const DEFAULT_PRESET_PARAMS: PresetParams = {
   bias_preset_selected: 'Default (none)',
 };
 
+// ========== Frontend / Rich Text Types ==========
+
+export interface RichTextSymbolConfig {
+  enabled: boolean;
+  color: string;
+}
+
+export interface RichTextConfig {
+  quotes: RichTextSymbolConfig;
+  cornerBrackets: RichTextSymbolConfig;   // 【】
+  angleBrackets: RichTextSymbolConfig;    // 「」
+  italic: RichTextSymbolConfig;           // *text*
+  bold: RichTextSymbolConfig;             // **text**
+}
+
+export const DEFAULT_RICH_TEXT_CONFIG: RichTextConfig = {
+  quotes:           { enabled: false, color: '#a78bfa' },
+  cornerBrackets:   { enabled: true,  color: '#00f2ff' },
+  angleBrackets:    { enabled: true,  color: '#f0a43c' },
+  italic:           { enabled: true,  color: '#ffffff' },
+  bold:             { enabled: true,  color: '#ffffff' },
+};
+
 // ========== Settings Types ==========
 
 export interface SavedPreset {
@@ -250,6 +273,10 @@ export interface AppSettings {
   scenario?: string;
   /** Merge consecutive system messages into one */
   squashSystemMessages: boolean;
+  /** Frontend: message area width percentage (50-100) */
+  messageWidthPercent: number;
+  /** Frontend: rich text symbol formatting config */
+  richTextConfig: RichTextConfig;
 }
 
 export const DEFAULT_TAGS = ['maintext', 'option', 'history', 'vars', 'thinking', 'think', 'Analysis', 'JSONPatch'] as const;
@@ -349,6 +376,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   customTags: ['maintext', 'option', 'history', 'vars', 'thinking', 'think'],
   thinkingDisplay: 'fold',
   squashSystemMessages: false,
+  messageWidthPercent: 80,
+  richTextConfig: DEFAULT_RICH_TEXT_CONFIG,
 };
 
 // ========== Chat Types ==========

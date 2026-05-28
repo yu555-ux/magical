@@ -1,21 +1,23 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Server, BookOpen, Sliders, User, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Server, BookOpen, Sliders, User, Monitor, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useSillytavern } from '../hooks/useSillytavern';
 import type { AppSettings, ApiSettings } from '../sillytavern/types';
 import { DEFAULT_SETTINGS } from '../sillytavern/types';
 import { fetchModels, testConnection } from '../sillytavern/api-tools';
 import ApiTab from './Settings/ApiTab';
 import IdentityTab from './Settings/IdentityTab';
+import FrontendConfigTab from './Settings/FrontendConfigTab';
 import PromptManagerRoot from './Settings/PresetManager/PromptManagerRoot';
 import LorebookTab from './Settings/LorebookTab';
 
-type TabId = 'api' | 'lorebook' | 'preset' | 'identity';
+type TabId = 'api' | 'lorebook' | 'preset' | 'identity' | 'frontend';
 const TABS: { id: TabId; label: string; icon: any }[] = [
   { id: 'api', label: 'API 配置', icon: Server },
   { id: 'lorebook', label: '世界书配置', icon: BookOpen },
   { id: 'preset', label: '预设配置', icon: Sliders },
   { id: 'identity', label: '玩家身份', icon: User },
+  { id: 'frontend', label: '前端配置', icon: Monitor },
 ];
 
 export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -52,7 +54,9 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       || JSON.stringify(draft.lorebooks) !== JSON.stringify(ss.settings.lorebooks)
       || JSON.stringify(draft.presetParams) !== JSON.stringify(ss.settings.presetParams)
       || JSON.stringify(draft.presets) !== JSON.stringify(ss.settings.presets)
-      || draft.activePresetId !== ss.settings.activePresetId;
+      || draft.activePresetId !== ss.settings.activePresetId
+      || draft.messageWidthPercent !== (ss.settings.messageWidthPercent ?? 80)
+      || JSON.stringify(draft.richTextConfig) !== JSON.stringify(ss.settings.richTextConfig);
   }, [draft, ss.settings]);
 
   const handleSave = async () => {
@@ -67,6 +71,8 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
         presetParams: draft.presetParams,
         presets: draft.presets,
         activePresetId: draft.activePresetId,
+        messageWidthPercent: draft.messageWidthPercent ?? 80,
+        richTextConfig: draft.richTextConfig,
       });
       showToast('配置已保存', 'success');
     } catch { showToast('保存失败', 'error'); }
@@ -137,6 +143,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
                 {tab === 'lorebook' && draft && <LorebookTab draft={draft} setDraft={setDraft} />}
                 {tab === 'preset' && draft && <PromptManagerRoot draft={draft} setDraft={setDraft} />}
                 {tab === 'identity' && draft && <IdentityTab draft={draft} setDraft={setDraft} />}
+                {tab === 'frontend' && draft && <FrontendConfigTab draft={draft} setDraft={setDraft} />}
               </motion.div>
             </AnimatePresence>
           </div>

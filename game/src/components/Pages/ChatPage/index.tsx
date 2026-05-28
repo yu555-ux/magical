@@ -8,6 +8,7 @@ import SavePointModal from './SavePointModal';
 import PromptViewerModal from './PromptViewerModal';
 import { useSillytavern } from '../../../hooks/useSillytavern';
 import { deepResolveMacros } from '../../../sillytavern/prompt-assembler';
+import RichTextRenderer from '../../Settings/RichTextRenderer';
 
 export default function ChatPage({
   addNotification,
@@ -177,7 +178,8 @@ export default function ChatPage({
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="max-w-[680px] mx-auto"
+              style={{ maxWidth: `${ss.settings?.messageWidthPercent ?? 80}%` }}
+              className="mx-auto"
             >
               <div
                 className="text-[15px] text-white/75 leading-[1.9] whitespace-pre-wrap font-sans tracking-[0.03em] select-none"
@@ -186,7 +188,7 @@ export default function ChatPage({
                   setCtxMenu({ x: e.clientX, y: e.clientY, visible: true });
                 }}
               >
-                {maintext}
+                <RichTextRenderer text={maintext} config={ss.settings?.richTextConfig} />
                 {isStreaming && (
                   <motion.span
                     animate={{ opacity: [1, 0] }}
