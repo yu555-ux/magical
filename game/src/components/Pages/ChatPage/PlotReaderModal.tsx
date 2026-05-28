@@ -98,7 +98,7 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
 
           {/* Body */}
           {totalPages === 0 ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center justify-center py-24">
               <p className="text-white/15 text-sm font-display tracking-wide">暂无剧情记录</p>
             </div>
           ) : (
