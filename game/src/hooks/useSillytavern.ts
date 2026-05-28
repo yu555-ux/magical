@@ -127,6 +127,7 @@ export function useSillytavern() {
       squashSystemMessages: effectiveSettings.squashSystemMessages,
       maxContextTokens: effectiveSettings.presetParams?.openai_max_context ?? 2000000,
       maxOutputTokens: effectiveSettings.presetParams?.openai_max_tokens ?? 64000,
+      recentMessageCount: effectiveSettings.recentMessageCount ?? 6,
     });
 
     setLastPrompt({
@@ -358,6 +359,7 @@ export function useSillytavern() {
       currentLocation: chatVars['世界']?.['现实']?.['地点'] ?? '',
       isDream: chatVars['世界']?.['梦境定位']?.['位于梦境'] ?? false,
       plotHistory: activeChat.plotHistory,
+      recentMessageCount: effectiveSettings.recentMessageCount ?? 6,
     });
     setLastPrompt({
       messages: messages.map(m => ({ role: m.role, content: m.content })),

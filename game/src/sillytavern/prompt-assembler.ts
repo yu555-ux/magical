@@ -26,6 +26,7 @@ export interface AssembleOptions {
   squashSystemMessages?: boolean;
   maxContextTokens?: number;
   maxOutputTokens?: number;
+  recentMessageCount?: number;
 }
 
 export interface AssembleResult {
@@ -152,7 +153,7 @@ function resolveContent(content: string, presetVars: Record<string, string>, mac
 // World book anchors, chatHistory marker, and identity blocks inject content at their position.
 
 export function assemblePrompt(options: AssembleOptions): AssembleResult {
-  const { userInput, history, presetBlocks, lorebooks, userName, characterName, playerDescription, characterDescription, plotHistory } = options;
+  const { userInput, history, presetBlocks, lorebooks, userName, characterName, playerDescription, characterDescription, plotHistory, recentMessageCount } = options;
   const maxContext = options.maxContextTokens ?? 2000000;
   const maxOutput = options.maxOutputTokens ?? 64000;
   const tokenBudget = maxContext - maxOutput;
@@ -252,7 +253,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
         }
 
         // 聊天记录
-        const historyMsgs = buildRecentHistory(history, tokenBudget);
+        const historyMsgs = buildRecentHistory(history, tokenBudget, recentMessageCount);
         for (const hm of historyMsgs) {
           blockMsgs.push({ role: hm.role, content: hm.content });
         }
@@ -301,7 +302,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
 
   // ── Fallback: if no chatHistory block exists, add history at end ──
   if (!hasChatHistory) {
-    const historyMsgs = buildRecentHistory(history, tokenBudget);
+    const historyMsgs = buildRecentHistory(history, tokenBudget, recentMessageCount);
     const fallbackMsgs: Message[] = [];
     for (const hm of historyMsgs) {
       fallbackMsgs.push({ role: hm.role, content: hm.content });
@@ -465,9 +466,11 @@ interface HistoryMessage {
   content: string;
 }
 
-function buildRecentHistory(history: ChatMessage[], budget: number): HistoryMessage[] {
+function buildRecentHistory(history: ChatMessage[], budget: number, maxMessages?: number): HistoryMessage[] {
+  const limitByCount = (maxMessages ?? 0) > 0;
   let remaining = budget;
   const recent: HistoryMessage[] = [];
+  let msgCount = 0;
   for (let i = history.length - 1; i >= 0; i--) {
     const msg = history[i];
     if (msg.role === 'system') continue;
@@ -477,9 +480,13 @@ function buildRecentHistory(history: ChatMessage[], budget: number): HistoryMess
       : msg.content;
     if (!text) continue;
     const t = Math.round(text.length / 4);
+    // Token budget still acts as safety cap
     if (remaining - t < 0) break;
     recent.unshift({ role: msg.role as 'user' | 'assistant', content: text });
     remaining -= t;
+    msgCount++;
+    // When count limit is set, stop after reaching it
+    if (limitByCount && msgCount >= maxMessages!) break;
   }
   return recent;
 }

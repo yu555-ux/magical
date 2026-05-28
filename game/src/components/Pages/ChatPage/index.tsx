@@ -178,7 +178,7 @@ export default function ChatPage({
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              style={{ maxWidth: `${ss.settings?.messageWidthPercent ?? 80}%` }}
+              style={{ maxWidth: `${ss.settings?.messageWidthPercent ?? 90}%` }}
               className="mx-auto"
             >
               <div

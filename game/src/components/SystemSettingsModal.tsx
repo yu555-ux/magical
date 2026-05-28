@@ -55,8 +55,9 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       || JSON.stringify(draft.presetParams) !== JSON.stringify(ss.settings.presetParams)
       || JSON.stringify(draft.presets) !== JSON.stringify(ss.settings.presets)
       || draft.activePresetId !== ss.settings.activePresetId
-      || draft.messageWidthPercent !== (ss.settings.messageWidthPercent ?? 80)
-      || JSON.stringify(draft.richTextConfig) !== JSON.stringify(ss.settings.richTextConfig);
+      || draft.messageWidthPercent !== (ss.settings.messageWidthPercent ?? 90)
+      || JSON.stringify(draft.richTextConfig) !== JSON.stringify(ss.settings.richTextConfig)
+      || draft.recentMessageCount !== (ss.settings.recentMessageCount ?? 6);
   }, [draft, ss.settings]);
 
   const handleSave = async () => {
@@ -71,8 +72,9 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
         presetParams: draft.presetParams,
         presets: draft.presets,
         activePresetId: draft.activePresetId,
-        messageWidthPercent: draft.messageWidthPercent ?? 80,
+        messageWidthPercent: draft.messageWidthPercent ?? 90,
         richTextConfig: draft.richTextConfig,
+        recentMessageCount: draft.recentMessageCount ?? 6,
       });
       showToast('配置已保存', 'success');
     } catch { showToast('保存失败', 'error'); }

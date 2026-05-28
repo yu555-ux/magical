@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlignCenter, Type, Bold, Italic } from 'lucide-react';
+import { AlignCenter, Type, Bold, Italic, MessageSquare, Minus, Plus } from 'lucide-react';
 import type { AppSettings, RichTextConfig, RichTextSymbolConfig } from '../../sillytavern/types';
 import { DEFAULT_RICH_TEXT_CONFIG } from '../../sillytavern/types';
 
@@ -65,7 +65,7 @@ function WrapperLabelEnd({ keyName }: { keyName: keyof RichTextConfig }) {
 
 export default function FrontendConfigTab({ draft, setDraft }: Props) {
   const cfg = draft.richTextConfig ?? DEFAULT_RICH_TEXT_CONFIG;
-  const width = draft.messageWidthPercent ?? 80;
+  const width = draft.messageWidthPercent ?? 90;
 
   return (
     <div className="p-5 space-y-6">
@@ -118,6 +118,89 @@ export default function FrontendConfigTab({ draft, setDraft }: Props) {
               />
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ══════ Chat History Message Count ══════ */}
+      <section className="bg-aether-dark/30 rounded-lg border border-aether-border/20 p-5">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-full border-2 border-aether-green/40 bg-aether-green/10 flex items-center justify-center flex-shrink-0">
+            <MessageSquare size={20} className="text-aether-green" />
+          </div>
+          <div>
+            <h4 className="text-sm font-display font-semibold text-aether-green tracking-wide">聊天记录保留</h4>
+            <p className="text-[10px] text-white/25">发送给 AI 的最近消息条数，更早的由剧情历史概括</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center gap-4">
+          {/* Decrease */}
+          <button
+            onClick={() => {
+              const cur = draft.recentMessageCount ?? 6;
+              if (cur > 0) setDraft({ ...draft, recentMessageCount: Math.max(0, cur - 2) });
+            }}
+            disabled={(draft.recentMessageCount ?? 6) <= 0}
+            className="w-10 h-10 rounded-full border border-aether-border/30 bg-aether-dark/40 flex items-center justify-center
+                       text-white/40 hover:text-aether-green hover:border-aether-green/50 transition-all
+                       disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            <Minus size={16} />
+          </button>
+
+          {/* Number display + input */}
+          <div className="flex items-baseline gap-1.5">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={draft.recentMessageCount ?? 6}
+              onChange={e => {
+                const v = parseInt(e.target.value, 10);
+                if (!isNaN(v)) setDraft({ ...draft, recentMessageCount: Math.max(0, Math.min(100, v)) });
+              }}
+              className="w-16 text-center text-3xl font-mono font-bold text-aether-green bg-transparent border-b-2 border-aether-green/30
+                         focus:outline-none focus:border-aether-green/70 transition-colors
+                         [&::-webkit-inner-spin-button]:appearance-none [&::-moz-spin-button]:appearance-none"
+            />
+            <span className="text-xs text-white/25 font-display tracking-wide">
+              {(draft.recentMessageCount ?? 6) === 0 ? '不限制' : '条'}
+            </span>
+          </div>
+
+          {/* Increase */}
+          <button
+            onClick={() => {
+              const cur = draft.recentMessageCount ?? 6;
+              setDraft({ ...draft, recentMessageCount: Math.min(100, cur === 0 ? 2 : cur + 2) });
+            }}
+            disabled={(draft.recentMessageCount ?? 6) >= 100}
+            className="w-10 h-10 rounded-full border border-aether-border/30 bg-aether-dark/40 flex items-center justify-center
+                       text-white/40 hover:text-aether-green hover:border-aether-green/50 transition-all
+                       disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
+
+        {/* Quick presets */}
+        <div className="flex items-center justify-center gap-2 mt-4">
+          {[0, 2, 6, 10, 20].map(n => {
+            const cur = draft.recentMessageCount ?? 6;
+            return (
+              <button
+                key={n}
+                onClick={() => setDraft({ ...draft, recentMessageCount: n })}
+                className={`px-3 py-1 rounded-full text-[11px] font-mono transition-all ${
+                  cur === n
+                    ? 'bg-aether-green/20 text-aether-green border border-aether-green/40'
+                    : 'text-white/30 border border-white/[0.06] hover:text-white/50 hover:border-white/15'
+                }`}
+              >
+                {n === 0 ? '不限' : n}
+              </button>
+            );
+          })}
         </div>
       </section>
 

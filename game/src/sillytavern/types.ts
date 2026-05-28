@@ -279,6 +279,8 @@ export interface AppSettings {
   messageWidthPercent: number;
   /** Frontend: rich text symbol formatting config */
   richTextConfig: RichTextConfig;
+  /** Frontend: recent message count to include in chat history (0 = unlimited) */
+  recentMessageCount: number;
 }
 
 export const DEFAULT_TAGS = ['maintext', 'option', 'history', 'vars', 'thinking', 'think', 'Analysis', 'JSONPatch'] as const;
@@ -378,8 +380,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   customTags: ['maintext', 'option', 'history', 'vars', 'thinking', 'think'],
   thinkingDisplay: 'fold',
   squashSystemMessages: false,
-  messageWidthPercent: 80,
+  messageWidthPercent: 90,
   richTextConfig: DEFAULT_RICH_TEXT_CONFIG,
+  recentMessageCount: 6,
 };
 
 // ========== Chat Types ==========
