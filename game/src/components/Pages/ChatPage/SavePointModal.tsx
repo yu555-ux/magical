@@ -342,13 +342,6 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
             )}
           </div>
 
-          {/* ── Footer ── */}
-          <div className="relative shrink-0 px-6 py-3 border-t border-white/[0.04] bg-white/[0.005]">
-            <p className="text-[11px] text-white/12 font-mono text-center tracking-wide">
-              点击存档点跳转至对应楼层 · 变量将自动回溯至该时刻的快照
-            </p>
-          </div>
-
           {/* ── Bottom decorative line ── */}
           <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/15 to-transparent" />
         </motion.div>

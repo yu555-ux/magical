@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, ChevronLeft, BookOpen } from 'lucide-react';
 import type { ChatMessage } from '../../../sillytavern/types';
 
 interface Props {
@@ -98,7 +98,12 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
 
           {/* Body */}
           {totalPages === 0 ? (
-            <div className="flex items-center justify-center py-24">
+            <div className="flex flex-col items-center justify-center py-24 gap-4">
+              <div className="relative">
+                <div className="w-14 h-14 rounded-full border border-aether-cyan/10 bg-aether-cyan/[0.03] flex items-center justify-center">
+                  <BookOpen size={22} className="text-white/10" />
+                </div>
+              </div>
               <p className="text-white/15 text-sm font-display tracking-wide">暂无剧情记录</p>
             </div>
           ) : (
