@@ -219,6 +219,8 @@ export const DEFAULT_PRESET_PARAMS: PresetParams = {
 export interface RichTextSymbolConfig {
   enabled: boolean;
   color: string;
+  bold: boolean;
+  italic: boolean;
 }
 
 export interface RichTextConfig {
@@ -230,11 +232,11 @@ export interface RichTextConfig {
 }
 
 export const DEFAULT_RICH_TEXT_CONFIG: RichTextConfig = {
-  quotes:           { enabled: false, color: '#a78bfa' },
-  cornerBrackets:   { enabled: true,  color: '#00f2ff' },
-  angleBrackets:    { enabled: true,  color: '#f0a43c' },
-  italic:           { enabled: true,  color: '#ffffff' },
-  bold:             { enabled: true,  color: '#ffffff' },
+  quotes:           { enabled: false, color: '#a78bfa', bold: false, italic: true },
+  cornerBrackets:   { enabled: true,  color: '#00f2ff', bold: true,  italic: false },
+  angleBrackets:    { enabled: true,  color: '#f0a43c', bold: false, italic: false },
+  italic:           { enabled: true,  color: '#ffffff', bold: false, italic: true },
+  bold:             { enabled: true,  color: '#ffffff', bold: true,  italic: false },
 };
 
 // ========== Settings Types ==========

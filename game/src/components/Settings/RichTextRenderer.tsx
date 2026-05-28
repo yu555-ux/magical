@@ -81,9 +81,14 @@ export default function RichTextRenderer({ text, config }: { text: string; confi
     <>
       {segments.map((seg, i) => {
         if (seg.type === 'plain') return <React.Fragment key={i}>{seg.content}</React.Fragment>;
-        if (seg.type === 'bold')  return <span key={i} style={{ fontWeight: 700, color: cfg.bold.color }}>{seg.content}</span>;
-        if (seg.type === 'italic') return <span key={i} style={{ fontStyle: 'italic', color: cfg.italic.color }}>{seg.content}</span>;
-        return <span key={i} style={{ color: cfg[seg.type as keyof RichTextConfig]?.color ?? '#ffffff' }}>{seg.content}</span>;
+        const sc = cfg[seg.type];
+        return (
+          <span key={i} style={{
+            color: sc?.color ?? '#ffffff',
+            fontWeight: sc?.bold ? 700 : undefined,
+            fontStyle: sc?.italic ? 'italic' : undefined,
+          }}>{seg.content}</span>
+        );
       })}
     </>
   );
