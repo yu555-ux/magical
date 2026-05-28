@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronDown, ChevronRight, ChevronLeft, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, BookOpen } from 'lucide-react';
 import type { ChatMessage } from '../../../sillytavern/types';
+import AetherModal from '../../shared/AetherModal';
 
 interface Props {
   isOpen: boolean;
@@ -51,53 +52,9 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
   const goPrev = () => setPage(p => Math.max(0, p - 1));
   const goNext = () => setPage(p => Math.min(totalPages - 1, p + 1));
 
-  if (!isOpen) return null;
-
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[140] flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-aether-dark/92 backdrop-blur-xl"
-        />
-
-        {/* Panel */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
-          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-          exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[780px] max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
-        >
-          {/* Top accent */}
-          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent z-10" />
-          <div className="absolute top-0 left-0 right-0 h-[40px] bg-gradient-to-b from-aether-cyan/[0.03] to-transparent pointer-events-none" />
-
-          {/* Header */}
-          <div className="relative z-10 flex items-center justify-between px-6 py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
-                <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
-              </div>
-              <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">
-                剧情回顾
-              </h2>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-white/20 hover:text-aether-cyan transition-colors p-1.5 clickable press-scale hover:bg-aether-cyan/[0.06] rounded"
-            >
-              <X size={17} />
-            </button>
-          </div>
-
-          {/* Body */}
-          {totalPages === 0 ? (
+    <AetherModal isOpen={isOpen} onClose={onClose} title="剧情回顾" zIndex={140}>
+      {totalPages === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-4">
               <div className="relative">
                 <div className="w-14 h-14 rounded-full border border-aether-cyan/10 bg-aether-cyan/[0.03] flex items-center justify-center">
@@ -185,10 +142,6 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
             </div>
           )}
 
-          {/* Bottom decorative line */}
-          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/15 to-transparent z-10" />
-        </motion.div>
-      </div>
-    </AnimatePresence>
+    </AetherModal>
   );
 }

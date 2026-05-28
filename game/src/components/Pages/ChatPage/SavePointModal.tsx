@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Save, ChevronRight, ChevronDown, Clock, MapPin, Users, Lightbulb, Eye } from 'lucide-react';
+import { Save, ChevronRight, ChevronDown, Clock, MapPin, Users, Lightbulb, Eye } from 'lucide-react';
 import type { ChatMessage } from '../../../sillytavern/types';
+import AetherModal from '../../shared/AetherModal';
 
 interface Props {
   isOpen: boolean;
@@ -93,56 +94,9 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
 
   const totalPoints = timelines.reduce((s, t) => s + t.points.length, 0);
 
-  if (!isOpen) return null;
-
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-aether-dark/92 backdrop-blur-xl"
-        />
-
-        {/* Panel */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
-          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-          exit={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
-          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[780px] max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
-                     shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
-        >
-          {/* ── Top decorative accent line ── */}
-          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent z-10" />
-          <div className="absolute top-0 left-0 right-0 h-[40px] bg-gradient-to-b from-aether-cyan/[0.03] to-transparent pointer-events-none" />
-
-          {/* ── Header ── */}
-          <div className="relative z-10 flex items-center justify-between px-6 py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
-                <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
-              </div>
-              <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">
-                存档点
-              </h2>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={onClose}
-                className="text-white/20 hover:text-aether-cyan transition-colors p-1.5 clickable press-scale
-                           hover:bg-aether-cyan/[0.06] rounded"
-              >
-                <X size={17} />
-              </button>
-            </div>
-          </div>
-
-          {/* ── Content ── */}
+    <AetherModal isOpen={isOpen} onClose={onClose} title="存档点" zIndex={150}>
+      {/* ── Content ── */}
           <div className="flex-1 overflow-y-auto">
             {totalPoints === 0 ? (
               /* Empty state */
@@ -342,10 +296,6 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
             )}
           </div>
 
-          {/* ── Bottom decorative line ── */}
-          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/15 to-transparent" />
-        </motion.div>
-      </div>
-    </AnimatePresence>
+    </AetherModal>
   );
 }
