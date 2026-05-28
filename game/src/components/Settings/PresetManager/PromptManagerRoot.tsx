@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, CheckCircle, Plus, Upload } from 'lucide-react';
 import type { AppSettings, PresetBlock, PresetParams, SavedPreset } from '../../../sillytavern/types';
 import { DEFAULT_PRESET_PARAMS } from '../../../sillytavern/types';
-import { importPresetFromJson } from '../../../sillytavern/chaoxiAdapter';
+import { importPresetFromJson } from '../../../sillytavern/presetImporter';
 import { saveSettings } from '../../../sillytavern/database';
 import type { PromptManagerProps } from './types';
 import { newBlock } from './types';

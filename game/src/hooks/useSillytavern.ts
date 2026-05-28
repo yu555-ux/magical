@@ -3,7 +3,7 @@ import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, enrichHistory } from '../sillytavern/variables';
 import { assemblePrompt } from '../sillytavern/prompt-assembler';
-import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
+import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 import { tickAllFemales } from '../sillytavern/physiology';
@@ -125,9 +125,7 @@ export function useSillytavern() {
       fullVariables: chatVars,
       plotHistory: updatedChat.plotHistory,
       squashSystemMessages: effectiveSettings.squashSystemMessages,
-      maxContextTokens: effectiveSettings.presetParams?.openai_max_context ?? 2000000,
-      maxOutputTokens: effectiveSettings.presetParams?.openai_max_tokens ?? 64000,
-      recentMessageCount: effectiveSettings.recentMessageCount ?? 6,
+      recentMessageCount: effectiveSettings.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount,
     });
 
     setLastPrompt({
@@ -351,15 +349,13 @@ export function useSillytavern() {
       playerDescription: effectiveSettings.playerDescription,
       characterDescription: effectiveSettings.characterDescription,
       squashSystemMessages: effectiveSettings.squashSystemMessages,
-      maxContextTokens: effectiveSettings.presetParams?.openai_max_context ?? 2000000,
-      maxOutputTokens: effectiveSettings.presetParams?.openai_max_tokens ?? 64000,
       mapTree: chatVars['地图'],
       characters: chatVars['主要人物'],
       fullVariables: chatVars,
       currentLocation: chatVars['世界']?.['现实']?.['地点'] ?? '',
       isDream: chatVars['世界']?.['梦境定位']?.['位于梦境'] ?? false,
       plotHistory: activeChat.plotHistory,
-      recentMessageCount: effectiveSettings.recentMessageCount ?? 6,
+      recentMessageCount: effectiveSettings.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount,
     });
     setLastPrompt({
       messages: messages.map(m => ({ role: m.role, content: m.content })),

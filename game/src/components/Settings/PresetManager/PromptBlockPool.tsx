@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { Plus, Upload, Download, Undo2 } from 'lucide-react';
 import type { PresetBlock, PresetParams, SavedPreset } from '../../../sillytavern/types';
-import { importPresetFromJson } from '../../../sillytavern/chaoxiAdapter';
+import { importPresetFromJson } from '../../../sillytavern/presetImporter';
 
 interface Props {
   blocks: PresetBlock[];

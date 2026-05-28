@@ -1,12 +1,10 @@
 /**
- * Chaoxi / SillyTavern preset adapter
+ * SillyTavern preset importer
  * Converts imported preset JSON to PresetBlock[]
  *
- * Real Chaoxi preset format (as used by 三明月/类脑社区):
- *   { temperature, ..., prompts: [{ identifier, name, enabled, role, content }, ...], regex: [...] }
- *
- * Other supported formats:
- *   - Standard ST: { settings: { prompt_order: [...], prompts: [...] } }
+ * Supported formats:
+ *   - ST native: { prompts: [{ identifier, name, enabled, role, content }, ...], ... }
+ *   - Legacy ST: { settings: { prompt_order: [...], prompts: [...] } }
  *   - Character card: { data: { prompt_order: {...}, prompts: [...] } }
  */
 import type { PresetBlock, PresetParams } from './types';
@@ -54,7 +52,7 @@ export function importPresetFromJson(raw: Record<string, any>): ImportResult {
   let source: ImportResult['source'] = 'prompts';
 
   if (hasPromptsArray) {
-    // ── Chaoxi/ST native format: prompts[] array ──
+    // ── ST native format: prompts[] array ──
     const prompts: RawPromptEntry[] = merged.prompts;
     blocks = prompts
       .filter(p => p.identifier)

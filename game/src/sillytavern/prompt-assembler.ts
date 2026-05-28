@@ -24,8 +24,6 @@ export interface AssembleOptions {
   fullVariables?: Record<string, any>;
   plotHistory?: HistoryTimeline;
   squashSystemMessages?: boolean;
-  maxContextTokens?: number;
-  maxOutputTokens?: number;
   recentMessageCount?: number;
 }
 
@@ -515,6 +513,6 @@ export const SUPPORTED_MACROS = [
   { name: '{{setvar::name::value}}', description: '设置预设变量' },
   { name: '{{addvar::name::value}}', description: '追加预设变量' },
   { name: '{{getvar::name}}', description: '获取预设变量值' },
-  { name: '{{// 注释}}', description: '潮汐注释（发送时移除）' },
+  { name: '{{// 注释}}', description: '注释（发送时移除）' },
   { name: '{{trim}}', description: '裁剪标记（发送时移除）' },
 ] as const;

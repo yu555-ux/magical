@@ -8,6 +8,7 @@ import SavePointModal from './SavePointModal';
 import PromptViewerModal from './PromptViewerModal';
 import { useSillytavern } from '../../../hooks/useSillytavern';
 import { deepResolveMacros } from '../../../sillytavern/prompt-assembler';
+import { DEFAULT_SETTINGS } from '../../../sillytavern/types';
 import RichTextRenderer from '../../Settings/RichTextRenderer';
 
 export default function ChatPage({
@@ -25,7 +26,7 @@ export default function ChatPage({
   const resolvedVariables = useMemo(() => {
     const vars = ss.activeChat?.variables;
     if (!vars) return undefined;
-    return deepResolveMacros(vars, ss.settings?.userName ?? '用户', ss.settings?.characterName ?? 'AI');
+    return deepResolveMacros(vars, ss.settings?.userName ?? DEFAULT_SETTINGS.userName, ss.settings?.characterName ?? DEFAULT_SETTINGS.characterName);
   }, [ss.activeChat?.variables, ss.settings?.userName, ss.settings?.characterName]);
 
   const [input, setInput] = useState('');
@@ -178,7 +179,7 @@ export default function ChatPage({
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              style={{ maxWidth: `${ss.settings?.messageWidthPercent ?? 90}%` }}
+              style={{ maxWidth: `${ss.settings?.messageWidthPercent ?? DEFAULT_SETTINGS.messageWidthPercent}%` }}
               className="mx-auto"
             >
               <div

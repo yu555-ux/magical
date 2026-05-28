@@ -2,29 +2,9 @@
  * Variable System Utilities
  */
 
-import type { ChatSession, ParsedTags, SavePoint } from './types';
+import type { ParsedTags, SavePoint } from './types';
 import type { ParserEvent } from './stream-parser';
 import { parseVarsBlock, applyVarsPatch, applyJsonPatch } from './vars-merger';
-
-export function extractVariables(text: string): { cleanedText: string; updates: Record<string, string | number> } {
-  const updates: Record<string, string | number> = {};
-  const regex = /<var\s+name="([^"]+)"\s+value="([^"]+)"\s*\/?>/g;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    const [, name, rawValue] = match;
-    const num = Number(rawValue);
-    updates[name] = Number.isNaN(num) ? rawValue : num;
-  }
-  const cleanedText = text.replace(regex, '').replace(/\n{2,}/g, '\n').trim();
-  return { cleanedText, updates };
-}
-
-export function mergeVariables(
-  base: Record<string, string | number> = {},
-  updates: Record<string, string | number> = {}
-): Record<string, string | number> {
-  return { ...base, ...updates };
-}
 
 export function formatVariablesForPrompt(variables: Record<string, any>): string {
   if (!variables || Object.keys(variables).length === 0) return '';
@@ -92,38 +72,6 @@ function varsListWalk(obj: Record<string, any>, lines: string[], depth: number):
       lines.push(`${indent}${key}: ${leafType(value)}`);
     }
   }
-}
-
-export const USER_ROLE = 'user' as const;
-
-export function truncateChatAt(
-  chat: ChatSession,
-  index: number,
-  variables?: Record<string, string | number>
-): ChatSession {
-  const truncated = chat.messages.slice(0, index);
-  const restoredVars = variables ?? truncated[truncated.length - 1]?.variablesAfter ?? {};
-  return { ...chat, messages: truncated, variables: restoredVars, updatedAt: Date.now() };
-}
-
-export function branchChat(
-  source: ChatSession,
-  index: number,
-  options: {
-    name: string;
-    variables?: Record<string, string | number>;
-  }
-): ChatSession {
-  return {
-    id: crypto.randomUUID(),
-    name: options.name,
-    messages: source.messages.slice(0, index + 1).map(m => ({ ...m })),
-    characterName: source.characterName,
-    userName: source.userName,
-    variables: options.variables ?? source.messages[index]?.variablesAfter ?? {},
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
 }
 
 // ========== v3: stream parser event aggregation ==========

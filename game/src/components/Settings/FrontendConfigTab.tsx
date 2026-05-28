@@ -1,7 +1,7 @@
 import React from 'react';
 import { AlignCenter, Type, Bold, Italic, MessageSquare, Minus, Plus } from 'lucide-react';
 import type { AppSettings, RichTextConfig, RichTextSymbolConfig } from '../../sillytavern/types';
-import { DEFAULT_RICH_TEXT_CONFIG } from '../../sillytavern/types';
+import { DEFAULT_RICH_TEXT_CONFIG, DEFAULT_SETTINGS } from '../../sillytavern/types';
 
 interface Props {
   draft: AppSettings;
@@ -65,7 +65,7 @@ function WrapperLabelEnd({ keyName }: { keyName: keyof RichTextConfig }) {
 
 export default function FrontendConfigTab({ draft, setDraft }: Props) {
   const cfg = draft.richTextConfig ?? DEFAULT_RICH_TEXT_CONFIG;
-  const width = draft.messageWidthPercent ?? 90;
+  const width = draft.messageWidthPercent ?? DEFAULT_SETTINGS.messageWidthPercent;
 
   return (
     <div className="p-5 space-y-6">

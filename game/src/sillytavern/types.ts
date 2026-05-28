@@ -153,7 +153,7 @@ export type InjectionTrigger = (typeof INJECTION_TRIGGER_OPTIONS)[number];
 
 // ========== Preset Parameters ==========
 
-/** Sampling + context + template parameters extracted from a Chaoxi/ST preset JSON */
+/** Sampling + context + template parameters extracted from a ST preset JSON */
 export interface PresetParams {
   // Sampling
   temperature: number;

@@ -349,8 +349,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
   const save = async (next: Lorebook[]) => {
     const nextDraft = { ...draft, lorebooks: next };
     setDraft(nextDraft);
-    try { await saveSettings(nextDraft); } catch (err) {
-      console.error('[LorebookTab] Save failed:', err);
+    try { await saveSettings(nextDraft); } catch {
       showToast('保存失败，请重试', 'error');
     }
   };
