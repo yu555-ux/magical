@@ -89,7 +89,6 @@ export default function FrontendConfigTab({ draft, setDraft }: Props) {
           type="range"
           min={50}
           max={100}
-          step={5}
           value={width}
           onChange={e => setDraft({ ...draft, messageWidthPercent: Number(e.target.value) })}
           className="w-full h-1.5 rounded-full appearance-none cursor-pointer

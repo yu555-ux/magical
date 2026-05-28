@@ -136,25 +136,27 @@ export default function VariableViewerModal({ isOpen, onClose, variables, onSave
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-aether-dark/90 backdrop-blur-md"
+          className="absolute inset-0 bg-aether-dark/92 backdrop-blur-xl"
         />
         <motion.div
           initial={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
           animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[600px] max-h-[82vh] glass-panel border-glow overflow-hidden flex flex-col"
+          className="relative w-full max-w-[780px] max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
+                     shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
         >
-          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/40 to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent z-10" />
+          <div className="absolute top-0 left-0 right-0 h-[40px] bg-gradient-to-b from-aether-cyan/[0.03] to-transparent pointer-events-none" />
 
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-aether-border/30 bg-aether-cyan/[0.03] shrink-0">
+          <div className="relative z-10 flex items-center justify-between px-6 py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full" />
-                <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-30" />
+                <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
+                <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
               </div>
-              <h2 className="font-display font-bold text-sm tracking-[0.2em] text-aether-cyan uppercase">世界变量</h2>
+              <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">世界变量</h2>
             </div>
             <button onClick={onClose} className="text-white/30 hover:text-aether-cyan transition-colors p-1.5">
               <X size={18} />
@@ -239,7 +241,7 @@ export default function VariableViewerModal({ isOpen, onClose, variables, onSave
             )}
           </div>
 
-          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/20 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/15 to-transparent" />
         </motion.div>
       </div>
     </AnimatePresence>

@@ -50,19 +50,25 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
           onClick={onClose} className="absolute inset-0 bg-aether-dark/92 backdrop-blur-xl" />
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[860px] max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
+          initial={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
+          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-full max-w-[780px] max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
                      shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
         >
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent z-10" />
+          <div className="absolute top-0 left-0 right-0 h-[40px] bg-gradient-to-b from-aether-cyan/[0.03] to-transparent pointer-events-none" />
 
           {/* Header */}
-          <div className="relative z-10 flex items-center justify-between px-5 py-3 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-2 h-2 bg-aether-cyan rounded-full shadow-[0_0_6px_rgba(0,242,255,0.5)]" />
+          <div className="relative z-10 flex items-center justify-between px-6 py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
+                <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
+              </div>
               <FileText size={16} className="text-aether-cyan/80" />
-              <h2 className="font-display font-black text-xs tracking-[0.15em] text-aether-cyan/90 uppercase">发送给 AI 的提示词</h2>
+              <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">发送给 AI 的提示词</h2>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-mono text-aether-cyan/40">

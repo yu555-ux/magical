@@ -385,29 +385,34 @@ export default function ChatPage({
       {/* ── Raw XML View Modal ── */}
       <AnimatePresence>
         {rawViewOpen && (
-          <div className="fixed inset-0 z-[140] flex items-center justify-center p-8">
+          <div className="fixed inset-0 z-[140] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setRawViewOpen(false)}
-              className="absolute inset-0 bg-aether-dark/90 backdrop-blur-md"
+              className="absolute inset-0 bg-aether-dark/92 backdrop-blur-xl"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
+              initial={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
               animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="relative w-full max-w-[960px] h-[85vh] glass-panel border-glow overflow-hidden flex flex-col"
+              exit={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-[780px] max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
+                     shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
             >
-              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/40 to-transparent" />
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-aether-border/30 bg-aether-cyan/[0.03] shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-2 h-2 bg-aether-cyan rounded-full" />
-                  <h3 className="font-display font-bold text-xs tracking-[0.15em] text-aether-cyan uppercase">原始输出</h3>
+              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent z-10" />
+              <div className="absolute top-0 left-0 right-0 h-[40px] bg-gradient-to-b from-aether-cyan/[0.03] to-transparent pointer-events-none" />
+              <div className="relative z-10 flex items-center justify-between px-6 py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
+                    <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
+                  </div>
+                  <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">原始输出</h2>
                 </div>
-                <button onClick={() => setRawViewOpen(false)} className="text-white/30 hover:text-aether-cyan transition-colors p-1">
-                  <X size={16} />
+                <button onClick={() => setRawViewOpen(false)} className="text-white/30 hover:text-aether-cyan transition-colors p-1.5">
+                  <X size={18} />
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3">
@@ -440,7 +445,7 @@ export default function ChatPage({
                   </button>
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/20 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/15 to-transparent" />
             </motion.div>
           </div>
         )}
