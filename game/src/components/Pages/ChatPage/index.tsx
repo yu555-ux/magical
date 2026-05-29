@@ -13,6 +13,9 @@ import { cleanOption } from '../../../utils/string';
 import RichTextRenderer from '../../Settings/RichTextRenderer';
 import RawXmlViewerModal from './RawXmlViewerModal';
 import ContextMenu from './ContextMenu';
+import ShopBanner from './ShopBanner';
+import ShopModal from './ShopModal';
+import { checkShopAvailability } from '../../../sillytavern/shop-engine';
 
 export default function ChatPage({
   addNotification,
@@ -32,6 +35,12 @@ export default function ChatPage({
     return deepResolveMacros(vars, ss.settings?.userName ?? DEFAULT_SETTINGS.userName, ss.settings?.characterName ?? DEFAULT_SETTINGS.characterName);
   }, [ss.activeChat?.variables, ss.settings?.userName, ss.settings?.characterName]);
 
+  const shopAvailable = useMemo(() => {
+    const vars = ss.activeChat?.variables;
+    if (!vars) return false;
+    return checkShopAvailability(vars);
+  }, [ss.activeChat?.variables]);
+
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [thinkingOpen, setThinkingOpen] = useState(false);
@@ -44,6 +53,7 @@ export default function ChatPage({
   const [rawContent, setRawContent] = useState('');
   const [editedRaw, setEditedRaw] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
+  const [shopOpen, setShopOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -118,6 +128,12 @@ export default function ChatPage({
           onOpenVariables={() => setVarViewerOpen(true)}
           onOpenSave={() => setSaveOpen(true)}
           onOpenPrompt={() => setPromptOpen(true)}
+        />
+
+        {/* ── Shop banner (dream world 301室, trade unlocked) ── */}
+        <ShopBanner
+          visible={shopAvailable}
+          onOpenShop={() => setShopOpen(true)}
         />
 
         {/* ── Streaming indicator ── */}
@@ -342,6 +358,13 @@ export default function ChatPage({
           setRawViewOpen(true);
         }}
         onRegenerate={() => ss.regenerateLast()}
+      />
+
+      {/* ── Shop Modal ── */}
+      <ShopModal
+        isOpen={shopOpen}
+        onClose={() => setShopOpen(false)}
+        onNotify={(msg, type) => addNotification?.('柳三娘的铺子', msg, type)}
       />
 
       {/* ── Raw XML View Modal ── */}
