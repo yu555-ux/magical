@@ -2,7 +2,8 @@
  * ShopBubble — 柳三娘商店入口，可拖动气泡。
  *
  * - 固定定位，可自由拖动
- * - 悬停 3 秒后展开对话，拖动时不展开
+ * - 悬停 1.5 秒后展开对话，离开 1.5 秒后收起
+ * - 拖动时不展开，立即收起
  * - 铜绿色调，紧凑 pill 形态
  */
 
@@ -24,23 +25,41 @@ const LINES = [
 export default function ShopBanner({ visible, onOpenShop }: ShopBannerProps) {
   const [expanded, setExpanded] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const expandRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const collapseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const line = useMemo(() => LINES[Math.floor(Math.random() * LINES.length)], []);
 
-  const startTimer = useCallback(() => {
+  const clearBoth = useCallback(() => {
+    if (expandRef.current) { clearTimeout(expandRef.current); expandRef.current = null; }
+    if (collapseRef.current) { clearTimeout(collapseRef.current); collapseRef.current = null; }
+  }, []);
+
+  const onEnter = useCallback(() => {
     if (dragging) return;
-    timerRef.current = setTimeout(() => setExpanded(true), 1500);
+    // Cancel any pending collapse
+    if (collapseRef.current) { clearTimeout(collapseRef.current); collapseRef.current = null; }
+    // If already expanded, stay expanded — no need to restart timer
+    // Start expand timer (won't hurt if already expanded, setExpanded(true) is idempotent)
+    expandRef.current = setTimeout(() => setExpanded(true), 1500);
   }, [dragging]);
 
-  const clearTimer = useCallback(() => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    setExpanded(false);
+  const onLeave = useCallback(() => {
+    // Cancel pending expand
+    if (expandRef.current) { clearTimeout(expandRef.current); expandRef.current = null; }
+    // If not yet expanded, just collapse
+    setExpanded(prev => {
+      if (!prev) return false;
+      // Already expanded — start collapse delay
+      collapseRef.current = setTimeout(() => setExpanded(false), 1500);
+      return true;
+    });
   }, []);
 
   const onDragStart = useCallback(() => {
     setDragging(true);
-    clearTimer();
-  }, [clearTimer]);
+    clearBoth();
+    setExpanded(false);
+  }, [clearBoth]);
 
   const onDragEnd = useCallback(() => {
     setDragging(false);
@@ -60,8 +79,8 @@ export default function ShopBanner({ visible, onOpenShop }: ShopBannerProps) {
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
           whileDrag={{ scale: 1.06, cursor: 'grabbing' }}
-          onMouseEnter={startTimer}
-          onMouseLeave={clearTimer}
+          onMouseEnter={onEnter}
+          onMouseLeave={onLeave}
           className="fixed top-28 right-5 z-[85] select-none"
           style={{ touchAction: 'none' }}
         >
@@ -85,18 +104,15 @@ export default function ShopBanner({ visible, onOpenShop }: ShopBannerProps) {
               overflow-hidden whitespace-nowrap
             "
           >
-            {/* Pulse dot */}
             <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400/50 opacity-60" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-400/80" />
             </span>
 
-            {/* Name */}
             <span className="text-[11px] text-teal-200/85 font-display tracking-[0.06em] shrink-0">
               柳三娘
             </span>
 
-            {/* Expanded dialogue */}
             <motion.span
               animate={{
                 opacity: expanded ? 1 : 0,

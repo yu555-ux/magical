@@ -1,8 +1,7 @@
 /**
  * ShopModal — 柳三娘铺子。
  *
- * 自定义铜绿主题弹窗（不使用 AetherModal，避免系统青蓝色干扰）。
- * 详情以居中浮层形式展示，底色与店铺和谐统一。
+ * 铜绿主题 + 毛玻璃质感。详情居中浮层，展开时全面板模糊。
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -114,26 +113,32 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
             className="
               relative w-[880px] max-w-[95vw] h-[680px] max-h-[88vh]
               flex flex-col
-              border border-teal-500/15
-              rounded-2xl
-              shadow-[0_0_60px_rgba(20,184,166,0.08),0_16px_48px_rgba(0,0,0,0.5)]
-              overflow-hidden
+              rounded-2xl overflow-hidden
             "
             style={{
-              background: 'linear-gradient(180deg, rgba(13,36,32,0.95) 0%, rgba(9,24,21,0.97) 100%)',
+              background: 'linear-gradient(180deg, rgba(15,40,36,0.82) 0%, rgba(10,26,22,0.88) 100%)',
+              backdropFilter: 'blur(24px) saturate(120%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(120%)',
+              boxShadow: `
+                0 0 0 1px rgba(20,184,166,0.12),
+                0 0 40px rgba(20,184,166,0.06),
+                0 0 80px rgba(20,184,166,0.03),
+                0 16px 48px rgba(0,0,0,0.45),
+                inset 0 1px 0 rgba(255,255,255,0.04)
+              `,
             }}
           >
-            {/* top accent line */}
-            <div className="shrink-0 h-px bg-gradient-to-r from-transparent via-teal-500/25 to-transparent" />
+            {/* Glass edge highlight */}
+            <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-teal-300/15 to-transparent" />
 
             {/* header */}
-            <div className="shrink-0 flex items-center justify-between px-6 py-3.5">
+            <div className="relative shrink-0 flex items-center justify-between px-6 py-3.5">
               <div className="flex items-center gap-3">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400/50 opacity-60" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-400/70" />
                 </span>
-                <h2 className="text-[14px] text-teal-200/80 font-display tracking-[0.12em] uppercase">
+                <h2 className="text-[13px] text-teal-200/75 font-display tracking-[0.14em] uppercase">
                   柳三娘的铺子
                 </h2>
               </div>
@@ -145,18 +150,18 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
               </button>
             </div>
 
-            {/* bottom accent line */}
-            <div className="shrink-0 h-px bg-gradient-to-r from-transparent via-teal-500/10 to-transparent" />
+            {/* separator */}
+            <div className="shrink-0 h-px mx-4 bg-gradient-to-r from-transparent via-teal-500/10 to-transparent" />
 
             {/* body */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-              {/* ── currency + filter ── */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* currency + filter */}
               <div className="shrink-0 flex items-center justify-between px-6 pt-4 pb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-white/25 font-display tracking-[0.1em] uppercase">
+                  <span className="text-[10px] text-white/20 font-display tracking-[0.12em] uppercase">
                     尸气
                   </span>
-                  <span className="text-teal-300 font-mono text-[16px] tabular-nums">
+                  <span className="text-teal-300 font-mono text-[16px] tabular-nums tracking-tight">
                     {corpseQi}
                   </span>
                 </div>
@@ -182,8 +187,8 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                         px-3 py-1.5 rounded-full text-[11px] font-display tracking-[0.05em]
                         transition-all duration-200 cursor-pointer select-none
                         ${on
-                          ? 'bg-teal-950/40 border border-teal-500/25 text-teal-300'
-                          : 'border border-transparent text-white/25 hover:text-white/45 hover:bg-white/[0.03]'
+                          ? 'bg-teal-950/50 border border-teal-500/30 text-teal-300 shadow-[0_0_12px_rgba(20,184,166,0.08)]'
+                          : 'border border-white/[0.06] text-white/25 hover:text-white/45 hover:bg-white/[0.04] hover:border-white/[0.10]'
                         }
                       `}
                     >
@@ -193,11 +198,11 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                 })}
               </div>
 
-              {/* ── grid ── */}
+              {/* grid */}
               <div className="flex-1 overflow-y-auto px-6 pb-4">
                 {filtered.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
-                    <span className="text-[13px] text-white/12 font-display tracking-wide">暂无商品</span>
+                    <span className="text-[13px] text-white/10 font-display tracking-wide">暂无商品</span>
                   </div>
                 ) : (
                   <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(190px,1fr))' }}>
@@ -218,8 +223,8 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                             text-left p-3.5 rounded-xl border
                             transition-all duration-200 cursor-pointer select-none
                             ${active
-                              ? 'border-teal-500/35 bg-teal-950/30 shadow-[0_0_20px_rgba(20,184,166,0.08)]'
-                              : 'border-white/[0.05] bg-white/[0.01] hover:border-white/10 hover:bg-white/[0.025]'
+                              ? 'border-teal-400/30 bg-teal-950/35 shadow-[0_0_20px_rgba(20,184,166,0.12)]'
+                              : 'border-white/[0.10] bg-white/[0.025] hover:border-white/[0.18] hover:bg-white/[0.05] hover:shadow-[0_2px_12px_rgba(0,0,0,0.2)]'
                             }
                           `}
                         >
@@ -228,8 +233,8 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                             <span className={`text-[9px] font-display tracking-wider ${cat}`}>{item.分类}</span>
                             <span className="text-[9px] text-white/10 ml-auto">×{item.库存}</span>
                           </div>
-                          <h3 className="text-[14px] text-white/75 font-display tracking-[0.04em] mb-1.5">{item.名称}</h3>
-                          <p className="text-[11px] text-white/28 leading-relaxed line-clamp-2 mb-3">{item.描述}</p>
+                          <h3 className="text-[14px] text-white/80 font-display tracking-[0.04em] mb-1.5">{item.名称}</h3>
+                          <p className="text-[11px] text-white/30 leading-relaxed line-clamp-2 mb-3">{item.描述}</p>
                           <span className={`text-[14px] font-mono tabular-nums tracking-tight ${can ? 'text-teal-300/80' : 'text-red-400/35'}`}>
                             {item.价格}
                           </span>
@@ -240,131 +245,128 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                   </div>
                 )}
               </div>
-
-              {/* ══════ detail overlay (centered) ══════ */}
-              <AnimatePresence>
-                {detail && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-                    onClick={(e) => { if (e.target === e.currentTarget) setDetail(null); }}
-                  >
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.93, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.93, y: 20 }}
-                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                      className="
-                        w-[400px] max-w-[90%] max-h-[70vh] overflow-y-auto
-                        bg-[#102420] border border-teal-500/25
-                        rounded-2xl
-                        shadow-[0_0_40px_rgba(20,184,166,0.1),0_16px_40px_rgba(0,0,0,0.5)]
-                        p-5 relative
-                      "
-                      style={{
-                        background: 'linear-gradient(180deg, rgba(15,40,36,0.85) 0%, rgba(10,28,25,0.9) 100%)',
-                      }}
-                    >
-                      {/* close */}
-                      <button
-                        onClick={() => setDetail(null)}
-                        className="absolute top-3 right-3 p-1.5 rounded-full text-white/15 hover:text-white/40 transition-colors cursor-pointer z-10"
-                      >
-                        <X size={15} strokeWidth={1.5} />
-                      </button>
-
-                      {/* rank + category */}
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-display tracking-wider border ${RANK[detail.等级] ?? RANK.微末}`}>
-                          {detail.等级}
-                        </span>
-                        <span className={`text-[10px] font-display tracking-wider ${CAT_TEXT[detail.分类] ?? 'text-white/45'}`}>
-                          {detail.分类}
-                        </span>
-                      </div>
-
-                      {/* name */}
-                      <h2 className="text-[20px] text-white/85 font-display tracking-[0.03em] mb-4">
-                        {detail.名称}
-                      </h2>
-
-                      {/* desc */}
-                      <p className="text-[13px] text-white/50 leading-relaxed mb-5">
-                        {detail.描述}
-                      </p>
-
-                      {/* effects */}
-                      {Object.keys(detail.效果).length > 0 && (
-                        <div className="mb-4">
-                          <span className="text-[10px] text-white/20 font-display tracking-[0.12em] uppercase">效果</span>
-                          <div className="mt-2 space-y-2">
-                            {Object.entries(detail.效果).map(([k, v]) => (
-                              <div key={k} className="text-[12px]">
-                                <span className="text-teal-400/60 font-display">{k}</span>
-                                <span className="text-white/35 ml-2">{v}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* rules */}
-                      {detail.规则 && Object.keys(detail.规则).length > 0 && (
-                        <div className="mb-4">
-                          <span className="text-[10px] text-purple-300/35 font-display tracking-[0.12em] uppercase">规则</span>
-                          <div className="mt-2 space-y-2">
-                            {Object.entries(detail.规则).map(([k, v]) => (
-                              <div key={k} className="text-[12px]">
-                                <span className="text-purple-300/50 font-display">{k}</span>
-                                <span className="text-white/30 ml-2">{v}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* side effect */}
-                      {detail.副作用 && (
-                        <div className="mb-4">
-                          <span className="text-[10px] text-red-300/35 font-display tracking-[0.12em] uppercase">副作用</span>
-                          <p className="mt-1.5 text-[12px] text-red-300/40 leading-relaxed">{detail.副作用}</p>
-                        </div>
-                      )}
-
-                      {/* stock */}
-                      <p className="text-[11px] text-white/15 mb-5">剩余 {detail.库存} 件</p>
-
-                      {/* buy */}
-                      <button
-                        onClick={() => buy(detail)}
-                        disabled={corpseQi < detail.价格 || buying}
-                        className={`
-                          w-full py-3 rounded-xl
-                          text-[13px] font-display tracking-[0.06em]
-                          transition-all duration-200 cursor-pointer select-none
-                          ${corpseQi >= detail.价格 && !buying
-                            ? 'bg-teal-500/15 border border-teal-500/30 text-teal-300 hover:bg-teal-500/25 hover:border-teal-400/40 active:scale-[0.98]'
-                            : 'bg-white/[0.03] border border-white/[0.06] text-white/15 cursor-not-allowed'
-                          }
-                        `}
-                      >
-                        {buying
-                          ? '交易中...'
-                          : corpseQi >= detail.价格
-                            ? `购买 · ${detail.价格} 尸气`
-                            : `尸气不足（需 ${detail.价格}）`}
-                      </button>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
 
-            {/* bottom accent */}
-            <div className="shrink-0 h-px bg-gradient-to-r from-transparent via-teal-500/10 to-transparent" />
+            {/* glass bottom edge */}
+            <div className="shrink-0 h-px mx-4 bg-gradient-to-r from-transparent via-teal-500/6 to-transparent" />
+
+            {/* ══════ detail overlay — covers entire panel incl header ══════ */}
+            <AnimatePresence>
+              {detail && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="absolute inset-0 z-20 flex items-center justify-center"
+                  style={{
+                    background: 'rgba(7,20,17,0.75)',
+                    backdropFilter: 'blur(16px) saturate(80%)',
+                    WebkitBackdropFilter: 'blur(16px) saturate(80%)',
+                  }}
+                  onClick={(e) => { if (e.target === e.currentTarget) setDetail(null); }}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.93, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.93, y: 20 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="
+                      w-[400px] max-w-[90%] max-h-[70vh] overflow-y-auto
+                      rounded-2xl p-5 relative
+                    "
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(18,42,38,0.92) 0%, rgba(14,32,28,0.94) 100%)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      boxShadow: `
+                        0 0 0 1px rgba(20,184,166,0.18),
+                        0 0 48px rgba(20,184,166,0.12),
+                        0 20px 48px rgba(0,0,0,0.5)
+                      `,
+                    }}
+                  >
+                    {/* close */}
+                    <button
+                      onClick={() => setDetail(null)}
+                      className="absolute top-3 right-3 p-1.5 rounded-full text-white/15 hover:text-white/40 transition-colors cursor-pointer z-10"
+                    >
+                      <X size={15} strokeWidth={1.5} />
+                    </button>
+
+                    {/* rank + category */}
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-display tracking-wider border ${RANK[detail.等级] ?? RANK.微末}`}>
+                        {detail.等级}
+                      </span>
+                      <span className={`text-[10px] font-display tracking-wider ${CAT_TEXT[detail.分类] ?? 'text-white/45'}`}>
+                        {detail.分类}
+                      </span>
+                    </div>
+
+                    <h2 className="text-[20px] text-white/85 font-display tracking-[0.03em] mb-4">{detail.名称}</h2>
+                    <p className="text-[13px] text-white/50 leading-relaxed mb-5">{detail.描述}</p>
+
+                    {Object.keys(detail.效果).length > 0 && (
+                      <div className="mb-4">
+                        <span className="text-[10px] text-white/20 font-display tracking-[0.12em] uppercase">效果</span>
+                        <div className="mt-2 space-y-2">
+                          {Object.entries(detail.效果).map(([k, v]) => (
+                            <div key={k} className="text-[12px]">
+                              <span className="text-teal-400/60 font-display">{k}</span>
+                              <span className="text-white/35 ml-2">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {detail.规则 && Object.keys(detail.规则).length > 0 && (
+                      <div className="mb-4">
+                        <span className="text-[10px] text-purple-300/35 font-display tracking-[0.12em] uppercase">规则</span>
+                        <div className="mt-2 space-y-2">
+                          {Object.entries(detail.规则).map(([k, v]) => (
+                            <div key={k} className="text-[12px]">
+                              <span className="text-purple-300/50 font-display">{k}</span>
+                              <span className="text-white/30 ml-2">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {detail.副作用 && (
+                      <div className="mb-4">
+                        <span className="text-[10px] text-red-300/35 font-display tracking-[0.12em] uppercase">副作用</span>
+                        <p className="mt-1.5 text-[12px] text-red-300/40 leading-relaxed">{detail.副作用}</p>
+                      </div>
+                    )}
+
+                    <p className="text-[11px] text-white/15 mb-5">剩余 {detail.库存} 件</p>
+
+                    <button
+                      onClick={() => buy(detail)}
+                      disabled={corpseQi < detail.价格 || buying}
+                      className={`
+                        w-full py-3 rounded-xl
+                        text-[13px] font-display tracking-[0.06em]
+                        transition-all duration-200 cursor-pointer select-none
+                        ${corpseQi >= detail.价格 && !buying
+                          ? 'bg-teal-500/15 border border-teal-500/30 text-teal-300 hover:bg-teal-500/25 hover:border-teal-400/40 active:scale-[0.98]'
+                          : 'bg-white/[0.03] border border-white/[0.06] text-white/15 cursor-not-allowed'
+                        }
+                      `}
+                    >
+                      {buying
+                        ? '交易中...'
+                        : corpseQi >= detail.价格
+                          ? `购买 · ${detail.价格} 尸气`
+                          : `尸气不足（需 ${detail.价格}）`}
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
       )}
