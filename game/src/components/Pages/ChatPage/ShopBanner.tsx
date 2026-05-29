@@ -29,7 +29,7 @@ export default function ShopBanner({ visible, onOpenShop }: ShopBannerProps) {
 
   const startTimer = useCallback(() => {
     if (dragging) return;
-    timerRef.current = setTimeout(() => setExpanded(true), 3000);
+    timerRef.current = setTimeout(() => setExpanded(true), 1500);
   }, [dragging]);
 
   const clearTimer = useCallback(() => {

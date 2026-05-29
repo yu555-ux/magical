@@ -102,7 +102,7 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             onClick={() => { if (detail) setDetail(null); else onClose(); }}
-            className="absolute inset-0 bg-black/85 backdrop-blur-xl"
+            className="absolute inset-0 bg-aether-dark/92 backdrop-blur-xl"
           />
 
           {/* Panel */}
@@ -112,13 +112,16 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
             exit={{ opacity: 0, scale: 0.94, filter: 'blur(4px)' }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="
-              relative w-[880px] max-w-[95vw] max-h-[88vh]
+              relative w-[880px] max-w-[95vw] h-[680px] max-h-[88vh]
               flex flex-col
-              bg-[#070f12] border border-teal-500/15
+              border border-teal-500/15
               rounded-2xl
-              shadow-[0_0_60px_rgba(20,184,166,0.06),0_16px_48px_rgba(0,0,0,0.6)]
+              shadow-[0_0_60px_rgba(20,184,166,0.08),0_16px_48px_rgba(0,0,0,0.5)]
               overflow-hidden
             "
+            style={{
+              background: 'linear-gradient(180deg, rgba(13,36,32,0.95) 0%, rgba(9,24,21,0.97) 100%)',
+            }}
           >
             {/* top accent line */}
             <div className="shrink-0 h-px bg-gradient-to-r from-transparent via-teal-500/25 to-transparent" />
