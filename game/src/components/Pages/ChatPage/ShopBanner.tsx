@@ -1,12 +1,12 @@
 /**
  * ShopBubble — 柳三娘商店入口，可拖动气泡。
  *
- * - 固定定位，可自由拖动（仿 StatusBell）
- * - 默认紧凑 pill，hover 展开显示 NPC 台词
- * - 铜绿色调，贴合赶尸人身份
+ * - 固定定位，可自由拖动
+ * - 悬停 3 秒后展开对话，拖动时不展开
+ * - 铜绿色调，紧凑 pill 形态
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ShopBannerProps {
@@ -22,8 +22,29 @@ const LINES = [
 ];
 
 export default function ShopBanner({ visible, onOpenShop }: ShopBannerProps) {
-  const [hovered, setHovered] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const line = useMemo(() => LINES[Math.floor(Math.random() * LINES.length)], []);
+
+  const startTimer = useCallback(() => {
+    if (dragging) return;
+    timerRef.current = setTimeout(() => setExpanded(true), 3000);
+  }, [dragging]);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    setExpanded(false);
+  }, []);
+
+  const onDragStart = useCallback(() => {
+    setDragging(true);
+    clearTimer();
+  }, [clearTimer]);
+
+  const onDragEnd = useCallback(() => {
+    setDragging(false);
+  }, []);
 
   return (
     <AnimatePresence>
@@ -36,18 +57,19 @@ export default function ShopBanner({ visible, onOpenShop }: ShopBannerProps) {
           drag
           dragMomentum={false}
           dragElastic={0.08}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
           whileDrag={{ scale: 1.06, cursor: 'grabbing' }}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
+          onMouseEnter={startTimer}
+          onMouseLeave={clearTimer}
           className="fixed top-28 right-5 z-[85] select-none"
           style={{ touchAction: 'none' }}
         >
           <motion.button
             onClick={onOpenShop}
             animate={{
-              width: hovered ? 'auto' : undefined,
-              paddingLeft: hovered ? 16 : 10,
-              paddingRight: hovered ? 16 : 10,
+              paddingLeft: expanded ? 16 : 10,
+              paddingRight: expanded ? 16 : 10,
             }}
             className="
               flex items-center gap-2
@@ -60,8 +82,7 @@ export default function ShopBanner({ visible, onOpenShop }: ShopBannerProps) {
               hover:shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_0_1px_rgba(20,184,166,0.12)]
               transition-all duration-300
               cursor-grab active:cursor-grabbing
-              overflow-hidden
-              whitespace-nowrap
+              overflow-hidden whitespace-nowrap
             "
           >
             {/* Pulse dot */}
@@ -70,27 +91,24 @@ export default function ShopBanner({ visible, onOpenShop }: ShopBannerProps) {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-400/80" />
             </span>
 
-            {/* Name — always visible */}
+            {/* Name */}
             <span className="text-[11px] text-teal-200/85 font-display tracking-[0.06em] shrink-0">
               柳三娘
             </span>
 
-            {/* Expanded content */}
+            {/* Expanded dialogue */}
             <motion.span
               animate={{
-                opacity: hovered ? 1 : 0,
-                width: hovered ? 'auto' : 0,
-                marginLeft: hovered ? 0 : -8,
+                opacity: expanded ? 1 : 0,
+                width: expanded ? 'auto' : 0,
+                marginLeft: expanded ? 0 : -8,
               }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className="flex items-center gap-2 overflow-hidden"
             >
               <span className="w-px h-3 bg-teal-500/20 shrink-0" />
               <span className="text-[11px] text-white/40 font-display tracking-[0.03em] max-w-[160px] truncate">
                 「{line}」
-              </span>
-              <span className="text-[10px] text-teal-400/40 font-display tracking-[0.08em] shrink-0">
-                看看
               </span>
             </motion.span>
           </motion.button>
