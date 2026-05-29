@@ -175,7 +175,7 @@ export default function ChatPage({
         )}
 
         {/* ── Main text pane ── */}
-        <div className="flex-1 overflow-y-auto px-5 md:px-10 py-6 relative">
+        <div className="flex-1 overflow-y-auto px-5 md:px-10 py-6">
           {!maintext && !isStreaming ? (
             <div className="h-full" />
           ) : (
@@ -208,12 +208,6 @@ export default function ChatPage({
           )}
 
           <div ref={messagesEndRef} />
-
-          {/* ── Shop bubble (dream world 301室, trade unlocked) ── */}
-          <ShopBanner
-            visible={shopAvailable}
-            onOpenShop={() => setShopOpen(true)}
-          />
         </div>
 
         {/* ── Input area ── */}
@@ -314,6 +308,12 @@ export default function ChatPage({
           </div>
         </div>
       </div>
+
+      {/* ── Shop bubble (fixed position, draggable) ── */}
+      <ShopBanner
+        visible={shopAvailable}
+        onOpenShop={() => setShopOpen(true)}
+      />
 
       {/* ── Plot Reader Modal ── */}
       <PlotReaderModal

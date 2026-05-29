@@ -1,11 +1,12 @@
 /**
- * ShopBanner — 柳三娘商店入口气泡。
+ * ShopBubble — 柳三娘商店入口，可拖动气泡。
  *
- * 当交易条件满足时，在聊天区底部浮现一枚半透明气泡。
- * 铜绿色调，贴合赶尸人的阴冷身份。
+ * - 固定定位，可自由拖动（仿 StatusBell）
+ * - 默认紧凑 pill，hover 展开显示 NPC 台词
+ * - 铜绿色调，贴合赶尸人身份
  */
 
-import { useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ShopBannerProps {
@@ -13,74 +14,86 @@ interface ShopBannerProps {
   onOpenShop: () => void;
 }
 
-const NPC_LINES = [
+const LINES = [
   '来客人了？随便看看。',
   '货都在这儿了，尸气带够了没？',
-  '这些可都是三娘压箱底的好东西。',
+  '压箱底的好东西，不买别碰。',
+  '别傻站着，要买就买。',
 ];
 
-function useRandomLine(visible: boolean): string {
-  const lineRef = useRef(NPC_LINES[0]);
-  useMemo(() => {
-    if (visible) {
-      lineRef.current = NPC_LINES[Math.floor(Math.random() * NPC_LINES.length)];
-    }
-  }, [visible]);
-  return lineRef.current;
-}
-
 export default function ShopBanner({ visible, onOpenShop }: ShopBannerProps) {
-  const npcLine = useRandomLine(visible);
+  const [hovered, setHovered] = useState(false);
+  const line = useMemo(() => LINES[Math.floor(Math.random() * LINES.length)], []);
 
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, y: 16, scale: 0.92 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 12, scale: 0.94 }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute bottom-4 right-4 z-20 pointer-events-auto"
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.85 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          drag
+          dragMomentum={false}
+          dragElastic={0.08}
+          whileDrag={{ scale: 1.06, cursor: 'grabbing' }}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          className="fixed top-28 right-5 z-[85] select-none"
+          style={{ touchAction: 'none' }}
         >
-          <button
+          <motion.button
             onClick={onOpenShop}
+            animate={{
+              width: hovered ? 'auto' : undefined,
+              paddingLeft: hovered ? 16 : 10,
+              paddingRight: hovered ? 16 : 10,
+            }}
             className="
-              group
-              flex items-center gap-2.5
-              px-4 py-2.5
-              rounded-2xl
-              bg-teal-950/60 backdrop-blur-md
-              border border-teal-500/15
-              shadow-[0_4px_24px_rgba(0,0,0,0.4),0_0_0_1px_rgba(20,184,166,0.08)]
-              hover:bg-teal-950/75 hover:border-teal-500/25
-              hover:shadow-[0_4px_28px_rgba(0,0,0,0.5),0_0_0_1px_rgba(20,184,166,0.15)]
-              active:scale-[0.97]
+              flex items-center gap-2
+              h-9
+              rounded-full
+              bg-teal-950/70 backdrop-blur-lg
+              border border-teal-500/20
+              shadow-[0_2px_16px_rgba(0,0,0,0.35),0_0_0_1px_rgba(20,184,166,0.06)]
+              hover:bg-teal-950/85 hover:border-teal-500/30
+              hover:shadow-[0_4px_24px_rgba(0,0,0,0.5),0_0_0_1px_rgba(20,184,166,0.12)]
               transition-all duration-300
-              cursor-pointer select-none
+              cursor-grab active:cursor-grabbing
+              overflow-hidden
+              whitespace-nowrap
             "
           >
-            {/* Subtle glow dot */}
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400/40 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-400/70" />
+            {/* Pulse dot */}
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400/50 opacity-60" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-400/80" />
             </span>
 
-            {/* Text */}
-            <span className="text-[12px] text-teal-200/80 font-display tracking-[0.05em] leading-none">
+            {/* Name — always visible */}
+            <span className="text-[11px] text-teal-200/85 font-display tracking-[0.06em] shrink-0">
               柳三娘
             </span>
 
-            <span className="w-px h-3.5 bg-teal-500/15" />
-
-            <span className="text-[12px] text-white/45 font-display tracking-[0.04em] leading-none max-w-[180px] truncate">
-              「{npcLine}」
-            </span>
-
-            {/* Arrow hint */}
-            <span className="text-teal-400/30 text-[11px] font-display tracking-[0.08em] group-hover:text-teal-400/50 transition-colors">
-              看看
-            </span>
-          </button>
+            {/* Expanded content */}
+            <motion.span
+              animate={{
+                opacity: hovered ? 1 : 0,
+                width: hovered ? 'auto' : 0,
+                marginLeft: hovered ? 0 : -8,
+              }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="flex items-center gap-2 overflow-hidden"
+            >
+              <span className="w-px h-3 bg-teal-500/20 shrink-0" />
+              <span className="text-[11px] text-white/40 font-display tracking-[0.03em] max-w-[160px] truncate">
+                「{line}」
+              </span>
+              <span className="text-[10px] text-teal-400/40 font-display tracking-[0.08em] shrink-0">
+                看看
+              </span>
+            </motion.span>
+          </motion.button>
         </motion.div>
       )}
     </AnimatePresence>
