@@ -130,12 +130,6 @@ export default function ChatPage({
           onOpenPrompt={() => setPromptOpen(true)}
         />
 
-        {/* ── Shop banner (dream world 301室, trade unlocked) ── */}
-        <ShopBanner
-          visible={shopAvailable}
-          onOpenShop={() => setShopOpen(true)}
-        />
-
         {/* ── Streaming indicator ── */}
         {isStreaming && (
           <div className="flex items-center justify-end px-5 py-1.5 border-b border-aether-border/15 shrink-0">
@@ -181,7 +175,7 @@ export default function ChatPage({
         )}
 
         {/* ── Main text pane ── */}
-        <div className="flex-1 overflow-y-auto px-5 md:px-10 py-6">
+        <div className="flex-1 overflow-y-auto px-5 md:px-10 py-6 relative">
           {!maintext && !isStreaming ? (
             <div className="h-full" />
           ) : (
@@ -214,6 +208,12 @@ export default function ChatPage({
           )}
 
           <div ref={messagesEndRef} />
+
+          {/* ── Shop bubble (dream world 301室, trade unlocked) ── */}
+          <ShopBanner
+            visible={shopAvailable}
+            onOpenShop={() => setShopOpen(true)}
+          />
         </div>
 
         {/* ── Input area ── */}
