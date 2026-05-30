@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Package, Search, X, Sparkles } from 'lucide-react';
+import { Package, Search, X } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { getDatabase } from '../../sillytavern/database';
 import { moveItem } from '../../sillytavern/variables';
@@ -215,7 +215,7 @@ export default function WarehousePage() {
                         }}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-display tracking-wider border border-amber-400/30 bg-amber-400/8 text-amber-300 hover:bg-amber-400/14 hover:border-amber-400/50 transition-all"
                       >
-                        <Sparkles size={11} />具现
+                        具现
                       </button>
                     </div>
                   )}
@@ -312,7 +312,7 @@ export default function WarehousePage() {
                         }}
                         className="px-4 py-2 text-xs font-display tracking-wider border border-amber-400/30 bg-amber-400/8 text-amber-300 hover:bg-amber-400/14 hover:border-amber-400/50 transition-all flex items-center gap-1"
                       >
-                        <Sparkles size={11} />具现
+                        具现
                       </button>
                     )}
                   </div>
@@ -337,13 +337,12 @@ export default function WarehousePage() {
               exit={{ opacity: 0, scale: 0.96, y: 8 }}
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="glass-panel border-glow w-[420px] max-h-[80vh] overflow-y-auto shadow-[0_0_40px_rgba(0,242,255,0.06)]"
+              className="glass-panel border-glow w-[360px] shadow-[0_0_40px_rgba(0,242,255,0.06)]"
             >
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-amber-400/20 bg-amber-400/[0.03]">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-aether-cyan/20 bg-aether-cyan/[0.02]">
                 <div className="flex items-center gap-2.5">
-                  <Sparkles size={15} className="text-amber-300" />
-                  <h3 className="font-display text-sm tracking-[0.12em] text-amber-300/90">梦境具现</h3>
+                  <div className="w-1 h-4 bg-amber-400 rounded-full shadow-[0_0_6px_rgba(251,191,36,0.4)]" />
+                  <h3 className="font-display text-sm tracking-[0.12em] text-aether-cyan/90">梦境具现</h3>
                 </div>
                 <button
                   onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); }}
@@ -353,47 +352,22 @@ export default function WarehousePage() {
                 </button>
               </div>
 
-              {/* Body */}
               <div className="p-5 space-y-4">
-                {/* Item info */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-display font-bold text-white/80 text-sm">{realizeTarget.name}</h4>
-                    <span className="text-[10px] font-mono text-white/30">{realizeTarget.category}</span>
-                  </div>
-                  {realizeTarget.data?.等级 && (() => {
-                    const rk = realizeTarget.data.等级;
-                    const rs = ITEM_RANK_STYLES[rk];
-                    return rs ? (
-                      <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
-                        {rk}
-                      </span>
-                    ) : null;
-                  })()}
-                </div>
-
-                {/* Cost breakdown */}
-                <div className="p-4 bg-black/40 border border-white/[0.06] space-y-2">
-                  <p className="text-[10px] font-mono text-amber-300/50 tracking-wider uppercase">消耗明细</p>
-                  <pre className="text-[11px] font-mono text-white/55 leading-relaxed whitespace-pre-wrap">{realizePreview.breakdown}</pre>
-                </div>
-
-                {/* Total cost */}
-                <div className="flex items-center justify-between p-3 bg-amber-400/[0.04] border border-amber-400/15">
-                  <span className="text-[11px] font-display text-amber-300/80 tracking-wide">具现消耗</span>
-                  <span className="font-display font-bold text-amber-300 text-lg tabular-nums">
-                    🦋 {realizePreview.cost.toLocaleString('zh-CN')} 蝶烬
+                <p className="text-sm text-white/70 leading-relaxed">
+                  将 <span className="text-amber-300 font-bold">{realizeTarget.name}</span> 具现到现实，需消耗
+                </p>
+                <div className="text-center py-3">
+                  <span className="font-display font-bold text-amber-300 text-2xl tabular-nums">
+                    {realizePreview.cost.toLocaleString('zh-CN')} 蝶烬
                   </span>
                 </div>
 
-                {/* Error */}
                 {realizeError && (
                   <div className="p-3 bg-aether-red/[0.06] border border-aether-red/20 text-[11px] font-mono text-aether-red/70">
                     {realizeError}
                   </div>
                 )}
 
-                {/* Actions */}
                 <div className="flex items-center gap-3 pt-2">
                   <button
                     onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); }}
@@ -409,7 +383,6 @@ export default function WarehousePage() {
                       const result = await realizeItem(realizeTarget.name, realizeTarget.category, realizePreview);
                       setRealizing(false);
                       if (result.success) {
-                        // Refresh items
                         const db = getDatabase();
                         const chats = await db.chats.toArray();
                         const warehouse = chats[chats.length - 1]?.variables?.仓库 ?? {};
@@ -430,7 +403,7 @@ export default function WarehousePage() {
                     disabled={realizing}
                     className="flex-1 px-4 py-2 text-xs font-display tracking-wider border border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 hover:border-amber-400/60 transition-all disabled:opacity-40"
                   >
-                    {realizing ? '具现中…' : '确认具现'}
+                    {realizing ? '具现中…' : '确认'}
                   </button>
                 </div>
               </div>
