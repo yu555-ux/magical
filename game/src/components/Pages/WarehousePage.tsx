@@ -7,7 +7,7 @@ import { moveItem } from '../../sillytavern/variables';
 
 type ViewMode = 'grid' | 'list';
 type CatFilter = '全部' | '灵宝' | '诡物' | '物品';
-type ConcreteFilter = '全部' | '已具现' | '未具现';
+type ConcreteFilter = '已具现' | '未具现';
 type WarehouseItem = { name: string; category: string; data: any };
 
 const ITEM_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string; card: string; hoverGlow: string }> = {
@@ -33,7 +33,7 @@ export default function WarehousePage() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [categoryFilter, setCategoryFilter] = useState<CatFilter>('全部');
-  const [concreteFilter, setConcreteFilter] = useState<ConcreteFilter>('全部');
+  const [concreteFilter, setConcreteFilter] = useState<ConcreteFilter>('已具现');
   const [searchFocused, setSearchFocused] = useState(false);
   const [equipping, setEquipping] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -61,8 +61,8 @@ export default function WarehousePage() {
 
   const filtered = items.filter(i => {
     if (categoryFilter !== '全部' && i.category !== categoryFilter) return false;
-    if (concreteFilter === '已具现' && i.data?.具现 !== true) return false;
-    if (concreteFilter === '未具现' && i.data?.具现 !== false) return false;
+    if (i.data?.具现 === false && concreteFilter === '已具现') return false;
+    if (i.data?.具现 !== false && concreteFilter === '未具现') return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.trim().toLowerCase();
     return i.name.toLowerCase().includes(q) || (i.data?.描述 || '').toLowerCase().includes(q);
@@ -135,27 +135,6 @@ export default function WarehousePage() {
             ))}
           </div>
 
-          {/* 具现 filter */}
-          <div className="flex items-center gap-1">
-            {(['全部', '已具现', '未具现'] as ConcreteFilter[]).map(cf => (
-              <button
-                key={cf}
-                onClick={() => setConcreteFilter(cf)}
-                className={`px-2.5 py-1 text-[10px] font-mono tracking-wider border transition-all clickable press-scale ${
-                  concreteFilter === cf
-                    ? cf === '已具现'
-                      ? 'border-emerald-400/50 text-emerald-400 bg-emerald-400/10 shadow-[0_0_6px_rgba(52,211,153,0.15)]'
-                      : cf === '未具现'
-                        ? 'border-purple-400/50 text-purple-400 bg-purple-400/10 shadow-[0_0_6px_rgba(192,132,252,0.15)]'
-                        : 'border-aether-cyan/50 text-aether-cyan bg-aether-cyan/10 shadow-[0_0_6px_rgba(0,242,255,0.15)]'
-                    : 'border-white/10 text-white/30 hover:text-white/50 hover:border-white/20'
-                }`}
-              >
-                {cf}
-              </button>
-            ))}
-          </div>
-
           {/* View toggle */}
           <div className="flex items-center gap-0.5 border border-aether-border/20 p-0.5">
             <button onClick={() => setViewMode('grid')} className={`p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-aether-cyan/20 text-aether-cyan' : 'text-white/25 hover:text-white/45'}`}>
@@ -167,6 +146,32 @@ export default function WarehousePage() {
           </div>
         </div>
       </motion.div>
+
+      {/* ===== 具现 Tab ===== */}
+      <div className="flex items-center gap-4">
+        <span className="text-[10px] font-mono text-aether-blue/40 tracking-wider uppercase">具现</span>
+        {(['已具现', '未具现'] as ConcreteFilter[]).map(cf => {
+          const active = concreteFilter === cf;
+          const isManifest = cf === '已具现';
+          return (
+            <button
+              key={cf}
+              onClick={() => setConcreteFilter(cf)}
+              className={`
+                px-4 py-2 text-[11px] font-display tracking-[0.08em] border transition-all duration-200 clickable
+                ${active
+                  ? isManifest
+                    ? 'border-emerald-400/40 bg-emerald-400/8 text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.1)]'
+                    : 'border-purple-400/40 bg-purple-400/8 text-purple-400 shadow-[0_0_12px_rgba(192,132,252,0.1)]'
+                  : 'border-white/[0.06] text-white/20 hover:text-white/45 hover:border-white/[0.14] hover:bg-white/[0.02]'
+                }
+              `}
+            >
+              {cf}
+            </button>
+          );
+        })}
+      </div>
 
       {/* ===== Content ===== */}
       <div className="flex-1 overflow-y-auto">

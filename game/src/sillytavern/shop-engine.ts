@@ -162,15 +162,15 @@ export async function purchaseItem(
     // Decrement stock by quantity
     catalog[itemName].库存 = stock - quantity;
 
-    // Add to held items
-    if (!vars.主角.持有物品) vars.主角.持有物品 = { 灵宝: {}, 诡物: {}, 物品: {} };
+    // Add to warehouse (具现: false = dream items)
+    if (!vars.仓库) vars.仓库 = { 灵宝: {}, 诡物: {}, 物品: {} };
     const category: string = raw.分类 ?? '物品';
-    if (!vars.主角.持有物品[category]) vars.主角.持有物品[category] = {};
+    if (!vars.仓库[category]) vars.仓库[category] = {};
 
-    const held = vars.主角.持有物品[category];
-    if (held[itemName]) {
-      // Already owns — increment quantity
-      held[itemName].数量 = (held[itemName].数量 ?? 1) + quantity;
+    const wh = vars.仓库[category];
+    if (wh[itemName]) {
+      // Already in warehouse — increment quantity
+      wh[itemName].数量 = (wh[itemName].数量 ?? 1) + quantity;
     } else {
       // New item — copy from catalog (dream items: 具现 = false)
       const copy: any = {
@@ -182,7 +182,7 @@ export async function purchaseItem(
       };
       if (raw.规则) copy.规则 = { ...raw.规则 };
       if (raw.副作用) copy.副作用 = raw.副作用;
-      held[itemName] = copy;
+      wh[itemName] = copy;
     }
 
     // Persist
