@@ -98,6 +98,56 @@ function flattenTree(nodes: MapLocationRender[], parentPath: string[], parentNam
   return result;
 }
 
+/* ===== Floor grouping ===== */
+function groupByFloor(children: MapLocationRender[]): { label: string; key: string; nodes: MapLocationRender[] }[] | null {
+  if (children.length <= 1) return null;
+  const sorted = [...children].sort((a, b) => {
+    const az = (a.bounds.Z[0] + a.bounds.Z[1]) / 2;
+    const bz = (b.bounds.Z[0] + b.bounds.Z[1]) / 2;
+    return az - bz;
+  });
+  const groups: { label: string; key: string; nodes: MapLocationRender[] }[] = [];
+  for (const child of sorted) {
+    const zMin = child.bounds.Z[0], zMax = child.bounds.Z[1];
+    let found = false;
+    for (const group of groups) {
+      for (const existing of group.nodes) {
+        if (zMin <= existing.bounds.Z[1] && zMax >= existing.bounds.Z[0]) {
+          group.nodes.push(child); found = true; break;
+        }
+      }
+      if (found) break;
+    }
+    if (!found) {
+      let label: string;
+      if (zMin < 0.02) label = '1F';
+      else if (zMin < 0.04) label = '2F';
+      else if (zMin < 0.06) label = '3F';
+      else if (zMin < 0.08) label = '4F';
+      else if (zMin < 0.10) label = '5F';
+      else if (zMin < 0.13) label = '6F';
+      else label = `${Math.round(zMin * 100)}F`;
+      groups.push({ label, key: `floor-${zMin}`, nodes: [child] });
+    }
+  }
+  // Apply minimum spacing on same floor
+  for (const g of groups) {
+    for (let i = 0; i < g.nodes.length; i++) {
+      for (let j = i + 1; j < g.nodes.length; j++) {
+        const a = g.nodes[i], b = g.nodes[j];
+        const dx = a.cx - b.cx, dy = a.cy - b.cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 0.005 && dist >= 0) {
+          // Push b slightly to the right
+          (b as any).cx += 0.008 + Math.random() * 0.004;
+          (b as any).cy += (Math.random() - 0.5) * 0.008;
+        }
+      }
+    }
+  }
+  return groups.length > 1 ? groups : null;
+}
+
 /* ============================================================
    MAP PAGE
    ============================================================ */
@@ -128,6 +178,21 @@ export default function MapPage() {
 
   const navDepth = navPath.length;
 
+  // --- Floor grouping ---
+  const floorGroups = useMemo(() => {
+    if (navDepth === 0) return null;
+    return groupByFloor(currentChildren);
+  }, [currentChildren, navDepth]);
+
+  const [selectedFloor, setSelectedFloor] = useState<number>(0);
+  useEffect(() => { setSelectedFloor(0); }, [navPath]);
+
+  const visibleChildren = useMemo(() => {
+    if (!floorGroups) return currentChildren;
+    const idx = Math.min(selectedFloor, floorGroups.length - 1);
+    return floorGroups[idx]?.nodes ?? currentChildren;
+  }, [floorGroups, selectedFloor, currentChildren]);
+
   // --- Search ---
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -145,9 +210,9 @@ export default function MapPage() {
   const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
-    const vp = fitViewport(currentChildren, navDepth === 0 ? 1.2 : 0.6);
+    const vp = fitViewport(visibleChildren, navDepth === 0 ? 1.2 : 0.6);
     setViewport(vp); setZoom(1);
-  }, [navDepth, currentChildren]);
+  }, [navDepth, visibleChildren]);
 
   // --- Selection & card ---
   const [selectedPoint, setSelectedPoint] = useState<MapLocationRender | null>(null);
@@ -365,6 +430,29 @@ export default function MapPage() {
       {/* Click-outside for search */}
       {searchOpen && <div className="absolute inset-0 z-[15]" onClick={() => setSearchOpen(false)} />}
 
+      {/* ===== Floor Selector ===== */}
+      {floorGroups && floorGroups.length > 1 && (
+        <div className="absolute top-[72px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 glass-panel px-2 py-1">
+          {floorGroups.map((g, i) => {
+            const active = Math.min(selectedFloor, floorGroups.length - 1) === i;
+            return (
+              <button
+                key={g.key}
+                onClick={() => setSelectedFloor(i)}
+                className={`px-3 py-1 text-[10px] font-mono tracking-wider transition-all ${
+                  active
+                    ? 'bg-aether-cyan/15 border border-aether-cyan/40 text-aether-cyan'
+                    : 'border border-transparent text-white/30 hover:text-white/50 hover:border-white/10'
+                }`}
+              >
+                {g.label}
+                <span className="ml-1 text-[8px] opacity-40">{g.nodes.length}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* ===== Map Canvas ===== */}
       <div
         ref={containerRef}
@@ -380,11 +468,11 @@ export default function MapPage() {
 
         <AnimatePresence mode="wait">
           <motion.div key={navPath.join('/')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }} className="absolute inset-0">
-            {currentChildren.map((point, idx) => {
+            {visibleChildren.map((point, idx) => {
               // World-level: arrange worlds in a row, evenly spaced
               let sx: number, sy: number;
               if (navDepth === 0) {
-                const count = currentChildren.length;
+                const count = visibleChildren.length;
                 const spacing = CANVAS_W / (count + 1);
                 sx = spacing * (idx + 1);
                 sy = CANVAS_H / 2;
