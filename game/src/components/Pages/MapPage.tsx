@@ -38,7 +38,10 @@ function fitViewport(points: MapLocationRender[], paddingRatio = 0.6): Viewport 
   if (points.length === 0) return { x: -500, y: -500, w: 1000, h: 1000 };
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of points) { if (p.cx < minX) minX = p.cx; if (p.cx > maxX) maxX = p.cx; if (p.cy < minY) minY = p.cy; if (p.cy > maxY) maxY = p.cy; }
-  const dx = maxX - minX || 10, dy = maxY - minY || 10;
+  let dx = maxX - minX || 10;
+  let dy = maxY - minY;
+  // When points share nearly same Y, derive Y range from X to keep viewport zoomed in
+  if (dy < dx * 0.05) dy = dx / (CANVAS_W / CANVAS_H);
   const padX = dx * paddingRatio, padY = dy * paddingRatio;
   const rawW = dx + padX * 2, rawH = dy + padY * 2;
   const aspect = CANVAS_W / CANVAS_H;
@@ -121,7 +124,7 @@ function groupByFloor(children: MapLocationRender[]): { label: string; key: stri
     }
     if (!found) {
       const zMid = ((zMin + zMax) / 2).toFixed(2);
-      const label = `Z: ${zMid}`;
+      const label = `Z:${zMid}`;
       groups.push({ label, key: `z-${zMin}`, nodes: [child] });
     }
   }
@@ -459,7 +462,6 @@ export default function MapPage() {
                 }`}
               >
                 {g.label}
-                <span className="ml-1 text-[8px] opacity-40">{g.nodes.length}</span>
               </button>
             );
           })}
