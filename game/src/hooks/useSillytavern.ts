@@ -199,7 +199,7 @@ export function useSillytavern() {
     const preVars = updatedChat.variables ?? {};
     const oldRealTime = (preVars['世界']?.['现实']?.['时间'] ?? null) as string | null;
     const oldDreamTime = (preVars['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
-    let { nextVariables } = applyParsedToChat(preVars, parsed);
+    let { nextVariables, snapshot } = applyParsedToChat(preVars, parsed);
 
     let apiUsed: 'primary' | 'secondary' | 'dual' = 'primary';
     if (effectiveApi.secondary?.enabled && effectiveSettings.apiMode === 'dual' && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
@@ -219,6 +219,7 @@ export function useSillytavern() {
               const sp = JSON.parse(m[0]);
               if (sp && typeof sp === 'object' && !Array.isArray(sp)) {
                 nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: sp }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
+                snapshot = JSON.parse(JSON.stringify(nextVariables));
                 apiUsed = 'dual';
               }
             }
@@ -232,6 +233,7 @@ export function useSillytavern() {
     const newInDream = nextVariables?.世界?.梦境定位?.位于梦境 === true;
     if (oldInDream !== newInDream) {
       validateEquipment(nextVariables);
+      snapshot = JSON.parse(JSON.stringify(nextVariables));
     }
 
     // 只有世界时间实际变化时才跑生理 tick
@@ -244,6 +246,10 @@ export function useSillytavern() {
     if (newDreamTime && newDreamTime !== oldDreamTime) {
       tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true });
     }
+    if (newRealTime !== oldRealTime || newDreamTime !== oldDreamTime) {
+      snapshot = JSON.parse(JSON.stringify(nextVariables));
+    }
+
     // enrichHistory 使用 postVars（变量更新后的最新状态）
     if (parsed.history) {
       parsed.history = enrichHistory(parsed.history, nextVariables);
@@ -265,7 +271,7 @@ export function useSillytavern() {
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(), role: 'assistant',
         content: rawContent,
-        timestamp: Date.now(), parsed, plotHistoryAfter: plotHistorySnapshot, apiUsed,
+        timestamp: Date.now(), parsed, variablesAfter: snapshot, plotHistoryAfter: plotHistorySnapshot, apiUsed,
       };
       const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, plotHistory, updatedAt: Date.now() };
       await db.chats.put(finalChat);
@@ -278,7 +284,7 @@ export function useSillytavern() {
     const assistantMsg: ChatMessage = {
       id: crypto.randomUUID(), role: 'assistant',
       content: rawContent,
-      timestamp: Date.now(), parsed, apiUsed,
+      timestamp: Date.now(), parsed, variablesAfter: snapshot, apiUsed,
     };
     const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, updatedAt: Date.now() };
     await db.chats.put(finalChat);
