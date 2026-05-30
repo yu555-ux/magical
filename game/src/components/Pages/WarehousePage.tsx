@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Diamond, Skull, Package, Search, X, LayoutGrid, List, SlidersHorizontal } from 'lucide-react';
+import { Package, Search, X } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { getDatabase } from '../../sillytavern/database';
 import { moveItem } from '../../sillytavern/variables';
 
-type ViewMode = 'grid' | 'list';
 type CatFilter = '全部' | '灵宝' | '诡物' | '物品';
 type ConcreteFilter = '现实奇物' | '梦境奇物';
 type WarehouseItem = { name: string; category: string; data: any };
@@ -25,13 +24,10 @@ const CATEGORY_STYLES: Record<string, { border: string; bg: string; text: string
   物品: { border: 'border-white/15 hover:border-white/25', bg: 'bg-white/[0.06]', text: 'text-white/70' },
 };
 
-const CatIcon = (cat: string) => cat === '灵宝' ? Diamond : cat === '诡物' ? Skull : Package;
-
 export default function WarehousePage() {
   const [items, setItems] = useState<WarehouseItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [categoryFilter, setCategoryFilter] = useState<CatFilter>('全部');
   const [concreteFilter, setConcreteFilter] = useState<ConcreteFilter>('现实奇物');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -85,12 +81,7 @@ export default function WarehousePage() {
       >
         <div>
           <h2 className="font-display text-lg md:text-xl tracking-[0.2em] text-aether-cyan cyan-glow leading-tight">奇物收藏</h2>
-          <p className="text-[9px] font-mono text-aether-blue/60 tracking-tight mt-0.5">
-            共 {totalCount} 件
-            <span className={`ml-3 px-1.5 py-0.5 rounded border font-display text-[9px] tracking-wider ${inDream ? 'border-purple-400/30 bg-purple-400/8 text-purple-300/60' : 'border-emerald-400/30 bg-emerald-400/8 text-emerald-300/60'}`}>
-              {inDream ? '梦境' : '现实'}
-            </span>
-          </p>
+          <p className="text-[9px] font-mono text-aether-blue/60 tracking-tight mt-0.5">共 {totalCount} 件</p>
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto md:min-w-[400px] md:justify-end">
@@ -143,15 +134,6 @@ export default function WarehousePage() {
             ))}
           </div>
 
-          {/* View toggle */}
-          <div className="flex items-center gap-0.5 border border-aether-border/20 p-0.5">
-            <button onClick={() => setViewMode('grid')} className={`p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-aether-cyan/20 text-aether-cyan' : 'text-white/25 hover:text-white/45'}`}>
-              <LayoutGrid size={14} />
-            </button>
-            <button onClick={() => setViewMode('list')} className={`p-1.5 transition-colors ${viewMode === 'list' ? 'bg-aether-cyan/20 text-aether-cyan' : 'text-white/25 hover:text-white/45'}`}>
-              <List size={14} />
-            </button>
-          </div>
         </div>
       </motion.div>
 
@@ -187,7 +169,7 @@ export default function WarehousePage() {
             <Package size={40} className="text-white/10 mb-4" />
             <p className="text-white/20 text-sm font-display tracking-wide">无匹配物品</p>
           </div>
-        ) : viewMode === 'grid' ? (
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-1">
             {filtered.map(item => {
               const isItem = item.category === '物品';
@@ -217,39 +199,6 @@ export default function WarehousePage() {
                   <p className="mt-3 text-xs text-white/45 leading-relaxed line-clamp-2 group-hover:text-white/65 transition-colors">{item.data?.描述 || ''}</p>
                 </motion.button>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {filtered.map(item => {
-              const isItem = item.category === '物品';
-              const rank = item.data?.等级 || '';
-              const irs = ITEM_RANK_STYLES[rank] || null;
-              const cs = CATEGORY_STYLES[item.category] || CATEGORY_STYLES['物品'];
-              const rowStyle = isItem
-                ? `border ${cs.border} ${cs.bg}`
-                : irs ? `border ${irs.card}` : `border ${cs.border} ${cs.bg}`;
-              const nameColor = isItem ? cs.text : (irs?.text || cs.text);
-              return (
-                <motion.button
-                  key={item.name}
-                  onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
-                  className={`w-full flex items-center gap-4 px-4 py-3 text-left transition-all clickable hover:brightness-110 ${rowStyle}`}
-                >
-                  {(() => { const I = CatIcon(item.category); return <I size={16} className="text-white/15 shrink-0" />; })()}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-display font-bold text-sm truncate ${nameColor}`}>{item.name}</span>
-                      <span className="text-[10px] font-mono text-white/20">×{item.data?.数量 ?? 1}</span>
-                      {item.data?.梦境物品 === true && (
-                        <span className="text-[8px] px-1 py-0.5 rounded font-display tracking-wider border border-purple-400/20 bg-purple-400/6 text-purple-300/60">梦境</span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-white/30 truncate mt-0.5">{item.data?.描述 || ''}</p>
-                  </div>
-                  <span className="text-[9px] text-white/15 font-mono shrink-0">{item.category}</span>
-                </motion.button>
               );
             })}
           </div>
