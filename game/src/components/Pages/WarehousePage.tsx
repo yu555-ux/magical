@@ -324,7 +324,7 @@ export default function WarehousePage() {
             >
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-aether-cyan/20 bg-aether-cyan/[0.02]">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-1 h-4 bg-aether-cyan rounded-full shadow-[0_0_6px_rgba(0,242,255,0.4)]" />
+                  <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
                   <h3 className="font-display text-sm tracking-[0.12em] text-aether-cyan/90">梦境具现</h3>
                 </div>
                 <button
