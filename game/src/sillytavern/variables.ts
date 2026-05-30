@@ -496,7 +496,7 @@ export function validateEquipment(vars: Record<string, any>): void {
 export function applyParsedToChat(
   current: Record<string, any>,
   parsed: ParsedTags,
-): { nextVariables: Record<string, any>; snapshot: Record<string, any> } {
+): { nextVariables: Record<string, any> } {
   const next = parsed.varsCommands.patches?.length
     ? applyJsonPatch(current, parsed.varsCommands.patches)
     : applyVarsPatch(current, parsed.varsCommands);
@@ -505,8 +505,7 @@ export function applyParsedToChat(
     normalizeLocations(next, mapTree);
   }
   clampVariableRanges(next);
-  const snapshot = JSON.parse(JSON.stringify(next));
-  return { nextVariables: next, snapshot };
+  return { nextVariables: next };
 }
 
 // ========== numeric range clamping ==========
