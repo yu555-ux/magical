@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
-import { applyParsedToChat, enrichHistory, validateEquipment } from '../sillytavern/variables';
+import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment } from '../sillytavern/variables';
 import { assemblePrompt } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
@@ -200,6 +200,7 @@ export function useSillytavern() {
     const oldRealTime = (preVars['世界']?.['现实']?.['时间'] ?? null) as string | null;
     const oldDreamTime = (preVars['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
     let { nextVariables, snapshot } = applyParsedToChat(preVars, parsed);
+    autoTagDreamItems(preVars, nextVariables);
 
     let apiUsed: 'primary' | 'secondary' | 'dual' = 'primary';
     if (effectiveApi.secondary?.enabled && effectiveSettings.apiMode === 'dual' && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
@@ -219,6 +220,7 @@ export function useSillytavern() {
               const sp = JSON.parse(m[0]);
               if (sp && typeof sp === 'object' && !Array.isArray(sp)) {
                 nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: sp }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
+                autoTagDreamItems(preVars, nextVariables);
                 snapshot = JSON.parse(JSON.stringify(nextVariables));
                 apiUsed = 'dual';
               }

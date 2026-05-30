@@ -509,6 +509,32 @@ export function applyParsedToChat(
   return { nextVariables: next, snapshot };
 }
 
+// ========== 梦境物品自动标记 ==========
+
+/**
+ * 检测 AI 新增物品并自动标记梦境物品字段。
+ * 以旧变量中的位面状态为准（叙事发生时的上下文）。
+ * 仅检测主角持有物品和仓库，NPC 不可进入梦境故不处理。
+ */
+export function autoTagDreamItems(oldVars: Record<string, any>, newVars: Record<string, any>): void {
+  const inDream = oldVars?.世界?.梦境定位?.位于梦境 === true;
+  tagCategory(oldVars?.主角?.持有物品, newVars?.主角?.持有物品, inDream);
+  tagCategory(oldVars?.仓库, newVars?.仓库, inDream);
+}
+
+function tagCategory(oldParent: any, newParent: any, isDream: boolean): void {
+  if (!newParent) return;
+  for (const cat of ['灵宝', '诡物', '物品']) {
+    const oldCat = oldParent?.[cat] ?? {};
+    const newCat = newParent[cat] ?? {};
+    for (const [name, item] of Object.entries(newCat)) {
+      if (!oldCat[name] && item && typeof item === 'object' && (item as any).梦境物品 === undefined) {
+        (item as any).梦境物品 = isDream;
+      }
+    }
+  }
+}
+
 // ========== numeric range clamping ==========
 
 /** Clamp a numeric value to [min, max] and mutate the object in place. */
