@@ -489,7 +489,7 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                               : !can
                                 ? `尸气不足（需 ${totalPrice}）`
                                 : isFree
-                                  ? `免费领取${qty > 1 ? ` ×${qty}` : ''}`
+                                  ? `接受好意${qty > 1 ? ` ×${qty}` : ''}`
                                   : `购买${qty > 1 ? ` ${qty}件` : ''} · ${totalPrice} 尸气`}
                           </button>
                         </>
