@@ -162,7 +162,7 @@ export async function purchaseItem(
     // Decrement stock by quantity
     catalog[itemName].库存 = stock - quantity;
 
-    // Add to warehouse (具现: false = dream items)
+    // Add to warehouse (梦境物品: true = dream items)
     if (!vars.仓库) vars.仓库 = { 灵宝: {}, 诡物: {}, 物品: {} };
     const category: string = raw.分类 ?? '物品';
     if (!vars.仓库[category]) vars.仓库[category] = {};
@@ -172,13 +172,13 @@ export async function purchaseItem(
       // Already in warehouse — increment quantity
       wh[itemName].数量 = (wh[itemName].数量 ?? 1) + quantity;
     } else {
-      // New item — copy from catalog (dream items: 具现 = false)
+      // New item — copy from catalog (dream items: 梦境物品 = true)
       const copy: any = {
         等级: raw.等级,
         描述: raw.描述,
         数量: quantity,
         效果: raw.效果 ? { ...raw.效果 } : {},
-        具现: false,
+        梦境物品: true,
       };
       if (raw.规则) copy.规则 = { ...raw.规则 };
       if (raw.副作用) copy.副作用 = raw.副作用;

@@ -7,7 +7,7 @@ import { moveItem } from '../../sillytavern/variables';
 
 type ViewMode = 'grid' | 'list';
 type CatFilter = '全部' | '灵宝' | '诡物' | '物品';
-type ConcreteFilter = '已具现' | '未具现';
+type ConcreteFilter = '现实奇物' | '梦境奇物';
 type WarehouseItem = { name: string; category: string; data: any };
 
 const ITEM_RANK_STYLES: Record<string, { text: string; border: string; glow: string; bg: string; card: string; hoverGlow: string }> = {
@@ -33,7 +33,7 @@ export default function WarehousePage() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [categoryFilter, setCategoryFilter] = useState<CatFilter>('全部');
-  const [concreteFilter, setConcreteFilter] = useState<ConcreteFilter>('已具现');
+  const [concreteFilter, setConcreteFilter] = useState<ConcreteFilter>('现实奇物');
   const [searchFocused, setSearchFocused] = useState(false);
   const [equipping, setEquipping] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -61,8 +61,8 @@ export default function WarehousePage() {
 
   const filtered = items.filter(i => {
     if (categoryFilter !== '全部' && i.category !== categoryFilter) return false;
-    if (i.data?.具现 === false && concreteFilter === '已具现') return false;
-    if (i.data?.具现 !== false && concreteFilter === '未具现') return false;
+    if (i.data?.梦境物品 === true && concreteFilter === '现实奇物') return false;
+    if (i.data?.梦境物品 !== true && concreteFilter === '梦境奇物') return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.trim().toLowerCase();
     return i.name.toLowerCase().includes(q) || (i.data?.描述 || '').toLowerCase().includes(q);
@@ -147,20 +147,19 @@ export default function WarehousePage() {
         </div>
       </motion.div>
 
-      {/* ===== 具现 Tab ===== */}
+      {/* ===== 仓库分类 Tab ===== */}
       <div className="flex items-center gap-4">
-        <span className="text-[10px] font-mono text-aether-blue/40 tracking-wider uppercase">具现</span>
-        {(['已具现', '未具现'] as ConcreteFilter[]).map(cf => {
+        {(['现实奇物', '梦境奇物'] as ConcreteFilter[]).map(cf => {
           const active = concreteFilter === cf;
-          const isManifest = cf === '已具现';
+          const isReality = cf === '现实奇物';
           return (
             <button
               key={cf}
               onClick={() => setConcreteFilter(cf)}
               className={`
-                px-4 py-2 text-[11px] font-display tracking-[0.08em] border transition-all duration-200 clickable
+                px-5 py-2.5 text-[12px] font-display tracking-[0.08em] border transition-all duration-200 clickable
                 ${active
-                  ? isManifest
+                  ? isReality
                     ? 'border-emerald-400/40 bg-emerald-400/8 text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.1)]'
                     : 'border-purple-400/40 bg-purple-400/8 text-purple-400 shadow-[0_0_12px_rgba(192,132,252,0.1)]'
                   : 'border-white/[0.06] text-white/20 hover:text-white/45 hover:border-white/[0.14] hover:bg-white/[0.02]'
@@ -203,7 +202,7 @@ export default function WarehousePage() {
                       {item.name}
                       <span className="text-[10px] font-mono text-white/25 ml-2">×{item.data?.数量 ?? 1}</span>
                     </h3>
-                    {item.data?.具现 === false && (
+                    {item.data?.梦境物品 === true && (
                       <span className="text-[9px] px-1.5 py-0.5 rounded font-display tracking-wider border border-purple-400/25 bg-purple-400/8 text-purple-300/70 shrink-0">梦境</span>
                     )}
                   </div>
@@ -235,7 +234,7 @@ export default function WarehousePage() {
                     <div className="flex items-center gap-2">
                       <span className={`font-display font-bold text-sm truncate ${nameColor}`}>{item.name}</span>
                       <span className="text-[10px] font-mono text-white/20">×{item.data?.数量 ?? 1}</span>
-                      {item.data?.具现 === false && (
+                      {item.data?.梦境物品 === true && (
                         <span className="text-[8px] px-1 py-0.5 rounded font-display tracking-wider border border-purple-400/20 bg-purple-400/6 text-purple-300/60">梦境</span>
                       )}
                     </div>
@@ -262,9 +261,9 @@ export default function WarehousePage() {
                 <p className="text-[10px] font-mono text-white/30 tracking-wider mt-0.5">
                   数量: {selectedItem?.数量 ?? 1}
                   <span className="ml-3">
-                    {selectedItem?.具现 === false
-                      ? <span className="text-purple-300/60 border border-purple-400/20 bg-purple-400/6 px-1.5 py-0.5 rounded">梦境物品</span>
-                      : <span className="text-emerald-300/60 border border-emerald-400/20 bg-emerald-400/6 px-1.5 py-0.5 rounded">已具现</span>
+                    {selectedItem?.梦境物品 === true
+                      ? <span className="text-purple-300/60 border border-purple-400/20 bg-purple-400/6 px-1.5 py-0.5 rounded">梦境奇物</span>
+                      : <span className="text-emerald-300/60 border border-emerald-400/20 bg-emerald-400/6 px-1.5 py-0.5 rounded">现实奇物</span>
                     }
                   </span>
                 </p>
