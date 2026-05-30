@@ -16,10 +16,15 @@ import QuickEditArea from './QuickEditArea';
 
 export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProps) {
   const presets: SavedPreset[] = draft.presets ?? [];
-  const activeId = draft.activePresetId;
+  const [presetFilter, setPresetFilter] = useState<'story' | 'vars'>('story');
+  const activeStoryId = draft.activePresetId;
+  const activeVarsId = draft.activeVarsPresetId;
+  const activeId = presetFilter === 'story' ? activeStoryId : activeVarsId;
   const activePreset = presets.find(p => p.id === activeId) ?? null;
   const blocks: PresetBlock[] = activePreset?.blocks ?? [];
   const params: PresetParams = activePreset?.params ?? draft.presetParams ?? DEFAULT_PRESET_PARAMS;
+
+  const filteredPresets = presets.filter(p => p.type === presetFilter);
 
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -38,19 +43,26 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
   // ── Preset ops ──
 
   const handleSelectPreset = (preset: SavedPreset) => {
-    saveDraft({
-      activePresetId: preset.id,
+    const isVars = preset.type === 'vars';
+    const patch: Partial<AppSettings> = {
       presetBlocks: preset.blocks,
       presetParams: preset.params ?? DEFAULT_PRESET_PARAMS,
-    });
+    };
+    if (isVars) {
+      patch.activeVarsPresetId = preset.id;
+    } else {
+      patch.activePresetId = preset.id;
+    }
+    saveDraft(patch);
   };
 
   const handleNewPreset = () => {
     const newPreset: SavedPreset = {
       id: crypto.randomUUID(),
-      name: '新预设',
+      name: presetFilter === 'vars' ? '新变量预设' : '新剧情预设',
       source: 'manual',
-      blocks: [{ ...newBlock(), name: '系统指令' }],
+      type: presetFilter,
+      blocks: [{ ...newBlock(), name: presetFilter === 'vars' ? '变量指令' : '系统指令' }],
       params: { ...DEFAULT_PRESET_PARAMS },
       createdAt: Date.now(),
     };
@@ -128,6 +140,7 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
         name: result.name || file.name.replace(/\.json$/i, ''),
         source: result.source,
         description: result.description,
+        type: presetFilter,
         blocks: result.blocks.map(b => ({ ...b, identifier: crypto.randomUUID() })),
         params: result.params,
         createdAt: Date.now(),
@@ -209,6 +222,24 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
     <div className="p-5">
       {/* Toolbar */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
+        {/* Type filter tabs */}
+        <div className="flex items-center gap-1 mr-2">
+          {(['story', 'vars'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setPresetFilter(t)}
+              className={`px-3 py-1.5 text-[11px] font-display tracking-wide transition-all border ${
+                presetFilter === t
+                  ? t === 'vars'
+                    ? 'border-amber-400/40 bg-amber-400/8 text-amber-300'
+                    : 'border-aether-cyan/40 bg-aether-cyan/8 text-aether-cyan'
+                  : 'border-white/8 text-white/25 hover:text-white/45 hover:border-white/15'
+              }`}
+            >
+              {t === 'vars' ? '变量预设' : '剧情预设'}
+            </button>
+          ))}
+        </div>
         <label className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] tracking-wide border border-aether-border/30 text-white/40 hover:text-white/70 hover:border-aether-purple/40 cursor-pointer transition-all font-display">
           <Upload size={13} /> 导入预设
           <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={handleImportPreset} />
@@ -218,13 +249,13 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
           <Plus size={13} /> 新建预设
         </button>
         <span className="text-[10px] text-white/15 font-mono ml-auto">
-          {presets.length} 个预设，当前使用: <span className="text-aether-purple/40">{activePreset?.name ?? '无'}</span>
+          {filteredPresets.length} 个预设，当前使用: <span className="text-aether-purple/40">{activePreset?.name ?? '无'}</span>
         </span>
       </div>
 
       {/* Preset list */}
       <PresetSelector
-        presets={presets}
+        presets={filteredPresets}
         activeId={activeId}
         onSelect={handleSelectPreset}
         onNew={handleNewPreset}

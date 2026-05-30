@@ -94,7 +94,8 @@
       "Bash(dir *)",
       "Bash(npm pack *)",
       "Bash(sed -i '1113s/X: \\\\[150.80, 150.82\\\\], Y: \\\\[150.18, 150.20\\\\], Z: \\\\[0.11, 0.12\\\\]/X: [150.81, 150.83], Y: [150.18, 150.20], Z: [0.11, 0.12]/' /e/game4/game/src/sillytavern/default-world-vars.ts)",
-      "Bash(sed -n '1112,1114p' /e/game4/game/src/sillytavern/default-world-vars.ts)"
+      "Bash(sed -n '1112,1114p' /e/game4/game/src/sillytavern/default-world-vars.ts)",
+      "Bash(npx -p typescript tsc --noEmit)"
     ]
   },
   "hooks": {

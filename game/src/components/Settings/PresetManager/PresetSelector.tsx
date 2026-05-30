@@ -66,6 +66,15 @@ export default function PresetSelector({
               )}
             </div>
 
+            {/* Type badge */}
+            <span className={`text-[8px] px-1.5 py-0.5 rounded font-display tracking-wider border shrink-0 ${
+              preset.type === 'vars'
+                ? 'border-amber-400/25 bg-amber-400/8 text-amber-300/70'
+                : 'border-aether-cyan/25 bg-aether-cyan/8 text-aether-cyan/60'
+            }`}>
+              {preset.type === 'vars' ? '变量' : '剧情'}
+            </span>
+
             {/* Info */}
             <span className="text-[9px] text-white/15 font-mono shrink-0 hidden sm:inline">
               {preset.blocks.length} 块{preset.source ? ` · ${preset.source}` : ''}

@@ -1,0 +1,310 @@
+{
+    "temperature": 0.8,
+    "frequency_penalty": 0,
+    "presence_penalty": 0,
+    "top_p": 0.93,
+    "top_k": 40,
+    "top_a": 0,
+    "min_p": 0,
+    "repetition_penalty": 1,
+    "max_context_unlocked": true,
+    "openai_max_context": 2000000,
+    "openai_max_tokens": 128000,
+    "names_behavior": 0,
+    "send_if_empty": "",
+    "impersonation_prompt": "[Write your next reply from the point of view of {{user}}, using the chat history so far as a guideline for the writing style of {{user}}. Don't write as {{char}} or system. Don't describe actions of {{char}}.]",
+    "new_chat_prompt": "[Start a new Chat]",
+    "new_group_chat_prompt": "[Start a new group chat. Group members: {{group}}]",
+    "new_example_chat_prompt": "[Example Chat]",
+    "continue_nudge_prompt": "[Continue your last message without repeating its original content.]",
+    "bias_preset_selected": "Default (none)",
+    "wi_format": "{0}",
+    "scenario_format": "{{scenario}}",
+    "personality_format": "{{personality}}",
+    "group_nudge_prompt": "[Write the next reply only as {{char}}.]",
+    "stream_openai": true,
+    "prompts": [
+        {
+            "name": "Main Prompt",
+            "system_prompt": true,
+            "role": "system",
+            "content": "**You are a variable update model. Your sole and exclusive function is to strictly, precisely, and unconditionally follow the variable update rules defined in the context. You do absolutely nothing else.**\n\n1. **Parse only.** You must extract variable-relevant information from the narrative and nothing beyond that.\n2. **Output only the variable update block.** You must output it exactly as specified by the world book or context rules—format, syntax, field names, value types, and order must all be strictly adhered to. No deviations whatsoever.\n3. **No roleplay. No narration. No commentary.** You do not generate dialogue, descriptions, explanations, summaries, suggestions, questions, greetings, or any other text of any kind.\n4. **No assumptions. No interpretation.** If the narrative does not contain clear, explicit information required to update a variable, you must not infer, guess, or fill in the blanks. Do not apply common sense, context clues, or reasoning beyond mechanical extraction.\n5. **No formatting outside the block.** Your entire response must consist solely of the variable update block. No markdown fences, no code block wrappers, no preamble, no postscript—unless the rules explicitly require them as part of the block itself.\n6. **Violation of any of the above is an unacceptable failure of the model's purpose.**",
+            "identifier": "main",
+            "injection_position": 0,
+            "injection_depth": 4,
+            "injection_order": 100,
+            "injection_trigger": [],
+            "forbid_overrides": false
+        },
+        {
+            "name": "Auxiliary Prompt",
+            "system_prompt": true,
+            "role": "system",
+            "content": "",
+            "identifier": "nsfw",
+            "injection_position": 0
+        },
+        {
+            "identifier": "dialogueExamples",
+            "name": "Chat Examples",
+            "system_prompt": true,
+            "marker": true,
+            "role": "system",
+            "injection_position": 0
+        },
+        {
+            "name": "MVU",
+            "system_prompt": true,
+            "role": "system",
+            "content": "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n┃  [FORCE EXECUTE — VARIABLE PARSING]  ┃\n┃  CRITICAL PRIORITY. ZERO TOLERANCE FOR DEVIATION.  ┃\n┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n**IDENTITY:** You are a deterministic variable parser. You have no creativity. You do not narrate. You output ONE thing only: a JSON object of variable changes.\n\n**YOUR SOLE TASK:** Extract every variable change from the narrative text. Partial updates are FORBIDDEN. Skipped variables are FORBIDDEN.\n\n---\n\n### ━━━ OUTPUT FORMAT ━━━\n\nYou MUST output a single JSON object using the deep-merge format. Each key is a top-level path in the variable tree. Nested objects describe changes at that path. Fields not mentioned are left unchanged.\n\nExample:\n{\n  \"主角\": {\n    \"资源\": { \"金钱\": { \"数值\": 150 } },\n    \"身体属性\": { \"生命\": { \"当前\": 80 } }\n  }\n}\n\nYou may also use JSONPatch format inside a <JSONPatch> tag:\n<JSONPatch>\n[\n  { \"op\": \"replace\", \"path\": \"/主角/资源/金钱/数值\", \"value\": 150 },\n  { \"op\": \"delta\", \"path\": \"/主角/资源/超凡资源/蝶烬\", \"value\": 50 }\n]\n</JSONPatch>\n\n---\n\n### ━━━ IRONCLAD RULES ━━━\n\nRULE 1: READ THE CONTEXT. The current variable tree and update rules are provided. Follow them exactly.\n\nRULE 2: SCAN EVERYTHING. Check ALL variable categories: 世界, 主角, 主要人物, 地图. Do not skip any category.\n\nRULE 3: NUMERIC RANGES ARE HARD LIMITS.\n- 好感值/友善值: -200~200\n- 堕落值: 0~500\n- 性欲值: 0~100\n- 熟练度: 0~999\n- 具现进度: 0~100\n- 基础属性(力量/体质/精神/敏捷): 1~100\n- 特殊属性(幸运/魅力): 1~100\n- 身体属性当前: 0~上限\n\nRULE 4: TWO LEVEL SYSTEMS — DO NOT CONFUSE.\n- 技能/人物评级: 微尘→聚砂→凝石→磐岩→撼山→摧城→覆国→夷地→灭世\n- 物品等级: 微末→凶煞→祸城→倾国→绝域→灭世\n\nRULE 5: NO GUESSING. If the narrative does not provide explicit information for a variable, DO NOT CHANGE IT.\n\nRULE 6: SIDE EFFECTS ARE OBJECTS. Format: { \"副作用名\": \"描述\" }, never a plain string.\n\nRULE 7: LOCATION PATHS. Use parent-leaf format (e.g. \"11号楼-601室\"), keep only last two path levels.\n\n---\n\n### ━━━ SELF-AUDIT ━━━\n\n| # | CHECK | ANSWER |\n|---|-------|--------|\n| 1 | Is my output valid JSON (or valid JSON inside <JSONPatch>)? | YES |\n| 2 | Did I check every variable category? | YES |\n| 3 | Are all numeric values within documented ranges? | YES |\n| 4 | Did I use the correct level system for each field? | YES |\n| 5 | Did I skip any variable that the narrative did not touch? | YES |\n| 6 | Are side effect fields in object format? | YES |\n\nANY FAIL → FIX AND RE-AUDIT.",
+            "identifier": "jailbreak",
+            "injection_position": 0,
+            "injection_depth": 4,
+            "injection_order": 100,
+            "injection_trigger": [],
+            "forbid_overrides": false
+        },
+        {
+            "identifier": "chatHistory",
+            "name": "Chat History",
+            "system_prompt": true,
+            "marker": true,
+            "role": "system",
+            "injection_position": 0
+        },
+        {
+            "identifier": "worldInfoAfter",
+            "name": "World Info (after)",
+            "system_prompt": true,
+            "marker": true,
+            "role": "system",
+            "injection_position": 0
+        },
+        {
+            "identifier": "worldInfoBefore",
+            "name": "World Info (before)",
+            "system_prompt": true,
+            "marker": true,
+            "role": "system",
+            "injection_position": 0
+        },
+        {
+            "identifier": "enhanceDefinitions",
+            "role": "system",
+            "name": "Enhance Definitions",
+            "content": "If you have more knowledge of {{char}}, add to the character's lore and personality to enhance them but keep the Character Sheet's definitions absolute.",
+            "system_prompt": true,
+            "marker": false,
+            "injection_position": 0
+        },
+        {
+            "identifier": "charDescription",
+            "name": "Char Description",
+            "system_prompt": true,
+            "marker": true,
+            "role": "system",
+            "injection_position": 0
+        },
+        {
+            "identifier": "charPersonality",
+            "name": "Char Personality",
+            "system_prompt": true,
+            "marker": true,
+            "role": "system",
+            "injection_position": 0
+        },
+        {
+            "identifier": "scenario",
+            "name": "Scenario",
+            "system_prompt": true,
+            "marker": true,
+            "role": "system",
+            "injection_position": 0
+        },
+        {
+            "identifier": "personaDescription",
+            "name": "Persona Description",
+            "system_prompt": true,
+            "marker": true,
+            "role": "system",
+            "injection_position": 0
+        },
+        {
+            "identifier": "SPresetSettings",
+            "system_prompt": false,
+            "enabled": false,
+            "marker": false,
+            "name": "SPreset配置",
+            "role": "system",
+            "content": "{\"ChatSquash\":{\"enabled\":false,\"separate_chat_history\":false,\"parse_clewd\":false,\"user_role_system\":false,\"role\":\"system\",\"stop_string\":\"User:\",\"user_prefix\":\"\\n\\nUser:\",\"user_suffix\":\"\",\"char_prefix\":\"\\n\\nAssistant:\",\"char_suffix\":\"\",\"prefix_system\":\"\",\"suffix_system\":\"\",\"enable_squashed_separator\":false,\"squashed_separator_regex\":false,\"squashed_separator_string\":\"\",\"squashed_post_script_enable\":false,\"squashed_post_script\":\"\",\"re_split\":false,\"enable_stop_string\":false},\"RegexBinding\":{},\"MacroNest\":false,\"ToolBindings\":{}}",
+            "injection_position": 0,
+            "injection_depth": 4,
+            "injection_order": 100,
+            "forbid_overrides": false
+        },
+        {
+            "identifier": "1ac3346f-e706-4af5-a559-4be79f02e5fb",
+            "system_prompt": false,
+            "enabled": false,
+            "marker": false,
+            "name": "输出",
+            "role": "assistant",
+            "content": "OK, OUTPUT NOW:",
+            "injection_position": 0,
+            "injection_depth": 4,
+            "injection_order": 100,
+            "injection_trigger": [],
+            "forbid_overrides": false
+        }
+    ],
+    "prompt_order": [
+        {
+            "character_id": 100000,
+            "order": [
+                {
+                    "identifier": "main",
+                    "enabled": true
+                },
+                {
+                    "identifier": "worldInfoBefore",
+                    "enabled": true
+                },
+                {
+                    "identifier": "charDescription",
+                    "enabled": true
+                },
+                {
+                    "identifier": "charPersonality",
+                    "enabled": true
+                },
+                {
+                    "identifier": "scenario",
+                    "enabled": true
+                },
+                {
+                    "identifier": "enhanceDefinitions",
+                    "enabled": false
+                },
+                {
+                    "identifier": "nsfw",
+                    "enabled": true
+                },
+                {
+                    "identifier": "worldInfoAfter",
+                    "enabled": true
+                },
+                {
+                    "identifier": "dialogueExamples",
+                    "enabled": true
+                },
+                {
+                    "identifier": "chatHistory",
+                    "enabled": true
+                },
+                {
+                    "identifier": "jailbreak",
+                    "enabled": true
+                }
+            ]
+        },
+        {
+            "character_id": 100001,
+            "order": [
+                {
+                    "identifier": "main",
+                    "enabled": true
+                },
+                {
+                    "identifier": "worldInfoBefore",
+                    "enabled": true
+                },
+                {
+                    "identifier": "personaDescription",
+                    "enabled": true
+                },
+                {
+                    "identifier": "charDescription",
+                    "enabled": true
+                },
+                {
+                    "identifier": "charPersonality",
+                    "enabled": true
+                },
+                {
+                    "identifier": "scenario",
+                    "enabled": true
+                },
+                {
+                    "identifier": "enhanceDefinitions",
+                    "enabled": false
+                },
+                {
+                    "identifier": "nsfw",
+                    "enabled": false
+                },
+                {
+                    "identifier": "worldInfoAfter",
+                    "enabled": true
+                },
+                {
+                    "identifier": "dialogueExamples",
+                    "enabled": true
+                },
+                {
+                    "identifier": "chatHistory",
+                    "enabled": true
+                },
+                {
+                    "identifier": "jailbreak",
+                    "enabled": true
+                }
+            ]
+        }
+    ],
+    "assistant_prefill": "",
+    "assistant_impersonation": "",
+    "use_sysprompt": false,
+    "squash_system_messages": false,
+    "media_inlining": true,
+    "inline_image_quality": "auto",
+    "continue_prefill": false,
+    "continue_postfix": " ",
+    "function_calling": true,
+    "show_thoughts": true,
+    "reasoning_effort": "low",
+    "verbosity": "auto",
+    "enable_web_search": false,
+    "seed": -1,
+    "n": 1,
+    "request_images": false,
+    "request_image_aspect_ratio": "",
+    "request_image_resolution": "",
+    "extensions": {
+        "SPreset": {
+            "ChatSquash": {
+                "enabled": false,
+                "separate_chat_history": false,
+                "parse_clewd": false,
+                "user_role_system": false,
+                "role": "system",
+                "stop_string": "User:",
+                "user_prefix": "\n\nUser:",
+                "user_suffix": "",
+                "char_prefix": "\n\nAssistant:",
+                "char_suffix": "",
+                "prefix_system": "",
+                "suffix_system": "",
+                "enable_squashed_separator": false,
+                "squashed_separator_regex": false,
+                "squashed_separator_string": "",
+                "squashed_post_script_enable": false,
+                "squashed_post_script": "",
+                "re_split": false,
+                "enable_stop_string": false
+            },
+            "RegexBinding": {},
+            "MacroNest": false,
+            "ToolBindings": {}
+        }
+    }
+}

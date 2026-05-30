@@ -250,6 +250,7 @@ export interface SavedPreset {
   name: string;
   source?: string;
   description?: string;
+  type: 'story' | 'vars';
   blocks: PresetBlock[];
   params?: PresetParams;
   createdAt: number;
@@ -263,6 +264,7 @@ export interface AppSettings {
   presetBlocks: PresetBlock[];
   presets: SavedPreset[];
   activePresetId: string | null;
+  activeVarsPresetId: string | null;
   lorebooks: Lorebook[];
   userName: string;
   characterName: string;
@@ -302,6 +304,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   presetBlocks: DEFAULT_PRESET_BLOCKS,
   presets: [],
   activePresetId: null,
+  activeVarsPresetId: null,
   lorebooks: [],
   userName: '用户',
   characterName: 'AI',
