@@ -188,10 +188,10 @@ export default function WarehousePage() {
               const nameColor = isItem ? cs.text : (irs?.text || cs.text);
               const hg = isItem ? 'hover:shadow-[0_0_20px_rgba(255,255,255,0.1)]' : (irs?.hoverGlow || '');
               return (
-                <div key={item.name} className="p-[4px]">
+                <div key={item.name} className="p-[4px] h-full">
                 <motion.button
                   onClick={() => setSelectedItem({ ...item.data, name: item.name, category: item.category })}
-                  className={`relative p-5 text-left group transition-all duration-200 overflow-hidden clickable w-full ${cardStyle} hover:brightness-110 hover:scale-[1.02] hover:z-10 ${hg}`}
+                  className={`relative p-5 text-left group transition-all duration-200 overflow-hidden clickable w-full h-full ${cardStyle} hover:brightness-110 hover:scale-[1.02] hover:z-10 ${hg}`}
                 >
                   <div className="flex items-center gap-2">
                     <h3 className={`font-display font-bold text-lg truncate flex-1 ${nameColor}`}>

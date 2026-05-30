@@ -7,6 +7,7 @@ import {
 import { MapLocationRender, MapAnomaly } from '../../types';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 import { adaptMapTree, findNode } from '../../sillytavern/mapDataAdapter';
+import { getDatabase } from '../../sillytavern/database';
 
 /* ===== Rating / anomaly color config ===== */
 interface RatingColorSet { text: string; border: string; glow: string; bg: string; bar: string }
@@ -119,15 +120,9 @@ function groupByFloor(children: MapLocationRender[]): { label: string; key: stri
       if (found) break;
     }
     if (!found) {
-      let label: string;
-      if (zMin < 0.02) label = '1F';
-      else if (zMin < 0.04) label = '2F';
-      else if (zMin < 0.06) label = '3F';
-      else if (zMin < 0.08) label = '4F';
-      else if (zMin < 0.10) label = '5F';
-      else if (zMin < 0.13) label = '6F';
-      else label = `${Math.round(zMin * 100)}F`;
-      groups.push({ label, key: `floor-${zMin}`, nodes: [child] });
+      const zMid = ((zMin + zMax) / 2).toFixed(2);
+      const label = `Z: ${zMid}`;
+      groups.push({ label, key: `z-${zMin}`, nodes: [child] });
     }
   }
   // Apply minimum spacing on same floor
@@ -151,8 +146,27 @@ function groupByFloor(children: MapLocationRender[]): { label: string; key: stri
    MAP PAGE
    ============================================================ */
 export default function MapPage() {
-  // Always use defaults — the map is a reference structure, not chat-specific state
-  const mapData = DEFAULT_WORLD_VARS.地图 as Record<string, any>;
+  const [mapData, setMapData] = useState<Record<string, any>>(DEFAULT_WORLD_VARS.地图 as Record<string, any>);
+
+  // Poll live variables from DB
+  const mapDataRef = useRef(JSON.stringify(DEFAULT_WORLD_VARS.地图));
+  useEffect(() => {
+    const db = getDatabase();
+    const refresh = async () => {
+      try {
+        const chats = await db.chats.toArray();
+        const vars = chats[chats.length - 1]?.variables ?? {};
+        const raw = vars.地图 ? JSON.stringify(vars.地图) : '';
+        if (raw && raw !== mapDataRef.current) {
+          mapDataRef.current = raw;
+          setMapData(JSON.parse(raw));
+        }
+      } catch { /* DB not ready */ }
+    };
+    refresh();
+    const interval = setInterval(refresh, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Build the full tree (all worlds at top level)
   const mapTree = useMemo(() => {
