@@ -137,10 +137,9 @@ function groupByFloor(children: MapLocationRender[]): { label: string; key: stri
         const a = g.nodes[i], b = g.nodes[j];
         const dx = a.cx - b.cx, dy = a.cy - b.cy;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 0.005 && dist >= 0) {
-          // Push b slightly to the right
-          (b as any).cx += 0.008 + Math.random() * 0.004;
-          (b as any).cy += (Math.random() - 0.5) * 0.008;
+        if (dist < 0.001 && dist >= 0) {
+          // Push b slightly to the right (adjacent rooms)
+          (b as any).cx += 0.002;
         }
       }
     }
