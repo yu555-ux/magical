@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Package, Search, X } from 'lucide-react';
+import { Package, Search, X, Sparkles } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { getDatabase } from '../../sillytavern/database';
 import { moveItem } from '../../sillytavern/variables';
+import { previewRealizeCost, realizeItem, type RealizePreview } from '../../sillytavern/realize-engine';
 
 type CatFilter = '全部' | '灵宝' | '诡物' | '物品';
 type ConcreteFilter = '现实奇物' | '梦境奇物';
@@ -33,6 +34,10 @@ export default function WarehousePage() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [equipping, setEquipping] = useState(false);
   const [inDream, setInDream] = useState(false);
+  const [realizeTarget, setRealizeTarget] = useState<WarehouseItem | null>(null);
+  const [realizePreview, setRealizePreview] = useState<RealizePreview | null>(null);
+  const [realizing, setRealizing] = useState(false);
+  const [realizeError, setRealizeError] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -197,6 +202,23 @@ export default function WarehousePage() {
                     )}
                   </div>
                   <p className="mt-3 text-xs text-white/45 leading-relaxed line-clamp-2 group-hover:text-white/65 transition-colors">{item.data?.描述 || ''}</p>
+                  {/* 具现按钮 — 仅梦境物品 */}
+                  {item.data?.梦境物品 === true && (
+                    <div className="mt-3 pt-3 border-t border-white/[0.05] flex justify-end">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const pv = previewRealizeCost(item.data, item.category);
+                          setRealizeTarget(item);
+                          setRealizePreview(pv);
+                          setRealizeError('');
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-display tracking-wider border border-amber-400/30 bg-amber-400/8 text-amber-300 hover:bg-amber-400/14 hover:border-amber-400/50 transition-all"
+                      >
+                        <Sparkles size={11} />具现
+                      </button>
+                    </div>
+                  )}
                 </motion.button>
                 </div>
               );
@@ -280,6 +302,19 @@ export default function WarehousePage() {
                     >
                       {equipping ? '装备中…' : '装备'}
                     </button>
+                    {itemIsDream && (
+                      <button
+                        onClick={() => {
+                          const pv = previewRealizeCost(selectedItem, selectedItem.category);
+                          setRealizeTarget({ name: selectedItem.name, category: selectedItem.category, data: selectedItem });
+                          setRealizePreview(pv);
+                          setRealizeError('');
+                        }}
+                        className="px-4 py-2 text-xs font-display tracking-wider border border-amber-400/30 bg-amber-400/8 text-amber-300 hover:bg-amber-400/14 hover:border-amber-400/50 transition-all flex items-center gap-1"
+                      >
+                        <Sparkles size={11} />具现
+                      </button>
+                    )}
                   </div>
                 );
               })()}
@@ -287,6 +322,122 @@ export default function WarehousePage() {
           </div>
         )})()}
       </Modal>
+
+      {/* ===== Realize Confirmation Modal ===== */}
+      <AnimatePresence>
+        {realizeTarget && realizePreview && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-aether-dark/90 backdrop-blur-md"
+            onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-panel border-glow w-[420px] max-h-[80vh] overflow-y-auto shadow-[0_0_40px_rgba(0,242,255,0.06)]"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-amber-400/20 bg-amber-400/[0.03]">
+                <div className="flex items-center gap-2.5">
+                  <Sparkles size={15} className="text-amber-300" />
+                  <h3 className="font-display text-sm tracking-[0.12em] text-amber-300/90">梦境具现</h3>
+                </div>
+                <button
+                  onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); }}
+                  className="p-1 text-white/25 hover:text-white/60 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-4">
+                {/* Item info */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-display font-bold text-white/80 text-sm">{realizeTarget.name}</h4>
+                    <span className="text-[10px] font-mono text-white/30">{realizeTarget.category}</span>
+                  </div>
+                  {realizeTarget.data?.等级 && (() => {
+                    const rk = realizeTarget.data.等级;
+                    const rs = ITEM_RANK_STYLES[rk];
+                    return rs ? (
+                      <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${rs.border} ${rs.bg} ${rs.text} ${rs.glow}`}>
+                        {rk}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+
+                {/* Cost breakdown */}
+                <div className="p-4 bg-black/40 border border-white/[0.06] space-y-2">
+                  <p className="text-[10px] font-mono text-amber-300/50 tracking-wider uppercase">消耗明细</p>
+                  <pre className="text-[11px] font-mono text-white/55 leading-relaxed whitespace-pre-wrap">{realizePreview.breakdown}</pre>
+                </div>
+
+                {/* Total cost */}
+                <div className="flex items-center justify-between p-3 bg-amber-400/[0.04] border border-amber-400/15">
+                  <span className="text-[11px] font-display text-amber-300/80 tracking-wide">具现消耗</span>
+                  <span className="font-display font-bold text-amber-300 text-lg tabular-nums">
+                    🦋 {realizePreview.cost.toLocaleString('zh-CN')} 蝶烬
+                  </span>
+                </div>
+
+                {/* Error */}
+                {realizeError && (
+                  <div className="p-3 bg-aether-red/[0.06] border border-aether-red/20 text-[11px] font-mono text-aether-red/70">
+                    {realizeError}
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); }}
+                    className="flex-1 px-4 py-2 text-xs font-display tracking-wider border border-white/[0.08] text-white/40 hover:text-white/70 hover:border-white/15 transition-all"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!realizeTarget || !realizePreview) return;
+                      setRealizing(true);
+                      setRealizeError('');
+                      const result = await realizeItem(realizeTarget.name, realizeTarget.category, realizePreview);
+                      setRealizing(false);
+                      if (result.success) {
+                        // Refresh items
+                        const db = getDatabase();
+                        const chats = await db.chats.toArray();
+                        const warehouse = chats[chats.length - 1]?.variables?.仓库 ?? {};
+                        const all: WarehouseItem[] = [];
+                        for (const cat of ['灵宝', '诡物', '物品'] as const) {
+                          const catItems = warehouse[cat] ?? {};
+                          for (const [name, data] of Object.entries(catItems as Record<string, any>)) {
+                            all.push({ name, category: cat, data });
+                          }
+                        }
+                        setItems(all);
+                        setRealizeTarget(null);
+                        setRealizePreview(null);
+                      } else {
+                        setRealizeError(result.error ?? '具现失败');
+                      }
+                    }}
+                    disabled={realizing}
+                    className="flex-1 px-4 py-2 text-xs font-display tracking-wider border border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 hover:border-amber-400/60 transition-all disabled:opacity-40"
+                  >
+                    {realizing ? '具现中…' : '确认具现'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
