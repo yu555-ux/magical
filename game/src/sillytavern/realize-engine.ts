@@ -129,6 +129,7 @@ export async function realizeItem(
   itemName: string,
   category: string,
   preview: RealizePreview,
+  quantity: number = 1,
 ): Promise<{ success: boolean; cost: number; error?: string }> {
   try {
     const db = getDatabase();
@@ -138,31 +139,53 @@ export async function realizeItem(
 
     const vars = JSON.parse(JSON.stringify(chat.variables ?? {}));
     const warehouse = vars.仓库 ?? {};
-    const catItems = warehouse[category] ?? {};
+    const catItems = { ...warehouse[category] ?? {} };
     const item = catItems[itemName];
 
     if (!item) return { success: false, cost: 0, error: '物品不存在' };
     if (item.梦境物品 !== true) return { success: false, cost: 0, error: '该物品已是现实奇物' };
 
-    const cost = preview.cost;
+    const totalQty = item.数量 ?? 1;
+    const qty = Math.min(quantity, totalQty);
+    const totalCost = preview.cost * qty;
 
     // 检查蝶烬余额
-    if (cost > 0) {
+    if (totalCost > 0) {
       const currentAsh = vars?.主角?.资源?.超凡资源?.蝶烬 ?? 0;
-      if (currentAsh < cost) {
-        return { success: false, cost, error: `蝶烬不足（需要 ${cost}，当前 ${currentAsh}）` };
+      if (currentAsh < totalCost) {
+        return { success: false, cost: totalCost, error: `蝶烬不足（需要 ${totalCost}，当前 ${currentAsh}）` };
       }
-      vars.主角.资源.超凡资源.蝶烬 = currentAsh - cost;
+      vars.主角.资源.超凡资源.蝶烬 = currentAsh - totalCost;
     }
 
-    // 具现: 梦境物品 → 现实奇物
-    item.梦境物品 = false;
+    // 具现: 部分或全部转为现实奇物
+    if (qty >= totalQty) {
+      // 全部具现 — 直接翻转
+      item.梦境物品 = false;
+      catItems[itemName] = item;
+    } else {
+      // 部分具现 — 拆分
+      item.数量 = totalQty - qty;  // 保留梦境的
+      catItems[itemName] = item;
+
+      // 新增/合并现实版本
+      const reality = { ...JSON.parse(JSON.stringify(item)) };
+      reality.数量 = qty;
+      reality.梦境物品 = false;
+      const realityKey = `${itemName}（具现）`;
+      if (catItems[realityKey]) {
+        catItems[realityKey].数量 = (catItems[realityKey].数量 ?? 0) + qty;
+      } else {
+        catItems[realityKey] = reality;
+      }
+    }
 
     // 写回
-    vars.仓库 = { ...warehouse, [category]: { ...catItems, [itemName]: item } };
+    if (!vars.仓库) vars.仓库 = {};
+    vars.仓库 = { ...warehouse, [category]: catItems };
     await db.chats.put({ ...chat, variables: vars, updatedAt: Date.now() });
 
-    return { success: true, cost };
+    return { success: true, cost: totalCost };
   } catch (e) {
     return { success: false, cost: 0, error: String(e) };
   }

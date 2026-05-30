@@ -38,6 +38,7 @@ export default function WarehousePage() {
   const [realizePreview, setRealizePreview] = useState<RealizePreview | null>(null);
   const [realizing, setRealizing] = useState(false);
   const [realizeError, setRealizeError] = useState('');
+  const [realizeQty, setRealizeQty] = useState(1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -292,6 +293,7 @@ export default function WarehousePage() {
                           setRealizeTarget({ name: selectedItem.name, category: selectedItem.category, data: selectedItem });
                           setRealizePreview(pv);
                           setRealizeError('');
+                          setRealizeQty(1);
                         }}
                         className="px-4 py-2 text-xs font-display tracking-wider border border-amber-400/30 bg-amber-400/8 text-amber-300 hover:bg-amber-400/14 hover:border-amber-400/50 transition-all flex items-center gap-1"
                       >
@@ -312,7 +314,7 @@ export default function WarehousePage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
             className="fixed inset-0 z-[130] flex items-center justify-center bg-aether-dark/90 backdrop-blur-md"
-            onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); }}
+            onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); setRealizeQty(1); }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -328,7 +330,7 @@ export default function WarehousePage() {
                   <h3 className="font-display text-sm tracking-[0.12em] text-aether-cyan/90">梦境具现</h3>
                 </div>
                 <button
-                  onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); }}
+                  onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); setRealizeQty(1); }}
                   className="p-1 text-white/25 hover:text-white/60 transition-colors"
                 >
                   <X size={16} />
@@ -336,19 +338,47 @@ export default function WarehousePage() {
               </div>
 
               <div className="p-5 space-y-4">
-                <p className="text-sm text-white/70 leading-relaxed">
-                  将 {(() => {
-                    const rk = realizeTarget.data?.等级;
-                    const rs = rk ? ITEM_RANK_STYLES[rk] : null;
-                    return <span className={rs?.text || 'text-white'}>{realizeTarget.name}</span>;
-                  })()} 具现到现实，需消耗
-                </p>
-                <div className="text-center py-3">
-                  <span className="font-display font-bold text-amber-300 text-2xl tabular-nums">
-                    {realizePreview.cost.toLocaleString('zh-CN')}
-                  </span>
-                  <span className="text-white/40 text-sm ml-1">蝶烬</span>
-                </div>
+                {(() => {
+                  const totalQty = realizeTarget.data?.数量 ?? 1;
+                  const unitCost = realizePreview.cost;
+                  const totalCost = unitCost * realizeQty;
+                  return (
+                    <>
+                      <p className="text-sm text-white/70 leading-relaxed">
+                        将 {(() => {
+                          const rk = realizeTarget.data?.等级;
+                          const rs = rk ? ITEM_RANK_STYLES[rk] : null;
+                          return <span className={rs?.text || 'text-white'}>{realizeTarget.name}</span>;
+                        })()} 具现到现实
+                      </p>
+
+                      {totalQty > 1 && (
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => setRealizeQty(Math.max(1, realizeQty - 1))}
+                            className="w-7 h-7 border border-white/15 text-white/40 hover:text-white hover:border-white/30 transition-all text-sm"
+                          >−</button>
+                          <span className="font-display font-bold text-white text-lg tabular-nums w-8 text-center">{realizeQty}</span>
+                          <button
+                            onClick={() => setRealizeQty(Math.min(totalQty, realizeQty + 1))}
+                            className="w-7 h-7 border border-white/15 text-white/40 hover:text-white hover:border-white/30 transition-all text-sm"
+                          >+</button>
+                          <span className="text-[11px] font-mono text-white/30">/ {totalQty}</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between p-3 bg-amber-400/[0.04] border border-amber-400/15">
+                        <span className="text-[11px] font-display text-white/50 tracking-wide">
+                          单件 {unitCost.toLocaleString('zh-CN')}{totalQty > 1 ? ` × ${realizeQty}` : ''}
+                        </span>
+                        <span>
+                          <span className="font-display font-bold text-amber-300 text-lg tabular-nums">{totalCost.toLocaleString('zh-CN')}</span>
+                          <span className="text-white/40 text-sm ml-1">蝶烬</span>
+                        </span>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 {realizeError && (
                   <div className="p-3 bg-aether-red/[0.06] border border-aether-red/20 text-[11px] font-mono text-aether-red/70">
@@ -358,7 +388,7 @@ export default function WarehousePage() {
 
                 <div className="flex items-center gap-3 pt-2">
                   <button
-                    onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); }}
+                    onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); setRealizeQty(1); }}
                     className="flex-1 px-4 py-2 text-xs font-display tracking-wider border border-white/[0.08] text-white/40 hover:text-white/70 hover:border-white/15 transition-all"
                   >
                     取消
@@ -368,7 +398,7 @@ export default function WarehousePage() {
                       if (!realizeTarget || !realizePreview) return;
                       setRealizing(true);
                       setRealizeError('');
-                      const result = await realizeItem(realizeTarget.name, realizeTarget.category, realizePreview);
+                      const result = await realizeItem(realizeTarget.name, realizeTarget.category, realizePreview, realizeQty);
                       setRealizing(false);
                       if (result.success) {
                         const db = getDatabase();
