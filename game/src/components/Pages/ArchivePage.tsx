@@ -378,6 +378,30 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
         </div>
       </section>
 
+      {/* ===== Libido (female only) ===== */}
+      {isFemale && p.性欲值 !== undefined && (
+        <section className="space-y-2">
+          <SectionHeader title="性欲值" Icon={Zap} />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xl font-display font-bold italic tracking-wide text-pink-400">{p.性欲值}</span>
+              <span className="text-sm font-mono text-pink-400/60">/ 100</span>
+            </div>
+            <div className="h-2 bg-white/[0.04] border border-white/[0.08] overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-pink-400/40 to-pink-400"
+                initial={{ width: 0 }}
+                animate={{ width: `${(p.性欲值 / 100) * 100}%` }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+              />
+            </div>
+            <div className="flex justify-between text-[8px] font-mono text-white/12">
+              <span>0</span><span>50</span><span>100</span>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ===== Corruption (female only) ===== */}
       {corrStage && (
         <section className="space-y-2">

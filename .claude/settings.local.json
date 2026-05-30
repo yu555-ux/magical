@@ -52,7 +52,61 @@
       "Bash(git push *)",
       "Bash(git *)",
       "Bash(python3 -c ' *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebSearch",
+      "Bash(gh search *)",
+      "Bash(curl -s \"https://api.github.com/repos/ariespo/tavernlike/contents/\")",
+      "Bash(curl -s \"https://api.github.com/repos/ariespo/tavernlike/contents/examples\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(f['name']\\) for f in data]\")",
+      "Bash(curl -s \"https://api.github.com/repos/ariespo/tavernlike/contents/docs\")",
+      "Bash(curl -s \"https://api.github.com/repos/ariespo/tavernlike/contents/templates\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/ariespo/tavernlike/main/SKILL.md\")",
+      "Bash(curl *)",
+      "Bash(curl -sL \"https://api.github.com/repos/ariespo/tavernlike/git/trees/main?recursive=1\")",
+      "Bash(echo \"exit=$?\")",
+      "Bash(python3 *)",
+      "Bash(xargs wc -l)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "WebFetch(domain:localhost)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(GIT_SSL_NO_VERIFY=1 git -c http.sslVerify=false push origin master)",
+      "Bash(node *)",
+      "Bash(cd /d E:\\\\game4)",
+      "Bash(npx vitest *)",
+      "Skill(update-config)",
+      "Bash(gh api *)",
+      "Bash(findstr *)",
+      "WebFetch(domain:deepwiki.com)",
+      "Bash(vercel *)",
+      "Bash(npx vercel *)",
+      "Bash(cat vercel.json)",
+      "Bash(ls .vercel)",
+      "Bash(npx tsx -e ' *)",
+      "Bash(npx tsx *)",
+      "Bash(where clash *)",
+      "Bash(where clash-verge *)",
+      "Bash(where v2ray *)",
+      "Bash(where sing-box *)",
+      "Bash(tasklist)",
+      "Bash(cat .vercel/project.json)",
+      "Bash(dir *)",
+      "Bash(npm pack *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const j=JSON.parse(d);if(/git.*commit/.test(j.tool_input.command)){require('child_process').execSync('git -C /e/game4 push origin master',{stdio:'inherit'})}})\" 2>/dev/null || true",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }
