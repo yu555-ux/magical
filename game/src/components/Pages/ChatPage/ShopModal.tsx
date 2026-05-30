@@ -102,12 +102,15 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
 
   const label = discountLabel(discountRate);
 
-  const buy = useCallback(async (item: ShopItem) => {
+  const [qty, setQty] = useState(1);
+  useEffect(() => { setQty(1); }, [detail?.名称]);
+
+  const buy = useCallback(async (item: ShopItem, quantity: number) => {
     if (buying) return;
     setBuying(true);
     setMsg(null);
-    const r = await purchaseItem(item.名称);
-    setMsg({ ok: r.success, text: r.success ? `已购买「${item.名称}」` : (r.error ?? '失败') });
+    const r = await purchaseItem(item.名称, quantity);
+    setMsg({ ok: r.success, text: r.success ? `已购买「${item.名称}」${quantity > 1 ? `×${quantity}` : ''}` : (r.error ?? '失败') });
     if (r.success) onNotify?.('购买成功', 'success');
     setTimeout(async () => { await refresh(); setDetail(null); setMsg(null); }, 500);
     setBuying(false);
@@ -405,14 +408,37 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                       </div>
                     )}
 
-                    <p className="text-[11px] text-white/15 mb-5">剩余 {detail.库存} 件</p>
+                    {/* ══════ stock + quantity ══════ */}
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[11px] text-white/15">剩余 {detail.库存} 件</span>
+                      {detail.库存 > 1 && (
+                        <div className="flex items-center gap-0">
+                          <button
+                            onClick={() => setQty(q => Math.max(1, q - 1))}
+                            className="w-7 h-7 rounded-l-lg border border-white/[0.10] bg-white/[0.04] text-white/50 hover:text-white/80 hover:bg-white/[0.08] transition-colors cursor-pointer flex items-center justify-center text-[14px] font-mono"
+                          >
+                            −
+                          </button>
+                          <span className="w-9 h-7 border-y border-white/[0.10] bg-transparent text-white/70 font-mono text-[13px] flex items-center justify-center tabular-nums">
+                            {qty}
+                          </span>
+                          <button
+                            onClick={() => setQty(q => Math.min(detail.库存, q + 1))}
+                            className="w-7 h-7 rounded-r-lg border border-white/[0.10] bg-white/[0.04] text-white/50 hover:text-white/80 hover:bg-white/[0.08] transition-colors cursor-pointer flex items-center justify-center text-[14px] font-mono"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
                     {/* ══════ price & buy ══════ */}
                     {(() => {
-                      const dPrice = getDiscountedPrice(detail.价格, favorability);
-                      const hasD = dPrice !== detail.价格;
-                      const isFree = dPrice === 0;
-                      const can = corpseQi >= dPrice;
+                      const unitPrice = getDiscountedPrice(detail.价格, favorability);
+                      const totalPrice = unitPrice * qty;
+                      const hasD = unitPrice !== detail.价格;
+                      const isFree = unitPrice === 0;
+                      const can = corpseQi >= totalPrice;
 
                       return (
                         <>
@@ -420,16 +446,16 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                           <div className="flex items-baseline gap-2 mb-4">
                             {hasD ? (
                               <>
-                                <span className="text-[16px] text-white/15 line-through font-mono tabular-nums tracking-tight">
-                                  {detail.价格}
+                                <span className="text-[14px] text-white/15 line-through font-mono tabular-nums tracking-tight">
+                                  {detail.价格}{qty > 1 && `×${qty}`}
                                 </span>
                                 <span className="text-[22px] text-teal-300 font-mono tabular-nums tracking-tight">
-                                  {isFree ? '免费' : dPrice}
+                                  {isFree ? '免费' : totalPrice}
                                 </span>
                               </>
                             ) : (
                               <span className="text-[22px] text-teal-300 font-mono tabular-nums tracking-tight">
-                                {detail.价格}
+                                {totalPrice}
                               </span>
                             )}
                             {!isFree && <span className="text-[12px] text-white/15">尸气</span>}
@@ -438,10 +464,15 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                                 {discountLabel(discountRate)}
                               </span>
                             )}
+                            {qty > 1 && (
+                              <span className="text-[10px] text-white/20 font-display">
+                                ({unitPrice}×{qty})
+                              </span>
+                            )}
                           </div>
 
                           <button
-                            onClick={() => buy(detail)}
+                            onClick={() => buy(detail, qty)}
                             disabled={!can || buying}
                             className={`
                               w-full py-3 rounded-xl
@@ -456,10 +487,10 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                             {buying
                               ? '交易中...'
                               : !can
-                                ? `尸气不足（需 ${dPrice}）`
+                                ? `尸气不足（需 ${totalPrice}）`
                                 : isFree
-                                  ? '免费领取'
-                                  : `购买 · ${dPrice} 尸气`}
+                                  ? `免费领取${qty > 1 ? ` ×${qty}` : ''}`
+                                  : `购买${qty > 1 ? ` ${qty}件` : ''} · ${totalPrice} 尸气`}
                           </button>
                         </>
                       );

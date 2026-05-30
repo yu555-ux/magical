@@ -116,6 +116,7 @@ export function getShopItems(vars: Record<string, any>): ShopItem[] {
 
 export async function purchaseItem(
   itemName: string,
+  quantity: number = 1,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const db = getDatabase();
@@ -144,19 +145,22 @@ export async function purchaseItem(
 
     const stock = raw.库存 ?? 0;
     if (stock <= 0) return { success: false, error: '商品已售罄' };
+    if (quantity > stock) return { success: false, error: `库存不足（仅剩 ${stock} 件）` };
+    if (quantity < 1) return { success: false, error: '数量无效' };
 
     const originalPrice: number = raw.价格 ?? 0;
-    const price = getDiscountedPrice(originalPrice, favorability);
+    const unitPrice = getDiscountedPrice(originalPrice, favorability);
+    const totalPrice = unitPrice * quantity;
 
     // Check funds
     const corpseQi = pathGet(vars, '主角.资源.超凡资源.尸气') ?? 0;
-    if (corpseQi < price) return { success: false, error: '尸气不足' };
+    if (corpseQi < totalPrice) return { success: false, error: '尸气不足' };
 
-    // Deduct discounted price
-    vars.主角.资源.超凡资源.尸气 = corpseQi - price;
+    // Deduct total price
+    vars.主角.资源.超凡资源.尸气 = corpseQi - totalPrice;
 
-    // Decrement stock
-    catalog[itemName].库存 = stock - 1;
+    // Decrement stock by quantity
+    catalog[itemName].库存 = stock - quantity;
 
     // Add to held items
     if (!vars.主角.持有物品) vars.主角.持有物品 = { 灵宝: {}, 诡物: {}, 物品: {} };
@@ -166,13 +170,13 @@ export async function purchaseItem(
     const held = vars.主角.持有物品[category];
     if (held[itemName]) {
       // Already owns — increment quantity
-      held[itemName].数量 = (held[itemName].数量 ?? 1) + 1;
+      held[itemName].数量 = (held[itemName].数量 ?? 1) + quantity;
     } else {
       // New item — copy from catalog
       const copy: any = {
         等级: raw.等级,
         描述: raw.描述,
-        数量: 1,
+        数量: quantity,
         效果: raw.效果 ? { ...raw.效果 } : {},
       };
       if (raw.规则) copy.规则 = { ...raw.规则 };

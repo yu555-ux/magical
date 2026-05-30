@@ -15,7 +15,7 @@ import RawXmlViewerModal from './RawXmlViewerModal';
 import ContextMenu from './ContextMenu';
 import ShopBanner from './ShopBanner';
 import ShopModal from './ShopModal';
-import { checkShopAvailability } from '../../../sillytavern/shop-engine';
+import { checkShopAvailability, getLiuSanniangFavorability } from '../../../sillytavern/shop-engine';
 
 export default function ChatPage({
   addNotification,
@@ -39,6 +39,12 @@ export default function ChatPage({
     const vars = ss.activeChat?.variables;
     if (!vars) return false;
     return checkShopAvailability(vars);
+  }, [ss.activeChat?.variables]);
+
+  const shopFavorability = useMemo(() => {
+    const vars = ss.activeChat?.variables;
+    if (!vars) return 0;
+    return getLiuSanniangFavorability(vars);
   }, [ss.activeChat?.variables]);
 
   const [input, setInput] = useState('');
@@ -312,6 +318,7 @@ export default function ChatPage({
       {/* ── Shop bubble (fixed position, draggable) ── */}
       <ShopBanner
         visible={shopAvailable}
+        favorability={shopFavorability}
         onOpenShop={() => setShopOpen(true)}
       />
 
