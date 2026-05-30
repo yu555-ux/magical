@@ -22,7 +22,7 @@ export interface ShopItem {
   描述: string;
   效果: Record<string, string>;
   规则?: Record<string, string>;
-  副作用?: string;
+  副作用?: Record<string, string>;
   库存: number;
 }
 

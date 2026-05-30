@@ -843,7 +843,11 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
                 {selectedSkill?.副作用 && (
                   <div className="p-4 bg-aether-red/[0.05] border-l-2 border-aether-red">
                     <h4 className="text-[10px] text-aether-red uppercase tracking-widest mb-1 font-mono">副作用</h4>
-                    <p className="text-sm tracking-wide text-aether-red/80">{selectedSkill.副作用}</p>
+                    <div className="space-y-1">
+                      {Object.entries(selectedSkill.副作用 as Record<string, string>).map(([k, v]) => (
+                        <p key={k} className="text-sm tracking-wide text-aether-red/80">{k}：{v}</p>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {Object.keys(branches).length > 0 && (

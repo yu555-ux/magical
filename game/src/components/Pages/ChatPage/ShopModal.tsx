@@ -404,7 +404,11 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                     {detail.副作用 && (
                       <div className="mb-4">
                         <span className="text-[10px] text-red-300/35 font-display tracking-[0.12em] uppercase">副作用</span>
-                        <p className="mt-1.5 text-[12px] text-red-300/40 leading-relaxed">{detail.副作用}</p>
+                        <div className="mt-1.5 space-y-1">
+                          {Object.entries(detail.副作用 as Record<string, string>).map(([k, v]) => (
+                            <p key={k} className="text-[12px] text-red-300/40 leading-relaxed">{k}：{v}</p>
+                          ))}
+                        </div>
                       </div>
                     )}
 

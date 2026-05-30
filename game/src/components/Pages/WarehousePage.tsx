@@ -202,23 +202,6 @@ export default function WarehousePage() {
                     )}
                   </div>
                   <p className="mt-3 text-xs text-white/45 leading-relaxed line-clamp-2 group-hover:text-white/65 transition-colors">{item.data?.描述 || ''}</p>
-                  {/* 具现按钮 — 仅梦境物品 */}
-                  {item.data?.梦境物品 === true && (
-                    <div className="mt-3 pt-3 border-t border-white/[0.05] flex justify-end">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const pv = previewRealizeCost(item.data, item.category);
-                          setRealizeTarget(item);
-                          setRealizePreview(pv);
-                          setRealizeError('');
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-display tracking-wider border border-amber-400/30 bg-amber-400/8 text-amber-300 hover:bg-amber-400/14 hover:border-amber-400/50 transition-all"
-                      >
-                        具现
-                      </button>
-                    </div>
-                  )}
                 </motion.button>
                 </div>
               );
@@ -341,7 +324,7 @@ export default function WarehousePage() {
             >
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-aether-cyan/20 bg-aether-cyan/[0.02]">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-1 h-4 bg-amber-400 rounded-full shadow-[0_0_6px_rgba(251,191,36,0.4)]" />
+                  <div className="w-1 h-4 bg-aether-cyan rounded-full shadow-[0_0_6px_rgba(0,242,255,0.4)]" />
                   <h3 className="font-display text-sm tracking-[0.12em] text-aether-cyan/90">梦境具现</h3>
                 </div>
                 <button
@@ -354,12 +337,17 @@ export default function WarehousePage() {
 
               <div className="p-5 space-y-4">
                 <p className="text-sm text-white/70 leading-relaxed">
-                  将 <span className="text-amber-300 font-bold">{realizeTarget.name}</span> 具现到现实，需消耗
+                  将 {(() => {
+                    const rk = realizeTarget.data?.等级;
+                    const rs = rk ? ITEM_RANK_STYLES[rk] : null;
+                    return <span className={rs?.text || 'text-white'}>{realizeTarget.name}</span>;
+                  })()} 具现到现实，需消耗
                 </p>
                 <div className="text-center py-3">
                   <span className="font-display font-bold text-amber-300 text-2xl tabular-nums">
-                    {realizePreview.cost.toLocaleString('zh-CN')} 蝶烬
+                    {realizePreview.cost.toLocaleString('zh-CN')}
                   </span>
+                  <span className="text-white/40 text-sm ml-1">蝶烬</span>
                 </div>
 
                 {realizeError && (
