@@ -38,6 +38,7 @@ export default function WarehousePage() {
   const [realizePreview, setRealizePreview] = useState<RealizePreview | null>(null);
   const [realizing, setRealizing] = useState(false);
   const [realizeError, setRealizeError] = useState('');
+  const [realizeSuccess, setRealizeSuccess] = useState('');
   const [realizeQty, setRealizeQty] = useState(1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -412,6 +413,10 @@ export default function WarehousePage() {
                           }
                         }
                         setItems(all);
+                        setRealizeError('');
+                        const qty = realizeQty;
+                        setRealizeSuccess(`${realizeTarget.name} ×${qty} 具现成功`);
+                        setTimeout(() => setRealizeSuccess(''), 2500);
                         setRealizeTarget(null);
                         setRealizePreview(null);
                       } else {
@@ -426,6 +431,20 @@ export default function WarehousePage() {
                 </div>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success toast */}
+      <AnimatePresence>
+        {realizeSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[140] px-5 py-2.5 bg-emerald-500/10 border border-emerald-400/30 text-emerald-300 text-xs font-display tracking-wider shadow-[0_0_20px_rgba(52,211,153,0.1)]"
+          >
+            {realizeSuccess}
           </motion.div>
         )}
       </AnimatePresence>
