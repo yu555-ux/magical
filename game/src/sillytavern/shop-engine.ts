@@ -172,12 +172,13 @@ export async function purchaseItem(
       // Already owns — increment quantity
       held[itemName].数量 = (held[itemName].数量 ?? 1) + quantity;
     } else {
-      // New item — copy from catalog
+      // New item — copy from catalog (dream items: 具现 = false)
       const copy: any = {
         等级: raw.等级,
         描述: raw.描述,
         数量: quantity,
         效果: raw.效果 ? { ...raw.效果 } : {},
+        具现: false,
       };
       if (raw.规则) copy.规则 = { ...raw.规则 };
       if (raw.副作用) copy.副作用 = raw.副作用;

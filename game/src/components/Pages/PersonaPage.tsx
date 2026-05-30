@@ -429,6 +429,9 @@ export default function PersonaPage() {
                     <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-16 truncate">
                       {itemName}
                       <span className="text-[10px] font-mono text-white/25 ml-2">×{qty}</span>
+                      {itemData?.具现 === false && (
+                        <span className="text-[8px] px-1 py-0.5 rounded font-display tracking-wider border border-purple-400/20 bg-purple-400/6 text-purple-300/60 ml-1.5 align-middle">梦境</span>
+                      )}
                     </h3>
                     <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
                       {itemData?.描述 || ''}
