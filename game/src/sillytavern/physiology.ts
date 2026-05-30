@@ -282,27 +282,26 @@ export function tickFemalePhysiology(
 
 export function tickAllFemales(
   variables: Record<string, any>,
-  worldTime: string,
-  lastTickDate: string | null,
+  oldTime: string | null,
+  newTime: string,
   opts?: { dreamOnly?: boolean },
-): string {
-  const currentDate = getDatePart(worldTime);
-  if (!currentDate) return lastTickDate ?? '';
+): void {
+  const newDate = getDatePart(newTime);
+  if (!newDate) return;
+  const oldDate = oldTime ? getDatePart(oldTime) : null;
   const dreamOnly = opts?.dreamOnly ?? false;
 
-  if (!lastTickDate) {
-    runTickPass(variables, currentDate, dreamOnly);
-    return currentDate;
+  if (!oldDate) {
+    runTickPass(variables, newDate, dreamOnly);
+    return;
   }
 
-  const daysPassed = daysBetween(lastTickDate, currentDate);
-  if (daysPassed <= 0) return lastTickDate;
+  const daysPassed = daysBetween(oldDate, newDate);
+  if (daysPassed <= 0) return;
 
   for (let d = 1; d <= daysPassed; d++) {
-    runTickPass(variables, advanceDate(lastTickDate, d), dreamOnly);
+    runTickPass(variables, advanceDate(oldDate, d), dreamOnly);
   }
-
-  return currentDate;
 }
 
 function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly: boolean): void {

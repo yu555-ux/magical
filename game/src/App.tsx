@@ -46,13 +46,13 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case PageType.HOME:   return <ChatPage key="home" addNotification={addNotification} />;
-      case PageType.PERSONA: return <PersonaPage key="persona" />;
-      case PageType.WAREHOUSE: return <WarehousePage key="warehouse" />;
-      case PageType.MAP:     return <MapPage key="map" />;
-      case PageType.SOCIAL:  return <SocialPage key="social" />;
-      case PageType.ARCHIVE: return <ArchivePage key="archive" />;
-      default:               return <ChatPage key="default" addNotification={addNotification} />;
+      case PageType.HOME:   return <ChatPage addNotification={addNotification} />;
+      case PageType.PERSONA: return <PersonaPage />;
+      case PageType.WAREHOUSE: return <WarehousePage />;
+      case PageType.MAP:     return <MapPage />;
+      case PageType.SOCIAL:  return <SocialPage />;
+      case PageType.ARCHIVE: return <ArchivePage />;
+      default:               return <ChatPage addNotification={addNotification} />;
     }
   };
 

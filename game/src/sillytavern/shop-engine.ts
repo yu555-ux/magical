@@ -32,9 +32,9 @@ function pathGet(obj: any, path: string): any {
   return path.split('.').reduce((o, k) => o?.[k], obj);
 }
 
-function isAt301(location: string): boolean {
+function containsBuilding11(location: string): boolean {
   if (!location) return false;
-  return location.includes('301室') || location.includes('301');
+  return location.includes('11号楼');
 }
 
 // ========== pure checks ==========
@@ -47,19 +47,50 @@ export function checkShopAvailability(vars: Record<string, any>): boolean {
   const inDream = pathGet(vars, '世界.梦境定位.位于梦境');
   if (inDream !== true) return false;
 
-  // 2. 玩家在 301 室（梦境存档中的位置）
+  // 2. 玩家在 11 号楼（梦境存档中的位置）
   const playerLoc = pathGet(vars, '世界.梦境存档.地点') ?? '';
-  if (!isAt301(playerLoc)) return false;
+  if (!containsBuilding11(playerLoc)) return false;
 
-  // 3. 柳三娘在 301 室
+  // 3. 柳三娘在 11 号楼
   const lsnLoc = pathGet(vars, '主要人物.女性.异人.柳三娘.当前位置') ?? '';
-  if (!isAt301(lsnLoc)) return false;
+  if (!containsBuilding11(lsnLoc)) return false;
 
   // 4. 交易已解锁
   const tradeOpen = pathGet(vars, '特殊玩法.柳三娘商店.交易开放');
   if (tradeOpen !== true) return false;
 
   return true;
+}
+
+// ========== favorability & discount ==========
+
+/** 读取柳三娘好感值 */
+export function getLiuSanniangFavorability(vars: Record<string, any>): number {
+  return pathGet(vars, '主要人物.女性.异人.柳三娘.好感值') ?? 0;
+}
+
+/**
+ * 根据好感值返回折扣率与是否拒售。
+ * rate: 0 = 原价, 0.2 = 8折, 1 = 免费
+ * rejected: true 表示柳三娘拒绝交易
+ */
+export function getDiscountRate(favorability: number): { rate: number; rejected: boolean } {
+  if (favorability < 0) return { rate: 0, rejected: true };
+  if (favorability >= 180) return { rate: 1, rejected: false };
+  if (favorability >= 160) return { rate: 0.8, rejected: false };
+  if (favorability >= 130) return { rate: 0.6, rejected: false };
+  if (favorability >= 100) return { rate: 0.4, rejected: false };
+  if (favorability >= 60) return { rate: 0.2, rejected: false };
+  if (favorability >= 30) return { rate: 0.1, rejected: false };
+  return { rate: 0, rejected: false };
+}
+
+/** 计算折后价（Math.floor 向下取整） */
+export function getDiscountedPrice(price: number, favorability: number): number {
+  const { rate, rejected } = getDiscountRate(favorability);
+  if (rejected) return price;
+  if (rate >= 1) return 0;
+  return Math.floor(price * (1 - rate));
 }
 
 /** 获取玩家尸气余额 */
@@ -99,6 +130,13 @@ export async function purchaseItem(
       return { success: false, error: '当前无法交易' };
     }
 
+    // Check favorability — reject if negative
+    const favorability = getLiuSanniangFavorability(vars);
+    const { rejected } = getDiscountRate(favorability);
+    if (rejected) {
+      return { success: false, error: '柳三娘对你心存芥蒂，不愿与你交易' };
+    }
+
     // Get item from catalog
     const catalog = pathGet(vars, '柳三娘商店.商品') ?? {};
     const raw = catalog[itemName];
@@ -107,13 +145,14 @@ export async function purchaseItem(
     const stock = raw.库存 ?? 0;
     if (stock <= 0) return { success: false, error: '商品已售罄' };
 
-    const price: number = raw.价格 ?? 0;
+    const originalPrice: number = raw.价格 ?? 0;
+    const price = getDiscountedPrice(originalPrice, favorability);
 
     // Check funds
     const corpseQi = pathGet(vars, '主角.资源.超凡资源.尸气') ?? 0;
     if (corpseQi < price) return { success: false, error: '尸气不足' };
 
-    // Deduct
+    // Deduct discounted price
     vars.主角.资源.超凡资源.尸气 = corpseQi - price;
 
     // Decrement stock

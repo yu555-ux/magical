@@ -2,6 +2,7 @@
  * ShopModal — 柳三娘铺子。
  *
  * 铜绿主题 + 毛玻璃质感。详情居中浮层，展开时全面板模糊。
+ * 好感度折扣实时计算，不新增变量字段。
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -12,6 +13,9 @@ import {
   getShopItems,
   getPlayerCorpseQi,
   purchaseItem,
+  getLiuSanniangFavorability,
+  getDiscountRate,
+  getDiscountedPrice,
   type ShopItem,
 } from '../../../sillytavern/shop-engine';
 
@@ -42,11 +46,25 @@ interface Props {
   onNotify?: (msg: string, type: 'success' | 'error') => void;
 }
 
+/** 生成折扣标签文案 */
+function discountLabel(rate: number): string {
+  if (rate >= 1) return '免费';
+  if (rate >= 0.8) return '2折';
+  if (rate >= 0.6) return '4折';
+  if (rate >= 0.4) return '6折';
+  if (rate >= 0.2) return '8折';
+  if (rate >= 0.1) return '9折';
+  return '';
+}
+
 // ========== component ==========
 
 export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
   const [items, setItems] = useState<ShopItem[]>([]);
   const [corpseQi, setCorpseQi] = useState(0);
+  const [favorability, setFavorability] = useState(0);
+  const [rejected, setRejected] = useState(false);
+  const [discountRate, setDiscountRate] = useState(0);
   const [filter, setFilter] = useState<CatFilter>('全部');
   const [detail, setDetail] = useState<ShopItem | null>(null);
   const [buying, setBuying] = useState(false);
@@ -59,6 +77,11 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
       const vars = chats[chats.length - 1]?.variables ?? {};
       setItems(getShopItems(vars));
       setCorpseQi(getPlayerCorpseQi(vars));
+      const f = getLiuSanniangFavorability(vars);
+      setFavorability(f);
+      const dr = getDiscountRate(f);
+      setRejected(dr.rejected);
+      setDiscountRate(dr.rate);
     } catch { /* ignore */ }
   }, []);
 
@@ -76,6 +99,8 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
     () => filter === '全部' ? items : items.filter(i => i.分类 === filter),
     [items, filter],
   );
+
+  const label = discountLabel(discountRate);
 
   const buy = useCallback(async (item: ShopItem) => {
     if (buying) return;
@@ -141,6 +166,20 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                 <h2 className="text-[13px] text-teal-200/75 font-display tracking-[0.14em] uppercase">
                   柳三娘的铺子
                 </h2>
+                {/* 好感 & 折扣标签 */}
+                <span className="text-[10px] text-white/15 font-display tracking-wider">
+                  好感 {favorability}
+                </span>
+                {label && (
+                  <span className={`
+                    text-[10px] px-1.5 py-0.5 rounded font-display tracking-wider border
+                    ${discountRate >= 1
+                      ? 'text-amber-300 border-amber-400/25 bg-amber-400/8'
+                      : 'text-emerald-300 border-emerald-400/20 bg-emerald-400/6'}
+                  `}>
+                    {label}
+                  </span>
+                )}
               </div>
               <button
                 onClick={onClose}
@@ -200,7 +239,16 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
 
               {/* grid */}
               <div className="flex-1 overflow-y-auto px-6 pb-4">
-                {filtered.length === 0 ? (
+                {rejected ? (
+                  <div className="flex flex-col items-center justify-center h-full gap-3">
+                    <span className="text-[13px] text-red-300/40 font-display tracking-wide">
+                      柳三娘对你心存芥蒂，不愿与你交易
+                    </span>
+                    <span className="text-[11px] text-white/10 font-display">
+                      好感值 {favorability}（需 ≥ 0）
+                    </span>
+                  </div>
+                ) : filtered.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <span className="text-[13px] text-white/10 font-display tracking-wide">暂无商品</span>
                   </div>
@@ -210,7 +258,9 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                       const rank = RANK[item.等级] ?? RANK.微末;
                       const cat = CAT_TEXT[item.分类] ?? 'text-white/45';
                       const active = detail?.名称 === item.名称;
-                      const can = corpseQi >= item.价格;
+                      const discounted = getDiscountedPrice(item.价格, favorability);
+                      const can = corpseQi >= discounted;
+                      const hasDiscount = discounted !== item.价格;
 
                       return (
                         <motion.button
@@ -235,10 +285,23 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                           </div>
                           <h3 className="text-[14px] text-white/80 font-display tracking-[0.04em] mb-1.5">{item.名称}</h3>
                           <p className="text-[11px] text-white/30 leading-relaxed line-clamp-2 mb-3">{item.描述}</p>
-                          <span className={`text-[14px] font-mono tabular-nums tracking-tight ${can ? 'text-teal-300/80' : 'text-red-400/35'}`}>
-                            {item.价格}
-                          </span>
-                          <span className="text-[10px] text-white/15 ml-0.5">尸气</span>
+                          <div className="flex items-baseline gap-1.5">
+                            {hasDiscount ? (
+                              <>
+                                <span className="text-[12px] text-white/15 line-through font-mono tabular-nums tracking-tight">
+                                  {item.价格}
+                                </span>
+                                <span className={`text-[14px] font-mono tabular-nums tracking-tight ${can ? 'text-teal-300/80' : 'text-red-400/35'}`}>
+                                  {discounted}
+                                </span>
+                              </>
+                            ) : (
+                              <span className={`text-[14px] font-mono tabular-nums tracking-tight ${can ? 'text-teal-300/80' : 'text-red-400/35'}`}>
+                                {item.价格}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-white/15">尸气</span>
+                          </div>
                         </motion.button>
                       );
                     })}
@@ -344,25 +407,63 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
 
                     <p className="text-[11px] text-white/15 mb-5">剩余 {detail.库存} 件</p>
 
-                    <button
-                      onClick={() => buy(detail)}
-                      disabled={corpseQi < detail.价格 || buying}
-                      className={`
-                        w-full py-3 rounded-xl
-                        text-[13px] font-display tracking-[0.06em]
-                        transition-all duration-200 cursor-pointer select-none
-                        ${corpseQi >= detail.价格 && !buying
-                          ? 'bg-teal-500/15 border border-teal-500/30 text-teal-300 hover:bg-teal-500/25 hover:border-teal-400/40 active:scale-[0.98]'
-                          : 'bg-white/[0.03] border border-white/[0.06] text-white/15 cursor-not-allowed'
-                        }
-                      `}
-                    >
-                      {buying
-                        ? '交易中...'
-                        : corpseQi >= detail.价格
-                          ? `购买 · ${detail.价格} 尸气`
-                          : `尸气不足（需 ${detail.价格}）`}
-                    </button>
+                    {/* ══════ price & buy ══════ */}
+                    {(() => {
+                      const dPrice = getDiscountedPrice(detail.价格, favorability);
+                      const hasD = dPrice !== detail.价格;
+                      const isFree = dPrice === 0;
+                      const can = corpseQi >= dPrice;
+
+                      return (
+                        <>
+                          {/* Price display */}
+                          <div className="flex items-baseline gap-2 mb-4">
+                            {hasD ? (
+                              <>
+                                <span className="text-[16px] text-white/15 line-through font-mono tabular-nums tracking-tight">
+                                  {detail.价格}
+                                </span>
+                                <span className="text-[22px] text-teal-300 font-mono tabular-nums tracking-tight">
+                                  {isFree ? '免费' : dPrice}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-[22px] text-teal-300 font-mono tabular-nums tracking-tight">
+                                {detail.价格}
+                              </span>
+                            )}
+                            {!isFree && <span className="text-[12px] text-white/15">尸气</span>}
+                            {hasD && (
+                              <span className="text-[11px] text-emerald-400/60 font-display tracking-wider">
+                                {discountLabel(discountRate)}
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => buy(detail)}
+                            disabled={!can || buying}
+                            className={`
+                              w-full py-3 rounded-xl
+                              text-[13px] font-display tracking-[0.06em]
+                              transition-all duration-200 cursor-pointer select-none
+                              ${can && !buying
+                                ? 'bg-teal-500/15 border border-teal-500/30 text-teal-300 hover:bg-teal-500/25 hover:border-teal-400/40 active:scale-[0.98]'
+                                : 'bg-white/[0.03] border border-white/[0.06] text-white/15 cursor-not-allowed'
+                              }
+                            `}
+                          >
+                            {buying
+                              ? '交易中...'
+                              : !can
+                                ? `尸气不足（需 ${dPrice}）`
+                                : isFree
+                                  ? '免费领取'
+                                  : `购买 · ${dPrice} 尸气`}
+                          </button>
+                        </>
+                      );
+                    })()}
                   </motion.div>
                 </motion.div>
               )}

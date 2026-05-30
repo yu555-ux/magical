@@ -378,7 +378,7 @@ export default function SocialPage() {
             {Object.keys(selProfile.状态).length > 0 && (
               <div className="space-y-1.5">
                 <span className="text-[9px] font-mono text-white/70 tracking-[0.12em] uppercase">状态效果</span>
-                {Object.entries(selProfile.状态).map(([name, s]) => (
+                {(Object.entries(selProfile.状态) as [string, { 描述?: string; 持续时间?: string }][]).map(([name, s]) => (
                   <div key={name} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.04] bg-white/[0.01]">
                     <div className="w-1 h-1 rounded-full bg-aether-cyan/50 shrink-0" />
                     <span className="text-[11px] font-mono text-white/80">{name}</span>

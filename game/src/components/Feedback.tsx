@@ -109,7 +109,7 @@ interface TooltipProps {
 
 export function Tooltip({ children, content, position = 'right' }: TooltipProps) {
   const [show, setShow] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const positions: Record<string, string> = {
     top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',

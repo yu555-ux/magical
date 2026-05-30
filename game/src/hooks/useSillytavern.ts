@@ -302,6 +302,18 @@ export function useSillytavern() {
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
   }, [activeChatId]);
 
+  const editMessage = useCallback(async (messageId: string, newContent: string) => {
+    const chats = await db.chats.toArray();
+    const chat = chats.find(c => c.id === activeChatId);
+    if (!chat) return;
+    const nextMessages = chat.messages.map(m =>
+      m.id === messageId ? { ...m, content: newContent } : m,
+    );
+    const next: ChatSession = { ...chat, messages: nextMessages, updatedAt: Date.now() };
+    await db.chats.put(next);
+    setChats(prev => prev.map(c => c.id === next.id ? next : c));
+  }, [activeChatId]);
+
   const regenerateLast = useCallback(async () => {
     if (!activeChat) return;
     const lastUserIdx = [...activeChat.messages].reverse().findIndex(m => m.role === 'user');
@@ -369,7 +381,7 @@ export function useSillytavern() {
 
   return {
     settings, chats, activeChat, initialized, lastPrompt,
-    createChat, selectChat, removeChat, sendGameMessage, jumpToFloor, regenerateLast,
+    createChat, selectChat, removeChat, sendGameMessage, jumpToFloor, editMessage, regenerateLast,
     updateSettings, setChatVariables, refreshPrompt,
     streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
     toast, showToast,
