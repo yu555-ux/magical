@@ -394,6 +394,9 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
                 {p.性欲值}
               </span>
             </div>
+            <div className="flex justify-between text-[8px] font-mono text-white/12">
+              <span>0</span><span>50</span><span>100</span>
+            </div>
           </div>
         </section>
       )}

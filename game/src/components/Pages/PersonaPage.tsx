@@ -141,7 +141,7 @@ export default function PersonaPage() {
   const body = protagonist?.身体属性 ?? {};
   const bars = [
     { name: '生命', current: body?.生命?.当前 ?? 0, max: body?.生命?.上限 ?? 100, color: 'bg-red-500' },
-    { name: '体力', current: body?.体力?.当前 ?? 0, max: body?.体力?.上限 ?? 100, color: 'bg-pink-400' },
+    { name: '体力', current: body?.体力?.当前 ?? 0, max: body?.体力?.上限 ?? 100, color: 'bg-yellow-400' },
     { name: '能量', current: body?.能量?.当前 ?? 0, max: body?.能量?.上限 ?? 100, color: 'bg-cyan-400' },
     { name: 'SAN',  current: body?.SAN?.当前 ?? 0,  max: body?.SAN?.上限 ?? 100,  color: 'bg-aether-green' },
   ];
