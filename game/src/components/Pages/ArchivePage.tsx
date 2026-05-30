@@ -382,21 +382,17 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       {isFemale && p.性欲值 !== undefined && (
         <section className="space-y-2">
           <SectionHeader title="性欲值" Icon={Zap} />
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xl font-display font-bold italic tracking-wide text-pink-400">{p.性欲值}</span>
-              <span className="text-sm font-mono text-pink-400/60">/ 100</span>
-            </div>
-            <div className="h-2 bg-white/[0.04] border border-white/[0.08] overflow-hidden">
+          <div className="space-y-1.5">
+            <div className="h-2 bg-white/[0.04] border border-white/[0.08] overflow-hidden relative">
               <motion.div
-                className="h-full bg-gradient-to-r from-pink-400/40 to-pink-400"
+                className="h-full bg-gradient-to-r from-amber-400/40 to-amber-400"
                 initial={{ width: 0 }}
-                animate={{ width: `${(p.性欲值 / 100) * 100}%` }}
+                animate={{ width: `${Math.min((p.性欲值 / 100) * 100, 100)}%` }}
                 transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
               />
-            </div>
-            <div className="flex justify-between text-[8px] font-mono text-white/12">
-              <span>0</span><span>50</span><span>100</span>
+              <span className="absolute right-0 -top-5 text-[10px] font-mono text-amber-300/70 tabular-nums">
+                {p.性欲值}
+              </span>
             </div>
           </div>
         </section>
