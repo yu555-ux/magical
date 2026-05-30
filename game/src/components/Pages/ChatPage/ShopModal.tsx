@@ -203,7 +203,7 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                   <span className="text-[10px] text-white/20 font-display tracking-[0.12em] uppercase">
                     尸气
                   </span>
-                  <span className="text-teal-300 font-mono text-[16px] tabular-nums tracking-tight">
+                  <span className="text-aether-red font-mono text-[16px] tabular-nums tracking-tight">
                     {corpseQi}
                   </span>
                 </div>
