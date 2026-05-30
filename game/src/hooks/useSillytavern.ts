@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
-import { applyParsedToChat, enrichHistory } from '../sillytavern/variables';
+import { applyParsedToChat, enrichHistory, validateEquipment } from '../sillytavern/variables';
 import { assemblePrompt } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
@@ -226,6 +226,14 @@ export function useSillytavern() {
           }
         } catch { /* fallback to primary vars */ }
       }
+    }
+
+    // Auto-unequip items that don't match current plane
+    const oldInDream = preVars?.世界?.梦境定位?.位于梦境 === true;
+    const newInDream = nextVariables?.世界?.梦境定位?.位于梦境 === true;
+    if (oldInDream !== newInDream) {
+      validateEquipment(nextVariables);
+      snapshot = JSON.parse(JSON.stringify(nextVariables));
     }
 
     // 只有世界时间实际变化时才跑生理 tick

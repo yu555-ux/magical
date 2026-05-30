@@ -225,6 +225,15 @@ export async function moveItem(
 
     if (!src[itemName]) return false;
 
+    // Plane check: only allow equipping items matching current plane
+    if (direction === 'equip') {
+      const inDream = vars?.世界?.梦境定位?.位于梦境 === true;
+      const isDreamItem = src[itemName]?.梦境物品 === true;
+      if ((inDream && !isDreamItem) || (!inDream && isDreamItem)) {
+        return false;
+      }
+    }
+
     // Move item
     dst[itemName] = src[itemName];
     delete src[itemName];
@@ -448,6 +457,39 @@ function normalizeLocations(obj: Record<string, any>, mapTree: Record<string, an
     } else if (val && typeof val === 'object' && !Array.isArray(val)) {
       normalizeLocations(val, mapTree);
     }
+  }
+}
+
+/**
+ * Auto-unequip items that don't match the current plane.
+ * Call after variables change to ensure equipment consistency.
+ * - In dream (位于梦境=true): unequip 梦境物品=false items
+ * - In reality (位于梦境=false): unequip 梦境物品=true items
+ */
+export function validateEquipment(vars: Record<string, any>): void {
+  const inDream = vars?.世界?.梦境定位?.位于梦境 === true;
+  const held = vars?.主角?.持有物品;
+  const warehouse = vars?.仓库;
+  if (!held || !warehouse) return;
+
+  for (const cat of ['灵宝', '诡物', '物品'] as const) {
+    const catHeld = held[cat] ?? {};
+    const catWh = warehouse[cat] ?? {};
+    for (const [name, item] of Object.entries(catHeld) as [string, any][]) {
+      const isDreamItem = item?.梦境物品 === true;
+      // Mismatch: dream item in reality, or reality item in dream
+      if ((inDream && !isDreamItem) || (!inDream && isDreamItem)) {
+        // Move back to warehouse
+        if (catWh[name]) {
+          catWh[name].数量 = (catWh[name].数量 ?? 0) + (item.数量 ?? 1);
+        } else {
+          catWh[name] = item;
+        }
+        delete catHeld[name];
+      }
+    }
+    held[cat] = catHeld;
+    warehouse[cat] = catWh;
   }
 }
 

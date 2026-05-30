@@ -36,6 +36,7 @@ export default function WarehousePage() {
   const [concreteFilter, setConcreteFilter] = useState<ConcreteFilter>('现实奇物');
   const [searchFocused, setSearchFocused] = useState(false);
   const [equipping, setEquipping] = useState(false);
+  const [inDream, setInDream] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -43,7 +44,9 @@ export default function WarehousePage() {
     const refresh = async () => {
       try {
         const chats = await db.chats.toArray();
-        const warehouse = chats[chats.length - 1]?.variables?.仓库 ?? {};
+        const vars = chats[chats.length - 1]?.variables ?? {};
+        const warehouse = vars.仓库 ?? {};
+        setInDream(vars?.世界?.梦境定位?.位于梦境 === true);
         const all: WarehouseItem[] = [];
         for (const cat of ['灵宝', '诡物', '物品'] as const) {
           const catItems = warehouse[cat] ?? {};
@@ -82,7 +85,12 @@ export default function WarehousePage() {
       >
         <div>
           <h2 className="font-display text-lg md:text-xl tracking-[0.2em] text-aether-cyan cyan-glow leading-tight">奇物收藏</h2>
-          <p className="text-[9px] font-mono text-aether-blue/60 tracking-tight mt-0.5">共 {totalCount} 件</p>
+          <p className="text-[9px] font-mono text-aether-blue/60 tracking-tight mt-0.5">
+            共 {totalCount} 件
+            <span className={`ml-3 px-1.5 py-0.5 rounded border font-display text-[9px] tracking-wider ${inDream ? 'border-purple-400/30 bg-purple-400/8 text-purple-300/60' : 'border-emerald-400/30 bg-emerald-400/8 text-emerald-300/60'}`}>
+              {inDream ? '梦境' : '现实'}
+            </span>
+          </p>
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto md:min-w-[400px] md:justify-end">
@@ -287,32 +295,45 @@ export default function WarehousePage() {
               )}
             </div>
             <div className="flex justify-end pt-2 border-t border-white/10">
-              <button
-                onClick={async () => {
-                  setEquipping(true);
-                  const ok = await moveItem(selectedItem.name, selectedItem.category, 'equip');
-                  setEquipping(false);
-                  if (ok) {
-                    setSelectedItem(null);
-                    // Force immediate refresh
-                    const db = getDatabase();
-                    const chats = await db.chats.toArray();
-                    const warehouse = chats[chats.length - 1]?.variables?.仓库 ?? {};
-                    const all: WarehouseItem[] = [];
-                    for (const cat of ['灵宝', '诡物', '物品'] as const) {
-                      const catItems = warehouse[cat] ?? {};
-                      for (const [name, data] of Object.entries(catItems as Record<string, any>)) {
-                        all.push({ name, category: cat, data });
-                      }
-                    }
-                    setItems(all);
-                  }
-                }}
-                disabled={equipping}
-                className="px-4 py-2 text-xs font-display tracking-wider border border-aether-green/40 text-aether-green hover:bg-aether-green/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {equipping ? '装备中…' : '装备'}
-              </button>
+              {(() => {
+                const itemIsDream = selectedItem?.梦境物品 === true;
+                const planeMatch = (inDream && itemIsDream) || (!inDream && !itemIsDream);
+                return (
+                  <div className="flex items-center gap-3">
+                    {!planeMatch && (
+                      <span className="text-[10px] font-display text-red-300/50 tracking-wider">
+                        {inDream ? '梦境中无法装备现实奇物' : '现实中无法装备梦境奇物'}
+                      </span>
+                    )}
+                    <button
+                      onClick={async () => {
+                        setEquipping(true);
+                        const ok = await moveItem(selectedItem.name, selectedItem.category, 'equip');
+                        setEquipping(false);
+                        if (ok) {
+                          setSelectedItem(null);
+                          // Force immediate refresh
+                          const db = getDatabase();
+                          const chats = await db.chats.toArray();
+                          const warehouse = chats[chats.length - 1]?.variables?.仓库 ?? {};
+                          const all: WarehouseItem[] = [];
+                          for (const cat of ['灵宝', '诡物', '物品'] as const) {
+                            const catItems = warehouse[cat] ?? {};
+                            for (const [name, data] of Object.entries(catItems as Record<string, any>)) {
+                              all.push({ name, category: cat, data });
+                            }
+                          }
+                          setItems(all);
+                        }
+                      }}
+                      disabled={equipping || !planeMatch}
+                      className={`px-4 py-2 text-xs font-display tracking-wider border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${planeMatch ? 'border-aether-green/40 text-aether-green hover:bg-aether-green/10' : 'border-white/[0.06] text-white/15'}`}
+                    >
+                      {equipping ? '装备中…' : '装备'}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )})()}
