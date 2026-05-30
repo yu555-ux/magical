@@ -450,7 +450,7 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
                                   {detail.价格}{qty > 1 && `×${qty}`}
                                 </span>
                                 <span className="text-[22px] text-teal-300 font-mono tabular-nums tracking-tight">
-                                  {isFree ? '免费' : totalPrice}
+                                  {totalPrice}
                                 </span>
                               </>
                             ) : (
