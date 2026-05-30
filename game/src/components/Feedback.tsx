@@ -30,8 +30,14 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="relative w-full max-w-lg glass-panel overflow-hidden border-glow"
           >
-            <div className="flex items-center justify-between p-4 border-b border-aether-border/30 bg-aether-cyan/5">
-              <h3 className="font-display font-bold text-sm tracking-widest text-aether-cyan uppercase">{title}</h3>
+            <div className="flex items-center justify-between p-4 border-b border-aether-cyan/15 bg-aether-cyan/[0.02]">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
+                  <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
+                </div>
+                <h3 className="font-display font-bold text-sm tracking-widest text-aether-cyan uppercase">{title}</h3>
+              </div>
               <button
                 onClick={onClose}
                 className="text-white/40 hover:text-aether-cyan transition-colors p-1 clickable press-scale"

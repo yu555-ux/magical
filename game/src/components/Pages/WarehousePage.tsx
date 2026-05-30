@@ -193,7 +193,7 @@ export default function WarehousePage() {
                   className={`relative p-5 text-left group transition-all duration-200 overflow-hidden clickable w-full ${cardStyle} hover:brightness-110 hover:scale-[1.02] hover:z-10 ${hg}`}
                 >
                   <div className="flex items-center gap-2">
-                    <h3 className={`font-display font-bold text-lg group-hover:text-aether-cyan transition-colors truncate flex-1 ${nameColor}`}>
+                    <h3 className={`font-display font-bold text-lg truncate flex-1 ${nameColor}`}>
                       {item.name}
                       <span className="text-[10px] font-mono text-white/25 ml-2">×{item.data?.数量 ?? 1}</span>
                     </h3>
