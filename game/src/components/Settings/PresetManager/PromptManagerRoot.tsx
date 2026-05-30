@@ -146,9 +146,11 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
         createdAt: Date.now(),
       };
       const nextPresets = [...presets, newPreset];
+      const isVars = newPreset.type === 'vars';
       saveDraft({
         presets: nextPresets,
-        activePresetId: newPreset.id,
+        activePresetId: isVars ? draft.activePresetId : newPreset.id,
+        activeVarsPresetId: isVars ? newPreset.id : draft.activeVarsPresetId,
         presetBlocks: newPreset.blocks,
         presetParams: newPreset.params ?? DEFAULT_PRESET_PARAMS,
       });
@@ -157,7 +159,7 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
       showToast(`导入失败: ${err?.message || '无法解析'}`, 'error');
     }
     try { e.target.value = ''; } catch { /* ignore */ }
-  }, [presets, showToast]);
+  }, [presets, presetFilter, showToast]);
 
   // ── Block ops ──
 
