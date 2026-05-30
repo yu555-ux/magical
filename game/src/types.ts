@@ -37,7 +37,7 @@ export interface MapLayerDetail {
 
 export interface MapLocationData {
   检索词: string[];
-  方位: MapBounds;
+  方位?: MapBounds;
   现实: MapLayerDetail;
   梦境: MapLayerDetail;
   子地图?: Record<string, MapLocationData>;
@@ -49,7 +49,8 @@ export interface MapLocationRender {
   searchTerms: string[];
   cx: number;
   cy: number;
-  bounds: MapBounds;
+  bounds: MapBounds | null;
+  hasBounds: boolean;
   reality: MapLayerDetail;
   dream: MapLayerDetail;
   children: MapLocationRender[];

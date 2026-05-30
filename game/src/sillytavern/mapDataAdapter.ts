@@ -9,9 +9,11 @@ export function adaptMapTree(raw: Record<string, MapLocationData>): MapLocationR
 }
 
 function adaptNode(key: string, data: MapLocationData, parentNoDream: boolean): MapLocationRender {
-  const bounds = data.方位;
-  const cx = (bounds.X[0] + bounds.X[1]) / 2;
-  const cy = (bounds.Y[0] + bounds.Y[1]) / 2;
+  const bounds = data.方位 ?? null;
+  const hasBounds = bounds !== null;
+  // 无坐标时 cx/cy 用 0（渲染时走世界级均匀排列）
+  const cx = hasBounds ? (bounds.X[0] + bounds.X[1]) / 2 : 0;
+  const cy = hasBounds ? (bounds.Y[0] + bounds.Y[1]) / 2 : 0;
 
   // 异界 and its descendants have no dream layer
   const noDream = parentNoDream || key === '异界';
@@ -29,6 +31,7 @@ function adaptNode(key: string, data: MapLocationData, parentNoDream: boolean): 
     cx,
     cy,
     bounds,
+    hasBounds,
     reality: data.现实,
     // 异界及其子地图自动裁剪梦境数据
     dream: noDream ? { 描述: '', 地点细节: { 信息: [], 异常: {} } } : data.梦境,

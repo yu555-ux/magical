@@ -195,13 +195,16 @@ export default function MapPage() {
   const navDepth = navPath.length;
 
   // --- Floor grouping ---
-  const floorGroups = useMemo(() => {
-    if (navDepth === 0) return null;
-    return groupByFloor(currentChildren);
-  }, [currentChildren, navDepth]);
-
   const [selectedFloor, setSelectedFloor] = useState<number>(0);
   useEffect(() => { setSelectedFloor(0); }, [navPath]);
+
+  // Check if current level has geographic coordinates (if not, use world layout)
+  const childrenHaveBounds = currentChildren.some(c => c.hasBounds);
+
+  const floorGroups = useMemo(() => {
+    if (!childrenHaveBounds) return null;
+    return groupByFloor(currentChildren);
+  }, [currentChildren, childrenHaveBounds]);
 
   const visibleChildren = useMemo(() => {
     if (!floorGroups) return currentChildren;
@@ -226,7 +229,7 @@ export default function MapPage() {
   const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
-    const vp = fitViewport(visibleChildren, navDepth === 0 ? 1.2 : 0.6);
+    const vp = fitViewport(visibleChildren, childrenHaveBounds ? 0.6 : 1.2);
     setViewport(vp); setZoom(1);
   }, [navDepth, visibleChildren]);
 
@@ -484,9 +487,9 @@ export default function MapPage() {
         <AnimatePresence mode="wait">
           <motion.div key={navPath.join('/')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }} className="absolute inset-0">
             {visibleChildren.map((point, idx) => {
-              // World-level: arrange worlds in a row, evenly spaced
+              // World-level (no bounds): arrange evenly in a row
               let sx: number, sy: number;
-              if (navDepth === 0) {
+              if (!childrenHaveBounds) {
                 const count = visibleChildren.length;
                 const spacing = CANVAS_W / (count + 1);
                 sx = spacing * (idx + 1);
@@ -499,6 +502,7 @@ export default function MapPage() {
               return (
                 <PointMarker key={point.key} point={point} depth={navDepth}
                   isSelected={selectedPoint?.key === point.key}
+                  isWorldLevel={!childrenHaveBounds}
                   style={{ left: `${(sx / CANVAS_W) * 100}%`, top: `${(sy / CANVAS_H) * 100}%` }}
                   onClick={(e) => handlePointClick(point, e)} />
               );
@@ -536,11 +540,12 @@ export default function MapPage() {
 /* ============================================================
    POINT MARKER
    ============================================================ */
-function PointMarker({ point, depth, isSelected, style, onClick }: {
+function PointMarker({ point, depth, isSelected, style, onClick, isWorldLevel }: {
   point: MapLocationRender; depth: number; isSelected: boolean;
   style: React.CSSProperties; onClick: (e: React.MouseEvent) => void;
+  isWorldLevel: boolean;
 }) {
-  const isWorld = depth === 0;
+  const isWorld = isWorldLevel || !point.hasBounds;
   const colors = pointStyle(depth, isWorld ? point.key : undefined);
   const hasChildren = point.children.length > 0;
   const size = isWorld ? 22 : depth === 1 ? 16 : depth === 2 ? 14 : depth === 3 ? 13 : depth >= 6 ? 10 : 11;
@@ -656,11 +661,13 @@ function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter }: {
         <div className="p-3.5 rounded-lg border" style={{ borderColor: `${accent}12`, backgroundColor: `${accent}04` }}>
           <p className="text-[12px] text-white/60 leading-relaxed font-mono tracking-wide">{detail.描述}</p>
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          <MiniStat label="X 范围" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
-          <MiniStat label="Y 范围" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
-          <MiniStat label="Z 范围" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" accent={accent} />
-        </div>
+        {point.bounds && (
+          <div className="grid grid-cols-3 gap-2">
+            <MiniStat label="X 范围" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
+            <MiniStat label="Y 范围" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
+            <MiniStat label="Z 范围" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" accent={accent} />
+          </div>
+        )}
         {infoList.length > 0 && (
           <div className="p-3.5 rounded-lg border" style={{ borderColor: `${accent}15`, backgroundColor: `${accent}03` }}>
             <div className="flex items-center gap-1.5 mb-2.5"><Info size={11} style={{ color: `${accent}80` }} /><span className="text-[10px] font-mono tracking-wider uppercase" style={{ color: `${accent}80` }}>信息</span></div>
