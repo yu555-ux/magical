@@ -363,7 +363,9 @@ export default function ChatPage({
         ctxMenu={ctxMenu}
         onClose={() => setCtxMenu({ x: 0, y: 0, visible: false })}
         onViewRaw={() => {
-          const content = latestAssistant?.content || ss.streamState.maintext || '';
+          // 优先当前流式正文，其次已保存消息
+          const raw = ss.streamState.maintext || latestAssistant?.content || '';
+          const content = raw && !/^<maintext>/.test(raw) ? `<maintext>\n${raw}\n</maintext>` : raw;
           setRawContent(content);
           setEditedRaw(content);
           setRawViewOpen(true);

@@ -43,7 +43,7 @@ function parseRichText(text: string, config?: RichTextConfig): ParsedSegment[] {
   let pos = 0;
 
   while (pos < text.length) {
-    let bestMatch: { type: SegmentType; content: string; start: number; end: number } | null = null;
+    let bestMatch: { type: SegmentType; content: string; start: number; end: number; prefix?: string; suffix?: string } | null = null;
 
     for (const p of patterns) {
       p.regex.lastIndex = pos;
@@ -67,9 +67,8 @@ function parseRichText(text: string, config?: RichTextConfig): ParsedSegment[] {
       if (bestMatch.start > pos) {
         segments.push({ type: 'plain', content: text.slice(pos, bestMatch.start) });
       }
-      // Styled segment (inner content only, delimiters stripped)
       if (bestMatch.content) {
-        segments.push({ type: bestMatch.type, content: bestMatch.content });
+        segments.push({ type: bestMatch.type, content: bestMatch.content, prefix: bestMatch.prefix, suffix: bestMatch.suffix });
       }
       pos = bestMatch.end;
     } else {
