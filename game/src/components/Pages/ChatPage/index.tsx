@@ -364,12 +364,7 @@ export default function ChatPage({
         ctxMenu={ctxMenu}
         onClose={() => setCtxMenu({ x: 0, y: 0, visible: false })}
         onViewRaw={() => {
-          // 当前正文（无标签）→包裹<maintext>；已保存消息（已有标签）→原样
-          const streamText = ss.streamState.maintext;
-          const savedContent = latestAssistant?.content || '';
-          const content = streamText
-            ? `<maintext>\n${streamText}\n</maintext>`
-            : savedContent;
+          const content = ss.streamState.maintext || latestAssistant?.content || '';
           setRawContent(content);
           setEditedRaw(content);
           setRawViewOpen(true);
