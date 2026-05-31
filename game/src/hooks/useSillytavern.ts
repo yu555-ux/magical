@@ -281,6 +281,7 @@ export function useSillytavern() {
         }
       }
     } catch (e) {
+      console.error('[SillyTavern] 第一API调用失败:', e);
       parser.reset();
       // Retract: remove last user message, restore variables from previous assistant
       const retract = async () => {
@@ -310,6 +311,7 @@ export function useSillytavern() {
     autoTagDreamItems(preVars, nextVariables);
 
     // 第一API正文立即保存到UI（不等第二API）
+    console.log('[SillyTavern] 第一API完成, 正文长度:', rawContent.length, '变量变动:', Object.keys(parsed.varsCommands.merge).length);
     const primaryMsgId = crypto.randomUUID();
     const partialMsg: ChatMessage = {
       id: primaryMsgId, role: 'assistant', content: rawContent,
@@ -318,6 +320,7 @@ export function useSillytavern() {
     const partialChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, partialMsg], variables: nextVariables, updatedAt: Date.now() };
     await db.chats.put(partialChat);
     setChats(prev => prev.map(c => c.id === partialChat.id ? partialChat : c));
+    console.log('[SillyTavern] partial消息已保存, UI已更新');
 
     let apiUsed: 'primary' | 'secondary' | 'dual' = 'primary';
     let secondaryRaw = '';
@@ -356,6 +359,7 @@ export function useSillytavern() {
             secMessages.push({ role: 'user', content: `当前变量：\n${JSON.stringify(nextVariables, null, 2)}\n\n正文：\n${maintextForVars.slice(0, 3000)}` });
           }
 
+          console.log('[SillyTavern] 第二API调用开始, 消息数:', secMessages.length, '正文长度:', maintextForVars.length);
           const secResult = await freshRouter.call('vars', {
             messages: secMessages as any,
             stream: false,
@@ -365,6 +369,7 @@ export function useSillytavern() {
           if (secResult.response.ok) {
             const d = await secResult.response.json();
             const raw = d?.choices?.[0]?.message?.content ?? '';
+            console.log('[SillyTavern] 第二API响应成功, 长度:', raw.length);
             secondaryRaw = raw;
 
             const mObj = raw.match(/\{[\s\S]*\}/);
@@ -395,8 +400,12 @@ export function useSillytavern() {
               }
             }
           }
-        } catch { /* fallback to primary vars */ }
+        } catch (e) { console.error('[SillyTavern] 第二API调用失败:', e); }
+      } else {
+        console.log('[SillyTavern] 第二API跳过: 正文为空');
       }
+    } else {
+      console.log('[SillyTavern] 第二API跳过: 双API未启用或未配置');
     }
     setDualRunning(false);
 

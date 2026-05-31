@@ -137,15 +137,15 @@ export default function ChatPage({
           onOpenPrompt={() => setPromptOpen(true)}
         />
 
-        {/* ── Streaming indicator ── */}
-        {(isStreaming || ss.dualRunning) && (
+        {/* ── Streaming indicator (仅第一API流式生成时显示) ── */}
+        {isStreaming && (
           <div className="flex items-center justify-end px-5 py-1.5 border-b border-aether-border/15 shrink-0">
             <motion.span
               animate={{ opacity: [0.4, 1, 0.4] }}
               transition={{ duration: 1, repeat: Infinity }}
-              className={`text-[10px] font-mono ${ss.dualRunning ? 'text-amber-300/60' : 'text-aether-cyan/60'}`}
+              className="text-[10px] text-aether-cyan/60 font-mono"
             >
-              {ss.dualRunning ? '第二API 变量提取中...' : 'AI 生成中...'}
+              AI 生成中...
             </motion.span>
           </div>
         )}
