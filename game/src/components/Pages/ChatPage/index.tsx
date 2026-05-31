@@ -350,7 +350,7 @@ export default function ChatPage({
       <PromptViewerModal
         isOpen={promptOpen}
         onClose={() => setPromptOpen(false)}
-        onRefresh={() => ss.refreshPrompt()}
+        onRefresh={() => ss.refreshPrompt(input || undefined)}
         prompt={ss.lastPrompt}
         secondaryPrompt={ss.lastSecondaryPrompt}
         replyText={latestAssistant?.content}

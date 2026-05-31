@@ -500,23 +500,24 @@ export function useSillytavern() {
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
   }, [activeChat]);
 
-  const refreshPrompt = useCallback(async () => {
-    if (!activeChat || !settings) return;
+  const refreshPrompt = useCallback(async (simulateInput?: string) => {
+    if (!settings) return;
     const latestSettings = await getSettings();
     const effectiveSettings = {
       ...(latestSettings ?? DEFAULT_SETTINGS),
       ...(settings ?? {}),
-      // DB takes priority for these fields (may be updated by PresetManager/LorebookTab auto-save)
       presetBlocks: latestSettings?.presetBlocks ?? settings?.presetBlocks ?? DEFAULT_PRESET_BLOCKS,
       lorebooks: latestSettings?.lorebooks ?? settings?.lorebooks ?? DEFAULT_SETTINGS.lorebooks,
       presetParams: latestSettings?.presetParams ?? settings?.presetParams,
     };
-    const chatVars = activeChat.variables ?? {};
-    const lastUser = [...activeChat.messages].reverse().find(m => m.role === 'user');
-    const userInput = lastUser?.content ?? '';
+    const chatVars = activeChat?.variables ?? DEFAULT_WORLD_VARS;
+    const chatHistory = activeChat?.messages ?? [];
+    const userInput = simulateInput
+      ?? [...chatHistory].reverse().find(m => m.role === 'user')?.content
+      ?? '';
     const { messages, totalTokens, stageTokens, stageMessages, stageOrder, stageNames } = assemblePrompt({
       userInput,
-      history: activeChat.messages,
+      history: chatHistory,
       presetBlocks: effectiveSettings.presetBlocks,
       lorebooks: effectiveSettings.lorebooks,
       userName: effectiveSettings.userName ?? DEFAULT_SETTINGS.userName,
@@ -529,8 +530,8 @@ export function useSillytavern() {
       fullVariables: chatVars,
       currentLocation: chatVars['世界']?.['现实']?.['地点'] ?? '',
       isDream: chatVars['世界']?.['梦境定位']?.['位于梦境'] ?? false,
-      plotHistory: activeChat.plotHistory,
-      dreamAnchor: activeChat.dreamAnchor,
+      plotHistory: activeChat?.plotHistory,
+      dreamAnchor: activeChat?.dreamAnchor,
       recentMessageCount: effectiveSettings.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount,
     });
     setLastPrompt({

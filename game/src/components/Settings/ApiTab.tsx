@@ -95,10 +95,6 @@ export default function ApiTab({ draft, setDraft, busy, primaryModels, secondary
                   </select>
                 </label>
               )}
-              <div className="flex gap-3 pt-1">
-                <InputRow label="温度" value={String(secondary.temperature ?? 0.7)} onChange={(v) => patchSecondary({ temperature: Number(v) || 0.7, enabled: true })} />
-                <InputRow label="Max Tokens" value={String(secondary.maxTokens ?? 8000)} onChange={(v) => patchSecondary({ maxTokens: Number(v) || 8000, enabled: true })} />
-              </div>
               <div className="flex gap-2 pt-2">
                 <ActionButton busy={busy === 'fetch-secondary'} onClick={() => onFetchModels('secondary')} label={busy === 'fetch-secondary' ? '获取中…' : '获取模型列表'} />
                 <ActionButton busy={busy === 'test-secondary'} onClick={() => onTestConnection('secondary')} label={busy === 'test-secondary' ? '测试中…' : '测试连通性'} variant="secondary" />
