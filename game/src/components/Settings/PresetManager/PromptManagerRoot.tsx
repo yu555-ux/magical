@@ -54,6 +54,7 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
       patch.activePresetId = preset.id;
     }
     saveDraft(patch);
+    showToast(`${isVars ? '变量' : '剧情'}预设已切换为「${preset.name}」`, 'success');
   };
 
   const handleNewPreset = () => {
@@ -250,8 +251,17 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] tracking-wide border border-aether-border/30 text-white/40 hover:text-white/70 hover:border-aether-purple/40 transition-all font-display">
           <Plus size={13} /> 新建预设
         </button>
-        <span className="text-[10px] text-white/15 font-mono ml-auto">
-          {filteredPresets.length} 个预设，当前使用: <span className="text-aether-purple/40">{activePreset?.name ?? '无'}</span>
+        {/* 当前激活的预设名 */}
+        <span className="text-[10px] font-display tracking-wide ml-auto flex items-center gap-3">
+          <span className="text-white/20">剧情:</span>
+          <span className={activeStoryId ? 'text-aether-cyan/50' : 'text-white/15'}>
+            {presets.find(p => p.id === activeStoryId)?.name ?? '无'}
+          </span>
+          <span className="text-white/10">|</span>
+          <span className="text-white/20">变量:</span>
+          <span className={activeVarsId ? 'text-amber-300/50' : 'text-white/15'}>
+            {presets.find(p => p.id === activeVarsId)?.name ?? '无'}
+          </span>
         </span>
       </div>
 
