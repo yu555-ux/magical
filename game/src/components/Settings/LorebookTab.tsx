@@ -8,6 +8,7 @@ import { saveSettings } from '../../sillytavern/database';
 interface Props {
   draft: AppSettings;
   setDraft: (d: AppSettings) => void;
+  onPersist: (patch: Partial<AppSettings>) => Promise<void>;
 }
 
 const POSITION_OPTIONS = [
@@ -326,7 +327,7 @@ function EntryEditor({ entry, onUpdate }: { entry: LorebookEntry; onUpdate: (p: 
 }
 
 // ── Main ──
-export default function LorebookTab({ draft, setDraft }: Props) {
+export default function LorebookTab({ draft, setDraft, onPersist }: Props) {
   const lorebooks: Lorebook[] = draft.lorebooks ?? [];
   const [expandedBook, setExpandedBook] = useState<string | null>(null);
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
@@ -349,7 +350,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
   const save = async (next: Lorebook[]) => {
     const nextDraft = { ...draft, lorebooks: next };
     setDraft(nextDraft);
-    try { await saveSettings(nextDraft); } catch {
+    try { await onPersist({ lorebooks: next }); } catch {
       showToast('保存失败，请重试', 'error');
     }
   };
@@ -412,7 +413,7 @@ export default function LorebookTab({ draft, setDraft }: Props) {
       const book = importLorebookFromJson(raw, file.name);
       const next = [...lorebooks, book];
       setDraft({ ...draft, lorebooks: next });
-      await saveSettings({ ...draft, lorebooks: next });
+      await onPersist({ lorebooks: next });
       setExpandedBook(book.id);
       showToast(`已导入「${book.name}」: ${book.entries.length} 个条目`, 'success');
     } catch (err: any) {

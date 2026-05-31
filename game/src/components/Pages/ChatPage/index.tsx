@@ -308,7 +308,7 @@ export default function ChatPage({
                   title={isStreaming ? '停止生成' : '发送'}
                 >
                   {isStreaming || ss.dualRunning ? (
-                    <Square size={16} className={ss.dualRunning ? 'text-amber-300' : ''} />
+                    <Square size={16} />
                   ) : (
                     <Send size={18} />
                   )}

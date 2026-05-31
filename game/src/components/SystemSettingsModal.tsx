@@ -144,7 +144,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
                     primaryModels={primaryModels} secondaryModels={secondaryModels}
                     onFetchModels={handleFetchModels} onTestConnection={handleTestConnection} />
                 )}
-                {tab === 'lorebook' && draft && <LorebookTab draft={draft} setDraft={setDraft} />}
+                {tab === 'lorebook' && draft && <LorebookTab draft={draft} setDraft={setDraft} onPersist={(patch) => ss.updateSettings(patch)} />}
                 {tab === 'preset' && draft && <PromptManagerRoot draft={draft} setDraft={setDraft} onPersist={(patch) => ss.updateSettings(patch)} />}
                 {tab === 'identity' && draft && <IdentityTab draft={draft} setDraft={setDraft} />}
                 {tab === 'frontend' && draft && <FrontendConfigTab draft={draft} setDraft={setDraft} />}

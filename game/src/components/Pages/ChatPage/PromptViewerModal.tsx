@@ -70,15 +70,11 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
           <div className="relative z-10 flex items-center justify-between px-6 py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)] ${
-                  view === 'secondary' ? 'bg-amber-400' : 'bg-aether-cyan'
-                }`} />
-                <div className={`absolute inset-0 w-2.5 h-2.5 rounded-full animate-ping opacity-20 ${
-                  view === 'secondary' ? 'bg-amber-400' : 'bg-aether-cyan'
-                }`} />
+                <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
+                <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
               </div>
               <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">
-                {view === 'secondary' ? '第二API 变量预设' : '发送给 AI 的提示词'}
+                {view === 'secondary' ? '变量提示词' : '正文提示词'}
               </h2>
               {hasSecondary && (
                 <div className="flex items-center gap-0.5 ml-2">
@@ -141,9 +137,7 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
                     return (
                       <div key={id}
                         className={`rounded border border-aether-border/8 bg-aether-dark/20 border-l-2 ${
-                          isHistory ? 'border-l-aether-cyan/25' :
-                          view === 'secondary' ? 'border-l-amber-400/25' :
-                          'border-l-aether-purple/25'
+                          isHistory ? 'border-l-aether-cyan/25' : 'border-l-aether-purple/25'
                         }`}>
                         <button
                           onClick={() => toggle(id)}
