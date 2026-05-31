@@ -55,7 +55,7 @@ export function importPresetFromJson(raw: Record<string, any>): ImportResult {
     // ── ST native format: prompts[] array ──
     const prompts: RawPromptEntry[] = merged.prompts;
     blocks = prompts
-      .filter(p => p.identifier)
+      .filter(p => p.identifier && !p.system_prompt && !p.marker)
       .map(p => ({
         identifier: p.identifier,
         name: p.name || p.identifier,

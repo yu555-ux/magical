@@ -39,6 +39,75 @@ export function useSillytavern() {
 
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId) ?? null, [chats, activeChatId]);
 
+  // 构建第二API提示词预览（响应 settings / activeChat 变化）
+  const buildSecondaryPrompt = useCallback((s: AppSettings, chat: ChatSession | null) => {
+    const varsPreset = s.presets?.find(
+      p => p.id === s.activeVarsPresetId && p.type === 'vars',
+    );
+    if (!varsPreset) { setLastSecondaryPrompt(null); return; }
+
+    const chatVars = chat?.variables ?? {};
+    const lastAssistant = [...(chat?.messages ?? [])].reverse().find(m => m.role === 'assistant');
+    const lastMaintext = lastAssistant?.parsed?.maintext ?? '';
+
+    const secMacroCtx = {
+      userName: s.userName ?? DEFAULT_SETTINGS.userName,
+      characterName: s.characterName ?? DEFAULT_SETTINGS.characterName,
+      userInput: '',
+      playerDescription: s.playerDescription,
+      characterDescription: s.characterDescription,
+      varsListText: formatVariablesForPrompt(chatVars),
+      lastMaintext: lastMaintext || '(暂无AI回复正文)',
+    };
+
+    const secStageMessages: Record<string, Array<{ role: string; content: string }>> = {};
+    const secStageTokens: Record<string, number> = {};
+    const secStageOrder: string[] = [];
+    const secStageNames: Record<string, string> = {};
+    let secTotalTokens = 0;
+
+    for (const block of varsPreset.blocks) {
+      if (!block.enabled || !block.content?.trim()) continue;
+      const resolved = replaceMacros(block.content, secMacroCtx);
+      if (!resolved.trim()) continue;
+      const tokenEst = Math.round(resolved.length / 4);
+      secTotalTokens += tokenEst;
+      secStageMessages[block.identifier] = [{ role: block.role, content: resolved }];
+      secStageTokens[block.identifier] = tokenEst;
+      secStageOrder.push(block.identifier);
+      secStageNames[block.identifier] = block.name || block.identifier;
+    }
+
+    if (secStageOrder.length > 0) {
+      // 追加正文
+      const bodyContent = lastMaintext || '(暂无AI回复正文)';
+      const bodyId = '__body__';
+      secStageMessages[bodyId] = [{ role: 'user', content: bodyContent.slice(0, 3000) }];
+      secStageTokens[bodyId] = Math.round(bodyContent.length / 4);
+      secStageOrder.push(bodyId);
+      secStageNames[bodyId] = '正文（截断3000字）';
+      secTotalTokens += secStageTokens[bodyId];
+
+      setLastSecondaryPrompt({
+        messages: [],
+        estimatedTokens: secTotalTokens,
+        stageTokens: secStageTokens,
+        stageMessages: secStageMessages,
+        stageOrder: secStageOrder,
+        stageNames: secStageNames,
+      });
+    } else {
+      setLastSecondaryPrompt(null);
+    }
+  }, []);
+
+  // 响应 settings 变化自动重建第二API提示词预览
+  useEffect(() => {
+    if (settings && initialized) {
+      buildSecondaryPrompt(settings, activeChat);
+    }
+  }, [settings, activeChat, initialized, buildSecondaryPrompt]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -473,60 +542,9 @@ export function useSillytavern() {
       stageNames,
     });
 
-    // 构建第二API提示词预览（变量预设块 + 宏解析）
-    const varsPreset = effectiveSettings.presets?.find(
-      p => p.id === effectiveSettings.activeVarsPresetId && p.type === 'vars',
-    );
-    if (varsPreset) {
-      const lastAssistant = [...activeChat.messages].reverse().find(m => m.role === 'assistant');
-      const lastMaintext = lastAssistant?.parsed?.maintext ?? '';
-      const secMacroCtx = {
-        userName: effectiveSettings.userName ?? DEFAULT_SETTINGS.userName,
-        characterName: effectiveSettings.characterName ?? DEFAULT_SETTINGS.characterName,
-        userInput: lastUser?.content ?? '',
-        playerDescription: effectiveSettings.playerDescription,
-        characterDescription: effectiveSettings.characterDescription,
-        varsListText: formatVariablesForPrompt(chatVars),
-        lastMaintext: lastMaintext || '(暂无AI回复正文)',
-      };
-      const secStageMessages: Record<string, Array<{ role: string; content: string }>> = {};
-      const secStageTokens: Record<string, number> = {};
-      const secStageOrder: string[] = [];
-      const secStageNames: Record<string, string> = {};
-      let secTotalTokens = 0;
-      for (const block of varsPreset.blocks) {
-        if (!block.enabled || !block.content?.trim()) continue;
-        const resolved = replaceMacros(block.content, secMacroCtx);
-        if (!resolved.trim()) continue;
-        const tokenEst = Math.round(resolved.length / 4);
-        secTotalTokens += tokenEst;
-        secStageMessages[block.identifier] = [{ role: block.role, content: resolved }];
-        secStageTokens[block.identifier] = tokenEst;
-        secStageOrder.push(block.identifier);
-        secStageNames[block.identifier] = block.name || block.identifier;
-      }
-      // 追加正文
-      if (secTotalTokens > 0) {
-        const bodyContent = lastMaintext || '(暂无AI回复正文)';
-        const bodyId = '__body__';
-        secStageMessages[bodyId] = [{ role: 'user', content: bodyContent.slice(0, 3000) }];
-        secStageTokens[bodyId] = Math.round(bodyContent.length / 4);
-        secStageOrder.push(bodyId);
-        secStageNames[bodyId] = '正文（截断3000字）';
-        secTotalTokens += secStageTokens[bodyId];
-      }
-      setLastSecondaryPrompt({
-        messages: [],
-        estimatedTokens: secTotalTokens,
-        stageTokens: secStageTokens,
-        stageMessages: secStageMessages,
-        stageOrder: secStageOrder,
-        stageNames: secStageNames,
-      });
-    } else {
-      setLastSecondaryPrompt(null);
-    }
-  }, [activeChat, settings]);
+    // 重建第二API提示词预览
+    buildSecondaryPrompt(effectiveSettings, activeChat);
+  }, [activeChat, settings, buildSecondaryPrompt]);
 
   return {
     settings, chats, activeChat, initialized, lastPrompt, lastSecondaryPrompt,
