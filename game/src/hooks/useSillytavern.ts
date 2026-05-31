@@ -60,7 +60,6 @@ export function useSillytavern() {
     const scanCtx = scanText || '';
     const scanResult = scanLorebooks(matched, scanCtx, scanCtx);
     const allEntries: string[] = [];
-    const allEntries: string[] = [];
     for (const anchor of Object.keys(scanResult.groups)) {
       const entries = scanResult.groups[anchor];
       if (entries.length > 0) {
