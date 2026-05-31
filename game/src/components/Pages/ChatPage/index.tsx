@@ -94,7 +94,8 @@ export default function ChatPage({
     || latestAssistant?.content
     || '';
 
-  const rawOptions = isStreaming
+  // 优先流式选项（结束后仍保留），其次已保存消息
+  const rawOptions = ss.streamState.options.length > 0
     ? ss.streamState.options
     : (latestAssistant?.parsed?.options ?? []);
   const options = useMemo(
@@ -363,9 +364,12 @@ export default function ChatPage({
         ctxMenu={ctxMenu}
         onClose={() => setCtxMenu({ x: 0, y: 0, visible: false })}
         onViewRaw={() => {
-          // 优先当前流式正文，其次已保存消息
-          const raw = ss.streamState.maintext || latestAssistant?.content || '';
-          const content = raw && !/^<maintext>/.test(raw) ? `<maintext>\n${raw}\n</maintext>` : raw;
+          // 当前正文（无标签）→包裹<maintext>；已保存消息（已有标签）→原样
+          const streamText = ss.streamState.maintext;
+          const savedContent = latestAssistant?.content || '';
+          const content = streamText
+            ? `<maintext>\n${streamText}\n</maintext>`
+            : savedContent;
           setRawContent(content);
           setEditedRaw(content);
           setRawViewOpen(true);
