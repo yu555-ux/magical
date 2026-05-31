@@ -4,7 +4,6 @@ import { AlertTriangle, CheckCircle, Plus, Upload } from 'lucide-react';
 import type { AppSettings, PresetBlock, PresetParams, SavedPreset } from '../../../sillytavern/types';
 import { DEFAULT_PRESET_PARAMS } from '../../../sillytavern/types';
 import { importPresetFromJson } from '../../../sillytavern/presetImporter';
-import { saveSettings } from '../../../sillytavern/database';
 import type { PromptManagerProps } from './types';
 import { newBlock } from './types';
 import PresetSelector from './PresetSelector';
@@ -14,7 +13,7 @@ import PromptBlockPool from './PromptBlockPool';
 import PromptEditDrawer from './PromptEditDrawer';
 import QuickEditArea from './QuickEditArea';
 
-export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProps) {
+export default function PromptManagerRoot({ draft, setDraft, onPersist }: PromptManagerProps) {
   const presets: SavedPreset[] = draft.presets ?? [];
   const [presetFilter, setPresetFilter] = useState<'story' | 'vars'>('story');
   const activeStoryId = draft.activePresetId;
@@ -35,9 +34,8 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
   }, []);
 
   const saveDraft = async (patch: Partial<AppSettings>) => {
-    const next = { ...draft, ...patch };
-    setDraft(next);
-    try { await saveSettings(next); } catch { showToast('保存失败', 'error'); }
+    setDraft({ ...draft, ...patch });
+    try { await onPersist(patch); } catch { showToast('保存失败', 'error'); }
   };
 
   // ── Preset ops ──

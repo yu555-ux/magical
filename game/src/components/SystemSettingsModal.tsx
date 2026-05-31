@@ -55,6 +55,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       || JSON.stringify(draft.presetParams) !== JSON.stringify(ss.settings.presetParams)
       || JSON.stringify(draft.presets) !== JSON.stringify(ss.settings.presets)
       || draft.activePresetId !== ss.settings.activePresetId
+      || draft.activeVarsPresetId !== ss.settings.activeVarsPresetId
       || draft.messageWidthPercent !== (ss.settings.messageWidthPercent ?? DEFAULT_SETTINGS.messageWidthPercent)
       || JSON.stringify(draft.richTextConfig) !== JSON.stringify(ss.settings.richTextConfig)
       || draft.recentMessageCount !== (ss.settings.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount);
@@ -72,6 +73,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
         presetParams: draft.presetParams,
         presets: draft.presets,
         activePresetId: draft.activePresetId,
+        activeVarsPresetId: draft.activeVarsPresetId,
         messageWidthPercent: draft.messageWidthPercent ?? DEFAULT_SETTINGS.messageWidthPercent,
         richTextConfig: draft.richTextConfig,
         recentMessageCount: draft.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount,
@@ -143,7 +145,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
                     onFetchModels={handleFetchModels} onTestConnection={handleTestConnection} />
                 )}
                 {tab === 'lorebook' && draft && <LorebookTab draft={draft} setDraft={setDraft} />}
-                {tab === 'preset' && draft && <PromptManagerRoot draft={draft} setDraft={setDraft} />}
+                {tab === 'preset' && draft && <PromptManagerRoot draft={draft} setDraft={setDraft} onPersist={(patch) => ss.updateSettings(patch)} />}
                 {tab === 'identity' && draft && <IdentityTab draft={draft} setDraft={setDraft} />}
                 {tab === 'frontend' && draft && <FrontendConfigTab draft={draft} setDraft={setDraft} />}
               </motion.div>

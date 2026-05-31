@@ -42,6 +42,8 @@ export function useSillytavern() {
         // Restore defaults for fields that may be undefined in stored settings
         lorebooks: s.lorebooks ?? DEFAULT_SETTINGS.lorebooks,
         presetBlocks: s.presetBlocks ?? DEFAULT_SETTINGS.presetBlocks,
+        presets: s.presets ?? DEFAULT_SETTINGS.presets,
+        activeVarsPresetId: s.activeVarsPresetId ?? DEFAULT_SETTINGS.activeVarsPresetId,
       } : { ...DEFAULT_SETTINGS });
       setChats(c);
       if (c.length > 0) setActiveChatId(c[0].id);

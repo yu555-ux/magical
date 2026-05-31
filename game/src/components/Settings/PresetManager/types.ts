@@ -3,6 +3,7 @@ import type { AppSettings, PresetBlock, PresetParams, SavedPreset } from '../../
 export interface PromptManagerProps {
   draft: AppSettings;
   setDraft: (d: AppSettings) => void;
+  onPersist: (patch: Partial<AppSettings>) => Promise<void>;
 }
 
 export interface PresetSelectorProps {
