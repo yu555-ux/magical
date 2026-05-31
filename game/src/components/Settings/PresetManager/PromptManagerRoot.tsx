@@ -151,13 +151,25 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
         showToast('未识别到任何预设词块', 'error');
         return;
       }
+      const isVarsImport = presetFilter === 'vars';
+      // 类型特有过滤
+      const filteredBlocks = result.blocks.filter(b => {
+        // SPresetSettings 对任何类型都无用（ST正则扩展配置）
+        if (b.identifier === 'SPresetSettings') return false;
+        // 变量预设：排除ST内部结构块（marker块和system_prompt占位块）
+        if (isVarsImport) {
+          if (b.marker) return false;
+          if (['nsfw', 'jailbreak', 'enhanceDefinitions'].includes(b.identifier)) return false;
+        }
+        return true;
+      });
       const newPreset: SavedPreset = {
         id: crypto.randomUUID(),
         name: result.name || file.name.replace(/\.json$/i, ''),
         source: result.source,
         description: result.description,
         type: presetFilter,
-        blocks: result.blocks.map(b => ({ ...b, identifier: crypto.randomUUID() })),
+        blocks: filteredBlocks.map(b => ({ ...b, identifier: crypto.randomUUID() })),
         params: result.params,
         createdAt: Date.now(),
       };
@@ -177,7 +189,8 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
             }
         ),
       });
-      showToast(`已导入「${newPreset.name}」: ${newPreset.blocks.length} 个词块`, 'success');
+      const skipped = result.blocks.length - filteredBlocks.length;
+      showToast(`已导入「${newPreset.name}」: ${filteredBlocks.length} 个词块${skipped > 0 ? `（已跳过${skipped}个内部块）` : ''}`, 'success');
     } catch (err: any) {
       showToast(`导入失败: ${err?.message || '无法解析'}`, 'error');
     }
