@@ -88,9 +88,11 @@ export default function ChatPage({
   const thinking = isStreaming
     ? ss.streamState.thinking
     : (latestAssistant?.parsed?.thinking ?? '');
-  const maintext = isStreaming
-    ? ss.streamState.maintext
-    : (latestAssistant?.parsed?.maintext ?? latestAssistant?.content ?? '');
+  // 优先流式内容（结束后仍保留），其次已保存的助理消息
+  const maintext = ss.streamState.maintext
+    || latestAssistant?.parsed?.maintext
+    || latestAssistant?.content
+    || '';
 
   const rawOptions = isStreaming
     ? ss.streamState.options

@@ -307,33 +307,24 @@ export function useSillytavern() {
     const preVars = updatedChat.variables ?? {};
     const oldRealTime = (preVars['世界']?.['现实']?.['时间'] ?? null) as string | null;
     const oldDreamTime = (preVars['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
-    let { nextVariables, snapshot } = applyParsedToChat(preVars, parsed);
-    autoTagDreamItems(preVars, nextVariables);
-
-    // 第一API正文立即保存到UI（不等第二API）
-    console.log('[SillyTavern] 第一API完成, 正文长度:', rawContent.length, '变量变动:', Object.keys(parsed.varsCommands.merge).length);
-    const primaryMsgId = crypto.randomUUID();
-    const partialMsg: ChatMessage = {
-      id: primaryMsgId, role: 'assistant', content: rawContent,
-      timestamp: Date.now(), parsed, variablesAfter: snapshot, apiUsed: 'primary',
-    };
-    const partialChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, partialMsg], variables: nextVariables, updatedAt: Date.now() };
-    await db.chats.put(partialChat);
-    setChats(prev => prev.map(c => c.id === partialChat.id ? partialChat : c));
-    console.log('[SillyTavern] partial消息已保存, UI已更新');
+    // 双API模式: 第一API不处理变量  [SillyTavern] 第一API完成
+    const isDual = effectiveSettings.apiMode === 'dual' && effectiveApi.secondary?.enabled;
+    let { nextVariables, snapshot } = isDual
+      ? { nextVariables: JSON.parse(JSON.stringify(preVars)), snapshot: JSON.parse(JSON.stringify(preVars)) }
+      : applyParsedToChat(preVars, parsed);
+    if (!isDual) autoTagDreamItems(preVars, nextVariables);
+    console.log('[SillyTavern] 第一API完成, 正文:', rawContent.length, '模式:', isDual ? 'dual(变量由第二API处理)' : 'single');
 
     let apiUsed: 'primary' | 'secondary' | 'dual' = 'primary';
     let secondaryRaw = '';
-    if (effectiveApi.secondary?.enabled && effectiveSettings.apiMode === 'dual' && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
+    if (isDual && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
       setDualRunning(true);
-      const maintextForVars = parsed.maintext || events.filter(e => e.type === 'tag-chunk' || e.type === 'raw').map((e: any) => e.chunk).join('');
+      const maintextForVars = parsed.maintext || rawContent;
       if (maintextForVars.trim()) {
         try {
           const varsPreset = effectiveSettings.presets.find(
             p => p.id === effectiveSettings.activeVarsPresetId && p.type === 'vars',
           );
-
-          const secMessages: Array<{ role: string; content: string }> = [];
 
           if (varsPreset) {
             const lorebooks = effectiveSettings.lorebooks ?? [];
@@ -346,46 +337,28 @@ export function useSillytavern() {
               varsListText: formatVariablesForPrompt(nextVariables),
               lastMaintext: maintextForVars,
             };
+            const secMessages: Array<{ role: string; content: string }> = [];
             for (const block of varsPreset.blocks) {
               if (!block.enabled || !block.content?.trim()) continue;
               let resolved = resolveLorebyMacro(block.content, lorebooks);
               resolved = replaceMacros(resolved, secMacroCtx);
-              if (resolved.trim()) {
-                secMessages.push({ role: block.role, content: resolved });
-              }
+              if (resolved.trim()) secMessages.push({ role: block.role, content: resolved });
             }
-          } else {
-            secMessages.push({ role: 'system', content: '根据变量更新规则，从正文中提取变量变动。输出格式为 JSONPatch 数组或 JSON 合并对象。只输出 JSON，不要包含其他文本。' });
-            secMessages.push({ role: 'user', content: `当前变量：\n${JSON.stringify(nextVariables, null, 2)}\n\n正文：\n${maintextForVars.slice(0, 3000)}` });
-          }
+            console.log('[SillyTavern] 第二API调用, 消息数:', secMessages.length);
 
-          console.log('[SillyTavern] 第二API调用开始, 消息数:', secMessages.length, '正文长度:', maintextForVars.length);
-          const secResult = await freshRouter.call('vars', {
-            messages: secMessages as any,
-            stream: false,
-            temperature: effectiveApi.secondary.temperature ?? 0.3,
-            max_tokens: effectiveApi.secondary.maxTokens ?? 2048,
-          });
-          if (secResult.response.ok) {
-            const d = await secResult.response.json();
-            const raw = d?.choices?.[0]?.message?.content ?? '';
-            console.log('[SillyTavern] 第二API响应成功, 长度:', raw.length);
-            secondaryRaw = raw;
+            const secResult = await freshRouter.call('vars', {
+              messages: secMessages as any,
+              stream: false,
+              temperature: effectiveApi.secondary.temperature ?? 0.3,
+              max_tokens: effectiveApi.secondary.maxTokens ?? 2048,
+            });
+            if (secResult.response.ok) {
+              const d = await secResult.response.json();
+              const raw = d?.choices?.[0]?.message?.content ?? '';
+              console.log('[SillyTavern] 第二API完成, 长度:', raw.length);
+              secondaryRaw = raw;
 
-            const mObj = raw.match(/\{[\s\S]*\}/);
-            if (mObj) {
-              try {
-                const sp = JSON.parse(mObj[0]);
-                if (sp && typeof sp === 'object' && !Array.isArray(sp)) {
-                  nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: sp }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
-                  autoTagDreamItems(preVars, nextVariables);
-                  snapshot = JSON.parse(JSON.stringify(nextVariables));
-                  apiUsed = 'dual';
-                }
-              } catch { /* try array format */ }
-            }
-
-            if (apiUsed !== 'dual') {
+              // JSONPatch 数组
               const mArr = raw.match(/\[[\s\S]*\]/);
               if (mArr) {
                 try {
@@ -396,23 +369,39 @@ export function useSillytavern() {
                     snapshot = JSON.parse(JSON.stringify(nextVariables));
                     apiUsed = 'dual';
                   }
-                } catch { /* fallback */ }
+                } catch { /* JSON parse failed */ }
+              }
+              // JSON 合并对象（后备）
+              if (apiUsed !== 'dual') {
+                const mObj = raw.match(/\{[\s\S]*\}/);
+                if (mObj) {
+                  try {
+                    const sp = JSON.parse(mObj[0]);
+                    if (sp && typeof sp === 'object' && !Array.isArray(sp)) {
+                      nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: sp }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
+                      autoTagDreamItems(preVars, nextVariables);
+                      snapshot = JSON.parse(JSON.stringify(nextVariables));
+                      apiUsed = 'dual';
+                    }
+                  } catch { /* fallback */ }
+                }
               }
             }
+          } else {
+            console.log('[SillyTavern] 第二API跳过: 未找到变量预设');
           }
-        } catch (e) { console.error('[SillyTavern] 第二API调用失败:', e); }
-      } else {
-        console.log('[SillyTavern] 第二API跳过: 正文为空');
+        } catch (e) { console.error('[SillyTavern] 第二API失败(非致命):', e); }
       }
-    } else {
-      console.log('[SillyTavern] 第二API跳过: 双API未启用或未配置');
+    } else if (isDual) {
+      console.log('[SillyTavern] 第二API跳过: 未配置URL/Key');
     }
     setDualRunning(false);
 
     // 第二API输出追加到正文
     const finalContent = secondaryRaw
-      ? rawContent + '\n\n<details><summary>🔍 第二API变量提取</summary>\n\n' + secondaryRaw + '\n\n</details>'
+      ? rawContent + '\n\n' + secondaryRaw
       : rawContent;
+    const msgId = crypto.randomUUID();
 
     // Auto-unequip items that don't match current plane
     const oldInDream = preVars?.世界?.梦境定位?.位于梦境 === true;
@@ -466,11 +455,11 @@ export function useSillytavern() {
       const plotHistorySnapshot = JSON.parse(JSON.stringify(plotHistory));
 
       const assistantMsg: ChatMessage = {
-        id: primaryMsgId, role: 'assistant',
+        id: msgId, role: 'assistant',
         content: finalContent,
         timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, plotHistoryAfter: plotHistorySnapshot, apiUsed,
       };
-      const updatedMessages = updatedChat.messages.map(m => m.id === primaryMsgId ? assistantMsg : (m as ChatMessage));
+      const updatedMessages = updatedChat.messages.map(m => m.id === msgId ? assistantMsg : (m as ChatMessage));
       const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, plotHistory, updatedAt: Date.now() };
       await db.chats.put(finalChat);
       setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
@@ -480,11 +469,11 @@ export function useSillytavern() {
     }
 
     const assistantMsg: ChatMessage = {
-      id: primaryMsgId, role: 'assistant',
+      id: msgId, role: 'assistant',
       content: finalContent,
       timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, apiUsed,
     };
-    const updatedMessages = updatedChat.messages.map(m => m.id === primaryMsgId ? assistantMsg : (m as ChatMessage));
+    const updatedMessages = updatedChat.messages.map(m => m.id === msgId ? assistantMsg : (m as ChatMessage));
     const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, updatedAt: Date.now() };
     await db.chats.put(finalChat);
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
