@@ -103,11 +103,9 @@ export default function RichTextRenderer({ text, config }: { text: string; confi
           return <span key={i} style={style}>{seg.content}</span>;
         }
         return (
-          <React.Fragment key={i}>
-            {seg.prefix && <span>{seg.prefix}</span>}
-            <span style={style}>{seg.content}</span>
-            {seg.suffix && <span>{seg.suffix}</span>}
-          </React.Fragment>
+          <span key={i} style={style}>
+            {seg.prefix}{seg.content}{seg.suffix}
+          </span>
         );
       })}
     </>
