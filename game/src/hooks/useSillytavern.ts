@@ -43,7 +43,6 @@ export function useSillytavern() {
 
   /** 将 {{LOREBY::pattern}} 替换为匹配的世界书条目内容（按条目标题/检索词匹配） */
   const resolveLorebyMacro = useCallback((content: string, lorebooks: typeof settings extends { lorebooks: infer L } ? L : any): string => {
-    console.log('[LOREBY] 调用, content长度:', content?.length, 'lorebooks:', lorebooks?.length || 0);
     if (!lorebooks?.length) return content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
     const patterns: string[] = [];
     const re = /\{\{LOREBY::([^}]+)\}\}/g;
@@ -52,19 +51,15 @@ export function useSillytavern() {
       patterns.push(m[1].trim());
     }
     if (patterns.length === 0) return content;
-    // 按世界书条目标题/comment/检索词直接匹配
+    // 按世界书标题(name)匹配，命中则纳入该书全部启用条目
     const parts: string[] = [];
-    console.log('[LOREBY] patterns:', patterns, 'lorebooks:', lorebooks.map((l: any) => l.name));
     for (const lb of lorebooks) {
       if (!lb.enabled) continue;
+      if (!patterns.some(p => lb.name.includes(p))) continue;
+      console.log('[LOREBY] 世界书匹配:', lb.name);
       for (const entry of (lb.entries ?? [])) {
         if (!entry.enabled) continue;
-        const matchText = [entry.comment || '', entry.keys || [], entry.secondaryKeys || []].flat().join(' ');
-        const hit = patterns.some(p => matchText.includes(p));
-        console.log('[LOREBY] 条目:', entry.comment, 'keys:', entry.keys, '命中:', hit);
-        if (hit) {
-          parts.push(entry.content);
-        }
+        parts.push(entry.content);
       }
     }
     console.log('[LOREBY] 匹配条目数:', parts.length);
@@ -341,10 +336,8 @@ export function useSillytavern() {
               lastMaintext: maintextForVars,
             };
             const secMessages: Array<{ role: string; content: string }> = [];
-            console.log('[LOREBY] 变量预设块数:', varsPreset.blocks.length, '已启用:', varsPreset.blocks.filter(b => b.enabled && b.content?.trim()).length);
             for (const block of varsPreset.blocks) {
               if (!block.enabled || !block.content?.trim()) continue;
-              console.log('[LOREBY] 处理块:', block.name, '内容前100字:', block.content.slice(0, 100));
               let resolved = resolveLorebyMacro(block.content, lorebooks);
               resolved = replaceMacros(resolved, secMacroCtx);
               if (resolved.trim()) secMessages.push({ role: block.role, content: resolved });
