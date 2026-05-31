@@ -352,6 +352,7 @@ export default function ChatPage({
         onClose={() => setPromptOpen(false)}
         onRefresh={() => ss.refreshPrompt()}
         prompt={ss.lastPrompt}
+        secondaryPrompt={ss.lastSecondaryPrompt}
         replyText={latestAssistant?.content}
       />
 

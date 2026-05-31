@@ -2,17 +2,20 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, FileText, ChevronDown, ChevronRight, User, Bot, RefreshCw } from 'lucide-react';
 
+type PromptData = {
+  estimatedTokens: number;
+  stageTokens: Record<string, number>;
+  stageMessages: Record<string, Array<{ role: string; content: string }>>;
+  stageOrder: string[];
+  stageNames: Record<string, string>;
+} | null;
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onRefresh?: () => void;
-  prompt: {
-    estimatedTokens: number;
-    stageTokens: Record<string, number>;
-    stageMessages: Record<string, Array<{ role: string; content: string }>>;
-    stageOrder: string[];
-    stageNames: Record<string, string>;
-  } | null;
+  prompt: PromptData;
+  secondaryPrompt?: PromptData;
   replyText?: string;
 }
 
@@ -25,10 +28,10 @@ function RoleIcon({ role }: { role: string }) {
   }
 }
 
-export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, replyText }: Props) {
+export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, secondaryPrompt, replyText }: Props) {
   const replyTokens = replyText ? Math.round(replyText.length / 4) : 0;
-  const promptTokens = prompt?.estimatedTokens ?? 0;
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<'primary' | 'secondary'>('primary');
 
   const toggle = (id: string) => setCollapsed(prev => {
     const s = new Set(prev);
@@ -38,10 +41,13 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
 
   if (!isOpen) return null;
 
-  const order = prompt?.stageOrder ?? [];
-  const msgs = prompt?.stageMessages ?? {};
-  const tokens = prompt?.stageTokens ?? {};
-  const names = prompt?.stageNames ?? {};
+  const active = view === 'secondary' && secondaryPrompt ? secondaryPrompt : prompt;
+  const promptTokens = active?.estimatedTokens ?? 0;
+  const order = active?.stageOrder ?? [];
+  const msgs = active?.stageMessages ?? {};
+  const tokens = active?.stageTokens ?? {};
+  const names = active?.stageNames ?? {};
+  const hasSecondary = !!secondaryPrompt;
 
   return (
     <AnimatePresence>
@@ -64,14 +70,43 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
           <div className="relative z-10 flex items-center justify-between px-6 py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
-                <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
+                <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)] ${
+                  view === 'secondary' ? 'bg-amber-400' : 'bg-aether-cyan'
+                }`} />
+                <div className={`absolute inset-0 w-2.5 h-2.5 rounded-full animate-ping opacity-20 ${
+                  view === 'secondary' ? 'bg-amber-400' : 'bg-aether-cyan'
+                }`} />
               </div>
-              <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">发送给 AI 的提示词</h2>
+              <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">
+                {view === 'secondary' ? '第二API 变量预设' : '发送给 AI 的提示词'}
+              </h2>
+              {hasSecondary && (
+                <div className="flex items-center gap-0.5 ml-2">
+                  <button
+                    onClick={() => setView('primary')}
+                    className={`px-2 py-0.5 text-[10px] font-display tracking-wide border transition-all ${
+                      view === 'primary'
+                        ? 'border-aether-cyan/40 bg-aether-cyan/10 text-aether-cyan'
+                        : 'border-white/10 text-white/25 hover:text-white/45'
+                    }`}
+                  >第一API</button>
+                  <button
+                    onClick={() => setView('secondary')}
+                    className={`px-2 py-0.5 text-[10px] font-display tracking-wide border transition-all ${
+                      view === 'secondary'
+                        ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
+                        : 'border-white/10 text-white/25 hover:text-white/45'
+                    }`}
+                  >第二API</button>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-mono text-aether-cyan/40">
-                {promptTokens}<span className="text-white/20">(提示词)</span>+{replyTokens}<span className="text-white/20">(回复)</span>={promptTokens+replyTokens} tk
+                ~{promptTokens}<span className="text-white/20"> tk</span>
+                {view === 'primary' && (
+                  <span>{replyTokens > 0 ? ` +${replyTokens}<span className="text-white/20">(回复)</span>` : ''}</span>
+                )}
               </span>
               {onRefresh && (
                 <button onClick={onRefresh} className="text-white/15 hover:text-aether-cyan transition-colors p-1 clickable rounded" title="刷新提示词">
@@ -86,10 +121,12 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {!prompt ? (
+            {!active ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <FileText size={36} className="text-white/8 mb-3" />
-                <p className="text-white/20 text-xs font-display">暂无请求数据</p>
+                <p className="text-white/20 text-xs font-display">
+                  {view === 'secondary' ? '未激活变量预设或暂无数据' : '暂无请求数据'}
+                </p>
               </div>
             ) : (
               <>
@@ -105,6 +142,7 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
                       <div key={id}
                         className={`rounded border border-aether-border/8 bg-aether-dark/20 border-l-2 ${
                           isHistory ? 'border-l-aether-cyan/25' :
+                          view === 'secondary' ? 'border-l-amber-400/25' :
                           'border-l-aether-purple/25'
                         }`}>
                         <button
@@ -136,7 +174,6 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
                     );
                   })}
                 </div>
-
               </>
             )}
           </div>
