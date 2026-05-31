@@ -43,9 +43,8 @@ export function useSillytavern() {
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId) ?? null, [chats, activeChatId]);
 
   /** 将 {{LOREBY::pattern}} 替换为匹配的世界书条目内容 */
-  const resolveLorebyMacro = useCallback((content: string, lorebooks: typeof settings extends { lorebooks: infer L } ? L : any): string => {
+  const resolveLorebyMacro = useCallback((content: string, lorebooks: typeof settings extends { lorebooks: infer L } ? L : any, scanText?: string): string => {
     if (!lorebooks || lorebooks.length === 0) return content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
-    // 收集所有 pattern
     const patterns: string[] = [];
     const re = /\{\{LOREBY::([^}]+)\}\}/g;
     let m: RegExpExecArray | null;
@@ -53,13 +52,14 @@ export function useSillytavern() {
       patterns.push(m[1].trim());
     }
     if (patterns.length === 0) return content;
-    // 按标题过滤
     const matched = lorebooks.filter((lb: any) =>
       patterns.some(p => lb.name.includes(p)),
     );
     if (matched.length === 0) return content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
-    // 扫描并格式化
-    const scanResult = scanLorebooks(matched, '', '');
+    // 用正文+用户输入扫描，激活非常量条目
+    const scanCtx = scanText || '';
+    const scanResult = scanLorebooks(matched, scanCtx, scanCtx);
+    const allEntries: string[] = [];
     const allEntries: string[] = [];
     for (const anchor of Object.keys(scanResult.groups)) {
       const entries = scanResult.groups[anchor];
@@ -101,7 +101,7 @@ export function useSillytavern() {
     const lorebooks = s.lorebooks ?? [];
     for (const block of varsPreset.blocks) {
       if (!block.enabled || !block.content?.trim()) continue;
-      let resolved = resolveLorebyMacro(block.content, lorebooks);
+      let resolved = resolveLorebyMacro(block.content, lorebooks, lastMaintext);
       resolved = replaceMacros(resolved, secMacroCtx);
       if (!resolved.trim()) continue;
       const tokenEst = Math.round(resolved.length / 4);

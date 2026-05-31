@@ -84,7 +84,7 @@ export function Toast({ message, type, onClose }: ToastProps) {
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 120, opacity: 0 }}
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-      className={`fixed right-6 top-6 z-[1000] p-4 border glass-panel flex items-center gap-4 min-w-[320px] ${colors[type]}`}
+      className={`fixed right-6 top-24 z-[1000] p-4 border glass-panel flex items-center gap-4 min-w-[320px] ${colors[type]}`}
       id={`toast-${type}`}
     >
       <span className="shrink-0">{icons[type]}</span>
