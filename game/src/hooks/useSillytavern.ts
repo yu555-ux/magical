@@ -309,6 +309,16 @@ export function useSillytavern() {
     let { nextVariables, snapshot } = applyParsedToChat(preVars, parsed);
     autoTagDreamItems(preVars, nextVariables);
 
+    // 第一API正文立即保存到UI（不等第二API）
+    const primaryMsgId = crypto.randomUUID();
+    const partialMsg: ChatMessage = {
+      id: primaryMsgId, role: 'assistant', content: rawContent,
+      timestamp: Date.now(), parsed, variablesAfter: snapshot, apiUsed: 'primary',
+    };
+    const partialChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, partialMsg], variables: nextVariables, updatedAt: Date.now() };
+    await db.chats.put(partialChat);
+    setChats(prev => prev.map(c => c.id === partialChat.id ? partialChat : c));
+
     let apiUsed: 'primary' | 'secondary' | 'dual' = 'primary';
     let secondaryRaw = '';
     if (effectiveApi.secondary?.enabled && effectiveSettings.apiMode === 'dual' && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
@@ -316,7 +326,6 @@ export function useSillytavern() {
       const maintextForVars = parsed.maintext || events.filter(e => e.type === 'tag-chunk' || e.type === 'raw').map((e: any) => e.chunk).join('');
       if (maintextForVars.trim()) {
         try {
-          // 查找激活的变量预设
           const varsPreset = effectiveSettings.presets.find(
             p => p.id === effectiveSettings.activeVarsPresetId && p.type === 'vars',
           );
@@ -356,9 +365,8 @@ export function useSillytavern() {
           if (secResult.response.ok) {
             const d = await secResult.response.json();
             const raw = d?.choices?.[0]?.message?.content ?? '';
-            secondaryRaw = raw;  // 保存第二API原始输出，追加到助理消息下方
+            secondaryRaw = raw;
 
-            // 尝试 JSON 对象（旧格式：深度合并）
             const mObj = raw.match(/\{[\s\S]*\}/);
             if (mObj) {
               try {
@@ -369,10 +377,9 @@ export function useSillytavern() {
                   snapshot = JSON.parse(JSON.stringify(nextVariables));
                   apiUsed = 'dual';
                 }
-              } catch { /* JSON parse failed, try array format below */ }
+              } catch { /* try array format */ }
             }
 
-            // 尝试 JSON 数组（新格式：JSONPatch）
             if (apiUsed !== 'dual') {
               const mArr = raw.match(/\[[\s\S]*\]/);
               if (mArr) {
@@ -384,7 +391,7 @@ export function useSillytavern() {
                     snapshot = JSON.parse(JSON.stringify(nextVariables));
                     apiUsed = 'dual';
                   }
-                } catch { /* fallback to primary vars */ }
+                } catch { /* fallback */ }
               }
             }
           }
@@ -394,9 +401,9 @@ export function useSillytavern() {
     setDualRunning(false);
 
     // 第二API输出追加到正文
-    if (secondaryRaw) {
-      rawContent += '\n\n<details><summary>🔍 第二API变量提取</summary>\n\n' + secondaryRaw + '\n\n</details>';
-    }
+    const finalContent = secondaryRaw
+      ? rawContent + '\n\n<details><summary>🔍 第二API变量提取</summary>\n\n' + secondaryRaw + '\n\n</details>'
+      : rawContent;
 
     // Auto-unequip items that don't match current plane
     const oldInDream = preVars?.世界?.梦境定位?.位于梦境 === true;
@@ -450,11 +457,12 @@ export function useSillytavern() {
       const plotHistorySnapshot = JSON.parse(JSON.stringify(plotHistory));
 
       const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(), role: 'assistant',
-        content: rawContent,
+        id: primaryMsgId, role: 'assistant',
+        content: finalContent,
         timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, plotHistoryAfter: plotHistorySnapshot, apiUsed,
       };
-      const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, dreamAnchor: updatedDreamAnchor, plotHistory, updatedAt: Date.now() };
+      const updatedMessages = updatedChat.messages.map(m => m.id === primaryMsgId ? assistantMsg : (m as ChatMessage));
+      const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, plotHistory, updatedAt: Date.now() };
       await db.chats.put(finalChat);
       setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
@@ -463,11 +471,12 @@ export function useSillytavern() {
     }
 
     const assistantMsg: ChatMessage = {
-      id: crypto.randomUUID(), role: 'assistant',
-      content: rawContent,
+      id: primaryMsgId, role: 'assistant',
+      content: finalContent,
       timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, apiUsed,
     };
-    const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, dreamAnchor: updatedDreamAnchor, updatedAt: Date.now() };
+    const updatedMessages = updatedChat.messages.map(m => m.id === primaryMsgId ? assistantMsg : (m as ChatMessage));
+    const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, updatedAt: Date.now() };
     await db.chats.put(finalChat);
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
