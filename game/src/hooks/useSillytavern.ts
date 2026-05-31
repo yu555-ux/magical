@@ -3,7 +3,6 @@ import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt } from '../sillytavern/variables';
 import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
-import { scanLorebooks, formatMatchedEntries } from '../sillytavern/lorebookEngine';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
@@ -42,9 +41,9 @@ export function useSillytavern() {
 
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId) ?? null, [chats, activeChatId]);
 
-  /** 将 {{LOREBY::pattern}} 替换为匹配的世界书条目内容 */
-  const resolveLorebyMacro = useCallback((content: string, lorebooks: typeof settings extends { lorebooks: infer L } ? L : any, scanText?: string): string => {
-    if (!lorebooks || lorebooks.length === 0) return content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
+  /** 将 {{LOREBY::pattern}} 替换为匹配的世界书条目内容（按条目标题/检索词匹配） */
+  const resolveLorebyMacro = useCallback((content: string, lorebooks: typeof settings extends { lorebooks: infer L } ? L : any): string => {
+    if (!lorebooks?.length) return content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
     const patterns: string[] = [];
     const re = /\{\{LOREBY::([^}]+)\}\}/g;
     let m: RegExpExecArray | null;
@@ -52,22 +51,20 @@ export function useSillytavern() {
       patterns.push(m[1].trim());
     }
     if (patterns.length === 0) return content;
-    const matched = lorebooks.filter((lb: any) =>
-      patterns.some(p => lb.name.includes(p)),
-    );
-    if (matched.length === 0) return content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
-    // 用正文+用户输入扫描，激活非常量条目
-    const scanCtx = scanText || '';
-    const scanResult = scanLorebooks(matched, scanCtx, scanCtx);
-    const allEntries: string[] = [];
-    for (const anchor of Object.keys(scanResult.groups)) {
-      const entries = scanResult.groups[anchor];
-      if (entries.length > 0) {
-        allEntries.push(formatMatchedEntries(entries));
+    // 按世界书条目标题/comment/检索词直接匹配
+    const parts: string[] = [];
+    for (const lb of lorebooks) {
+      if (!lb.enabled) continue;
+      for (const entry of (lb.entries ?? [])) {
+        if (!entry.enabled) continue;
+        const matchText = [entry.comment || '', entry.keys || [], entry.secondaryKeys || []].flat().join(' ');
+        if (patterns.some(p => matchText.includes(p))) {
+          parts.push(entry.content);
+        }
       }
     }
-    const replacement = allEntries.join('\n\n');
-    return content.replace(/\{\{LOREBY::[^}]+\}\}/g, replacement);
+    const replacement = parts.join('\n\n');
+    return replacement ? content.replace(/\{\{LOREBY::[^}]+\}\}/g, replacement) : content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
   }, []);
 
   // 构建第二API提示词预览（响应 settings / activeChat 变化）
@@ -100,7 +97,7 @@ export function useSillytavern() {
     const lorebooks = s.lorebooks ?? [];
     for (const block of varsPreset.blocks) {
       if (!block.enabled || !block.content?.trim()) continue;
-      let resolved = resolveLorebyMacro(block.content, lorebooks, lastMaintext);
+      let resolved = resolveLorebyMacro(block.content, lorebooks);
       resolved = replaceMacros(resolved, secMacroCtx);
       if (!resolved.trim()) continue;
       const tokenEst = Math.round(resolved.length / 4);
