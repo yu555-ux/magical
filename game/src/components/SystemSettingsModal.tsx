@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Server, BookOpen, Sliders, User, Monitor, AlertTriangle, CheckCircle } from 'lucide-react';
-import { useSS } from '../hooks/useSillytavern';
+import { useSS } from '../hooks/SillytavernContext';
 import type { AppSettings, ApiSettings } from '../sillytavern/types';
 import { DEFAULT_SETTINGS } from '../sillytavern/types';
 import { fetchModels, testConnection } from '../sillytavern/api-tools';

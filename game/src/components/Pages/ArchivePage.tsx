@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, User, Heart, Shield, Zap, Database, Diamond, Skull, Package } from 'lucide-react';
 import { Modal } from '../Feedback';
-import { useSS } from '../../hooks/useSillytavern';
+import { useSS } from '../../hooks/SillytavernContext';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 import { deepResolveMacros } from '../../sillytavern/prompt-assembler';
 import { getAffectionStage, getFriendlinessStage, getCorruptionStage } from '../../sillytavern/social-stages';

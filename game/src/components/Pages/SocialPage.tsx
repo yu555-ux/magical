@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '../Feedback';
-import { useSS } from '../../hooks/useSillytavern';
+import { useSS } from '../../hooks/SillytavernContext';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 import { deepResolveMacros } from '../../sillytavern/prompt-assembler';
 

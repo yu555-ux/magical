@@ -12,7 +12,7 @@ import EntryOverlay from './components/EntryOverlay';
 import StatusBell, { pushStatus } from './components/StatusBell';
 import { PageType } from './types';
 import { Toast } from './components/Feedback';
-import { SillytavernProvider } from './hooks/useSillytavern';
+import { SillytavernProvider } from './hooks/SillytavernContext';
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageType>(PageType.HOME);
