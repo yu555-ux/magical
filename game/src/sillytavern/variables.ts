@@ -497,9 +497,23 @@ export function applyParsedToChat(
   current: Record<string, any>,
   parsed: ParsedTags,
 ): { nextVariables: Record<string, any>; snapshot: Record<string, any> } {
+  // 快照旧倒计时 — AI 不允许修改倒计时（完全由代码接管）
+  const oldCountdown = current?.['世界']?.['倒计时']
+    ? JSON.parse(JSON.stringify(current['世界']['倒计时']))
+    : {};
+
   const next = parsed.varsCommands.patches?.length
     ? applyJsonPatch(current, parsed.varsCommands.patches)
     : applyVarsPatch(current, parsed.varsCommands);
+
+  // 恢复旧倒计时 — AI 的任何写入都被丢弃
+  if (next['世界'] && Object.keys(oldCountdown).length > 0) {
+    next['世界']['倒计时'] = oldCountdown;
+  } else if (next['世界'] && Object.keys(oldCountdown).length === 0) {
+    // 旧变量中也没有倒计时 → 删除 AI 可能创建的字段
+    delete next['世界']['倒计时'];
+  }
+
   const mapTree = next['地图'];
   if (mapTree) {
     normalizeLocations(next, mapTree);

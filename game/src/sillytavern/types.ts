@@ -323,6 +323,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 // ========== Chat Types ==========
 
+// ── Dream anchor for code-managed countdowns ──
+
+export interface DreamAnchor {
+  /** 世界.现实.时间 at the moment the player last woke from a dream */
+  lastWokeAt?: string;
+  /** 世界.梦境存档.时间 at the moment the player last entered a dream */
+  lastEnteredAt?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'system' | 'user' | 'assistant';
@@ -330,6 +339,7 @@ export interface ChatMessage {
   timestamp: number;
   parsed?: ParsedTags;
   variablesAfter?: Record<string, any>;
+  dreamAnchorAfter?: DreamAnchor;
   plotHistoryAfter?: HistoryTimeline;
   apiUsed?: ApiTarget;
 }
@@ -342,6 +352,7 @@ export interface ChatSession {
   userName: string;
   variables: Record<string, any>;
   plotHistory?: HistoryTimeline;
+  dreamAnchor?: DreamAnchor;
   createdAt: number;
   updatedAt: number;
 }

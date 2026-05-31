@@ -1,9 +1,10 @@
-import type { ChatMessage, PresetBlock, Lorebook, InjectionAnchor, SavePoint, HistoryTimeline } from './types';
+import type { ChatMessage, PresetBlock, Lorebook, InjectionAnchor, SavePoint, HistoryTimeline, DreamAnchor } from './types';
 import { INJECTION_ANCHOR_RULES } from './types';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
 import type { ScanResult } from './lorebookEngine';
 import { processMapForPrompt } from './map-filter';
 import { resolvePath, formatVariablesForPrompt } from './variables';
+import { injectCountdown } from './countdown';
 import { filterCharacterGroup, formatCharacterGroup } from './character-filter';
 
 // ── Types ──
@@ -23,6 +24,7 @@ export interface AssembleOptions {
   characters?: Record<string, any>;
   fullVariables?: Record<string, any>;
   plotHistory?: HistoryTimeline;
+  dreamAnchor?: DreamAnchor;
   squashSystemMessages?: boolean;
   recentMessageCount?: number;
 }
@@ -116,6 +118,7 @@ interface MacroContext {
   maleStrangerText?: string;
   maleNormalText?: string;
   varsListText?: string;
+  lastMaintext?: string;
 }
 
 function resolveContent(content: string, presetVars: Record<string, string>, macroCtx: MacroContext): string {
@@ -141,6 +144,8 @@ function resolveContent(content: string, presetVars: Record<string, string>, mac
     .replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '')
     .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '')
     .replace(/\{\{VARS_LIST\}\}/g, macroCtx.varsListText ?? '')
+    .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
+    .replace(/\{\{LOREBY::([^}]+)\}\}/g, '')
     .replace(/\{\{trim\}\}/gi, '');
   return result;
 }
@@ -163,7 +168,15 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   const isDream: boolean = (resolvedVars?.['世界']?.['现实']?.['是否梦境'] ?? options.isDream ?? false) as boolean;
 
   // ── Macro context ──
-  const macroCtx: MacroContext = { userName, characterName, userInput, playerDescription, characterDescription };
+  // Extract last assistant maintext for {{LAST_MAINTEXT}} macro
+  let lastMaintext: string | undefined;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].role === 'assistant' && history[i].parsed?.maintext) {
+      lastMaintext = history[i].parsed!.maintext;
+      break;
+    }
+  }
+  const macroCtx: MacroContext = { userName, characterName, userInput, playerDescription, characterDescription, lastMaintext };
   const presetVars: Record<string, string> = {};
 
   // ── Pre-compute map/character/vars text ──
@@ -179,14 +192,36 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
     macroCtx.maleNormalText = formatCharacterGroup(filterCharacterGroup(characters['男性']?.['普通人'], pp, isDream, mapTree, 'male', 'normal', contextStr));
   }
   if (resolvedVars) {
+    // 注入代码计算的倒计时（覆盖任何 AI 写入的旧值）
+    if (options.dreamAnchor) {
+      injectCountdown(resolvedVars, options.dreamAnchor);
+    }
     macroCtx.varsListText = formatVariablesForPrompt(resolvedVars);
   }
 
   // ── Lorebook scan ──
+  // Check for {{LOREBY::pattern}} in any block — filter lorebooks by title match
+  let effectiveLorebooks = lorebooks;
+  const lorebyPatterns: string[] = [];
+  if (presetBlocks && lorebooks && lorebooks.length > 0) {
+    for (const block of presetBlocks) {
+      if (!block.enabled || !block.content) continue;
+      const re = /\{\{LOREBY::([^}]+)\}\}/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(block.content)) !== null) {
+        lorebyPatterns.push(m[1].trim());
+      }
+    }
+    if (lorebyPatterns.length > 0) {
+      effectiveLorebooks = lorebooks.filter(lb =>
+        lorebyPatterns.some(p => lb.name.includes(p)),
+      );
+    }
+  }
   const historyText = history.slice(-6).map(m => m.content).join(' ');
   let scanResult: ScanResult = { groups: {} };
-  if (lorebooks && lorebooks.length > 0) {
-    scanResult = scanLorebooks(lorebooks, userInput, historyText);
+  if (effectiveLorebooks && effectiveLorebooks.length > 0) {
+    scanResult = scanLorebooks(effectiveLorebooks, userInput, historyText);
   }
   const injected = new Set<InjectionAnchor>();
 
@@ -201,7 +236,9 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
      .replace(/\{\{FEMALE_STRANGER\}\}/g, macroCtx.femaleStrangerText ?? '')
      .replace(/\{\{FEMALE_NORMAL\}\}/g, macroCtx.femaleNormalText ?? '')
      .replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '')
-     .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '');
+     .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '')
+     .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
+     .replace(/\{\{LOREBY::([^}]+)\}\}/g, '');
 
   function getLorebook(anchor: InjectionAnchor): string {
     const entries = scanResult.groups[anchor];
@@ -491,6 +528,7 @@ interface MacroContextExport {
   maleStrangerText?: string;
   maleNormalText?: string;
   varsListText?: string;
+  lastMaintext?: string;
 }
 
 export function replaceMacros(template: string, context: MacroContextExport): string {
@@ -510,6 +548,8 @@ export const SUPPORTED_MACROS = [
   { name: '{{MALE_STRANGER}}', description: '男性异人信息（按位置距离过滤）' },
   { name: '{{MALE_NORMAL}}', description: '男性普通人信息（按位置距离过滤）' },
   { name: '{{VARS_LIST}}', description: '当前全部变量及值（树形缩进）' },
+  { name: '{{LAST_MAINTEXT}}', description: '上一次AI回复的正文内容' },
+  { name: '{{LOREBY::关键词}}', description: '仅插入标题含关键词的世界书条目（如{{LOREBY::【异常】}}），发送时移除' },
   { name: '{{setvar::name::value}}', description: '设置预设变量' },
   { name: '{{addvar::name::value}}', description: '追加预设变量' },
   { name: '{{getvar::name}}', description: '获取预设变量值' },

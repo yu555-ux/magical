@@ -3,7 +3,7 @@ import type { AppSettings, ChatSession } from './types';
 import { DEFAULT_SETTINGS } from './types';
 
 const DB_NAME = 'SillyTavernWebDB';
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 
 class AppDatabase extends Dexie {
   settings!: Table<AppSettings>;

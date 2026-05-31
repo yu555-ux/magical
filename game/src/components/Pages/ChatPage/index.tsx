@@ -130,6 +130,7 @@ export default function ChatPage({
       <div className="flex-1 flex flex-col w-full glass-panel border-glow relative overflow-hidden">
         <ChatHeader
           variables={resolvedVariables}
+          dreamAnchor={ss.activeChat?.dreamAnchor}
           onOpenReader={() => setReaderOpen(true)}
           onOpenVariables={() => setVarViewerOpen(true)}
           onOpenSave={() => setSaveOpen(true)}

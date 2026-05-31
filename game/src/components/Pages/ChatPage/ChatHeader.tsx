@@ -1,15 +1,18 @@
 import { useMemo } from 'react';
 import { Clock, MapPin, CloudSun, BookOpen, Eye, Hourglass, Moon, Save, FileText } from 'lucide-react';
+import { computeCountdowns } from '../../../sillytavern/countdown';
+import type { DreamAnchor } from '../../../sillytavern/types';
 
 interface ChatHeaderProps {
   variables?: Record<string, any>;
+  dreamAnchor?: DreamAnchor;
   onOpenReader?: () => void;
   onOpenVariables?: () => void;
   onOpenSave?: () => void;
   onOpenPrompt?: () => void;
 }
 
-function getDisplayData(vars: Record<string, any> | undefined) {
+function getDisplayData(vars: Record<string, any> | undefined, anchor?: DreamAnchor) {
   const world = vars?.世界 ?? {};
   const inDream = world?.梦境定位?.位于梦境 === true;
 
@@ -18,16 +21,18 @@ function getDisplayData(vars: Record<string, any> | undefined) {
   const location = source?.地点 || '--';
   const weather = source?.天气 || '--';
 
-  const countdown = inDream
-    ? (world?.倒计时?.离开梦境倒计时 || '--')
-    : (world?.倒计时?.可进入梦境倒计时 || '--');
+  // 代码计算倒计时（完全由锚点+当前时间决定，不读取变量树中的旧值）
+  const realityTime = world?.现实?.时间;
+  const dreamTime = world?.梦境存档?.时间;
+  const computed = computeCountdowns(inDream, realityTime, dreamTime, anchor ?? null);
+  const countdown = inDream ? computed.离开梦境倒计时 : computed.可进入梦境倒计时;
   const countdownLabel = inDream ? '离开梦境' : '进入梦境';
 
   return { time, location, weather, countdown, countdownLabel, inDream };
 }
 
-export default function ChatHeader({ variables, onOpenReader, onOpenVariables, onOpenSave, onOpenPrompt }: ChatHeaderProps) {
-  const display = useMemo(() => getDisplayData(variables), [variables]);
+export default function ChatHeader({ variables, dreamAnchor, onOpenReader, onOpenVariables, onOpenSave, onOpenPrompt }: ChatHeaderProps) {
+  const display = useMemo(() => getDisplayData(variables, dreamAnchor), [variables, dreamAnchor]);
 
   const iconColor = display.inDream ? 'text-aether-purple/60' : 'text-aether-blue/70';
 

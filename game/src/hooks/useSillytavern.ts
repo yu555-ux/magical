@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
-import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment } from '../sillytavern/variables';
-import { assemblePrompt } from '../sillytavern/prompt-assembler';
+import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt } from '../sillytavern/variables';
+import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
@@ -57,6 +57,7 @@ export function useSillytavern() {
       userName: settings?.userName ?? DEFAULT_SETTINGS.userName,
       variables: JSON.parse(JSON.stringify(DEFAULT_WORLD_VARS)),
       plotHistory: { reality: [], dream: [] },
+      dreamAnchor: {},
       createdAt: Date.now(), updatedAt: Date.now(),
     };
     await saveChat(chat);
@@ -124,6 +125,7 @@ export function useSillytavern() {
       characters: chatVars['主要人物'],
       fullVariables: chatVars,
       plotHistory: updatedChat.plotHistory,
+      dreamAnchor: updatedChat.dreamAnchor,
       squashSystemMessages: effectiveSettings.squashSystemMessages,
       recentMessageCount: effectiveSettings.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount,
     });
@@ -185,7 +187,8 @@ export function useSillytavern() {
         const truncated = msgs.slice(0, targetIdx);
         const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
         const restoredVars = lastAssistant?.variablesAfter ?? updatedChat.variables ?? {};
-        const next: ChatSession = { ...updatedChat, messages: truncated, variables: restoredVars, updatedAt: Date.now() };
+        const restoredAnchor = lastAssistant?.dreamAnchorAfter ?? updatedChat.dreamAnchor ?? {};
+        const next: ChatSession = { ...updatedChat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, updatedAt: Date.now() };
         await db.chats.put(next);
         setChats(prev => prev.map(c => c.id === next.id ? next : c));
       };
@@ -207,22 +210,79 @@ export function useSillytavern() {
       const maintextForVars = parsed.maintext || events.filter(e => e.type === 'tag-chunk' || e.type === 'raw').map((e: any) => e.chunk).join('');
       if (maintextForVars.trim()) {
         try {
-          const secMessages = [
-            { role: 'system', content: 'Extract variable changes from story text. Output ONLY a JSON object. Do NOT include any other text.' },
-            { role: 'user', content: `Current state:\n${JSON.stringify(updatedChat.variables ?? {}, null, 2)}\n\nStory:\n${maintextForVars.slice(0, 3000)}\n\nJSON:` },
-          ];
-          const secResult = await freshRouter.call('vars', { messages: secMessages as any, stream: false, temperature: effectiveApi.secondary.temperature ?? 0.3, max_tokens: effectiveApi.secondary.maxTokens ?? 2048 });
+          // 查找激活的变量预设
+          const varsPreset = effectiveSettings.presets.find(
+            p => p.id === effectiveSettings.activeVarsPresetId && p.type === 'vars',
+          );
+
+          const secMessages: Array<{ role: string; content: string }> = [];
+
+          if (varsPreset) {
+            // 用最新变量状态构建宏上下文
+            const secMacroCtx = {
+              userName: effectiveSettings.userName,
+              characterName: effectiveSettings.characterName,
+              userInput: userText,
+              playerDescription: effectiveSettings.playerDescription,
+              characterDescription: effectiveSettings.characterDescription,
+              varsListText: formatVariablesForPrompt(nextVariables),
+              lastMaintext: maintextForVars,
+            };
+            for (const block of varsPreset.blocks) {
+              if (!block.enabled || !block.content?.trim()) continue;
+              const resolved = replaceMacros(block.content, secMacroCtx);
+              if (resolved.trim()) {
+                secMessages.push({ role: block.role, content: resolved });
+              }
+            }
+          } else {
+            // 无变量预设时使用简单后备提示
+            secMessages.push({ role: 'system', content: '根据变量更新规则，从正文中提取变量变动。输出格式为 JSONPatch 数组或 JSON 合并对象。只输出 JSON，不要包含其他文本。' });
+            secMessages.push({ role: 'user', content: `当前变量：\n${JSON.stringify(nextVariables, null, 2)}\n\n正文：\n${maintextForVars.slice(0, 3000)}` });
+          }
+
+          // 追加正文（如果预设中未包含）
+          if (varsPreset && !secMessages.some(m => m.content.includes(maintextForVars.slice(0, 100)))) {
+            secMessages.push({ role: 'user', content: maintextForVars.slice(0, 3000) });
+          }
+
+          const secResult = await freshRouter.call('vars', {
+            messages: secMessages as any,
+            stream: false,
+            temperature: effectiveApi.secondary.temperature ?? 0.3,
+            max_tokens: effectiveApi.secondary.maxTokens ?? 2048,
+          });
           if (secResult.response.ok) {
             const d = await secResult.response.json();
             const raw = d?.choices?.[0]?.message?.content ?? '';
-            const m = raw.match(/\{[\s\S]*\}/);
-            if (m) {
-              const sp = JSON.parse(m[0]);
-              if (sp && typeof sp === 'object' && !Array.isArray(sp)) {
-                nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: sp }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
-                autoTagDreamItems(preVars, nextVariables);
-                snapshot = JSON.parse(JSON.stringify(nextVariables));
-                apiUsed = 'dual';
+
+            // 尝试 JSON 对象（旧格式：深度合并）
+            const mObj = raw.match(/\{[\s\S]*\}/);
+            if (mObj) {
+              try {
+                const sp = JSON.parse(mObj[0]);
+                if (sp && typeof sp === 'object' && !Array.isArray(sp)) {
+                  nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: sp }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
+                  autoTagDreamItems(preVars, nextVariables);
+                  snapshot = JSON.parse(JSON.stringify(nextVariables));
+                  apiUsed = 'dual';
+                }
+              } catch { /* JSON parse failed, try array format below */ }
+            }
+
+            // 尝试 JSON 数组（新格式：JSONPatch）
+            if (apiUsed !== 'dual') {
+              const mArr = raw.match(/\[[\s\S]*\]/);
+              if (mArr) {
+                try {
+                  const patches = JSON.parse(mArr[0]);
+                  if (Array.isArray(patches) && patches.length > 0) {
+                    nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: {}, patches }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
+                    autoTagDreamItems(preVars, nextVariables);
+                    snapshot = JSON.parse(JSON.stringify(nextVariables));
+                    apiUsed = 'dual';
+                  }
+                } catch { /* fallback to primary vars */ }
               }
             }
           }
@@ -233,9 +293,20 @@ export function useSillytavern() {
     // Auto-unequip items that don't match current plane
     const oldInDream = preVars?.世界?.梦境定位?.位于梦境 === true;
     const newInDream = nextVariables?.世界?.梦境定位?.位于梦境 === true;
+
+    // 检测梦境状态转移，更新锚点（用于倒计时计算）
+    let updatedDreamAnchor = { ...(updatedChat.dreamAnchor ?? {}) };
     if (oldInDream !== newInDream) {
       validateEquipment(nextVariables);
       snapshot = JSON.parse(JSON.stringify(nextVariables));
+
+      if (oldInDream && !newInDream) {
+        // 从梦境苏醒 → 记录现实时间作为锚点
+        updatedDreamAnchor.lastWokeAt = nextVariables?.['世界']?.['现实']?.['时间'] ?? '';
+      } else if (!oldInDream && newInDream) {
+        // 进入梦境 → 记录梦境时间作为锚点
+        updatedDreamAnchor.lastEnteredAt = nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? '';
+      }
     }
 
     // 只有世界时间实际变化时才跑生理 tick
@@ -273,9 +344,9 @@ export function useSillytavern() {
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(), role: 'assistant',
         content: rawContent,
-        timestamp: Date.now(), parsed, variablesAfter: snapshot, plotHistoryAfter: plotHistorySnapshot, apiUsed,
+        timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, plotHistoryAfter: plotHistorySnapshot, apiUsed,
       };
-      const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, plotHistory, updatedAt: Date.now() };
+      const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, dreamAnchor: updatedDreamAnchor, plotHistory, updatedAt: Date.now() };
       await db.chats.put(finalChat);
       setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
@@ -286,9 +357,9 @@ export function useSillytavern() {
     const assistantMsg: ChatMessage = {
       id: crypto.randomUUID(), role: 'assistant',
       content: rawContent,
-      timestamp: Date.now(), parsed, variablesAfter: snapshot, apiUsed,
+      timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, apiUsed,
     };
-    const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, updatedAt: Date.now() };
+    const finalChat: ChatSession = { ...updatedChat, messages: [...updatedChat.messages, assistantMsg], variables: nextVariables, dreamAnchor: updatedDreamAnchor, updatedAt: Date.now() };
     await db.chats.put(finalChat);
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
@@ -306,8 +377,9 @@ export function useSillytavern() {
     const truncated = chat.messages.slice(0, idx + 1);
     const target = truncated[truncated.length - 1];
     const restoredVars = target?.role === 'assistant' && target.variablesAfter ? target.variablesAfter : chat.variables ?? {};
+    const restoredAnchor = target?.role === 'assistant' && target.dreamAnchorAfter ? target.dreamAnchorAfter : chat.dreamAnchor ?? {};
     const restoredPlotHistory = target?.role === 'assistant' && target.plotHistoryAfter ? target.plotHistoryAfter : chat.plotHistory;
-    const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
+    const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
     await db.chats.put(next);
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
   }, [activeChatId]);
@@ -334,7 +406,8 @@ export function useSillytavern() {
     const restoredPlotHistory = lastAssistant?.plotHistoryAfter ?? activeChat.plotHistory;
     // Restore variables from last assistant too
     const restoredVars = lastAssistant?.variablesAfter ?? activeChat.variables ?? {};
-    const next: ChatSession = { ...activeChat, messages: truncated, variables: restoredVars, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
+    const restoredAnchor = lastAssistant?.dreamAnchorAfter ?? activeChat.dreamAnchor ?? {};
+    const next: ChatSession = { ...activeChat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
     await db.chats.put(next);
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
     await sendGameMessage(activeChat.messages[targetIdx].content);
@@ -377,6 +450,7 @@ export function useSillytavern() {
       currentLocation: chatVars['世界']?.['现实']?.['地点'] ?? '',
       isDream: chatVars['世界']?.['梦境定位']?.['位于梦境'] ?? false,
       plotHistory: activeChat.plotHistory,
+      dreamAnchor: activeChat.dreamAnchor,
       recentMessageCount: effectiveSettings.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount,
     });
     setLastPrompt({
