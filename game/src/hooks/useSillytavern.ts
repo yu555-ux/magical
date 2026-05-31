@@ -89,6 +89,7 @@ export function useSillytavern() {
       characterDescription: s.characterDescription,
       varsListText: formatVariablesForPrompt(chatVars),
       lastMaintext: lastMaintext || '(暂无AI回复正文)',
+      fullVars: chatVars,
     };
 
     const secStageMessages: Record<string, Array<{ role: string; content: string }>> = {};
@@ -337,6 +338,7 @@ export function useSillytavern() {
               characterDescription: effectiveSettings.characterDescription,
               varsListText: formatVariablesForPrompt(nextVariables),
               lastMaintext: maintextForVars,
+              fullVars: nextVariables,
             };
             const secMessages: Array<{ role: string; content: string }> = [];
             for (const block of varsPreset.blocks) {

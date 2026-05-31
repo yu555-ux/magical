@@ -27,6 +27,22 @@ function treeFormat(obj: Record<string, any>, lines: string[], depth: number) {
   }
 }
 
+/** 按点分隔路径提取变量子树并格式化为缩进文本 */
+export function getVariablePath(variables: Record<string, any>, path: string): string {
+  if (!variables || !path) return '';
+  const parts = path.split('.');
+  let node: any = variables;
+  for (const part of parts) {
+    if (!node || typeof node !== 'object') return '';
+    node = node[part];
+  }
+  if (node === undefined || node === null) return '';
+  if (typeof node !== 'object') return String(node);
+  const lines: string[] = [];
+  treeFormat(node, lines, 0);
+  return lines.join('\n');
+}
+
 // ── Variable list (type reference for AI) ──
 
 const SKIP_INTERNAL = new Set(['检索词', '梦境NPC', '方位']);

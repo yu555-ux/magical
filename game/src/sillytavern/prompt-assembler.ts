@@ -3,7 +3,7 @@ import { INJECTION_ANCHOR_RULES } from './types';
 import { scanLorebooks, formatMatchedEntries } from './lorebookEngine';
 import type { ScanResult } from './lorebookEngine';
 import { processMapForPrompt } from './map-filter';
-import { resolvePath, formatVariablesForPrompt } from './variables';
+import { resolvePath, formatVariablesForPrompt, getVariablePath } from './variables';
 import { injectCountdown } from './countdown';
 import { filterCharacterGroup, formatCharacterGroup } from './character-filter';
 
@@ -119,6 +119,7 @@ interface MacroContext {
   maleNormalText?: string;
   varsListText?: string;
   lastMaintext?: string;
+  fullVars?: Record<string, any>;
 }
 
 function resolveContent(content: string, presetVars: Record<string, string>, macroCtx: MacroContext): string {
@@ -145,6 +146,7 @@ function resolveContent(content: string, presetVars: Record<string, string>, mac
     .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '')
     .replace(/\{\{VARS_LIST\}\}/g, macroCtx.varsListText ?? '')
     .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
+    .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, path: string) => macroCtx.fullVars ? getVariablePath(macroCtx.fullVars, path.trim()) : '')
     .replace(/\{\{LOREBY::([^}]+)\}\}/g, '')
     .replace(/\{\{trim\}\}/gi, '');
   return result;
@@ -176,7 +178,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
       break;
     }
   }
-  const macroCtx: MacroContext = { userName, characterName, userInput, playerDescription, characterDescription, lastMaintext };
+  const macroCtx: MacroContext = { userName, characterName, userInput, playerDescription, characterDescription, lastMaintext, fullVars: resolvedVars };
   const presetVars: Record<string, string> = {};
 
   // ── Pre-compute map/character/vars text ──
@@ -238,6 +240,7 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
      .replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '')
      .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '')
      .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
+     .replace(/\{\{GET_VAR::([^}]+)\}\}/g, '')
      .replace(/\{\{LOREBY::([^}]+)\}\}/g, '');
 
   function getLorebook(anchor: InjectionAnchor): string {
@@ -529,6 +532,7 @@ interface MacroContextExport {
   maleNormalText?: string;
   varsListText?: string;
   lastMaintext?: string;
+  fullVars?: Record<string, any>;
 }
 
 export function replaceMacros(template: string, context: MacroContextExport): string {
@@ -549,6 +553,7 @@ export const SUPPORTED_MACROS = [
   { name: '{{MALE_NORMAL}}', description: '男性普通人信息（按位置距离过滤）' },
   { name: '{{VARS_LIST}}', description: '当前全部变量及值（树形缩进）' },
   { name: '{{LAST_MAINTEXT}}', description: '上一次AI回复的正文内容' },
+  { name: '{{GET_VAR::路径}}', description: '提取变量子树（如{{GET_VAR::主角.资源}}），格式化为缩进文本' },
   { name: '{{LOREBY::关键词}}', description: '仅插入标题含关键词的世界书条目（如{{LOREBY::【异常】}}），发送时移除' },
   { name: '{{setvar::name::value}}', description: '设置预设变量' },
   { name: '{{addvar::name::value}}', description: '追加预设变量' },
