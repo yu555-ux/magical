@@ -459,7 +459,7 @@ export function useSillytavern() {
         content: finalContent,
         timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, plotHistoryAfter: plotHistorySnapshot, apiUsed,
       };
-      const updatedMessages = updatedChat.messages.map(m => m.id === msgId ? assistantMsg : (m as ChatMessage));
+      const updatedMessages = [...updatedChat.messages, assistantMsg];
       const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, plotHistory, updatedAt: Date.now() };
       await db.chats.put(finalChat);
       setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
@@ -473,7 +473,7 @@ export function useSillytavern() {
       content: finalContent,
       timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, apiUsed,
     };
-    const updatedMessages = updatedChat.messages.map(m => m.id === msgId ? assistantMsg : (m as ChatMessage));
+    const updatedMessages = [...updatedChat.messages, assistantMsg];
     const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, updatedAt: Date.now() };
     await db.chats.put(finalChat);
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
