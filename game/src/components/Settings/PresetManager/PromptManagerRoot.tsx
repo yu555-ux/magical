@@ -153,13 +153,18 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
       }
       const isVarsImport = presetFilter === 'vars';
       // 类型特有过滤
+      const ST_CONFIG_IDS = new Set(['SPresetSettings', 'nsfw', 'jailbreak', 'enhanceDefinitions']);
+      const ST_NAME_PATTERNS = [/main/i, /prompt/i, /auxiliary/i, /post.history/i];
       const filteredBlocks = result.blocks.filter(b => {
-        // SPresetSettings 对任何类型都无用（ST正则扩展配置）
-        if (b.identifier === 'SPresetSettings') return false;
-        // 变量预设：排除ST内部结构块（marker块和system_prompt占位块）
+        // 已知的ST配置/内部块标识符
+        if (ST_CONFIG_IDS.has(b.identifier)) return false;
+        // 空内容的块无意义
+        if (!b.content?.trim()) return false;
+        // 变量预设额外过滤
         if (isVarsImport) {
           if (b.marker) return false;
-          if (['nsfw', 'jailbreak', 'enhanceDefinitions'].includes(b.identifier)) return false;
+          // 名称含ST关键词的块
+          if (ST_NAME_PATTERNS.some(p => p.test(b.name))) return false;
         }
         return true;
       });
