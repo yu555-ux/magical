@@ -92,7 +92,7 @@ export function Toast({ message, type, onClose }: ToastProps) {
         <span className="font-bold mr-2 uppercase text-[10px] opacity-70">[{type}]</span>
         {message}
       </div>
-      <button onClick={onClose} className="hover:opacity-70 transition-opacity p-1 clickable">
+      <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="hover:opacity-70 transition-opacity p-1 clickable relative z-10 pointer-events-auto">
         <X size={14} />
       </button>
       <motion.div
