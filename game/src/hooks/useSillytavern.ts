@@ -51,15 +51,18 @@ export function useSillytavern() {
       patterns.push(m[1].trim());
     }
     if (patterns.length === 0) return content;
-    // 按世界书标题(name)匹配，命中则纳入该书全部启用条目
+    // 按世界书条目标题(comment)匹配
     const parts: string[] = [];
     for (const lb of lorebooks) {
-      if (!lb.enabled) continue;
-      if (!patterns.some(p => lb.name.includes(p))) continue;
-      console.log('[LOREBY] 世界书匹配:', lb.name);
+      console.log('[LOREBY] 世界书:', lb.name, '条目数:', lb.entries?.length);
       for (const entry of (lb.entries ?? [])) {
         if (!entry.enabled) continue;
-        parts.push(entry.content);
+        const keys = (entry.keys || []).concat(entry.secondaryKeys || []);
+        const matchText = [entry.comment || '', ...keys].join(' ');
+        if (patterns.some(p => matchText.includes(p))) {
+          console.log('[LOREBY] 命中:', entry.comment);
+          parts.push(entry.content);
+        }
       }
     }
     console.log('[LOREBY] 匹配条目数:', parts.length);
