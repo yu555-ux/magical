@@ -9,6 +9,9 @@ type SegmentType = 'plain' | 'quotes' | 'cornerBrackets' | 'angleBrackets' | 'it
 interface ParsedSegment {
   type: SegmentType;
   content: string;
+  /** 包裹符号（如【】「」""），用于渲染时保留符号 */
+  prefix?: string;
+  suffix?: string;
 }
 
 interface PatternDef {
@@ -28,11 +31,11 @@ function parseRichText(text: string, config?: RichTextConfig): ParsedSegment[] {
 
   // Build patterns in priority order (bold before italic to avoid ** overlap)
   const patterns: PatternDef[] = [];
-  if (cfg.bold.enabled)            patterns.push({ type: 'bold',            regex: /\*\*(.+?)\*\*/g });
-  if (cfg.italic.enabled)          patterns.push({ type: 'italic',          regex: /(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g });
-  if (cfg.cornerBrackets.enabled)  patterns.push({ type: 'cornerBrackets',  regex: /【([^】]+)】/g });
-  if (cfg.angleBrackets.enabled)   patterns.push({ type: 'angleBrackets',   regex: /「([^」]+)」/g });
-  if (cfg.quotes.enabled)          patterns.push({ type: 'quotes',          regex: /["“](.+?)["”]/g });
+  if (cfg.bold.enabled)            patterns.push({ type: 'bold',            regex: /(\*\*)(.+?)(\*\*)/g });
+  if (cfg.italic.enabled)          patterns.push({ type: 'italic',          regex: /(\*)(.+?)(\*)/g });
+  if (cfg.cornerBrackets.enabled)  patterns.push({ type: 'cornerBrackets',  regex: /(【)([^】]+)(】)/g });
+  if (cfg.angleBrackets.enabled)   patterns.push({ type: 'angleBrackets',   regex: /(「)([^」]+)(」)/g });
+  if (cfg.quotes.enabled)          patterns.push({ type: 'quotes',          regex: /([“”])(.+?)([“”])/g });
 
   if (patterns.length === 0) return [{ type: 'plain', content: text }];
 
@@ -46,7 +49,16 @@ function parseRichText(text: string, config?: RichTextConfig): ParsedSegment[] {
       p.regex.lastIndex = pos;
       const m = p.regex.exec(text);
       if (m && (bestMatch === null || m.index < bestMatch.start)) {
-        bestMatch = { type: p.type, content: m[1], start: m.index, end: m.index + m[0].length };
+        // m[1]=前缀符号, m[2]=内容, m[3]=后缀符号（对cornerBrackets/angleBrackets/quotes）
+        const hasDelims = m.length >= 4;
+        bestMatch = {
+          type: p.type,
+          content: hasDelims ? m[2] : m[1],
+          start: m.index,
+          end: m.index + m[0].length,
+          prefix: hasDelims ? m[1] : undefined,
+          suffix: hasDelims ? m[3] : undefined,
+        };
       }
     }
 
@@ -82,12 +94,21 @@ export default function RichTextRenderer({ text, config }: { text: string; confi
       {segments.map((seg, i) => {
         if (seg.type === 'plain') return <React.Fragment key={i}>{seg.content}</React.Fragment>;
         const sc = cfg[seg.type];
+        const style = {
+          color: sc?.color ?? '#ffffff',
+          fontWeight: sc?.bold ? 700 : undefined,
+          fontStyle: sc?.italic ? 'italic' : undefined,
+        };
+        // bold/italic: 符号隐藏；括号引号: 符号保留
+        if (seg.type === 'bold' || seg.type === 'italic') {
+          return <span key={i} style={style}>{seg.content}</span>;
+        }
         return (
-          <span key={i} style={{
-            color: sc?.color ?? '#ffffff',
-            fontWeight: sc?.bold ? 700 : undefined,
-            fontStyle: sc?.italic ? 'italic' : undefined,
-          }}>{seg.content}</span>
+          <React.Fragment key={i}>
+            {seg.prefix && <span>{seg.prefix}</span>}
+            <span style={style}>{seg.content}</span>
+            {seg.suffix && <span>{seg.suffix}</span>}
+          </React.Fragment>
         );
       })}
     </>

@@ -17,7 +17,7 @@ export default function RawXmlViewerModal({ isOpen, onClose, content, edited, on
         <textarea
           value={edited}
           onChange={(e) => onEditedChange(e.target.value)}
-          className="flex-1 min-h-[200px] text-[13px] text-white/70 whitespace-pre-wrap leading-relaxed font-mono bg-aether-dark/40 border border-aether-border/15 rounded-lg p-4 resize-none focus:outline-none focus:border-aether-cyan/50 focus:ring-1 focus:ring-aether-cyan/20 transition-all"
+          className="flex-1 min-h-[400px] text-[13px] text-white/70 whitespace-pre-wrap leading-relaxed font-mono bg-aether-dark/40 border border-aether-border/15 rounded-lg p-4 resize-none focus:outline-none focus:border-aether-cyan/50 focus:ring-1 focus:ring-aether-cyan/20 transition-all"
         />
         <div className="flex items-center justify-between">
           <span className="text-[10px] text-white/20">点击文本框可直接编辑原始输出</span>
