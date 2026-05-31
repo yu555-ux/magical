@@ -3,6 +3,7 @@ import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt } from '../sillytavern/variables';
 import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
+import { scanLorebooks, formatMatchedEntries } from '../sillytavern/lorebookEngine';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
@@ -33,11 +34,41 @@ export function useSillytavern() {
     stageNames: Record<string, string>;
   } | null>(null);
 
+  const [dualRunning, setDualRunning] = useState(false); // 第二API运行中
   const [toast, setToast] = useState<string | null>(null);
   const showToast = useCallback((message: string) => { setToast(message); setTimeout(() => setToast(null), 2000); }, []);
   const abortRef = useRef<AbortController | null>(null);
 
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId) ?? null, [chats, activeChatId]);
+
+  /** 将 {{LOREBY::pattern}} 替换为匹配的世界书条目内容 */
+  const resolveLorebyMacro = useCallback((content: string, lorebooks: typeof settings extends { lorebooks: infer L } ? L : any): string => {
+    if (!lorebooks || lorebooks.length === 0) return content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
+    // 收集所有 pattern
+    const patterns: string[] = [];
+    const re = /\{\{LOREBY::([^}]+)\}\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(content)) !== null) {
+      patterns.push(m[1].trim());
+    }
+    if (patterns.length === 0) return content;
+    // 按标题过滤
+    const matched = lorebooks.filter((lb: any) =>
+      patterns.some(p => lb.name.includes(p)),
+    );
+    if (matched.length === 0) return content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
+    // 扫描并格式化
+    const scanResult = scanLorebooks(matched, '', '');
+    const allEntries: string[] = [];
+    for (const anchor of Object.keys(scanResult.groups)) {
+      const entries = scanResult.groups[anchor];
+      if (entries.length > 0) {
+        allEntries.push(formatMatchedEntries(entries));
+      }
+    }
+    const replacement = allEntries.join('\n\n');
+    return content.replace(/\{\{LOREBY::[^}]+\}\}/g, replacement);
+  }, []);
 
   // 构建第二API提示词预览（响应 settings / activeChat 变化）
   const buildSecondaryPrompt = useCallback((s: AppSettings, chat: ChatSession | null) => {
@@ -66,9 +97,11 @@ export function useSillytavern() {
     const secStageNames: Record<string, string> = {};
     let secTotalTokens = 0;
 
+    const lorebooks = s.lorebooks ?? [];
     for (const block of varsPreset.blocks) {
       if (!block.enabled || !block.content?.trim()) continue;
-      const resolved = replaceMacros(block.content, secMacroCtx);
+      let resolved = resolveLorebyMacro(block.content, lorebooks);
+      resolved = replaceMacros(resolved, secMacroCtx);
       if (!resolved.trim()) continue;
       const tokenEst = Math.round(resolved.length / 4);
       secTotalTokens += tokenEst;
@@ -79,15 +112,6 @@ export function useSillytavern() {
     }
 
     if (secStageOrder.length > 0) {
-      // 追加正文
-      const bodyContent = lastMaintext || '(暂无AI回复正文)';
-      const bodyId = '__body__';
-      secStageMessages[bodyId] = [{ role: 'user', content: bodyContent.slice(0, 3000) }];
-      secStageTokens[bodyId] = Math.round(bodyContent.length / 4);
-      secStageOrder.push(bodyId);
-      secStageNames[bodyId] = '正文（截断3000字）';
-      secTotalTokens += secStageTokens[bodyId];
-
       setLastSecondaryPrompt({
         messages: [],
         estimatedTokens: secTotalTokens,
@@ -286,7 +310,9 @@ export function useSillytavern() {
     autoTagDreamItems(preVars, nextVariables);
 
     let apiUsed: 'primary' | 'secondary' | 'dual' = 'primary';
+    let secondaryRaw = '';
     if (effectiveApi.secondary?.enabled && effectiveSettings.apiMode === 'dual' && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
+      setDualRunning(true);
       const maintextForVars = parsed.maintext || events.filter(e => e.type === 'tag-chunk' || e.type === 'raw').map((e: any) => e.chunk).join('');
       if (maintextForVars.trim()) {
         try {
@@ -298,7 +324,7 @@ export function useSillytavern() {
           const secMessages: Array<{ role: string; content: string }> = [];
 
           if (varsPreset) {
-            // 用最新变量状态构建宏上下文
+            const lorebooks = effectiveSettings.lorebooks ?? [];
             const secMacroCtx = {
               userName: effectiveSettings.userName,
               characterName: effectiveSettings.characterName,
@@ -310,20 +336,15 @@ export function useSillytavern() {
             };
             for (const block of varsPreset.blocks) {
               if (!block.enabled || !block.content?.trim()) continue;
-              const resolved = replaceMacros(block.content, secMacroCtx);
+              let resolved = resolveLorebyMacro(block.content, lorebooks);
+              resolved = replaceMacros(resolved, secMacroCtx);
               if (resolved.trim()) {
                 secMessages.push({ role: block.role, content: resolved });
               }
             }
           } else {
-            // 无变量预设时使用简单后备提示
             secMessages.push({ role: 'system', content: '根据变量更新规则，从正文中提取变量变动。输出格式为 JSONPatch 数组或 JSON 合并对象。只输出 JSON，不要包含其他文本。' });
             secMessages.push({ role: 'user', content: `当前变量：\n${JSON.stringify(nextVariables, null, 2)}\n\n正文：\n${maintextForVars.slice(0, 3000)}` });
-          }
-
-          // 追加正文（如果预设中未包含）
-          if (varsPreset && !secMessages.some(m => m.content.includes(maintextForVars.slice(0, 100)))) {
-            secMessages.push({ role: 'user', content: maintextForVars.slice(0, 3000) });
           }
 
           const secResult = await freshRouter.call('vars', {
@@ -335,6 +356,7 @@ export function useSillytavern() {
           if (secResult.response.ok) {
             const d = await secResult.response.json();
             const raw = d?.choices?.[0]?.message?.content ?? '';
+            secondaryRaw = raw;  // 保存第二API原始输出，追加到助理消息下方
 
             // 尝试 JSON 对象（旧格式：深度合并）
             const mObj = raw.match(/\{[\s\S]*\}/);
@@ -368,6 +390,12 @@ export function useSillytavern() {
           }
         } catch { /* fallback to primary vars */ }
       }
+    }
+    setDualRunning(false);
+
+    // 第二API输出追加到正文
+    if (secondaryRaw) {
+      rawContent += '\n\n<details><summary>🔍 第二API变量提取</summary>\n\n' + secondaryRaw + '\n\n</details>';
     }
 
     // Auto-unequip items that don't match current plane
@@ -552,7 +580,7 @@ export function useSillytavern() {
     createChat, selectChat, removeChat, sendGameMessage, jumpToFloor, editMessage, regenerateLast,
     updateSettings, setChatVariables, refreshPrompt,
     streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
-    toast, showToast,
+    dualRunning, toast, showToast,
   };
 }
 

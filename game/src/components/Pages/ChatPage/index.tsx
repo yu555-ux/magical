@@ -104,7 +104,7 @@ export default function ChatPage({
   /* send */
   const handleSend = useCallback(async (text?: string) => {
     const msg = (text ?? input).trim();
-    if (!msg || isStreaming) return;
+    if (!msg || isStreaming || ss.dualRunning) return;
     const wasOption = !!text;
     setInput('');
     try {
@@ -138,14 +138,14 @@ export default function ChatPage({
         />
 
         {/* ── Streaming indicator ── */}
-        {isStreaming && (
+        {(isStreaming || ss.dualRunning) && (
           <div className="flex items-center justify-end px-5 py-1.5 border-b border-aether-border/15 shrink-0">
             <motion.span
               animate={{ opacity: [0.4, 1, 0.4] }}
               transition={{ duration: 1, repeat: Infinity }}
-              className="text-[10px] text-aether-cyan/60 font-mono"
+              className={`text-[10px] font-mono ${ss.dualRunning ? 'text-amber-300/60' : 'text-aether-cyan/60'}`}
             >
-              AI 生成中...
+              {ss.dualRunning ? '第二API 变量提取中...' : 'AI 生成中...'}
             </motion.span>
           </div>
         )}
@@ -304,8 +304,8 @@ export default function ChatPage({
                   } enabled:hover:text-aether-cyan enabled:hover:bg-aether-cyan/[0.04] enabled:active:scale-95 disabled:opacity-40`}
                   title={isStreaming ? '停止生成' : '发送'}
                 >
-                  {isStreaming ? (
-                    <Square size={16} />
+                  {isStreaming || ss.dualRunning ? (
+                    <Square size={16} className={ss.dualRunning ? 'text-amber-300' : ''} />
                   ) : (
                     <Send size={18} />
                   )}
