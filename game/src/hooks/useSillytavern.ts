@@ -53,15 +53,15 @@ export function useSillytavern() {
     if (patterns.length === 0) return content;
     // 按世界书条目标题/comment/检索词直接匹配
     const parts: string[] = [];
-    console.log('[LOREBY] patterns:', patterns, 'lorebooks:', lorebooks.length);
+    console.log('[LOREBY] patterns:', patterns, 'lorebooks:', lorebooks.map((l: any) => l.name));
     for (const lb of lorebooks) {
       if (!lb.enabled) continue;
       for (const entry of (lb.entries ?? [])) {
         if (!entry.enabled) continue;
         const matchText = [entry.comment || '', entry.keys || [], entry.secondaryKeys || []].flat().join(' ');
         const hit = patterns.some(p => matchText.includes(p));
+        console.log('[LOREBY] 条目:', entry.comment, 'keys:', entry.keys, '命中:', hit);
         if (hit) {
-          console.log('[LOREBY] 匹配:', entry.comment, 'keys:', entry.keys);
           parts.push(entry.content);
         }
       }
