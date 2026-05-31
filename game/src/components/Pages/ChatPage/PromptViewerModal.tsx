@@ -104,8 +104,8 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-mono text-aether-cyan/40">
                 ~{promptTokens}<span className="text-white/20"> tk</span>
-                {view === 'primary' && (
-                  <span>{replyTokens > 0 ? ` +${replyTokens}<span className="text-white/20">(回复)</span>` : ''}</span>
+                {view === 'primary' && replyTokens > 0 && (
+                  <span> +{replyTokens}<span className="text-white/20">(回复)</span></span>
                 )}
               </span>
               {onRefresh && (

@@ -34,7 +34,8 @@ export function useSillytavern() {
     stageNames: Record<string, string>;
   } | null>(null);
 
-  const [dualRunning, setDualRunning] = useState(false); // 第二API运行中
+  const [dualRunning, setDualRunning] = useState(false);
+  const [lastRawContent, setLastRawContent] = useState(''); // 最近一轮原始输出（查看原文用）
   const [toast, setToast] = useState<string | null>(null);
   const showToast = useCallback((message: string) => { setToast(message); setTimeout(() => setToast(null), 2000); }, []);
   const abortRef = useRef<AbortController | null>(null);
@@ -314,6 +315,7 @@ export function useSillytavern() {
       : applyParsedToChat(preVars, parsed);
     if (!isDual) autoTagDreamItems(preVars, nextVariables);
     console.log('[SillyTavern] 第一API完成, 正文:', rawContent.length, '模式:', isDual ? 'dual(变量由第二API处理)' : 'single');
+    setLastRawContent(rawContent);
 
     let apiUsed: 'primary' | 'secondary' | 'dual' = 'primary';
     let secondaryRaw = '';
@@ -401,6 +403,7 @@ export function useSillytavern() {
     const finalContent = secondaryRaw
       ? rawContent + '\n\n' + secondaryRaw
       : rawContent;
+    setLastRawContent(finalContent);
     const msgId = crypto.randomUUID();
 
     // Auto-unequip items that don't match current plane
@@ -587,7 +590,7 @@ export function useSillytavern() {
     createChat, selectChat, removeChat, sendGameMessage, jumpToFloor, editMessage, regenerateLast,
     updateSettings, setChatVariables, refreshPrompt,
     streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
-    dualRunning, toast, showToast,
+    dualRunning, lastRawContent, toast, showToast,
   };
 }
 

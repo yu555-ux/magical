@@ -364,7 +364,7 @@ export default function ChatPage({
         ctxMenu={ctxMenu}
         onClose={() => setCtxMenu({ x: 0, y: 0, visible: false })}
         onViewRaw={() => {
-          const content = ss.streamState.maintext || latestAssistant?.content || '';
+          const content = ss.lastRawContent || latestAssistant?.content || '';
           setRawContent(content);
           setEditedRaw(content);
           setRawViewOpen(true);
