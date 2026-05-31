@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, User, Heart, Shield, Zap, Database, Diamond, Skull, Package } from 'lucide-react';
 import { Modal } from '../Feedback';
-import { useSillytavern } from '../../hooks/useSillytavern';
+import { useSS } from '../../hooks/useSillytavern';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 import { deepResolveMacros } from '../../sillytavern/prompt-assembler';
 import { getAffectionStage, getFriendlinessStage, getCorruptionStage } from '../../sillytavern/social-stages';
@@ -65,7 +65,7 @@ const PROFICIENCY_STYLES: Record<string, { text: string; border: string; glow: s
    ARCHIVE PAGE
    ============================================================ */
 export default function ArchivePage() {
-  const ss = useSillytavern();
+  const ss = useSS();
   const liveVars = ss.activeChat?.variables;
   const defaults = DEFAULT_WORLD_VARS as any;
   const playerName = ss.settings?.userName ?? '我';

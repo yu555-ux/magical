@@ -12,6 +12,7 @@ import EntryOverlay from './components/EntryOverlay';
 import StatusBell, { pushStatus } from './components/StatusBell';
 import { PageType } from './types';
 import { Toast } from './components/Feedback';
+import { SillytavernProvider } from './hooks/useSillytavern';
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageType>(PageType.HOME);
@@ -57,6 +58,7 @@ export default function App() {
   };
 
   return (
+    <SillytavernProvider>
     <div className="flex h-screen w-screen overflow-hidden bg-aether-dark font-sans text-white selection:bg-aether-cyan selection:text-aether-dark">
       {!entryDone && <EntryOverlay onComplete={() => setEntryDone(true)} />}
 
@@ -101,5 +103,6 @@ export default function App() {
       <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden opacity-[0.03]"
         style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }} />
     </div>
+    </SillytavernProvider>
   );
 }

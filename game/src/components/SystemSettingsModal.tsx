@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Server, BookOpen, Sliders, User, Monitor, AlertTriangle, CheckCircle } from 'lucide-react';
-import { useSillytavern } from '../hooks/useSillytavern';
+import { useSS } from '../hooks/useSillytavern';
 import type { AppSettings, ApiSettings } from '../sillytavern/types';
 import { DEFAULT_SETTINGS } from '../sillytavern/types';
 import { fetchModels, testConnection } from '../sillytavern/api-tools';
@@ -21,7 +21,7 @@ const TABS: { id: TabId; label: string; icon: any }[] = [
 ];
 
 export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const ss = useSillytavern();
+  const ss = useSS();
   const [tab, setTab] = useState<TabId>('api');
 
   const [draft, setDraft] = useState<AppSettings | null>(null);

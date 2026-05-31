@@ -6,7 +6,7 @@ import PlotReaderModal from './PlotReaderModal';
 import VariableViewerModal from './VariableViewerModal';
 import SavePointModal from './SavePointModal';
 import PromptViewerModal from './PromptViewerModal';
-import { useSillytavern } from '../../../hooks/useSillytavern';
+import { useSS } from '../../../hooks/useSillytavern';
 import { deepResolveMacros } from '../../../sillytavern/prompt-assembler';
 import { DEFAULT_SETTINGS } from '../../../sillytavern/types';
 import { cleanOption } from '../../../utils/string';
@@ -26,7 +26,7 @@ export default function ChatPage({
     type: 'info' | 'warning' | 'error' | 'success',
   ) => void;
 }) {
-  const ss = useSillytavern();
+  const ss = useSS();
 
   // Resolve {{user}}/<user>/{{char}} macros for UI display
   const resolvedVariables = useMemo(() => {

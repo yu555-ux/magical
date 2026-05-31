@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, createContext, useContext } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt } from '../sillytavern/variables';
@@ -554,4 +554,22 @@ export function useSillytavern() {
     streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
     toast, showToast,
   };
+}
+
+// ── React Context (single shared instance) ──
+
+export type SillytavernContextType = ReturnType<typeof useSillytavern>;
+
+const SillytavernCtx = createContext<SillytavernContextType | null>(null);
+
+export function SillytavernProvider({ children }: { children: React.ReactNode }) {
+  const ss = useSillytavern();
+  return <SillytavernCtx.Provider value={ss}>{children}</SillytavernCtx.Provider>;
+}
+
+/** Use the shared Sillytavern instance. Must be inside `<SillytavernProvider>`. */
+export function useSS() {
+  const ctx = useContext(SillytavernCtx);
+  if (!ctx) throw new Error('useSS must be used within SillytavernProvider');
+  return ctx;
 }

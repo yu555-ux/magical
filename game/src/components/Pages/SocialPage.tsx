@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Modal } from '../Feedback';
-import { useSillytavern } from '../../hooks/useSillytavern';
+import { useSS } from '../../hooks/useSillytavern';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 import { deepResolveMacros } from '../../sillytavern/prompt-assembler';
 
@@ -29,7 +29,7 @@ interface LiveEdge { from: string; to: string; label: string; stroke: string; op
    SOCIAL PAGE
    ============================================================ */
 export default function SocialPage() {
-  const ss = useSillytavern();
+  const ss = useSS();
   const liveVars = ss.activeChat?.variables;
   const defaults = DEFAULT_WORLD_VARS as any;
   const playerName = ss.settings?.userName ?? '我';
