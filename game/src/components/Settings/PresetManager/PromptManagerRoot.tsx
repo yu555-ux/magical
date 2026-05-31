@@ -44,49 +44,66 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
 
   const handleSelectPreset = (preset: SavedPreset) => {
     const isVars = preset.type === 'vars';
-    const patch: Partial<AppSettings> = {
-      presetBlocks: preset.blocks,
-      presetParams: preset.params ?? DEFAULT_PRESET_PARAMS,
-    };
+    const patch: Partial<AppSettings> = {};
     if (isVars) {
       patch.activeVarsPresetId = preset.id;
     } else {
       patch.activePresetId = preset.id;
+      patch.presetBlocks = preset.blocks;
+      patch.presetParams = preset.params ?? DEFAULT_PRESET_PARAMS;
     }
     saveDraft(patch);
     showToast(`${isVars ? '变量' : '剧情'}预设已切换为「${preset.name}」`, 'success');
   };
 
   const handleNewPreset = () => {
+    const isVars = presetFilter === 'vars';
     const newPreset: SavedPreset = {
       id: crypto.randomUUID(),
-      name: presetFilter === 'vars' ? '新变量预设' : '新剧情预设',
+      name: isVars ? '新变量预设' : '新剧情预设',
       source: 'manual',
       type: presetFilter,
-      blocks: [{ ...newBlock(), name: presetFilter === 'vars' ? '变量指令' : '系统指令' }],
+      blocks: [{ ...newBlock(), name: isVars ? '变量指令' : '系统指令' }],
       params: { ...DEFAULT_PRESET_PARAMS },
       createdAt: Date.now(),
     };
     const nextPresets = [...presets, newPreset];
     saveDraft({
       presets: nextPresets,
-      activePresetId: newPreset.id,
-      presetBlocks: newPreset.blocks,
-      presetParams: newPreset.params,
+      ...(isVars
+        ? { activeVarsPresetId: newPreset.id }
+        : {
+            activePresetId: newPreset.id,
+            presetBlocks: newPreset.blocks,
+            presetParams: newPreset.params,
+          }
+      ),
     });
   };
 
   const handleDeletePreset = (id: string) => {
     if (presets.length <= 1) { showToast('请至少保留一个预设', 'error'); return; }
+    const deleted = presets.find(p => p.id === id);
+    const isVars = deleted?.type === 'vars';
     const nextPresets = presets.filter(p => p.id !== id);
-    const nextActiveId = id === activeId ? nextPresets[0].id : activeId;
-    const newActive = nextPresets.find(p => p.id === nextActiveId);
-    saveDraft({
-      presets: nextPresets,
-      activePresetId: nextActiveId,
-      presetBlocks: newActive?.blocks ?? [],
-      presetParams: newActive?.params ?? DEFAULT_PRESET_PARAMS,
-    });
+
+    if (isVars) {
+      // 删除变量预设：下一个同类型预设自动激活
+      const nextVars = nextPresets.filter(p => p.type === 'vars')[0];
+      saveDraft({
+        presets: nextPresets,
+        ...(nextVars ? { activeVarsPresetId: nextVars.id } : {}),
+      });
+    } else {
+      const nextActiveId = id === activeId ? (nextPresets.filter(p => p.type === 'story')[0]?.id ?? nextPresets[0]?.id) : activeId;
+      const newActive = nextPresets.find(p => p.id === nextActiveId);
+      saveDraft({
+        presets: nextPresets,
+        activePresetId: nextActiveId,
+        presetBlocks: newActive?.blocks ?? [],
+        presetParams: newActive?.params ?? DEFAULT_PRESET_PARAMS,
+      });
+    }
   };
 
   const handleRenamePreset = (id: string, name: string) => {
@@ -150,10 +167,17 @@ export default function PromptManagerRoot({ draft, setDraft }: PromptManagerProp
       const isVars = newPreset.type === 'vars';
       saveDraft({
         presets: nextPresets,
-        activePresetId: isVars ? draft.activePresetId : newPreset.id,
-        activeVarsPresetId: isVars ? newPreset.id : draft.activeVarsPresetId,
-        presetBlocks: newPreset.blocks,
-        presetParams: newPreset.params ?? DEFAULT_PRESET_PARAMS,
+        ...(isVars
+          ? {
+              activeVarsPresetId: newPreset.id,
+              activePresetId: draft.activePresetId,
+            }
+          : {
+              activePresetId: newPreset.id,
+              presetBlocks: newPreset.blocks,
+              presetParams: newPreset.params ?? DEFAULT_PRESET_PARAMS,
+            }
+        ),
       });
       showToast(`已导入「${newPreset.name}」: ${newPreset.blocks.length} 个词块`, 'success');
     } catch (err: any) {
