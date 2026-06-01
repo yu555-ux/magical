@@ -8,6 +8,8 @@ import { MapLocationRender, MapAnomaly } from '../../types';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
 import { adaptMapTree, findNode } from '../../sillytavern/mapDataAdapter';
 import { getDatabase } from '../../sillytavern/database';
+import { useSS } from '../../hooks/SillytavernContext';
+import { calcTravelInfo } from '../../sillytavern/map-distance';
 
 /* ===== Rating / anomaly color config ===== */
 interface RatingColorSet { text: string; border: string; glow: string; bg: string; bar: string }
@@ -149,7 +151,10 @@ function groupByFloor(children: MapLocationRender[]): { label: string; key: stri
    MAP PAGE
    ============================================================ */
 export default function MapPage() {
+  const ss = useSS();
   const [mapData, setMapData] = useState<Record<string, any>>(DEFAULT_WORLD_VARS.地图 as Record<string, any>);
+  const [currentLocation, setCurrentLocation] = useState<string>('');
+  const [isDream, setIsDream] = useState<boolean>(false);
 
   // Poll live variables from DB
   const mapDataRef = useRef(JSON.stringify(DEFAULT_WORLD_VARS.地图));
@@ -164,6 +169,13 @@ export default function MapPage() {
           mapDataRef.current = raw;
           setMapData(JSON.parse(raw));
         }
+        // Read current location
+        const inDream = vars?.['世界']?.['梦境定位']?.['位于梦境'] === true;
+        setIsDream(inDream);
+        const loc = inDream
+          ? (vars?.['世界']?.['梦境存档']?.['地点'] ?? '')
+          : (vars?.['世界']?.['现实']?.['地点'] ?? '');
+        setCurrentLocation(typeof loc === 'string' ? loc : '');
       } catch { /* DB not ready */ }
     };
     refresh();
@@ -282,6 +294,16 @@ export default function MapPage() {
     setSelectedPoint(null); setCardOrigin(null); setCardVisible(false);
     setSearchQuery(''); setSearchOpen(false);
   }, [selectedPoint]);
+
+  // --- Go To ---
+  const handleGoTo = useCallback(() => {
+    if (!selectedPoint || !currentLocation || !mapData) return;
+    const info = calcTravelInfo(mapData, currentLocation, selectedPoint.name);
+    if (!info) return;
+    // Close card and send prompt
+    setSelectedPoint(null); setCardOrigin(null); setCardVisible(false);
+    ss.sendGameMessage(info.prompt);
+  }, [selectedPoint, currentLocation, mapData, ss]);
 
   // --- Search select: navigate to node's parent & open card ---
   const handleSearchSelect = useCallback((entry: FlatEntry) => {
@@ -513,7 +535,8 @@ export default function MapPage() {
         <AnimatePresence>
           {selectedPoint && cardOrigin && cardVisible && (
             <LocationInfoCard key={selectedPoint.key} point={selectedPoint} origin={cardOrigin}
-              hasChildren={selectedPoint.children.length > 0} onClose={dismissCard} onEnter={handleEnter} />
+              hasChildren={selectedPoint.children.length > 0} onClose={dismissCard} onEnter={handleEnter}
+              onGoTo={handleGoTo} canGoTo={!!currentLocation} />
           )}
         </AnimatePresence>
       </div>
@@ -599,9 +622,10 @@ function PointMarker({ point, depth, isSelected, style, onClick, isWorldLevel }:
 /* ============================================================
    LOCATION INFO CARD
    ============================================================ */
-function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter }: {
+function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter, onGoTo, canGoTo }: {
   point: MapLocationRender; origin: { x: number; y: number };
   hasChildren: boolean; onClose: () => void; onEnter: () => void;
+  onGoTo?: () => void; canGoTo?: boolean;
 }) {
   const [layer, setLayer] = useState<'现实' | '梦境'>('现实');
   const detail = layer === '现实' ? point.reality : point.dream;
@@ -693,10 +717,25 @@ function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter }: {
           <button disabled className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.2em] opacity-25 cursor-not-allowed"
             style={{ color: accent, border: `1px solid ${accent}15`, backgroundColor: `${accent}04`, fontSize: '13px' }}>已是最深层级</button>
         )}
-        <button className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.2em] transition-all duration-300"
-          style={{ color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)', backgroundColor: 'rgba(245,158,11,0.06)', fontSize: '13px' }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.14)'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.5)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(245,158,11,0.18)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.06)'; e.currentTarget.style.borderColor = 'rgba(245,158,11,0.25)'; e.currentTarget.style.boxShadow = 'none'; }}
+        <button onClick={onGoTo} disabled={!canGoTo || !onGoTo}
+          className={`flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.2em] transition-all duration-300 ${
+            (!canGoTo || !onGoTo) ? 'opacity-25 cursor-not-allowed' : ''
+          }`}
+          style={{
+            color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)',
+            backgroundColor: 'rgba(245,158,11,0.06)', fontSize: '13px',
+          }}
+          onMouseEnter={(e) => {
+            if (!canGoTo || !onGoTo) return;
+            e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.14)';
+            e.currentTarget.style.borderColor = 'rgba(245,158,11,0.5)';
+            e.currentTarget.style.boxShadow = '0 0 20px rgba(245,158,11,0.18)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(245,158,11,0.06)';
+            e.currentTarget.style.borderColor = 'rgba(245,158,11,0.25)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
           aria-label="前往">前 往</button>
       </div>
     </motion.div>
