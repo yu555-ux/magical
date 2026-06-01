@@ -104,9 +104,10 @@ export function calcTravelInfo(
 
   const { distance, direction } = calcDirectionDistance(fromBounds, toBounds);
 
-  return {
-    distance,
-    direction,
-    prompt: `{{user}}动身前往${destinationName}，目的地距当前位置大概为${direction}${distance}km`,
-  };
+  // 同位置（距离 < 0.05km）不计算方位距离
+  const prompt = distance < 0.05
+    ? `{{user}}动身前往${destinationName}`
+    : `{{user}}动身前往${destinationName}，目的地距当前位置大概为${direction}${distance}km`;
+
+  return { distance, direction, prompt };
 }
