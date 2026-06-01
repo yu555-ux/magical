@@ -28,9 +28,9 @@ function treeFormat(obj: Record<string, any>, lines: string[], depth: number) {
 }
 
 /** 按点分隔路径提取变量子树并格式化为缩进文本 */
-export function getVariablePath(variables: Record<string, any>, path: string, baseIndent: number = 0): string {
+export function getVariablePath(variables: Record<string, any>, path: string): string {
   console.log('[GET_VAR] ── 入口 ──');
-  console.log('[GET_VAR] 路径:', path, '缩进:', baseIndent);
+  console.log('[GET_VAR] 路径:', path);
   console.log('[GET_VAR] variables 是否为 null/undefined:', !variables);
   console.log('[GET_VAR] variables 顶层 keys:', variables ? Object.keys(variables) : '(无)');
 
@@ -70,9 +70,9 @@ export function getVariablePath(variables: Record<string, any>, path: string, ba
   }
 
   const lines: string[] = [];
-  treeFormat(node, lines, baseIndent);
+  treeFormat(node, lines, 1);
   const result = lines.join('\n');
-  console.log('[GET_VAR] ✅ 子树结果 (' + lines.length + ' 行, baseIndent=' + baseIndent + '):\n' + result);
+  console.log('[GET_VAR] ✅ 子树结果 (' + lines.length + ' 行):\n' + result);
   return result;
 }
 
