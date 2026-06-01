@@ -27,6 +27,8 @@ export interface AssembleOptions {
   dreamAnchor?: DreamAnchor;
   squashSystemMessages?: boolean;
   recentMessageCount?: number;
+  useProcessedMap?: boolean;
+  useProcessedCharacters?: boolean;
 }
 
 export interface AssembleResult {
@@ -194,14 +196,25 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
   // ── Pre-compute map/character/vars text ──
   const contextStr = history.slice(-5).map(m => m.content).join('\n');
   if (mapTree) {
-    macroCtx.mapText = processMapForPrompt(mapTree, currentLocation, isDream, contextStr);
+    if (options.useProcessedMap !== false) {
+      macroCtx.mapText = processMapForPrompt(mapTree, currentLocation, isDream, contextStr);
+    } else {
+      macroCtx.mapText = formatVariablesForPrompt(mapTree);
+    }
   }
-  if (characters && mapTree) {
-    const pp = currentLocation ? resolvePath(currentLocation, mapTree) : null;
-    macroCtx.femaleStrangerText = formatCharacterGroup(filterCharacterGroup(characters['女性']?.['异人'], pp, isDream, mapTree, 'female', 'stranger', contextStr));
-    macroCtx.femaleNormalText = formatCharacterGroup(filterCharacterGroup(characters['女性']?.['普通人'], pp, isDream, mapTree, 'female', 'normal', contextStr));
-    macroCtx.maleStrangerText = formatCharacterGroup(filterCharacterGroup(characters['男性']?.['异人'], pp, isDream, mapTree, 'male', 'stranger', contextStr));
-    macroCtx.maleNormalText = formatCharacterGroup(filterCharacterGroup(characters['男性']?.['普通人'], pp, isDream, mapTree, 'male', 'normal', contextStr));
+  if (characters) {
+    if (options.useProcessedCharacters !== false && mapTree) {
+      const pp = currentLocation ? resolvePath(currentLocation, mapTree) : null;
+      macroCtx.femaleStrangerText = formatCharacterGroup(filterCharacterGroup(characters['女性']?.['异人'], pp, isDream, mapTree, 'female', 'stranger', contextStr));
+      macroCtx.femaleNormalText = formatCharacterGroup(filterCharacterGroup(characters['女性']?.['普通人'], pp, isDream, mapTree, 'female', 'normal', contextStr));
+      macroCtx.maleStrangerText = formatCharacterGroup(filterCharacterGroup(characters['男性']?.['异人'], pp, isDream, mapTree, 'male', 'stranger', contextStr));
+      macroCtx.maleNormalText = formatCharacterGroup(filterCharacterGroup(characters['男性']?.['普通人'], pp, isDream, mapTree, 'male', 'normal', contextStr));
+    } else if (options.useProcessedCharacters === false) {
+      macroCtx.femaleStrangerText = formatCharacterGroup(characters['女性']?.['异人'] ?? {});
+      macroCtx.femaleNormalText = formatCharacterGroup(characters['女性']?.['普通人'] ?? {});
+      macroCtx.maleStrangerText = formatCharacterGroup(characters['男性']?.['异人'] ?? {});
+      macroCtx.maleNormalText = formatCharacterGroup(characters['男性']?.['普通人'] ?? {});
+    }
   }
   if (resolvedVars) {
     // 注入代码计算的倒计时（覆盖任何 AI 写入的旧值）

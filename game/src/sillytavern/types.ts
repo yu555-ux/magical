@@ -287,6 +287,10 @@ export interface AppSettings {
   richTextConfig: RichTextConfig;
   /** Frontend: recent message count to include in chat history (0 = unlimited) */
   recentMessageCount: number;
+  /** Frontend: process map tree with location filter for {{MAP}} macro */
+  useProcessedMap: boolean;
+  /** Frontend: process character groups with location filter for character macros */
+  useProcessedCharacters: boolean;
 }
 
 export const DEFAULT_TAGS = ['maintext', 'option', 'history', 'vars', 'thinking', 'think', 'Analysis', 'JSONPatch'] as const;
@@ -319,6 +323,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   messageWidthPercent: 90,
   richTextConfig: DEFAULT_RICH_TEXT_CONFIG,
   recentMessageCount: 6,
+  useProcessedMap: true,
+  useProcessedCharacters: true,
 };
 
 // ========== Chat Types ==========

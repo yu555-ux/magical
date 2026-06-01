@@ -233,6 +233,8 @@ export function useSillytavern() {
       dreamAnchor: updatedChat.dreamAnchor,
       squashSystemMessages: effectiveSettings.squashSystemMessages,
       recentMessageCount: effectiveSettings.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount,
+      useProcessedMap: effectiveSettings.useProcessedMap,
+      useProcessedCharacters: effectiveSettings.useProcessedCharacters,
     });
 
     setLastPrompt({
@@ -572,6 +574,8 @@ export function useSillytavern() {
       plotHistory: activeChat?.plotHistory,
       dreamAnchor: activeChat?.dreamAnchor,
       recentMessageCount: effectiveSettings.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount,
+      useProcessedMap: effectiveSettings.useProcessedMap,
+      useProcessedCharacters: effectiveSettings.useProcessedCharacters,
     });
     setLastPrompt({
       messages: messages.map(m => ({ role: m.role, content: m.content })),
