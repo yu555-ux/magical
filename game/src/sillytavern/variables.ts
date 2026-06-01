@@ -36,7 +36,7 @@ export function getVariablePath(variables: Record<string, any>, path: string): s
 
   if (!variables || !path) {
     console.log('[GET_VAR] ❌ 提前返回空: variables=' + !!variables + ' path=' + !!path);
-    return '';
+    return '无';
   }
 
   const parts = path.split('.');
@@ -49,11 +49,11 @@ export function getVariablePath(variables: Record<string, any>, path: string): s
 
     if (!node || typeof node !== 'object') {
       console.log('[GET_VAR] ❌ step ' + i + ' 失败: node 不是有效对象');
-      return '';
+      return '无';
     }
     if (!(part in node)) {
       console.log('[GET_VAR] ❌ step ' + i + ' 失败: key "' + part + '" 不存在于 node, 可用 keys=' + Object.keys(node));
-      return '';
+      return '无';
     }
     node = node[part];
     console.log('[GET_VAR]   step ' + i + ' 找到, 值类型=' + typeof node + ', 是否为 null=' + (node === null));
@@ -61,7 +61,7 @@ export function getVariablePath(variables: Record<string, any>, path: string): s
 
   if (node === undefined || node === null) {
     console.log('[GET_VAR] ❌ 最终值为 null/undefined');
-    return '';
+    return '无';
   }
 
   if (typeof node !== 'object') {
@@ -72,6 +72,10 @@ export function getVariablePath(variables: Record<string, any>, path: string): s
   const lines: string[] = [];
   treeFormat(node, lines, 1);
   const result = lines.join('\n');
+  if (!result) {
+    console.log('[GET_VAR] ✅ 子树为空对象, 返回"无"');
+    return '无';
+  }
   console.log('[GET_VAR] ✅ 子树结果 (' + lines.length + ' 行):\n' + result);
   return result;
 }
