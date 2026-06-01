@@ -122,6 +122,16 @@ interface MacroContext {
   fullVars?: Record<string, any>;
 }
 
+// 解析 {{GET_VAR::路径::缩进}} 中的路径和缩进参数
+function parseGetVar(raw: string): { path: string; baseIndent: number } {
+  const parts = raw.trim().split('::');
+  if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) {
+    const baseIndent = parseInt(parts.pop()!, 10);
+    return { path: parts.join('::'), baseIndent };
+  }
+  return { path: raw.trim(), baseIndent: 0 };
+}
+
 function resolveContent(content: string, presetVars: Record<string, string>, macroCtx: MacroContext): string {
   let result = content;
   result = result.replace(/\{\{\s*\/\/[^}]*\}\}/g, '');
@@ -146,14 +156,14 @@ function resolveContent(content: string, presetVars: Record<string, string>, mac
     .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '')
     .replace(/\{\{VARS_LIST\}\}/g, macroCtx.varsListText ?? '')
     .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
-    .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, path: string) => {
-      const trimmedPath = path.trim();
-      console.log('[GET_VAR-MACRO] 匹配到 {{GET_VAR::' + trimmedPath + '}}, fullVars 是否存在:', !!macroCtx.fullVars);
+    .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, raw: string) => {
+      const { path, baseIndent } = parseGetVar(raw);
+      console.log('[GET_VAR-MACRO] 匹配到 {{GET_VAR::' + raw.trim() + '}}, path=' + path + ' indent=' + baseIndent + ', fullVars 是否存在:', !!macroCtx.fullVars);
       if (!macroCtx.fullVars) {
         console.log('[GET_VAR-MACRO] ❌ fullVars 为空, 返回空字符串');
         return '';
       }
-      const result = getVariablePath(macroCtx.fullVars, trimmedPath);
+      const result = getVariablePath(macroCtx.fullVars, path, baseIndent);
       console.log('[GET_VAR-MACRO] 结果长度:', result.length, '结果前100字符:', result.substring(0, 100));
       return result;
     })
@@ -250,14 +260,14 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
      .replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '')
      .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '')
      .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
-     .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, path: string) => {
-       const trimmedPath = path.trim();
-       console.log('[GET_VAR-LOREBOOK] 匹配到 {{GET_VAR::' + trimmedPath + '}}, fullVars 是否存在:', !!macroCtx.fullVars);
+     .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, raw: string) => {
+       const { path, baseIndent } = parseGetVar(raw);
+       console.log('[GET_VAR-LOREBOOK] 匹配到 {{GET_VAR::' + raw.trim() + '}}, path=' + path + ' indent=' + baseIndent + ', fullVars 是否存在:', !!macroCtx.fullVars);
        if (!macroCtx.fullVars) {
          console.log('[GET_VAR-LOREBOOK] ❌ fullVars 为空, 返回空字符串');
          return '';
        }
-       const result = getVariablePath(macroCtx.fullVars, trimmedPath);
+       const result = getVariablePath(macroCtx.fullVars, path, baseIndent);
        console.log('[GET_VAR-LOREBOOK] 结果长度:', result.length, '结果前100字符:', result.substring(0, 100));
        return result;
      })
