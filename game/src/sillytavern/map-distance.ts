@@ -81,16 +81,13 @@ function calcDirectionDistance(
   return { distance, direction };
 }
 
-/** 格式化距离字符串：整数用km，有小数则换算为m */
+/** 格式化距离字符串：< 1km 换算为 m，>= 1km 保留 1 位小数 */
 function formatDistance(distance: number): string {
-  if (distance < 0.5 / 1000) return ''; // < 0.0005km 视为同位置
-  if (distance === Math.floor(distance)) {
-    // 整数 km
-    return `${distance}km`;
+  if (distance < 1) {
+    const meters = Math.round(distance * 1000);
+    return `${meters}m`;
   }
-  // 有小数 → 换算为 m
-  const meters = Math.round(distance * 1000);
-  return `${meters}m`;
+  return `${Math.round(distance * 10) / 10}km`;
 }
 
 /**
@@ -157,14 +154,20 @@ export function calcTravelInfo(
     };
   }
 
+  // 双方均为世界级地点（路径深度 ≤ 2）→ 不写距离
+  const bothWorldLevel = fromPath.length <= 2 && toPath.length <= 2;
+
   const { distance, direction } = calcDirectionDistance(fromBounds, toBounds);
-  const distStr = formatDistance(distance);
 
-  const prompt = distStr
-    ? `{{user}}动身前往${destinationName}，目的地距当前位置大概为${direction}${distStr}`
-    : `{{user}}动身前往${destinationName}`;
+  let prompt: string;
+  if (bothWorldLevel) {
+    prompt = `{{user}}动身前往${destinationName}`;
+  } else {
+    const distStr = formatDistance(distance);
+    prompt = `{{user}}动身前往${destinationName}，目的地距当前位置大概为${direction}${distStr}`;
+  }
 
-  console.log('[前往]', { from: currentLocation, to: destinationName, distance, direction, distStr });
+  console.log('[前往]', { from: currentLocation, to: destinationName, distance, direction, bothWorldLevel });
 
   return { distance, direction, prompt };
 }

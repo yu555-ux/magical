@@ -42,18 +42,32 @@ function fitViewport(points: MapLocationRender[], paddingRatio = 0.6): Viewport 
   for (const p of points) { if (p.cx < minX) minX = p.cx; if (p.cx > maxX) maxX = p.cx; if (p.cy < minY) minY = p.cy; if (p.cy > maxY) maxY = p.cy; }
   let dx = maxX - minX || 10;
   let dy = maxY - minY;
-  // When points share nearly same Y, derive Y range from X to keep viewport zoomed in
-  if (dy < dx * 0.05) dy = dx / (CANVAS_W / CANVAS_H);
+  // When points share nearly same X (North), derive from Y (East) to keep viewport zoomed in
+  if (dx < dy * 0.05) dx = dy / (CANVAS_W / CANVAS_H);
   const padX = dx * paddingRatio, padY = dy * paddingRatio;
-  const rawW = dx + padX * 2, rawH = dy + padY * 2;
+  const northRange = dx + padX * 2;  // X → screen height
+  const eastRange = dy + padY * 2;   // Y → screen width
   const aspect = CANVAS_W / CANVAS_H;
   let w: number, h: number;
-  if (rawW / rawH > aspect) { w = rawW; h = rawW / aspect; } else { h = rawH; w = rawH * aspect; }
+  // eastRange / northRange should match aspect (screen width / screen height)
+  if (eastRange / northRange > aspect) {
+    // East too wide → expand North
+    w = eastRange / aspect;
+    h = eastRange;
+  } else {
+    // North too tall → expand East
+    w = northRange;
+    h = northRange * aspect;
+  }
   const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 function worldToScreen(wx: number, wy: number, vp: Viewport) {
-  return { sx: ((wx - vp.x) / vp.w) * CANVAS_W, sy: ((wy - vp.y) / vp.h) * CANVAS_H };
+  // +X=北→上, +Y=东→右
+  return {
+    sx: ((wy - vp.y) / vp.h) * CANVAS_W,
+    sy: CANVAS_H - ((wx - vp.x) / vp.w) * CANVAS_H,
+  };
 }
 
 /* ===== Colors ===== */
@@ -273,8 +287,14 @@ export default function MapPage() {
     if (!isDragging) return;
     const dx = e.clientX - dragStart.current.x, dy = e.clientY - dragStart.current.y;
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved.current = true;
-    const scaleX = dragViewStart.current.w / CANVAS_W, scaleY = dragViewStart.current.h / CANVAS_H;
-    setViewport({ x: dragViewStart.current.x - dx * scaleX, y: dragViewStart.current.y - dy * scaleY, w: dragViewStart.current.w, h: dragViewStart.current.h });
+    // +X=北→上, +Y=东→右
+    const scaleEast = dragViewStart.current.h / CANVAS_W;   // East (Y) per screen pixel X
+    const scaleNorth = dragViewStart.current.w / CANVAS_H;  // North (X) per screen pixel Y
+    setViewport({
+      x: dragViewStart.current.x - dy * scaleNorth,  // down→south(lower X)
+      y: dragViewStart.current.y + dx * scaleEast,   // right→east(higher Y)
+      w: dragViewStart.current.w, h: dragViewStart.current.h,
+    });
   }, [isDragging, viewport]);
 
   const handlePanEnd = useCallback(() => setIsDragging(false), []);
@@ -687,8 +707,8 @@ function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter, onGoTo
         </div>
         {point.bounds && (
           <div className="grid grid-cols-3 gap-2">
-            <MiniStat label="北 X" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
-            <MiniStat label="东 Y" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
+            <MiniStat label="X 范围" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
+            <MiniStat label="Y 范围" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
             <MiniStat label="Z 范围" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" accent={accent} />
           </div>
         )}
