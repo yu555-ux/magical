@@ -36,7 +36,7 @@ export default function SocialPage() {
   const characterName = ss.settings?.characterName ?? 'AI';
 
   // Resolve macros in displayed variable values
-  const socialData: Record<string, { 关系: string; 社交圈?: Record<string, string> }> = useMemo(() => {
+  const socialData: Record<string, { 关系: string }> = useMemo(() => {
     const raw = liveVars?.['主角']?.['社交'] ?? defaults.主角?.社交 ?? {};
     return deepResolveMacros(raw, playerName, characterName);
   }, [liveVars, defaults, playerName, characterName]);
@@ -108,8 +108,9 @@ export default function SocialPage() {
     const nameSet = new Set(nodesWithPositions.map((n) => n.name));
     for (const [name, data] of Object.entries(socialData)) {
       edges.push({ from: '我', to: name, label: data.关系, stroke: NODE_COLOR, opacity: 0.4 });
-      if (data.社交圈) {
-        for (const [friend, rel] of Object.entries(data.社交圈)) {
+      const profile = findCharProfile(charData, name);
+      if (profile?.社交圈) {
+        for (const [friend, rel] of Object.entries(profile.社交圈 as Record<string, string>)) {
           if (!nameSet.has(friend)) continue;
           const dup = edges.find((e) => (e.from === name && e.to === friend) || (e.from === friend && e.to === name));
           if (!dup) edges.push({ from: name, to: friend, label: rel, stroke: '#a78bfa', opacity: 0.2, dash: true });
@@ -403,7 +404,7 @@ export default function SocialPage() {
                     <span className="text-[11px] font-mono text-white/55">{selSocial.关系}</span>
                   </div>
                   {/* Social circle: 人名 + 关系 — same format */}
-                  {selSocial.社交圈 && Object.entries(selSocial.社交圈).map(([name, rel]) => (
+                  {selProfile?.社交圈 && Object.entries(selProfile.社交圈 as Record<string, string>).map(([name, rel]) => (
                     <div key={name} className="flex items-baseline gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-aether-cyan/35 shrink-0" />
                       <span className="text-[13px] font-display text-white/65 font-bold tracking-wider">{name}</span>
