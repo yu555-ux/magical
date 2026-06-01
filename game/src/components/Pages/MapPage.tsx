@@ -687,8 +687,8 @@ function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter, onGoTo
         </div>
         {point.bounds && (
           <div className="grid grid-cols-3 gap-2">
-            <MiniStat label="X 范围" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
-            <MiniStat label="Y 范围" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
+            <MiniStat label="北 X" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
+            <MiniStat label="东 Y" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
             <MiniStat label="Z 范围" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" accent={accent} />
           </div>
         )}
