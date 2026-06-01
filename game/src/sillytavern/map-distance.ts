@@ -16,31 +16,39 @@ export interface TravelInfo {
   prompt: string;
 }
 
+/**
+ * 在地图原始树中按路径查找节点。
+ * resolvePath 返回的 path 跳过了"子地图"层级，
+ * 遍历时需在每段之间插入"子地图"。
+ */
+function walkPath(
+  mapData: Record<string, any>,
+  path: string[],
+  endIndex: number,
+): any {
+  let node: any = mapData;
+  for (let j = 0; j < endIndex; j++) {
+    if (!node || typeof node !== 'object') return null;
+    node = node[path[j]];
+    if (!node) return null;
+    // 非最后一段时，进入子地图
+    if (j < endIndex - 1) {
+      node = node['子地图'];
+      if (!node || typeof node !== 'object') return null;
+    }
+  }
+  return node;
+}
+
 /** 在地图树中递归向上查找节点的方位（X/Y范围） */
 function findBounds(
-  mapTree: Record<string, any>,
+  mapData: Record<string, any>,
   path: string[],
 ): { X: [number, number]; Y: [number, number] } | null {
-  // 从path最深层向上查找
   for (let i = path.length; i > 0; i--) {
-    let node: any = mapTree;
-    for (let j = 0; j < i; j++) {
-      if (!node || typeof node !== 'object') break;
-      node = node[path[j]];
-    }
+    const node = walkPath(mapData, path, i);
     if (node && typeof node === 'object' && node['方位']) {
       const fw = node['方位'];
-      if (fw.X && fw.Y) return { X: fw.X as [number, number], Y: fw.Y as [number, number] };
-    }
-    // 也检查子地图中的节点
-    const subPath = path.slice(0, i);
-    let subNode: any = mapTree;
-    for (let j = 0; j < subPath.length; j++) {
-      if (!subNode || typeof subNode !== 'object') break;
-      subNode = subNode[subPath[j]];
-    }
-    if (subNode && typeof subNode === 'object' && subNode['方位']) {
-      const fw = subNode['方位'];
       if (fw.X && fw.Y) return { X: fw.X as [number, number], Y: fw.Y as [number, number] };
     }
   }
@@ -70,44 +78,93 @@ function calcDirectionDistance(
     direction = dy >= 0 ? '东' : '西';
   }
 
-  return { distance: Math.round(distance * 10) / 10, direction };
+  return { distance, direction };
+}
+
+/** 格式化距离字符串：整数用km，有小数则换算为m */
+function formatDistance(distance: number): string {
+  if (distance < 0.5 / 1000) return ''; // < 0.0005km 视为同位置
+  if (distance === Math.floor(distance)) {
+    // 整数 km
+    return `${distance}km`;
+  }
+  // 有小数 → 换算为 m
+  const meters = Math.round(distance * 1000);
+  return `${meters}m`;
+}
+
+/**
+ * 判断两点的中心坐标是否完全相等。
+ */
+function samePosition(
+  a: { X: [number, number]; Y: [number, number] },
+  b: { X: [number, number]; Y: [number, number] },
+): boolean {
+  const ax = (a.X[0] + a.X[1]) / 2;
+  const ay = (a.Y[0] + a.Y[1]) / 2;
+  const bx = (b.X[0] + b.X[1]) / 2;
+  const by = (b.Y[0] + b.Y[1]) / 2;
+  return ax === bx && ay === by;
 }
 
 /**
  * 计算玩家前往目标地点的旅行信息。
- * @param mapTree      原始地图变量树（未适配的 Record<string, any>）
+ * @param mapData      原始地图变量树（未适配的 Record<string, any>）
  * @param currentLocation  玩家当前位置字符串（如 "11号楼-601室"）
  * @param destinationName  目标地点名称（MapLocationRender.name）
  * @returns TravelInfo 或 null（当前位置/目标无法定位时）
  */
 export function calcTravelInfo(
-  mapTree: Record<string, any>,
+  mapData: Record<string, any>,
   currentLocation: string,
   destinationName: string,
 ): TravelInfo | null {
-  if (!mapTree || !currentLocation || !destinationName) return null;
-  if (currentLocation === destinationName) return null;
+  if (!mapData || !currentLocation || !destinationName) return null;
 
   // 在 mapTree 中解析位置路径
-  const fromPath = resolvePath(currentLocation, mapTree);
-  if (!fromPath) return null;
+  const fromPath = resolvePath(currentLocation, mapData);
+  if (!fromPath) {
+    console.log('[前往] 无法解析当前位置:', currentLocation);
+    return null;
+  }
 
-  const toPath = resolvePath(destinationName, mapTree);
-  if (!toPath) return null;
+  const toPath = resolvePath(destinationName, mapData);
+  if (!toPath) {
+    console.log('[前往] 无法解析目标地点:', destinationName);
+    return null;
+  }
 
   // 获取两点的方位范围
-  const fromBounds = findBounds(mapTree, fromPath);
-  if (!fromBounds) return null;
+  const fromBounds = findBounds(mapData, fromPath);
+  if (!fromBounds) {
+    console.log('[前往] 当前位置无方位:', currentLocation, 'path:', fromPath);
+    return null;
+  }
 
-  const toBounds = findBounds(mapTree, toPath);
-  if (!toBounds) return null;
+  const toBounds = findBounds(mapData, toPath);
+  if (!toBounds) {
+    console.log('[前往] 目标地点无方位:', destinationName, 'path:', toPath);
+    return null;
+  }
+
+  // X/Y 中心值完全相等 → 同位置
+  if (samePosition(fromBounds, toBounds)) {
+    console.log('[前往] 同位置，无需计算距离');
+    return {
+      distance: 0,
+      direction: '',
+      prompt: `{{user}}动身前往${destinationName}`,
+    };
+  }
 
   const { distance, direction } = calcDirectionDistance(fromBounds, toBounds);
+  const distStr = formatDistance(distance);
 
-  // 同位置（距离 < 0.05km）不计算方位距离
-  const prompt = distance < 0.05
-    ? `{{user}}动身前往${destinationName}`
-    : `{{user}}动身前往${destinationName}，目的地距当前位置大概为${direction}${distance}km`;
+  const prompt = distStr
+    ? `{{user}}动身前往${destinationName}，目的地距当前位置大概为${direction}${distStr}`
+    : `{{user}}动身前往${destinationName}`;
+
+  console.log('[前往]', { from: currentLocation, to: destinationName, distance, direction, distStr });
 
   return { distance, direction, prompt };
 }
