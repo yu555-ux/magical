@@ -250,7 +250,17 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
      .replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '')
      .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '')
      .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
-     .replace(/\{\{GET_VAR::([^}]+)\}\}/g, '')
+     .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, path: string) => {
+       const trimmedPath = path.trim();
+       console.log('[GET_VAR-LOREBOOK] 匹配到 {{GET_VAR::' + trimmedPath + '}}, fullVars 是否存在:', !!macroCtx.fullVars);
+       if (!macroCtx.fullVars) {
+         console.log('[GET_VAR-LOREBOOK] ❌ fullVars 为空, 返回空字符串');
+         return '';
+       }
+       const result = getVariablePath(macroCtx.fullVars, trimmedPath);
+       console.log('[GET_VAR-LOREBOOK] 结果长度:', result.length, '结果前100字符:', result.substring(0, 100));
+       return result;
+     })
      .replace(/\{\{LOREBY::([^}]+)\}\}/g, '');
 
   function getLorebook(anchor: InjectionAnchor): string {
