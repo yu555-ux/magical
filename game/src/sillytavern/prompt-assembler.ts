@@ -146,7 +146,17 @@ function resolveContent(content: string, presetVars: Record<string, string>, mac
     .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '')
     .replace(/\{\{VARS_LIST\}\}/g, macroCtx.varsListText ?? '')
     .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
-    .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, path: string) => macroCtx.fullVars ? getVariablePath(macroCtx.fullVars, path.trim()) : '')
+    .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, path: string) => {
+      const trimmedPath = path.trim();
+      console.log('[GET_VAR-MACRO] 匹配到 {{GET_VAR::' + trimmedPath + '}}, fullVars 是否存在:', !!macroCtx.fullVars);
+      if (!macroCtx.fullVars) {
+        console.log('[GET_VAR-MACRO] ❌ fullVars 为空, 返回空字符串');
+        return '';
+      }
+      const result = getVariablePath(macroCtx.fullVars, trimmedPath);
+      console.log('[GET_VAR-MACRO] 结果长度:', result.length, '结果前100字符:', result.substring(0, 100));
+      return result;
+    })
     .replace(/\{\{LOREBY::([^}]+)\}\}/g, '')
     .replace(/\{\{trim\}\}/gi, '');
   return result;

@@ -29,18 +29,51 @@ function treeFormat(obj: Record<string, any>, lines: string[], depth: number) {
 
 /** 按点分隔路径提取变量子树并格式化为缩进文本 */
 export function getVariablePath(variables: Record<string, any>, path: string): string {
-  if (!variables || !path) return '';
-  const parts = path.split('.');
-  let node: any = variables;
-  for (const part of parts) {
-    if (!node || typeof node !== 'object') return '';
-    node = node[part];
+  console.log('[GET_VAR] ── 入口 ──');
+  console.log('[GET_VAR] 路径:', path);
+  console.log('[GET_VAR] variables 是否为 null/undefined:', !variables);
+  console.log('[GET_VAR] variables 顶层 keys:', variables ? Object.keys(variables) : '(无)');
+
+  if (!variables || !path) {
+    console.log('[GET_VAR] ❌ 提前返回空: variables=' + !!variables + ' path=' + !!path);
+    return '';
   }
-  if (node === undefined || node === null) return '';
-  if (typeof node !== 'object') return String(node);
+
+  const parts = path.split('.');
+  console.log('[GET_VAR] 路径分段:', parts);
+
+  let node: any = variables;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    console.log('[GET_VAR]   step ' + i + ' 查找 key="' + part + '", node 类型=' + typeof node + ', node keys=' + (node && typeof node === 'object' ? Object.keys(node) : '(非对象)'));
+
+    if (!node || typeof node !== 'object') {
+      console.log('[GET_VAR] ❌ step ' + i + ' 失败: node 不是有效对象');
+      return '';
+    }
+    if (!(part in node)) {
+      console.log('[GET_VAR] ❌ step ' + i + ' 失败: key "' + part + '" 不存在于 node, 可用 keys=' + Object.keys(node));
+      return '';
+    }
+    node = node[part];
+    console.log('[GET_VAR]   step ' + i + ' 找到, 值类型=' + typeof node + ', 是否为 null=' + (node === null));
+  }
+
+  if (node === undefined || node === null) {
+    console.log('[GET_VAR] ❌ 最终值为 null/undefined');
+    return '';
+  }
+
+  if (typeof node !== 'object') {
+    console.log('[GET_VAR] ✅ 标量结果: ' + String(node));
+    return String(node);
+  }
+
   const lines: string[] = [];
   treeFormat(node, lines, 0);
-  return lines.join('\n');
+  const result = lines.join('\n');
+  console.log('[GET_VAR] ✅ 子树结果 (' + lines.length + ' 行):\n' + result);
+  return result;
 }
 
 // ── Variable list (type reference for AI) ──
