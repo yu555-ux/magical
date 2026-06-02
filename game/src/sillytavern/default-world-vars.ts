@@ -10,7 +10,7 @@
 export const DEFAULT_WORLD_VARS: Record<string, any> = {
   世界: {
     梦境定位: {
-      即将入睡: true,
+      即将入睡: false,
       位于梦境: false,
     },
     现实: {
@@ -63,7 +63,7 @@ export const DEFAULT_WORLD_VARS: Record<string, any> = {
         等级: '聚砂',
         描述: '睡梦中进入梦境，唯一可穿梭梦境与现实之人。',
         使用要求: '深度睡眠时进入',
-        消耗能量: 20,
+        消耗能量: 0,
         副作用: { 强制苏醒: '梦境中死亡后会强制苏醒，头疼欲裂' },
         熟练度: 10,
         分支: {},
