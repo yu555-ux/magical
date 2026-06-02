@@ -101,11 +101,13 @@ export function Toast({ message, type, onClose, channel = 'terminal' }: ToastPro
           style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,242,255,0.3) 2px, rgba(0,242,255,0.3) 3px)' }} />
       )}
 
-      <span className="shrink-0">{icons[type]}</span>
+      {type !== 'error' && <span className="shrink-0">{icons[type]}</span>}
       <div className={`flex-1 text-sm tracking-wider ${isLog ? 'font-display' : 'font-mono'}`}>
-        <span className={`font-bold mr-2 uppercase text-[10px] opacity-70 ${isLog ? 'font-display' : 'font-mono'}`}>
-          [{type}]
-        </span>
+        {type !== 'error' && (
+          <span className={`font-bold mr-2 uppercase text-[10px] opacity-70 ${isLog ? 'font-display' : 'font-mono'}`}>
+            [{type}]
+          </span>
+        )}
         {message}
       </div>
       <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="hover:opacity-70 transition-opacity p-1 clickable relative z-10 pointer-events-auto">
