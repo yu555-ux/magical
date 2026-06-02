@@ -59,7 +59,7 @@ export default function App() {
 
   return (
     <SillytavernProvider>
-    <div className="flex h-screen w-screen overflow-hidden bg-aether-dark font-sans text-white selection:bg-aether-cyan selection:text-aether-dark">
+    <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden bg-aether-dark font-sans text-white selection:bg-aether-cyan selection:text-aether-dark">
       {!entryDone && <EntryOverlay onComplete={() => setEntryDone(true)} />}
 
       {/* Background */}
@@ -73,14 +73,14 @@ export default function App() {
 
       <Sidebar activePage={activePage} setActivePage={setActivePage} onOpenSettings={() => setShowSystemSettings(true)} />
 
-      <main className="flex-1 relative z-10 overflow-hidden flex flex-col">
+      <main className="flex-1 relative z-10 overflow-hidden md:overflow-hidden flex flex-col">
         <AnimatePresence mode="wait">
           <motion.div key={activePage}
             initial={{ opacity: 0, scale: 0.98, filter: 'blur(10px)' }}
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 1.02, filter: 'blur(10px)' }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 h-full overflow-hidden">
+            className="flex-1 h-full overflow-y-auto md:overflow-hidden">
             {renderPage()}
           </motion.div>
         </AnimatePresence>

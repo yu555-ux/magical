@@ -162,6 +162,40 @@ body {
   box-shadow: 0 0 6px rgba(0, 242, 255, 0.8);
 }
 
+/* ── Mobile base ──────────────────────────────────── */
+
+/* Safe area insets for notched devices */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+/* Hide scrollbar utility (used by sidebar horizontal scroll) */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile: native momentum scrolling */
+@media (max-width: 767px) {
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Touch-friendly minimum tap target */
+@media (max-width: 767px) {
+  .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
