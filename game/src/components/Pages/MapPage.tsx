@@ -369,7 +369,7 @@ export default function MapPage() {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const ratio = ts.dist / dist;
+      const ratio = dist / ts.dist;
       const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(ts.zoom * ratio).toFixed(2)));
       const factor = ts.zoom / next;
       zoomRef.current = next;
