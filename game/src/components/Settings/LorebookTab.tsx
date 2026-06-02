@@ -525,7 +525,7 @@ export default function LorebookTab({ draft, setDraft, onPersist }: Props) {
           <div className="space-y-3">
             {lorebooks.map(book => {
               const isExpanded = expandedBook === book.id;
-              const allEntries = book.entries;
+              const allEntries = [...book.entries].sort((a, b) => a.position - b.position);
               const filtered = filterEntries(allEntries);
               const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
               const page = Math.min(getPage(book.id), totalPages);

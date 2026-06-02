@@ -208,6 +208,11 @@ export function useSillytavern() {
       presetParams: latestSettings?.presetParams ?? settings?.presetParams,
     };
 
+    // 没有导入预设 → 阻止游戏，提示错误
+    if (!effectiveSettings.presetBlocks || effectiveSettings.presetBlocks.length === 0) {
+      throw new Error('请先在设置中导入提示词预设（Prompt Preset），否则无法进行游戏。');
+    }
+
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now() };
     const updatedChat: ChatSession = { ...activeChat, messages: [...activeChat.messages, userMsg], updatedAt: Date.now() };
     await db.chats.put(updatedChat);

@@ -191,7 +191,6 @@ export default function ChatPage({
                 >
                   <pre className="mt-2 text-[11px] text-white/30 whitespace-pre-wrap leading-relaxed bg-aether-dark/30 border border-aether-border/10 rounded p-3 font-sans max-h-40 overflow-y-auto">
                     {thinking}
-                    {isStreaming && <span className="text-aether-cyan animate-pulse">▍</span>}
                   </pre>
                 </motion.div>
               )}
@@ -219,15 +218,6 @@ export default function ChatPage({
                 }}
               >
                 <RichTextRenderer text={maintext} config={ss.settings?.richTextConfig} />
-                {isStreaming && (
-                  <motion.span
-                    animate={{ opacity: [1, 0] }}
-                    transition={{ duration: 0.6, repeat: Infinity }}
-                    className="text-aether-cyan"
-                  >
-                    ▍
-                  </motion.span>
-                )}
               </div>
             </motion.div>
           )}
