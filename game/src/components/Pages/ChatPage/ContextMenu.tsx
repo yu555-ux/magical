@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, RefreshCw, FileText, Variable } from 'lucide-react';
 
 interface Position {
   x: number;
@@ -12,9 +12,16 @@ interface Props {
   onClose: () => void;
   onViewRaw: () => void;
   onRegenerate: () => void;
+  onRegenerateVars?: () => void;
+  isDualApi: boolean;
+  isMobile: boolean;
 }
 
-export default function ContextMenu({ ctxMenu, onClose, onViewRaw, onRegenerate }: Props) {
+export default function ContextMenu({ ctxMenu, onClose, onViewRaw, onRegenerate, onRegenerateVars, isDualApi, isMobile }: Props) {
+  // 移动端：查看原文 + 重ROLL
+  // 桌面+双API：查看原文 + 重写正文 + 重写变量
+  // 桌面+单API：查看原文 + 重ROLL
+
   return (
     <AnimatePresence>
       {ctxMenu.visible && (
@@ -33,20 +40,45 @@ export default function ContextMenu({ ctxMenu, onClose, onViewRaw, onRegenerate 
             style={{ left: ctxMenu.x, top: ctxMenu.y }}
             className="absolute glass-panel border border-aether-cyan/30 shadow-[0_0_16px_rgba(0,242,255,0.12)] rounded overflow-hidden"
           >
+            {/* 查看原文 — 始终显示 */}
             <button
               onClick={() => { onClose(); onViewRaw(); }}
               className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-cyan hover:bg-aether-cyan/[0.06] transition-all font-display tracking-wide whitespace-nowrap w-full"
             >
-              <ChevronRight size={13} />
+              <FileText size={13} />
               查看原文
             </button>
-            <button
-              onClick={() => { onClose(); onRegenerate(); }}
-              className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-purple hover:bg-aether-purple/[0.06] transition-all font-display tracking-wide whitespace-nowrap w-full border-t border-aether-border/10"
-            >
-              <ChevronRight size={13} />
-              重 ROLL
-            </button>
+
+            {/* 桌面+双API → 重写正文 + 重写变量 */}
+            {!isMobile && isDualApi && onRegenerateVars && (
+              <>
+                <button
+                  onClick={() => { onClose(); onRegenerate(); }}
+                  className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-cyan hover:bg-aether-cyan/[0.06] transition-all font-display tracking-wide whitespace-nowrap w-full border-t border-aether-border/10"
+                >
+                  <RefreshCw size={13} />
+                  重写正文
+                </button>
+                <button
+                  onClick={() => { onClose(); onRegenerateVars(); }}
+                  className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-purple hover:bg-aether-purple/[0.06] transition-all font-display tracking-wide whitespace-nowrap w-full border-t border-aether-border/10"
+                >
+                  <Variable size={13} />
+                  重写变量
+                </button>
+              </>
+            )}
+
+            {/* 移动端 或 单API → 重ROLL */}
+            {(isMobile || !isDualApi) && (
+              <button
+                onClick={() => { onClose(); onRegenerate(); }}
+                className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-purple hover:bg-aether-purple/[0.06] transition-all font-display tracking-wide whitespace-nowrap w-full border-t border-aether-border/10"
+              >
+                <RefreshCw size={13} />
+                重 ROLL
+              </button>
+            )}
           </motion.div>
         </motion.div>
       )}

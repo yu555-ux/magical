@@ -64,8 +64,17 @@ export default function ChatPage({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { isKeyboardOpen } = useKeyboardAware();
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const isDualApi = ss.settings?.apiMode === 'dual' && ss.settings?.api?.secondary?.enabled;
 
   // Auto-create chat
   useEffect(() => {
@@ -215,6 +224,19 @@ export default function ChatPage({
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setCtxMenu({ x: e.clientX, y: e.clientY, visible: true });
+                }}
+                onTouchStart={(e) => {
+                  if (!isMobile) return;
+                  longPressTimer.current = setTimeout(() => {
+                    const touch = e.touches[0];
+                    setCtxMenu({ x: touch.clientX, y: touch.clientY, visible: true });
+                  }, 600);
+                }}
+                onTouchMove={() => {
+                  if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+                }}
+                onTouchEnd={() => {
+                  if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
                 }}
               >
                 <RichTextRenderer text={maintext} config={ss.settings?.richTextConfig} />
@@ -378,6 +400,9 @@ export default function ChatPage({
           setRawViewOpen(true);
         }}
         onRegenerate={() => ss.regenerateLast()}
+        onRegenerateVars={() => ss.regenerateVarsOnly()}
+        isDualApi={isDualApi}
+        isMobile={isMobile}
       />
 
       {/* ── Shop Modal ── */}

@@ -614,6 +614,98 @@ export function useSillytavern() {
     await sendGameMessage(activeChat.messages[targetIdx].content);
   }, [activeChat, sendGameMessage]);
 
+  // 重写变量：保留正文，仅用第二API重新提取变量
+  const regenerateVarsOnly = useCallback(async () => {
+    if (!activeChat || !settings) return;
+    const lastAssistant = [...activeChat.messages].reverse().find(m => m.role === 'assistant');
+    if (!lastAssistant?.parsed?.maintext) return;
+
+    const latestSettings = await getSettings();
+    const effectiveApi = latestSettings?.api ?? settings.api ?? DEFAULT_SETTINGS.api;
+    const effectiveSettings = {
+      ...(latestSettings ?? DEFAULT_SETTINGS),
+      ...(settings ?? {}),
+      api: effectiveApi,
+      presetBlocks: latestSettings?.presetBlocks ?? settings?.presetBlocks ?? DEFAULT_PRESET_BLOCKS,
+      lorebooks: latestSettings?.lorebooks ?? settings?.lorebooks ?? DEFAULT_SETTINGS.lorebooks,
+    };
+
+    if (!effectiveApi.secondary?.enabled || !effectiveApi.secondary.baseUrl) return;
+
+    const router = createApiRouter(effectiveApi);
+    const preVars = activeChat.variables ?? {};
+    const maintextForVars = lastAssistant.parsed.maintext;
+
+    const varsPreset = effectiveSettings.presets?.find(
+      (p) => p.id === effectiveSettings.activeVarsPresetId && p.type === 'vars',
+    );
+
+    if (!varsPreset) return;
+
+    try {
+      const secMessages: Array<{ role: string; content: string }> = [];
+      const lorebooks = effectiveSettings.lorebooks ?? [];
+      const secMacroCtx = {
+        userName: effectiveSettings.userName,
+        characterName: effectiveSettings.characterName,
+        userInput: '',
+        playerDescription: effectiveSettings.playerDescription,
+        characterDescription: effectiveSettings.characterDescription,
+        varsListText: formatVariablesForPrompt(preVars),
+        lastMaintext: maintextForVars,
+        fullVars: preVars,
+      };
+
+      for (const block of varsPreset.blocks) {
+        if (!block.enabled || !block.content?.trim()) continue;
+        let resolved = resolveLorebyMacro(block.content, lorebooks);
+        resolved = replaceMacros(resolved, secMacroCtx);
+        if (resolved.trim()) secMessages.push({ role: block.role, content: resolved });
+      }
+
+      const { response } = await router.call('vars', {
+        messages: secMessages as any,
+        stream: false,
+        temperature: effectiveApi.secondary.temperature ?? 0.3,
+        max_tokens: effectiveApi.secondary.maxTokens ?? 2048,
+      });
+
+      if (!response.ok) return;
+      const d = await response.json();
+      const raw = d?.choices?.[0]?.message?.content ?? '';
+      let nextVariables = JSON.parse(JSON.stringify(preVars));
+
+      const mArr = raw.match(/\[[\s\S]*\]/);
+      if (mArr) {
+        try {
+          const patches = JSON.parse(mArr[0]);
+          if (Array.isArray(patches) && patches.length > 0) {
+            nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: {}, patches }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
+            autoTagDreamItems(preVars, nextVariables);
+          }
+        } catch { /* ignore */ }
+      }
+      if (nextVariables === preVars) {
+        const mObj = raw.match(/\{[\s\S]*\}/);
+        if (mObj) {
+          try {
+            const sp = JSON.parse(mObj[0]);
+            if (sp && typeof sp === 'object' && !Array.isArray(sp)) {
+              nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: sp }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
+              autoTagDreamItems(preVars, nextVariables);
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      const next: ChatSession = { ...activeChat, variables: nextVariables, updatedAt: Date.now() };
+      await db.chats.put(next);
+      setChats(prev => prev.map(c => c.id === next.id ? next : c));
+    } catch (e) {
+      console.error('[SillyTavern] 变量重写失败:', e);
+    }
+  }, [activeChat, settings]);
+
   const setChatVariables = useCallback(async (vars: Record<string, any>) => {
     if (!activeChat) return;
     const next: ChatSession = { ...activeChat, variables: vars, updatedAt: Date.now() };
@@ -672,7 +764,7 @@ export function useSillytavern() {
 
   return {
     settings, chats, activeChat, initialized, lastPrompt, lastSecondaryPrompt,
-    createChat, selectChat, removeChat, sendGameMessage, jumpToFloor, editMessage, regenerateLast,
+    createChat, selectChat, removeChat, sendGameMessage, jumpToFloor, editMessage, regenerateLast, regenerateVarsOnly,
     updateSettings, setChatVariables, refreshPrompt,
     streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
     dualRunning, lastRawContent, toast, showToast,
