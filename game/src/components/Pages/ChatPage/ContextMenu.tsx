@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, RefreshCw, FileText, Variable } from 'lucide-react';
+import { RefreshCw, FileText, Variable } from 'lucide-react';
 
 interface Position {
   x: number;
@@ -14,13 +14,11 @@ interface Props {
   onRegenerate: () => void;
   onRegenerateVars?: () => void;
   isDualApi: boolean;
-  isMobile: boolean;
 }
 
-export default function ContextMenu({ ctxMenu, onClose, onViewRaw, onRegenerate, onRegenerateVars, isDualApi, isMobile }: Props) {
-  // 移动端：查看原文 + 重ROLL
-  // 桌面+双API：查看原文 + 重写正文 + 重写变量
-  // 桌面+单API：查看原文 + 重ROLL
+export default function ContextMenu({ ctxMenu, onClose, onViewRaw, onRegenerate, onRegenerateVars, isDualApi }: Props) {
+  // 统一逻辑：双API → 查看原文 + 重写正文 + 重写变量；单API → 查看原文 + 重ROLL
+  // 桌面端右键触发，移动端长按触发，菜单内容一致
 
   return (
     <AnimatePresence>
@@ -49,8 +47,8 @@ export default function ContextMenu({ ctxMenu, onClose, onViewRaw, onRegenerate,
               查看原文
             </button>
 
-            {/* 桌面+双API → 重写正文 + 重写变量 */}
-            {!isMobile && isDualApi && onRegenerateVars && (
+            {/* 双API → 重写正文 + 重写变量 */}
+            {isDualApi && onRegenerateVars ? (
               <>
                 <button
                   onClick={() => { onClose(); onRegenerate(); }}
@@ -67,10 +65,8 @@ export default function ContextMenu({ ctxMenu, onClose, onViewRaw, onRegenerate,
                   重写变量
                 </button>
               </>
-            )}
-
-            {/* 移动端 或 单API → 重ROLL */}
-            {(isMobile || !isDualApi) && (
+            ) : (
+              /* 单API → 重ROLL */
               <button
                 onClick={() => { onClose(); onRegenerate(); }}
                 className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-purple hover:bg-aether-purple/[0.06] transition-all font-display tracking-wide whitespace-nowrap w-full border-t border-aether-border/10"

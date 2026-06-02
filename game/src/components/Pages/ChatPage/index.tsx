@@ -221,12 +221,14 @@ export default function ChatPage({
             >
               <div
                 className="text-[15px] text-white/75 leading-[1.9] whitespace-pre-wrap font-sans tracking-[0.03em] select-none"
+                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' } as React.CSSProperties}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setCtxMenu({ x: e.clientX, y: e.clientY, visible: true });
                 }}
                 onTouchStart={(e) => {
                   if (!isMobile) return;
+                  e.preventDefault(); // 阻止文字选择
                   longPressTimer.current = setTimeout(() => {
                     const touch = e.touches[0];
                     setCtxMenu({ x: touch.clientX, y: touch.clientY, visible: true });
@@ -235,7 +237,8 @@ export default function ChatPage({
                 onTouchMove={() => {
                   if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
                 }}
-                onTouchEnd={() => {
+                onTouchEnd={(e) => {
+                  e.preventDefault(); // 阻止文字选择
                   if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
                 }}
               >
@@ -402,7 +405,6 @@ export default function ChatPage({
         onRegenerate={() => ss.regenerateLast()}
         onRegenerateVars={() => ss.regenerateVarsOnly()}
         isDualApi={isDualApi}
-        isMobile={isMobile}
       />
 
       {/* ── Shop Modal ── */}
