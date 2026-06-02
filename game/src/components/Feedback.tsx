@@ -61,13 +61,15 @@ interface ToastProps {
   message: string;
   type: 'info' | 'warning' | 'error' | 'success';
   onClose: () => void;
+  /** 'terminal' = tech/scanline, 'log' = glass/glow; defaults to 'terminal' */
+  channel?: 'terminal' | 'log';
 }
 
-export function Toast({ message, type, onClose }: ToastProps) {
+export function Toast({ message, type, onClose, channel = 'terminal' }: ToastProps) {
   const colors: Record<string, string> = {
-    info: 'border-aether-blue bg-aether-blue/10 text-aether-blue',
+    info:    'border-aether-blue/50 bg-aether-blue/10 text-aether-blue',
     warning: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-400',
-    error: 'border-red-500/50 bg-red-500/10 text-red-500',
+    error:   'border-red-500/50 bg-red-500/10 text-red-500',
     success: 'border-green-500/50 bg-green-500/10 text-green-400',
   };
 
@@ -78,18 +80,32 @@ export function Toast({ message, type, onClose }: ToastProps) {
     success: <CheckCircle size={16} />,
   };
 
+  const isLog = channel === 'log';
+
   return (
     <motion.div
       initial={{ x: 120, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 120, opacity: 0 }}
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-      className={`fixed right-6 top-24 z-[1000] p-4 border glass-panel flex items-center gap-4 min-w-[320px] ${colors[type]}`}
+      className={`fixed right-6 top-24 z-[1000] p-4 border flex items-center gap-4 min-w-[320px] ${
+        isLog
+          ? 'glass-panel border-aether-cyan/30 text-aether-cyan/90 shadow-[0_0_20px_rgba(0,242,255,0.08)]'
+          : `glass-panel ${colors[type]}`
+      }`}
       id={`toast-${type}`}
     >
+      {/* Tech scanline for terminal toast */}
+      {!isLog && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-[0.03]"
+          style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,242,255,0.3) 2px, rgba(0,242,255,0.3) 3px)' }} />
+      )}
+
       <span className="shrink-0">{icons[type]}</span>
-      <div className="flex-1 font-display text-sm tracking-wider">
-        <span className="font-bold mr-2 uppercase text-[10px] opacity-70">[{type}]</span>
+      <div className={`flex-1 text-sm tracking-wider ${isLog ? 'font-display' : 'font-mono'}`}>
+        <span className={`font-bold mr-2 uppercase text-[10px] opacity-70 ${isLog ? 'font-display' : 'font-mono'}`}>
+          [{type}]
+        </span>
         {message}
       </div>
       <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="hover:opacity-70 transition-opacity p-1 clickable relative z-10 pointer-events-auto">
@@ -100,7 +116,7 @@ export function Toast({ message, type, onClose }: ToastProps) {
         animate={{ width: '0%' }}
         transition={{ duration: 5, ease: 'linear' }}
         onAnimationComplete={onClose}
-        className="absolute bottom-0 left-0 h-0.5 bg-current opacity-30"
+        className={`absolute bottom-0 left-0 h-0.5 ${isLog ? 'bg-aether-cyan/30' : 'bg-current opacity-30'}`}
       />
     </motion.div>
   );
