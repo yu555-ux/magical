@@ -65,14 +65,6 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!entryDone) return;
-    addToast('鉴灵碑同步完成 · 夏城分局已连接', 'success');
-    setTimeout(() => {
-      addToast('认知过滤已激活 · 终端就绪', 'info');
-    }, 2000);
-  }, [entryDone]);
-
   const addToast = useCallback((message: string, type: 'info' | 'warning' | 'success' | 'error', channel?: 'terminal' | 'log') => {
     const id = Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, message, type, channel }]);
