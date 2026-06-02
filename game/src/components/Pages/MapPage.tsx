@@ -276,73 +276,130 @@ export default function MapPage() {
   const dragMoved = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // ── rAF throttle for smooth 60fps touch pan/zoom ──
+  const viewportRef = useRef(viewport);
+  const zoomRef = useRef(zoom);
+  const rafPending = useRef(false);
+  useEffect(() => { viewportRef.current = viewport; }, [viewport]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
+  const flushViewport = useCallback(() => {
+    rafPending.current = false;
+    setViewport(viewportRef.current);
+  }, []);
+
+  const scheduleFlush = useCallback(() => {
+    if (!rafPending.current) {
+      rafPending.current = true;
+      requestAnimationFrame(flushViewport);
+    }
+  }, [flushViewport]);
+
+  // Cleanup rAF on unmount
+  useEffect(() => () => { if (rafPending.current) cancelAnimationFrame(0); }, []);
+
   const handlePanStart = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button, input')) return;
     setIsDragging(true); dragMoved.current = false;
     dragStart.current = { x: e.clientX, y: e.clientY };
-    dragViewStart.current = { ...viewport };
-  }, [viewport]);
+    dragViewStart.current = { ...viewportRef.current };
+  }, []);
 
   const handlePanMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
     const dx = e.clientX - dragStart.current.x, dy = e.clientY - dragStart.current.y;
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved.current = true;
-    // +X=北→上, +Y=东→右
+    // +X=北(上), +Y=东(右)
+    // Drag RIGHT (dx>0) → see more LEFT → vp.y must DECREASE
+    // Drag DOWN  (dy>0) → see more ABOVE → vp.x must INCREASE
     const scaleEast = dragViewStart.current.h / CANVAS_W;   // East (Y) per screen pixel X
     const scaleNorth = dragViewStart.current.w / CANVAS_H;  // North (X) per screen pixel Y
     setViewport({
-      x: dragViewStart.current.x - dy * scaleNorth,  // down→south(lower X)
-      y: dragViewStart.current.y + dx * scaleEast,   // right→east(higher Y)
+      x: dragViewStart.current.x + dy * scaleNorth,  // DOWN  → North ↑
+      y: dragViewStart.current.y - dx * scaleEast,   // RIGHT → East  ←
       w: dragViewStart.current.w, h: dragViewStart.current.h,
     });
-  }, [isDragging, viewport]);
+  }, [isDragging]);
 
   const handlePanEnd = useCallback(() => setIsDragging(false), []);
 
-  // ── Touch gestures ──
-  const touchStartRef = useRef<{ x: number; y: number; dist: number; zoom: number } | null>(null);
+  // ── Touch gestures (rAF-throttled, prevents page zoom) ──
+  const touchStartRef = useRef<{ x: number; y: number; dist: number; zoom: number; vp: Viewport } | null>(null);
+  const touchIsDragging = useRef(false);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if ((e.target as HTMLElement).closest('button, input')) return;
     if (e.touches.length === 1) {
-      setIsDragging(true); dragMoved.current = false;
+      touchIsDragging.current = true; dragMoved.current = false;
       dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      dragViewStart.current = { ...viewport };
+      dragViewStart.current = { ...viewportRef.current };
       touchStartRef.current = null;
+      setIsDragging(true);
     } else if (e.touches.length === 2) {
+      touchIsDragging.current = false;
       setIsDragging(false);
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
-      touchStartRef.current = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2, y: (e.touches[0].clientY + e.touches[1].clientY) / 2, dist: Math.sqrt(dx * dx + dy * dy), zoom };
+      touchStartRef.current = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        dist: Math.sqrt(dx * dx + dy * dy),
+        zoom: zoomRef.current,
+        vp: { ...viewportRef.current },
+      };
     }
-  }, [viewport, zoom]);
+  }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 1 && isDragging) {
+    e.preventDefault(); // ← critical: prevents browser page zoom
+    if (e.touches.length === 1 && touchIsDragging.current) {
       const dx = e.touches[0].clientX - dragStart.current.x;
       const dy = e.touches[0].clientY - dragStart.current.y;
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved.current = true;
       const scaleEast = dragViewStart.current.h / CANVAS_W;
       const scaleNorth = dragViewStart.current.w / CANVAS_H;
-      setViewport({
-        x: dragViewStart.current.x - dy * scaleNorth,
-        y: dragViewStart.current.y + dx * scaleEast,
+      viewportRef.current = {
+        x: dragViewStart.current.x + dy * scaleNorth,
+        y: dragViewStart.current.y - dx * scaleEast,
         w: dragViewStart.current.w, h: dragViewStart.current.h,
-      });
+      };
+      scheduleFlush();
     } else if (e.touches.length === 2 && touchStartRef.current) {
+      const ts = touchStartRef.current;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const ratio = touchStartRef.current.dist / dist;
-      let next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(touchStartRef.current.zoom * ratio).toFixed(2)));
-      const factor = zoom / next;
+      const ratio = ts.dist / dist;
+      const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(ts.zoom * ratio).toFixed(2)));
+      const factor = ts.zoom / next;
+      zoomRef.current = next;
+      viewportRef.current = {
+        x: ts.vp.x + ts.vp.w * (1 - factor) / 2,
+        y: ts.vp.y + ts.vp.h * (1 - factor) / 2,
+        w: ts.vp.w * factor,
+        h: ts.vp.h * factor,
+      };
       setZoom(next);
-      setViewport((vp) => ({ x: vp.x + vp.w * (1 - factor) / 2, y: vp.y + vp.h * (1 - factor) / 2, w: vp.w * factor, h: vp.h * factor }));
+      scheduleFlush();
     }
-  }, [isDragging, viewport, zoom]);
+  }, [scheduleFlush]);
 
   const handleTouchEnd = useCallback(() => {
+    touchIsDragging.current = false;
     setIsDragging(false);
     touchStartRef.current = null;
+  }, []);
+
+  // ── Native non-passive touchmove to actually prevent page zoom ──
+  // React's onTouchMove is passive and won't let us preventDefault.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const preventPageZoom = (e: TouchEvent) => {
+      if (e.touches.length >= 2) e.preventDefault();
+    };
+    el.addEventListener('touchmove', preventPageZoom, { passive: false });
+    return () => el.removeEventListener('touchmove', preventPageZoom);
   }, []);
 
   // --- Point click ---
@@ -564,6 +621,7 @@ export default function MapPage() {
       <div
         ref={containerRef}
         className={`absolute inset-0 overflow-hidden ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        style={{ touchAction: 'none', willChange: 'transform' }}
         onMouseDown={handlePanStart} onMouseMove={handlePanMove} onMouseUp={handlePanEnd} onMouseLeave={handlePanEnd}
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
         onClick={dismissCard}
