@@ -79,12 +79,12 @@ export default function WarehousePage() {
   const clearSearch = () => { setSearchQuery(''); searchInputRef.current?.focus(); };
 
   return (
-    <div className="h-full flex flex-col p-4 md:p-8 space-y-5 overflow-hidden bg-aether-deep">
+    <div className="h-full flex flex-col p-3 md:p-8 space-y-4 md:space-y-5 overflow-hidden bg-aether-deep">
       {/* ===== Header ===== */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-panel p-3 md:p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between"
+        className="glass-panel p-3 md:p-4 flex flex-col md:flex-row gap-2 md:gap-3 md:items-center md:justify-between"
       >
         <div>
           <h2 className="font-display text-lg md:text-xl tracking-[0.2em] text-aether-cyan cyan-glow leading-tight">奇物收藏</h2>

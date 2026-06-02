@@ -137,11 +137,11 @@ export default function ArchivePage() {
   };
 
   return (
-    <div className="h-full flex relative overflow-hidden bg-aether-deep">
+    <div className="h-full flex flex-col md:flex-row relative overflow-hidden bg-aether-deep">
       {/* ==================== LEFT PANEL — Character List ==================== */}
-      <div className="w-64 md:w-72 shrink-0 border-r border-aether-border/30 flex flex-col bg-aether-dark/40">
-        <div className="px-4 pt-5 pb-3 space-y-3 shrink-0">
-          <div className="flex items-center gap-3">
+      <div className="w-full md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-aether-border/30 flex flex-col bg-aether-dark/40 max-h-[40vh] md:max-h-full">
+        <div className="px-3 md:px-4 pt-3 md:pt-5 pb-2 md:pb-3 space-y-2 md:space-y-3 shrink-0">
+          <div className="flex items-center gap-2 md:gap-3">
             <div className="w-1 h-5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.4)]" />
             <h2 className="font-display text-base tracking-[0.12em] text-aether-cyan/90">角色档案</h2>
             <button
@@ -170,7 +170,7 @@ export default function ArchivePage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-4 space-y-4">
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-2 md:px-3 pb-3 md:pb-4 space-y-3 md:space-y-4">
           {filteredGroups.length === 0 ? (
             <div className="flex items-center justify-center h-32">
               <span className="text-[11px] font-mono text-white/20">

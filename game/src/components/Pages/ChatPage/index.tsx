@@ -142,7 +142,7 @@ export default function ChatPage({
 
         {/* ── Streaming indicator (仅第一API流式生成时显示) ── */}
         {isStreaming && (
-          <div className="flex items-center justify-end px-5 py-1.5 border-b border-aether-border/15 shrink-0">
+          <div className="flex items-center justify-end px-3 md:px-5 py-1.5 border-b border-aether-border/15 shrink-0">
             <motion.span
               animate={{ opacity: [0.4, 1, 0.4] }}
               transition={{ duration: 1, repeat: Infinity }}
@@ -155,7 +155,7 @@ export default function ChatPage({
 
         {/* ── Thinking fold ── */}
         {thinking && (
-          <div className="px-5 pt-3">
+          <div className="px-3 md:px-5 pt-2 md:pt-3">
             <button
               onClick={() => setThinkingOpen(!thinkingOpen)}
               className="flex items-center gap-1.5 text-[11px] text-white/25 hover:text-white/45 transition-colors font-display tracking-wide"
@@ -185,7 +185,7 @@ export default function ChatPage({
         )}
 
         {/* ── Main text pane ── */}
-        <div className="flex-1 overflow-y-auto px-5 md:px-10 py-6">
+        <div className="flex-1 overflow-y-auto px-3 md:px-10 py-4 md:py-6">
           {!maintext && !isStreaming ? (
             <div className="h-full" />
           ) : (
@@ -194,7 +194,7 @@ export default function ChatPage({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               style={{ maxWidth: `${ss.settings?.messageWidthPercent ?? DEFAULT_SETTINGS.messageWidthPercent}%` }}
-              className="mx-auto"
+              className="mx-auto w-full md:w-auto"
             >
               <div
                 className="text-[15px] text-white/75 leading-[1.9] whitespace-pre-wrap font-sans tracking-[0.03em] select-none"
@@ -221,8 +221,8 @@ export default function ChatPage({
         </div>
 
         {/* ── Input area ── */}
-        <div className="shrink-0 bg-aether-deep/90">
-          <div className="p-3 md:p-4">
+        <div className="shrink-0 bg-aether-deep/90 sticky bottom-0 z-20">
+          <div className="p-2 md:p-4">
             <div className="relative">
               {/* Options panel — absolute positioned above input */}
               <AnimatePresence>
@@ -240,7 +240,7 @@ export default function ChatPage({
                           key={i}
                           onClick={() => { handleSend(opt); setOptionsOpen(false); }}
                           disabled={isStreaming}
-                          className="w-full flex items-center gap-2 px-5 py-3 text-left border-b border-white/[0.06] hover:bg-aether-cyan/[0.05] transition-all duration-150 clickable group last:border-b-0 disabled:opacity-40"
+                          className="w-full flex items-center gap-2 px-3 md:px-5 py-3 text-left border-b border-white/[0.06] hover:bg-aether-cyan/[0.05] transition-all duration-150 clickable group last:border-b-0 disabled:opacity-40"
                         >
                           <span className="text-[11px] text-aether-cyan/40 font-mono shrink-0">[{i + 1}]</span>
                           <span className="text-[13px] text-white/70 font-display tracking-[0.08em] group-hover:text-aether-cyan transition-colors">
@@ -293,12 +293,12 @@ export default function ChatPage({
                   onBlur={() => setIsFocused(false)}
                   placeholder="输入行动推进剧情..."
                   disabled={isStreaming}
-                  className="flex-1 bg-transparent px-5 py-3.5 text-[14px] text-white/75 font-display tracking-[0.06em] placeholder:text-white/20 disabled:opacity-40 focus:outline-none"
+                  className="flex-1 bg-transparent px-3 md:px-5 py-3 md:py-3.5 text-[14px] text-white/75 font-display tracking-[0.06em] placeholder:text-white/20 disabled:opacity-40 focus:outline-none"
                 />
                 <button
                   onClick={() => isStreaming ? ss.abortStream() : handleSend()}
                   disabled={!isStreaming && !input.trim()}
-                  className={`shrink-0 self-stretch px-5 transition-all duration-300 clickable flex items-center ${
+                  className={`shrink-0 self-stretch px-3 md:px-5 transition-all duration-300 clickable flex items-center ${
                     isStreaming
                       ? 'text-aether-cyan drop-shadow-[0_0_12px_rgba(0,242,255,0.6)]'
                       : (isFocused || optionsOpen)

@@ -299,6 +299,52 @@ export default function MapPage() {
 
   const handlePanEnd = useCallback(() => setIsDragging(false), []);
 
+  // ── Touch gestures ──
+  const touchStartRef = useRef<{ x: number; y: number; dist: number; zoom: number } | null>(null);
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('button, input')) return;
+    if (e.touches.length === 1) {
+      setIsDragging(true); dragMoved.current = false;
+      dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      dragViewStart.current = { ...viewport };
+      touchStartRef.current = null;
+    } else if (e.touches.length === 2) {
+      setIsDragging(false);
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchStartRef.current = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2, y: (e.touches[0].clientY + e.touches[1].clientY) / 2, dist: Math.sqrt(dx * dx + dy * dy), zoom };
+    }
+  }, [viewport, zoom]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 1 && isDragging) {
+      const dx = e.touches[0].clientX - dragStart.current.x;
+      const dy = e.touches[0].clientY - dragStart.current.y;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved.current = true;
+      const scaleEast = dragViewStart.current.h / CANVAS_W;
+      const scaleNorth = dragViewStart.current.w / CANVAS_H;
+      setViewport({
+        x: dragViewStart.current.x - dy * scaleNorth,
+        y: dragViewStart.current.y + dx * scaleEast,
+        w: dragViewStart.current.w, h: dragViewStart.current.h,
+      });
+    } else if (e.touches.length === 2 && touchStartRef.current) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const ratio = touchStartRef.current.dist / dist;
+      let next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(touchStartRef.current.zoom * ratio).toFixed(2)));
+      const factor = zoom / next;
+      setZoom(next);
+      setViewport((vp) => ({ x: vp.x + vp.w * (1 - factor) / 2, y: vp.y + vp.h * (1 - factor) / 2, w: vp.w * factor, h: vp.h * factor }));
+    }
+  }, [isDragging, viewport, zoom]);
+
+  const handleTouchEnd = useCallback(() => {
+    setIsDragging(false);
+    touchStartRef.current = null;
+  }, []);
+
   // --- Point click ---
   const handlePointClick = useCallback((point: MapLocationRender, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -518,6 +564,7 @@ export default function MapPage() {
         ref={containerRef}
         className={`absolute inset-0 overflow-hidden ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={handlePanStart} onMouseMove={handlePanMove} onMouseUp={handlePanEnd} onMouseLeave={handlePanEnd}
+        onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
         onClick={dismissCard}
       >
         <div className="absolute inset-0 border border-aether-border/10 pointer-events-none"
@@ -562,11 +609,11 @@ export default function MapPage() {
       </div>
 
       {/* ===== Zoom controls ===== */}
-      <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-2 pointer-events-none">
-        <div className="glass-panel overflow-hidden pointer-events-auto flex flex-col items-center w-9">
-          <button onClick={zoomIn} disabled={zoom >= ZOOM_MAX} className="p-1.5 border-b border-aether-border/20 hover:text-aether-cyan text-aether-blue disabled:opacity-25 disabled:cursor-not-allowed transition-all clickable hover:bg-aether-cyan/5 flex justify-center" aria-label="放大"><ZoomIn size={14} /></button>
+      <div className="absolute bottom-4 md:bottom-6 right-4 md:right-6 z-10 flex flex-col gap-2 pointer-events-none">
+        <div className="glass-panel overflow-hidden pointer-events-auto flex flex-col items-center w-10 md:w-9">
+          <button onClick={zoomIn} disabled={zoom >= ZOOM_MAX} className="p-2 md:p-1.5 border-b border-aether-border/20 hover:text-aether-cyan text-aether-blue disabled:opacity-25 disabled:cursor-not-allowed transition-all clickable hover:bg-aether-cyan/5 flex justify-center" aria-label="放大"><ZoomIn size={16} /></button>
           <div className="py-1 border-b border-aether-border/20 text-center w-full"><span className="text-[9px] font-mono text-aether-cyan/80 font-bold leading-none">{Math.round(zoom * 100)}%</span></div>
-          <button onClick={zoomOut} disabled={zoom <= ZOOM_MIN} className="p-1.5 hover:text-aether-cyan text-aether-blue disabled:opacity-25 disabled:cursor-not-allowed transition-all clickable hover:bg-aether-cyan/5 flex justify-center" aria-label="缩小"><ZoomOut size={14} /></button>
+          <button onClick={zoomOut} disabled={zoom <= ZOOM_MIN} className="p-2 md:p-1.5 hover:text-aether-cyan text-aether-blue disabled:opacity-25 disabled:cursor-not-allowed transition-all clickable hover:bg-aether-cyan/5 flex justify-center" aria-label="缩小"><ZoomOut size={16} /></button>
         </div>
       </div>
 
@@ -648,19 +695,93 @@ function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter, onGoTo
   onGoTo?: () => void; canGoTo?: boolean;
 }) {
   const [layer, setLayer] = useState<'现实' | '梦境'>('现实');
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const detail = layer === '现实' ? point.reality : point.dream;
   const anomalies = Object.entries(detail.地点细节.异常);
   const hasAnomalies = anomalies.length > 0;
   const infoList = detail.地点细节.信息;
   const danger = getDangerLevel(point);
 
-  const cardW = 440; const cardH = 600; const margin = 20;
-  const targetX = Math.max(margin, Math.min(origin.x - cardW / 2, window.innerWidth - cardW - margin));
-  const targetY = Math.max(margin, Math.min(origin.y - cardH / 2, window.innerHeight - cardH - margin));
+  const cardW = mobile ? window.innerWidth : 440;
+  const cardH = mobile ? window.innerHeight * 0.7 : 600;
+  const margin = mobile ? 0 : 20;
+  const targetX = mobile ? 0 : Math.max(margin, Math.min(origin.x - cardW / 2, window.innerWidth - cardW - margin));
+  const targetY = mobile ? window.innerHeight * 0.3 : Math.max(margin, Math.min(origin.y - cardH / 2, window.innerHeight - cardH - margin));
   const isDream = layer === '梦境';
   const accent = isDream ? '#a78bfa' : '#00f2ff';
   const accentGlow = isDream ? 'rgba(167,139,250,0.4)' : 'rgba(0,242,255,0.4)';
 
+  // Mobile: bottom sheet
+  if (mobile) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: '100%' }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300, mass: 0.8 }}
+        onClick={(e) => e.stopPropagation()}
+        className="fixed z-30 inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-xl"
+        style={{
+          maxHeight: '70vh',
+          background: 'linear-gradient(180deg, rgba(12,16,24,0.98) 0%, rgba(8,10,16,0.98) 100%)',
+          border: `1px solid ${danger >= 2 ? 'rgba(239,68,68,0.35)' : accent + '25'}`,
+          borderBottom: 'none',
+          boxShadow: danger >= 2 ? '0 -4px 40px rgba(239,68,68,0.12), 0 -8px 32px rgba(0,0,0,0.5)' : `0 -4px 40px ${accentGlow}10, 0 -8px 32px rgba(0,0,0,0.5)`,
+        }}
+      >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-2 pb-1 shrink-0">
+          <div className="w-10 h-1 rounded-full bg-white/15" />
+        </div>
+        {/* Content (same as desktop below) */}
+        {danger >= 2 && (
+          <div className="shrink-0 px-4 py-1.5 flex items-center gap-2 bg-red-500/10 border-b border-red-500/20">
+            <AlertTriangle size={12} className="text-red-400" />
+            <span className="text-[10px] font-mono text-red-400/80 tracking-wider">高危区域 — 梦境异常已完全具现</span>
+          </div>
+        )}
+        {danger === 1 && (
+          <div className="shrink-0 px-4 py-1.5 flex items-center gap-2 bg-red-500/6 border-b border-red-500/12">
+            <AlertTriangle size={12} className="text-red-400/60" />
+            <span className="text-[10px] font-mono text-red-400/60 tracking-wider">注意 — 现实世界存在异常活动</span>
+          </div>
+        )}
+        <div className="shrink-0 px-4 py-2.5 flex items-center gap-2 border-b" style={{ borderColor: `${accent}15`, backgroundColor: `${accent}06` }}>
+          <MapPin size={14} style={{ color: accent }} />
+          <h3 className="font-display font-bold text-base text-white/90 tracking-wide flex-1 min-w-0 truncate">{point.name}</h3>
+          {!point.noDream && (
+            <button onClick={() => setLayer((l) => (l === '现实' ? '梦境' : '现实'))}
+              className="shrink-0 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border transition-all duration-300 tracking-widest"
+              style={{ color: accent, borderColor: `${accent}40`, backgroundColor: `${accent}10` }}
+            >{isDream ? '梦境' : '现实'}</button>
+          )}
+          <button onClick={onClose} className="shrink-0 p-1 rounded-full text-white/20 hover:text-white/70 hover:bg-white/10 transition-all" aria-label="关闭"><X size={15} /></button>
+        </div>
+        <CardBody detail={detail} accent={accent} point={point} anomalies={anomalies} hasAnomalies={hasAnomalies} infoList={infoList} />
+        <div className="shrink-0 px-4 py-3 flex gap-3 border-t" style={{ borderColor: `${accent}15` }}>
+          {hasChildren ? (
+            <button onClick={onEnter} className="flex-1 py-3 rounded-lg font-display font-bold tracking-[0.2em] transition-all duration-300 clickable"
+              style={{ color: accent, border: `1px solid ${accent}30`, backgroundColor: `${accent}08`, fontSize: '13px' }}
+            >进 入</button>
+          ) : (
+            <button disabled className="flex-1 py-3 rounded-lg font-display font-bold tracking-[0.2em] opacity-25 cursor-not-allowed"
+              style={{ color: accent, border: `1px solid ${accent}15`, backgroundColor: `${accent}04`, fontSize: '13px' }}>已是最深层级</button>
+          )}
+          <button onClick={onGoTo} disabled={!canGoTo || !onGoTo}
+            className={`flex-1 py-3 rounded-lg font-display font-bold tracking-[0.2em] transition-all duration-300 clickable ${(!canGoTo || !onGoTo) ? 'opacity-25 cursor-not-allowed' : ''}`}
+            style={{ color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)', backgroundColor: 'rgba(245,158,11,0.06)', fontSize: '13px' }}
+          >前 往</button>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Desktop: floating card (original)
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.85, x: origin.x - cardW / 2, y: origin.y - cardH / 2 }}
@@ -701,31 +822,7 @@ function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter, onGoTo
         )}
         <button onClick={onClose} className="shrink-0 p-1 rounded-full text-white/20 hover:text-white/70 hover:bg-white/10 transition-all" aria-label="关闭"><X size={15} /></button>
       </div>
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
-        <div className="p-3.5 rounded-lg border" style={{ borderColor: `${accent}12`, backgroundColor: `${accent}04` }}>
-          <p className="text-[12px] text-white/60 leading-relaxed font-mono tracking-wide">{detail.描述}</p>
-        </div>
-        {point.bounds && (
-          <div className="grid grid-cols-3 gap-2">
-            <MiniStat label="X 范围" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
-            <MiniStat label="Y 范围" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
-            <MiniStat label="Z 范围" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" accent={accent} />
-          </div>
-        )}
-        {infoList.length > 0 && (
-          <div className="p-3.5 rounded-lg border" style={{ borderColor: `${accent}15`, backgroundColor: `${accent}03` }}>
-            <div className="flex items-center gap-1.5 mb-2.5"><Info size={11} style={{ color: `${accent}80` }} /><span className="text-[10px] font-mono tracking-wider uppercase" style={{ color: `${accent}80` }}>信息</span></div>
-            {infoList.map((info, i) => <p key={i} className="text-[11px] text-white/50 leading-relaxed font-mono pl-3 mb-1.5 last:mb-0" style={{ borderLeft: `2px solid ${accent}20` }}>{info}</p>)}
-          </div>
-        )}
-        {hasAnomalies && (
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-1.5"><Skull size={11} className="text-red-400/50" /><span className="text-[10px] font-mono text-red-400/50 tracking-wider uppercase">异常</span></div>
-            {anomalies.map(([name, anomaly]) => <AnomalyCard key={name} name={name} anomaly={anomaly} />)}
-          </div>
-        )}
-        {infoList.length === 0 && !hasAnomalies && <p className="text-[11px] text-white/20 italic font-mono text-center py-4">该区域暂无详细信息记录</p>}
-      </div>
+      <CardBody detail={detail} accent={accent} point={point} anomalies={anomalies} hasAnomalies={hasAnomalies} infoList={infoList} />
       <div className="shrink-0 px-5 py-3.5 flex gap-3 border-t" style={{ borderColor: `${accent}15` }}>
         {hasChildren ? (
           <button onClick={onEnter} className="flex-1 py-2.5 rounded-lg font-display font-bold tracking-[0.2em] transition-all duration-300"
@@ -759,6 +856,42 @@ function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter, onGoTo
           aria-label="前往">前 往</button>
       </div>
     </motion.div>
+  );
+}
+
+/* ============================================================
+   SHARED CARD BODY
+   ============================================================ */
+function CardBody({ detail, accent, point, anomalies, hasAnomalies, infoList }: {
+  detail: any; accent: string; point: MapLocationRender;
+  anomalies: [string, MapAnomaly][]; hasAnomalies: boolean; infoList: string[];
+}) {
+  return (
+    <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-5 py-3 md:py-4 space-y-3 md:space-y-4">
+      <div className="p-3 md:p-3.5 rounded-lg border" style={{ borderColor: `${accent}12`, backgroundColor: `${accent}04` }}>
+        <p className="text-[11px] md:text-[12px] text-white/60 leading-relaxed font-mono tracking-wide">{detail.描述}</p>
+      </div>
+      {point.bounds && (
+        <div className="grid grid-cols-3 gap-1.5 md:gap-2">
+          <MiniStat label="X 范围" value={`${point.bounds.X[0]} ~ ${point.bounds.X[1]}`} unit="km" accent={accent} />
+          <MiniStat label="Y 范围" value={`${point.bounds.Y[0]} ~ ${point.bounds.Y[1]}`} unit="km" accent={accent} />
+          <MiniStat label="Z 范围" value={`${point.bounds.Z[0]} ~ ${point.bounds.Z[1]}`} unit="km" accent={accent} />
+        </div>
+      )}
+      {infoList.length > 0 && (
+        <div className="p-3 md:p-3.5 rounded-lg border" style={{ borderColor: `${accent}15`, backgroundColor: `${accent}03` }}>
+          <div className="flex items-center gap-1.5 mb-2 md:mb-2.5"><Info size={11} style={{ color: `${accent}80` }} /><span className="text-[9px] md:text-[10px] font-mono tracking-wider uppercase" style={{ color: `${accent}80` }}>信息</span></div>
+          {infoList.map((info, i) => <p key={i} className="text-[10px] md:text-[11px] text-white/50 leading-relaxed font-mono pl-2 md:pl-3 mb-1 md:mb-1.5 last:mb-0" style={{ borderLeft: `2px solid ${accent}20` }}>{info}</p>)}
+        </div>
+      )}
+      {hasAnomalies && (
+        <div className="space-y-2 md:space-y-2.5">
+          <div className="flex items-center gap-1.5"><Skull size={11} className="text-red-400/50" /><span className="text-[9px] md:text-[10px] font-mono text-red-400/50 tracking-wider uppercase">异常</span></div>
+          {anomalies.map(([name, anomaly]) => <AnomalyCard key={name} name={name} anomaly={anomaly} />)}
+        </div>
+      )}
+      {infoList.length === 0 && !hasAnomalies && <p className="text-[10px] md:text-[11px] text-white/20 italic font-mono text-center py-4">该区域暂无详细信息记录</p>}
+    </div>
   );
 }
 

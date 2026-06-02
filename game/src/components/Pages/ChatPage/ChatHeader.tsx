@@ -37,26 +37,26 @@ export default function ChatHeader({ variables, dreamAnchor, onOpenReader, onOpe
   const iconColor = display.inDream ? 'text-aether-purple/60' : 'text-aether-blue/70';
 
   return (
-    <div className="px-6 py-3.5 border-b border-aether-cyan/20 bg-aether-deep/90 flex items-center shrink-0 shadow-[0_1px_8px_rgba(0,242,255,0.03)] relative">
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2.5">
-          <Clock size={14} className={iconColor} />
-          <span className="font-display text-[14px] text-white/60 tracking-[0.08em]">{display.time}</span>
+    <div className="px-3 md:px-6 py-2 md:py-3.5 border-b border-aether-cyan/20 bg-aether-deep/90 flex items-center shrink-0 shadow-[0_1px_8px_rgba(0,242,255,0.03)] relative">
+      <div className="flex items-center gap-3 md:gap-6 flex-wrap">
+        <div className="flex items-center gap-1.5 md:gap-2.5">
+          <Clock size={13} className={iconColor} />
+          <span className="font-display text-[12px] md:text-[14px] text-white/60 tracking-[0.06em] md:tracking-[0.08em]">{display.time}</span>
         </div>
-        <div className="w-px h-4 bg-aether-border/50" />
-        <div className="flex items-center gap-2">
-          <MapPin size={13} className={iconColor} />
-          <span className="font-display text-[14px] text-white/65 tracking-[0.08em] truncate">{display.location}</span>
+        <div className="w-px h-3 md:h-4 bg-aether-border/50 hidden md:block" />
+        <div className="flex items-center gap-1.5 md:gap-2">
+          <MapPin size={12} className={iconColor} />
+          <span className="font-display text-[12px] md:text-[14px] text-white/65 tracking-[0.06em] md:tracking-[0.08em] truncate max-w-[100px] md:max-w-none">{display.location}</span>
         </div>
-        <div className="w-px h-4 bg-aether-border/50" />
-        <div className="flex items-center gap-2">
-          <CloudSun size={14} className={iconColor} />
-          <span className="font-display text-[14px] text-white/55 tracking-[0.06em] max-w-[120px] truncate">{display.weather}</span>
+        <div className="w-px h-3 md:h-4 bg-aether-border/50 hidden md:block" />
+        <div className="flex items-center gap-1.5 md:gap-2">
+          <CloudSun size={13} className={iconColor} />
+          <span className="font-display text-[11px] md:text-[14px] text-white/55 tracking-[0.05em] md:tracking-[0.06em] max-w-[80px] md:max-w-[120px] truncate">{display.weather}</span>
         </div>
       </div>
 
-      {/* Center: countdown */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+      {/* Center: countdown — hidden on mobile to save space */}
+      <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-2">
         {display.inDream
           ? <Moon size={13} className="text-aether-purple/60" />
           : <Hourglass size={13} className="text-white/25" />
@@ -72,10 +72,10 @@ export default function ChatHeader({ variables, dreamAnchor, onOpenReader, onOpe
       {onOpenSave && (
         <button
           onClick={onOpenSave}
-          className="relative group flex items-center gap-2 px-3 py-1.5 rounded-sm text-white/25 hover:text-white/45 hover:bg-white/[0.02] transition-colors"
+          className="relative group flex items-center gap-1 md:gap-2 px-1.5 md:px-3 py-1 md:py-1.5 rounded-sm text-white/25 hover:text-white/45 hover:bg-white/[0.02] transition-colors"
         >
-          <Save size={17} />
-          <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <Save size={15} />
+          <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
             存档
           </span>
         </button>
@@ -85,10 +85,10 @@ export default function ChatHeader({ variables, dreamAnchor, onOpenReader, onOpe
       {onOpenPrompt && (
         <button
           onClick={onOpenPrompt}
-          className="relative group flex items-center gap-2 px-3 py-1.5 rounded-sm text-white/30 hover:text-aether-cyan transition-colors hover:bg-aether-cyan/[0.04]"
+          className="relative group flex items-center gap-1 md:gap-2 px-1.5 md:px-3 py-1 md:py-1.5 rounded-sm text-white/30 hover:text-aether-cyan transition-colors hover:bg-aether-cyan/[0.04]"
         >
-          <FileText size={17} />
-          <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <FileText size={15} />
+          <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
             请求
           </span>
         </button>
@@ -98,10 +98,10 @@ export default function ChatHeader({ variables, dreamAnchor, onOpenReader, onOpe
       {onOpenVariables && (
         <button
           onClick={onOpenVariables}
-          className="relative group flex items-center gap-2 px-3 py-1.5 rounded-sm text-white/35 hover:text-aether-cyan transition-colors hover:bg-aether-cyan/[0.04]"
+          className="relative group flex items-center gap-1 md:gap-2 px-1.5 md:px-3 py-1 md:py-1.5 rounded-sm text-white/35 hover:text-aether-cyan transition-colors hover:bg-aether-cyan/[0.04]"
         >
-          <Eye size={17} />
-          <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <Eye size={15} />
+          <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
             变量
           </span>
         </button>
@@ -111,10 +111,10 @@ export default function ChatHeader({ variables, dreamAnchor, onOpenReader, onOpe
       {onOpenReader && (
         <button
           onClick={onOpenReader}
-          className="relative group flex items-center gap-2 px-3 py-1.5 rounded-sm text-white/50 hover:text-aether-cyan transition-colors hover:bg-aether-cyan/[0.06]"
+          className="relative group flex items-center gap-1 md:gap-2 px-1.5 md:px-3 py-1 md:py-1.5 rounded-sm text-white/50 hover:text-aether-cyan transition-colors hover:bg-aether-cyan/[0.06]"
         >
-          <BookOpen size={17} />
-          <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <BookOpen size={15} />
+          <span className="hidden md:block absolute -bottom-8 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/80 font-display tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
             阅读
           </span>
         </button>

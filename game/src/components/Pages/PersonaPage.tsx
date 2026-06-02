@@ -212,7 +212,7 @@ export default function PersonaPage() {
   const ratingGlow = ratingGlowColors[rating] || '#00f2ff';
 
   return (
-    <main className="h-full overflow-y-auto px-4 md:px-12 py-8 space-y-20 scroll-smooth bg-aether-deep">
+    <main className="h-full overflow-y-auto px-3 md:px-12 py-4 md:py-8 space-y-16 md:space-y-20 scroll-smooth bg-aether-deep">
       {/* ============================================================
           SECTION 1 — RATINGS & ATTRIBUTES
           ============================================================ */}
@@ -226,7 +226,7 @@ export default function PersonaPage() {
         {/* heading row */}
         <div className="border-l-4 border-aether-cyan pl-6 space-y-3">
           <div className="flex items-baseline gap-2">
-            <span className="font-display text-3xl md:text-4xl font-black tracking-tighter text-white/90">
+            <span className="font-display text-2xl md:text-4xl font-black tracking-tighter text-white/90">
               个人信息
             </span>
             <span className="text-sm text-white/30 font-display italic tracking-wide">({age}岁)</span>
@@ -252,7 +252,7 @@ export default function PersonaPage() {
         </div>
 
         {/* attribute cards — 2 rows × 3 cols */}
-        <div className="grid grid-cols-3 gap-3 w-full mt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-3 w-full mt-2">
           {stats.map((stat) => (
             <React.Fragment key={stat.name}><AttrCard name={stat.name} value={stat.value} accent={stat.accent} /></React.Fragment>
           ))}

@@ -88,11 +88,13 @@ export default function SocialPage() {
       const distFactor = 1.6 - ((aff + 200) / 400) * 1.0;
       const sizeFactor = 0.4 + ((aff + 200) / 400) * 0.3; // 0.4 (small) to 0.7 (large)
       const r = orbitR * distFactor;
+      const isMobile = graphBounds.width < 768;
+      const baseSize = isMobile ? 32 : 44;
       return {
         id: name, name, relation: data.关系,
         x: Math.cos(angle) * r + cx,
         y: Math.sin(angle) * r + cy,
-        size: 44 + sizeFactor * 44,
+        size: baseSize + sizeFactor * baseSize,
       };
     });
   }, [socialData, orbitR, cx, cy, charData, playerName]);
@@ -215,10 +217,10 @@ export default function SocialPage() {
           <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: 'translate(-50%, -50%)' }}>
             <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
               transition={{ type: 'spring', damping: 10, stiffness: 160, delay: 0.1 }}>
-              <div className="absolute rounded-full" style={{ width: 120, height: 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
-              <div className="relative w-20 h-20 rounded-full flex items-center justify-center border-2 border-aether-cyan"
+              <div className="absolute rounded-full" style={{ width: graphBounds.width < 768 ? 90 : 120, height: graphBounds.width < 768 ? 90 : 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
+              <div className={`relative rounded-full flex items-center justify-center border-2 border-aether-cyan ${graphBounds.width < 768 ? 'w-16 h-16' : 'w-20 h-20'}`}
                 style={{ background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: `0 0 36px ${NODE_COLOR}40, 0 0 80px ${NODE_COLOR}12` }}>
-                <span className="font-display font-bold text-aether-cyan select-none whitespace-nowrap" style={{ fontSize: Math.max(11, 20 - playerName.length * 2), textShadow: `0 0 16px ${NODE_COLOR}80` }}>{playerName}</span>
+                <span className="font-display font-bold text-aether-cyan select-none whitespace-nowrap" style={{ fontSize: Math.max(10, (graphBounds.width < 768 ? 16 : 20) - playerName.length * 2), textShadow: `0 0 16px ${NODE_COLOR}80` }}>{playerName}</span>
               </div>
             </motion.div>
           </div>
@@ -237,7 +239,7 @@ export default function SocialPage() {
                 style={{ margin: '-10px', boxShadow: `0 0 32px ${NODE_COLOR}30`, background: `${NODE_COLOR}04`, borderRadius: '50%' }} />
               <div className="w-full h-full rounded-full border-2 flex items-center justify-center transition-all duration-400 group-hover:scale-110"
                 style={{ borderColor: `${NODE_COLOR}80`, background: 'linear-gradient(135deg, rgba(6,12,20,0.92), rgba(3,6,12,0.95))', boxShadow: `0 0 18px ${NODE_COLOR}20` }}>
-                <span className="font-display font-bold select-none whitespace-nowrap" style={{ fontSize: Math.max(11, 16 - node.name.length * 1.5), color: NODE_COLOR, textShadow: `0 0 8px ${NODE_COLOR}35` }}>{node.name}</span>
+                <span className="font-display font-bold select-none whitespace-nowrap" style={{ fontSize: Math.max(10, (graphBounds.width < 768 ? 13 : 16) - node.name.length * 1.5), color: NODE_COLOR, textShadow: `0 0 8px ${NODE_COLOR}35` }}>{node.name}</span>
               </div>
             </motion.button>
           ))}
