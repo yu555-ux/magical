@@ -369,9 +369,10 @@ export default function MapPage() {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.sqrt(dx * dx + dy * dy);
+      // Pinch: spread→ratio>1→zoom↑→factor<1→viewport shrinks→locations spread apart
       const ratio = dist / ts.dist;
       const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(ts.zoom * ratio).toFixed(2)));
-      const factor = ts.zoom / next;
+      const factor = ts.zoom / next; // <1 = zoom in, >1 = zoom out
       zoomRef.current = next;
       viewportRef.current = {
         x: ts.vp.x + ts.vp.w * (1 - factor) / 2,
