@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bell, X, AlertTriangle, ScrollText, Terminal, Heart } from 'lucide-react';
+import { Bell, X, AlertTriangle, Heart } from 'lucide-react';
 
 export interface StatusEvent {
   id: string;
@@ -32,14 +32,14 @@ function saveEvents(events: StatusEvent[]) {
 
 /* ── Config ── */
 type Channel = 'terminal' | 'log';
-const CHANNELS: { key: Channel; label: string; Icon: any }[] = [
-  { key: 'terminal', label: '终端', Icon: Terminal },
-  { key: 'log',      label: '日志', Icon: ScrollText },
+const CHANNELS: { key: Channel; label: string }[] = [
+  { key: 'terminal', label: '终端' },
+  { key: 'log',      label: '日志' },
 ];
 
 const TYPE_STYLE: Record<string, { icon: any; color: string }> = {
   ok:      { icon: CheckIcon, color: 'var(--color-aether-green)' },
-  info:    { icon: ScrollText, color: 'var(--color-aether-cyan)' },
+  info:    { icon: Bell, color: 'var(--color-aether-cyan)' },
   warning: { icon: AlertTriangle, color: 'var(--color-aether-gold)' },
   error:   { icon: X, color: 'var(--color-aether-red)' },
   success: { icon: Heart, color: '#f472b6' },
@@ -110,29 +110,21 @@ export default function StatusBell() {
           onClick={() => { setOpen(!open); setConfirmClear(false); }}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.97 }}
-          className={`relative p-2 clickable transition-all glass-panel ${
-            hasTerminalError
-              ? 'border-red-500/50 shadow-[0_0_16px_rgba(239,68,68,0.2)]'
-              : 'hover:border-aether-cyan/60'
-          }`}
+          className="relative p-2 clickable transition-all glass-panel hover:border-aether-cyan/60"
         >
           <Bell
             size={18}
             className={`transition-colors ${
-              hasTerminalError
-                ? 'text-aether-red/80'
-                : logUnread > 0
-                  ? 'text-aether-cyan'
-                  : 'text-white/40'
+              totalUnread > 0
+                ? 'text-aether-cyan'
+                : 'text-white/40'
             }`}
           />
           <AnimatePresence>
             {totalUnread > 0 && (
               <motion.span
                 initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                className={`absolute -top-1 -right-1 w-[18px] h-[18px] flex items-center justify-center rounded-sm text-[9px] font-bold font-mono text-aether-dark ${
-                  hasTerminalError ? 'bg-aether-red' : 'bg-aether-cyan'
-                }`}
+                className="absolute -top-1 -right-1 w-[18px] h-[18px] flex items-center justify-center rounded-sm text-[9px] font-bold font-mono text-aether-dark bg-aether-cyan"
               >
                 {totalUnread}
               </motion.span>
@@ -162,9 +154,7 @@ export default function StatusBell() {
               <div className="shrink-0 px-5 py-3 border-b border-aether-border/30 flex items-center justify-between bg-aether-cyan/[0.02]">
                 <div className="flex items-center gap-2.5">
                   <div className={`w-2 h-2 rounded-full ${
-                    hasTerminalError ? 'bg-aether-red shadow-[0_0_6px_rgba(239,68,68,0.5)]' :
-                    logUnread > 0 ? 'bg-aether-cyan shadow-[0_0_6px_rgba(0,242,255,0.5)]' :
-                    'bg-white/15'
+                    totalUnread > 0 ? 'bg-aether-cyan shadow-[0_0_6px_rgba(0,242,255,0.5)]' : 'bg-white/15'
                   }`} />
                   <h3 className="font-display text-xs tracking-[0.12em] text-white/50 uppercase">系统状态</h3>
                 </div>
@@ -178,24 +168,21 @@ export default function StatusBell() {
                 {CHANNELS.map((ch) => {
                   const active = channel === ch.key;
                   const unread = ch.key === 'terminal' ? terminalUnread : logUnread;
-                  const isErr = ch.key === 'terminal' && hasTerminalError;
+                  const badgeError = ch.key === 'terminal' && hasTerminalError;
                   return (
                     <button
                       key={ch.key}
                       onClick={() => { setChannel(ch.key); setConfirmClear(false); }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[10px] font-display tracking-widest transition-all relative ${
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[10px] font-display tracking-widest transition-all ${
                         active
-                          ? isErr
-                            ? 'text-red-400/90 border-b border-red-400/60 bg-red-400/[0.03]'
-                            : 'text-aether-cyan border-b border-aether-cyan/60 bg-aether-cyan/[0.04]'
+                          ? 'text-aether-cyan border-b border-aether-cyan/60 bg-aether-cyan/[0.04]'
                           : 'text-white/25 hover:text-white/40 border-b border-transparent'
                       }`}
                     >
-                      <ch.Icon size={13} />
                       {ch.label}
                       {unread > 0 && (
                         <span className={`text-[9px] font-mono font-bold px-1 rounded-sm ${
-                          isErr ? 'bg-red-400/15 text-red-400' : 'bg-aether-cyan/10 text-aether-cyan/60'
+                          badgeError ? 'bg-aether-red/20 text-aether-red/90' : 'bg-aether-cyan/10 text-aether-cyan/60'
                         }`}>
                           {unread}
                         </span>
@@ -242,10 +229,9 @@ export default function StatusBell() {
               <div className="flex-1 overflow-y-auto">
                 {visibleEvents.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-14">
-                    {(() => {
-                      const Icon = CHANNELS.find((c) => c.key === channel)!.Icon;
-                      return <Icon size={28} className="text-white/8 mb-3" />;
-                    })()}
+                    <div className="w-8 h-8 rounded-full bg-white/[0.02] border border-white/[0.04] flex items-center justify-center mb-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-aether-cyan/20" />
+                    </div>
                     <p className="text-[11px] font-display tracking-wider text-white/15">
                       {channel === 'terminal' ? '系统运行正常' : '暂无剧情事件'}
                     </p>
@@ -259,18 +245,15 @@ export default function StatusBell() {
                         key={e.id}
                         onClick={() => markRead(e.id)}
                         className={`w-full text-left px-5 py-3 border-b border-aether-border/10 transition-colors hover:bg-aether-cyan/[0.02] ${
-                          !e.read ? (isTerminal ? 'bg-red-400/[0.02]' : 'bg-aether-cyan/[0.02]') : ''
+                          !e.read ? 'bg-aether-cyan/[0.02]' : ''
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          {/* Unread indicator */}
-                          <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
-                            !e.read
-                              ? isTerminal
-                                ? 'bg-aether-red animate-pulse'
-                                : 'bg-aether-cyan'
-                              : 'bg-white/8'
-                          }`} />
+                          {/* Unread dot — colored by event type */}
+                          <div
+                            className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                            style={{ background: !e.read ? style.color : 'rgba(255,255,255,0.08)' }}
+                          />
 
                           {/* Content */}
                           <div className="flex-1 min-w-0">
