@@ -8,6 +8,74 @@ import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, delet
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 import { tickAllFemales } from '../sillytavern/physiology';
 
+const DEFAULT_OPENING = `餐桌上方的吊灯洒下暖白色的光。张云夹了一块排骨，没放进自己碗里，而是越过半个桌子，稳稳地落在了<user>的米饭上。排骨上的糖醋汁洇进白白的米粒里。
+
+她收回筷子，目光在儿子脸上停了两秒。
+
+"怎么了？"张云微微偏过头，看着他，声音放得很轻，"今天一天都蔫巴巴的。菜不合胃口？还是在学校遇到什么事了？"
+
+她没有停下手里的动作，顺手把汤碗往他面前推了推。
+
+坐在他对面的周汝正咬着筷子尖，听到这话，立刻抬起眼睛。她今天在家穿着一件稍微有些宽松的针织衫，领口滑到了一边肩膀上。
+
+"是不是昨天熬夜看小说了？"周汝挑了挑眉，语气里带着点故意的调侃，"还是说……在学校看上哪个小姑娘，人家没理你？"
+
+"别瞎说。"张云嗔怪地看了女儿一眼，但也没生气，只是又把目光转回他身上，眉头微皱。
+
+"没事。"<user>用筷子戳了一下那块排骨，勉强恢复了平日的精神，"就是昨晚没睡好，可能有点落枕，头一直疼。"
+
+何止是没睡好。
+
+<user>在心里默默吐槽一句，低头扒了一口饭。从早上醒来到现在，他脑袋就一直疼的不行。
+
+昨晚的梦太真实了。
+
+真实到他现在还能清晰地回想起那轮挂在夜空中的血月。整个世界都被蒙上了一层暗红色，没有声音，没有活气。在梦里，他刚走出家门，只是下意识地向楼上看了一眼。
+
+就那一眼。
+
+一颗巨大的、布满红血丝的眼球悬浮在半空，没有眼睑，深红色的瞳孔直勾勾地盯着他。那种诡异的感觉和心里大作的预警，让他几乎是连滚带爬地跑下楼，冲出楼道。可是没跑出几步，迎面就撞上两队行人。
+
+一队高抬大轿，红剪纸散天，乐极升天。
+
+一队披麻戴孝，唢呐哀乐齐奏，黯然销魂。
+
+他刚反应过来这就是以前看的僵尸片里的红白冲煞，就被一恍惚，被关进了棺材，然后暴毙了。
+
+然后...他就在床上惊醒，浑身冷汗，头疼欲裂。
+
+想到这里，<user>深吸一口气，把嘴里的饭咽下去。饭菜的香味稍微驱散了一点脑海里挥之不去的惊悚。
+
+"头疼？"张云的眉头立刻皱了起来，她放下碗筷，直接站起身，走到他身边，手贴上了他的额头。
+
+"没发烧啊。"张云嘀咕了一句，手指又顺势在他的太阳穴上轻轻按揉了两下，"是不是最近压力太大了？快高考了，你也别把自己逼得太紧。考成什么样都没关系，妈养你。"
+
+她的动作很轻，带着一点让人安心的温柔。
+
+"哎哟，妈，你这就偏心了啊。"周汝在对面拖长了声音，"我高考那会儿，你天天让我早睡早起，怎么到他这儿就成'考成什么样都没关系'了？"
+
+她虽然嘴上抱怨着，但眼睛却一直盯着他的脸色看，眉心也微不可察地蹙了起来。
+
+"你能一样吗？你从小就不用我操心。"张云白了女儿一眼，手上的动作没停，又转头看着他，"吃完饭早点去休息。要是一会儿还疼，我给你拿点布洛芬。实在不行，明天妈带你去医院做个脑CT。"
+
+"不用不用，真不用。"<user>赶紧往后躲了一下，避开张云的手。要是真去医院检查，医生也查不出什么来，总不能说是在梦里被鬼弄死的后遗症吧。
+
+"我就是有点困，睡一觉就好了。"他加快了扒饭的速度，试图用行动证明自己真的没事。
+
+周汝看着他狼吞虎咽的样子，忍不住轻轻哼了一声。
+
+"慢点吃，没人跟你抢。"她放下筷子，伸手把一盘清炒虾仁推到了他手边。
+
+"你要是真的头疼得厉害，晚上就别看书了。"周汝用手指卷着垂在肩上的一缕头发，半开玩笑到，"要是……要是睡不着，你来找姐姐我，我来哄睡哦~"
+
+她说完，又迅速补充了一句："当然，你要是不想就算了，我也挺忙的。"
+
+但她放在桌子底下的手，却微微攥紧了衣角。
+
+张云看着女儿别扭的样子，忍不住笑了一下，又坐回了自己的位置上。
+
+"行了，汝汝你别没大没小了...<user>多吃点蔬菜。"张云又给他夹了一筷子青菜，"今晚什么都别想，好好睡一觉。天大的事，有妈在呢。"`;
+
 const db = getDatabase();
 
 export function useSillytavern() {
@@ -157,7 +225,14 @@ export function useSillytavern() {
 
   const createChat = useCallback(async (name: string) => {
     const chat: ChatSession = {
-      id: crypto.randomUUID(), name, messages: [],
+      id: crypto.randomUUID(), name,
+      messages: [{
+        id: crypto.randomUUID(),
+        role: 'assistant' as const,
+        content: `<maintext>${DEFAULT_OPENING}</maintext>`,
+        timestamp: Date.now(),
+        parsed: { maintext: DEFAULT_OPENING, thinking: '', options: [], history: null, varsRaw: '', varsCommands: { merge: {} }, unknown: {} },
+      }],
       characterName: settings?.characterName ?? DEFAULT_SETTINGS.characterName,
       userName: settings?.userName ?? DEFAULT_SETTINGS.userName,
       variables: JSON.parse(JSON.stringify(DEFAULT_WORLD_VARS)),
@@ -210,7 +285,7 @@ export function useSillytavern() {
 
     // 没有导入预设 → 阻止游戏，提示错误
     if (!effectiveSettings.presetBlocks || effectiveSettings.presetBlocks.length === 0) {
-      throw new Error('请先在设置中导入提示词预设（Prompt Preset），否则无法进行游戏。');
+      throw new Error('请先在设置中导入提示词预设');
     }
 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now() };

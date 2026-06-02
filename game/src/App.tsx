@@ -75,10 +75,11 @@ export default function App() {
   }, []);
 
   const addNotification = useCallback((title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => {
-    pushStatus({ title, message, type: type === 'success' ? 'ok' : type, source: '游戏' });
-    // Also show as toast for immediate visibility
+    // 仅系统事件走铃铛，单次错误/警告走 Toast 即可
     if (type === 'error' || type === 'warning') {
       addToast(message, type);
+    } else {
+      pushStatus({ title, message, type: type === 'success' ? 'ok' : type, source: '游戏' });
     }
   }, [addToast]);
 
