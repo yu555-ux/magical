@@ -470,7 +470,8 @@ export default function MapPage() {
           >
             <Search size={14} className="text-aether-cyan/50 shrink-0" />
             <input
-              type="text" value={searchQuery}
+              type="search" value={searchQuery}
+              inputMode="search"
               onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
               onFocus={() => setSearchOpen(true)}
               placeholder="搜索全部地图..."

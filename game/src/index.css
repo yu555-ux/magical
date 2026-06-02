@@ -196,6 +196,41 @@ body {
   }
 }
 
+/* ── Keyboard adaptation ─────────────────────────── */
+
+/* Prevent iOS auto-zoom on the main chat input */
+@media (max-width: 767px) {
+  .chat-input-nozoom {
+    font-size: 16px !important;
+  }
+}
+
+/* Disable double-tap zoom on interactive elements */
+@media (max-width: 767px) {
+  button, a, .clickable {
+    touch-action: manipulation;
+  }
+}
+
+/* Input area bottom padding — accounts for safe area + keyboard */
+.input-safe-bottom {
+  padding-bottom: max(12px, var(--sab, 0px));
+}
+
+/* When keyboard is open, apply padding so sticky input isn't hidden by keyboard */
+.keyboard-open .keyboard-aware-sticky {
+  padding-bottom: var(--keyboard-height, 0px);
+}
+
+/* Chat message area: when keyboard is open on mobile, keep
+   the scroll anchored */
+@media (max-width: 767px) {
+  .chat-scroll-area {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

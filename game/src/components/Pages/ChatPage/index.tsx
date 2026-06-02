@@ -16,6 +16,7 @@ import ContextMenu from './ContextMenu';
 import ShopBanner from './ShopBanner';
 import ShopModal from './ShopModal';
 import { checkShopAvailability, getLiuSanniangFavorability } from '../../../sillytavern/shop-engine';
+import { useKeyboardAware, scrollToBottomSmooth } from '../../../hooks/useKeyboardAware';
 
 export default function ChatPage({
   addNotification,
@@ -61,7 +62,10 @@ export default function ChatPage({
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
   const [shopOpen, setShopOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { isKeyboardOpen } = useKeyboardAware();
 
   // Auto-create chat
   useEffect(() => {
@@ -75,6 +79,17 @@ export default function ChatPage({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [ss.activeChat?.messages, isStreaming]);
+
+  /* Keyboard-aware scroll — when keyboard opens, keep messages visible */
+  useEffect(() => {
+    if (isKeyboardOpen && messagesAreaRef.current) {
+      // Delay slightly for keyboard animation to settle
+      const t = setTimeout(() => {
+        scrollToBottomSmooth(messagesAreaRef.current!);
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [isKeyboardOpen]);
 
   // Latest assistant message & parsed data
   const latestAssistant = useMemo(() => {
@@ -185,7 +200,7 @@ export default function ChatPage({
         )}
 
         {/* ── Main text pane ── */}
-        <div className="flex-1 overflow-y-auto px-3 md:px-10 py-4 md:py-6">
+        <div ref={messagesAreaRef} className="flex-1 overflow-y-auto chat-scroll-area px-3 md:px-10 py-4 md:py-6">
           {!maintext && !isStreaming ? (
             <div className="h-full" />
           ) : (
@@ -293,7 +308,10 @@ export default function ChatPage({
                   onBlur={() => setIsFocused(false)}
                   placeholder="输入行动推进剧情..."
                   disabled={isStreaming}
-                  className="flex-1 bg-transparent px-3 md:px-5 py-3 md:py-3.5 text-[14px] text-white/75 font-display tracking-[0.06em] placeholder:text-white/20 disabled:opacity-40 focus:outline-none"
+                  inputMode="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="flex-1 bg-transparent px-3 md:px-5 py-3 md:py-3.5 text-[14px] md:text-[14px] text-white/75 font-display tracking-[0.06em] placeholder:text-white/20 disabled:opacity-40 focus:outline-none chat-input-nozoom"
                 />
                 <button
                   onClick={() => isStreaming ? ss.abortStream() : handleSend()}

@@ -158,7 +158,8 @@ export default function ArchivePage() {
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/20" />
             <input
-              type="text"
+              type="search"
+              inputMode="search"
               value={search}
               onChange={e => handleSearch(e.target.value)}
               placeholder="搜索角色…"

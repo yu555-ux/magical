@@ -13,12 +13,26 @@ import StatusBell, { pushStatus } from './components/StatusBell';
 import { PageType } from './types';
 import { Toast } from './components/Feedback';
 import { SillytavernProvider } from './hooks/SillytavernContext';
+import { useKeyboardAware } from './hooks/useKeyboardAware';
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageType>(PageType.HOME);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'info' | 'warning' | 'error' | 'success' }[]>([]);
   const [showSystemSettings, setShowSystemSettings] = useState(false);
   const [entryDone, setEntryDone] = useState(false);
+
+  const { isKeyboardOpen, keyboardHeight } = useKeyboardAware();
+
+  // Broadcast keyboard state to CSS & DOM for all components to react
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--keyboard-height', `${keyboardHeight}px`);
+    if (isKeyboardOpen) {
+      document.body.classList.add('keyboard-open');
+    } else {
+      document.body.classList.remove('keyboard-open');
+    }
+  }, [isKeyboardOpen, keyboardHeight]);
 
   useEffect(() => {
     if (!entryDone) return;

@@ -507,7 +507,7 @@ export default function LorebookTab({ draft, setDraft, onPersist }: Props) {
           {showSearch && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
               <div className="mb-3">
-                <input type="text" value={searchQuery} placeholder="搜索关键词、注释或内容…"
+                <input type="search" inputMode="search" value={searchQuery} placeholder="搜索关键词、注释或内容…"
                   onChange={e => { setSearchQuery(e.target.value); setPages({}); }}
                   className="w-full bg-aether-dark/60 border border-aether-border/25 rounded px-3 py-1.5 text-[11px] text-white/60 placeholder:text-white/12 focus:outline-none focus:border-aether-purple/50 transition-all font-mono" />
               </div>
