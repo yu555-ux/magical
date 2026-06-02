@@ -34,6 +34,34 @@ export default function App() {
     }
   }, [isKeyboardOpen, keyboardHeight]);
 
+  // ── Mobile browser chrome (address bar) workaround ──
+  // dvh is supported in iOS Safari 15.4+ / Chrome 108+, but many
+  // Android WebViews and in-app browsers still only understand vh.
+  // We set --app-height to the real visible height so CSS can use it.
+  useEffect(() => {
+    const root = document.documentElement;
+    const setAppHeight = () => {
+      // visualViewport gives the true visible height excluding browser chrome
+      const vv = window.visualViewport;
+      const h = vv ? vv.height : window.innerHeight;
+      root.style.setProperty('--app-height', `${h}px`);
+    };
+    setAppHeight();
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', setAppHeight);
+      vv.addEventListener('scroll', setAppHeight);
+    }
+    window.addEventListener('resize', setAppHeight);
+    return () => {
+      if (vv) {
+        vv.removeEventListener('resize', setAppHeight);
+        vv.removeEventListener('scroll', setAppHeight);
+      }
+      window.removeEventListener('resize', setAppHeight);
+    };
+  }, []);
+
   useEffect(() => {
     if (!entryDone) return;
     addToast('鉴灵碑同步完成 · 夏城分局已连接', 'success');
@@ -73,7 +101,7 @@ export default function App() {
 
   return (
     <SillytavernProvider>
-    <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden bg-aether-dark font-sans text-white selection:bg-aether-cyan selection:text-aether-dark">
+    <div className="flex flex-col md:flex-row app-height w-screen overflow-hidden bg-aether-dark font-sans text-white selection:bg-aether-cyan selection:text-aether-dark">
       {!entryDone && <EntryOverlay onComplete={() => setEntryDone(true)} />}
 
       {/* Background */}

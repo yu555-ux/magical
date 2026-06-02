@@ -28,7 +28,7 @@ const navItems = [
 
 export default function Sidebar({ activePage, setActivePage, onOpenSettings }: SidebarProps) {
   return (
-    <div className="w-full md:w-20 lg:w-24 h-14 md:h-full flex flex-row md:flex-col bg-aether-dark/80 backdrop-blur-xl border-b md:border-b-0 md:border-r border-aether-border relative z-50 shrink-0">
+    <div className="w-full md:w-20 lg:w-24 h-14 md:h-full flex flex-row md:flex-col bg-aether-dark/80 backdrop-blur-xl border-b md:border-b-0 md:border-r border-aether-border relative z-50 shrink-0 pt-[env(safe-area-inset-top,0px)]">
       {/* Navigation */}
       <nav className="flex-1 flex flex-row md:flex-col items-center gap-0.5 md:gap-1 px-1 md:px-2 md:pt-6 overflow-x-auto md:overflow-visible scrollbar-none">
         {navItems.map((item) => {

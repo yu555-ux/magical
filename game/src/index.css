@@ -67,6 +67,18 @@ body {
   cursor: default;
 }
 
+/* ── Dynamic viewport height — prevents mobile browser chrome overlap ── */
+/* Strategy: 100vh base → 100dvh override → --app-height JS fallback */
+.app-height {
+  height: 100vh;                              /* fallback for ancient browsers */
+  height: 100dvh;                             /* iOS Safari 15.4+, Chrome 108+ */
+}
+@supports not (height: 100dvh) {
+  .app-height {
+    height: var(--app-height, 100vh);          /* JS-driven fallback via visualViewport */
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
