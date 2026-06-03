@@ -16,7 +16,7 @@ import { SillytavernProvider } from './hooks/SillytavernContext';
 import { useKeyboardAware } from './hooks/useKeyboardAware';
 import { useGameEventMonitor, type ToastOptions } from './hooks/useGameEventMonitor';
 
-type ToastItem = { id: string; message: string; type: 'info' | 'warning' | 'error' | 'success'; channel?: 'terminal' | 'log'; onClick?: () => void };
+type ToastItem = { id: string; message: string; type: 'info' | 'warning' | 'error' | 'success'; channel?: 'terminal' | 'log' };
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageType>(PageType.HOME);
@@ -65,23 +65,21 @@ export default function App() {
     };
   }, []);
 
-  const addToast = useCallback((message: string, type: 'info' | 'warning' | 'success' | 'error', channel?: 'terminal' | 'log', onClick?: () => void) => {
+  const addToast = useCallback((message: string, type: 'info' | 'warning' | 'success' | 'error', channel?: 'terminal' | 'log') => {
     const id = Math.random().toString(36).substr(2, 9);
-    setToasts((prev) => [...prev, { id, message, type, channel, onClick }]);
+    setToasts((prev) => [...prev, { id, message, type, channel }]);
   }, []);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addNotification = useCallback((title: string, message: string, type: 'info' | 'warning' | 'error' | 'success', onClick?: () => void) => {
+  const addNotification = useCallback((title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => {
+    // 仅系统事件走铃铛，单次错误/警告走 Toast 即可
     if (type === 'error' || type === 'warning') {
       addToast(message, type);
-    } else if (type === 'success' && onClick) {
-      // 变量更新等可点击通知 → 右上角 toast
-      addToast(message, type, undefined, onClick);
     } else {
-      pushStatus({ title, message, type: type === 'success' ? 'ok' : type, source: '游戏', onClick });
+      pushStatus({ title, message, type: type === 'success' ? 'ok' : type, source: '游戏' });
     }
   }, [addToast]);
 
@@ -138,7 +136,7 @@ export default function App() {
       <div className="fixed inset-0 pointer-events-none z-[1000]">
         <AnimatePresence>
           {toasts.map((toast) => (
-            <Toast key={toast.id} message={toast.message} type={toast.type} channel={toast.channel} onClick={toast.onClick} onClose={() => removeToast(toast.id)} />
+            <Toast key={toast.id} message={toast.message} type={toast.type} channel={toast.channel} onClose={() => removeToast(toast.id)} />
           ))}
         </AnimatePresence>
       </div>

@@ -2,7 +2,7 @@
  * Variable System Utilities
  */
 
-import type { ParsedTags, SavePoint, VarChange } from './types';
+import type { ParsedTags, SavePoint } from './types';
 import type { ParserEvent } from './stream-parser';
 import { parseVarsBlock, applyVarsPatch, applyJsonPatch } from './vars-merger';
 
@@ -759,100 +759,4 @@ function clampVariableRanges(vars: Record<string, any>): void {
 
   // 3) Map anomalies — clamp 具现进度 0~100
   if (vars['地图']) clampAnomalies(vars['地图']);
-}
-
-// ========== Variable change diff for UI notification ==========
-
-/** 从路径末尾提取人物名和字段名作为可读标签 */
-function pathLabel(path: string): string {
-  const parts = path.split('.');
-  // 取最后2段：人物名.字段名
-  if (parts.length >= 2) {
-    const field = parts[parts.length - 1];
-    const parent = parts[parts.length - 2];
-    // 如果倒数第3段是"女性"/"男性"加group，取倒数第3段作为人物名
-    if (parts.length >= 3 && (parts[parts.length - 3] === '女性' || parts[parts.length - 3] === '男性')) {
-      return `${parent} · ${field}`;
-    }
-    return `${parent} · ${field}`;
-  }
-  return path;
-}
-
-/** 根据 preVars → nextVariables 的差异 + patches 构建 VarChange[] */
-export function buildVarChanges(
-  preVars: Record<string, any>,
-  nextVars: Record<string, any>,
-  patches?: Array<{ op: string; path: string; value?: any; oldValue?: any }>,
-): VarChange[] {
-  const changes: VarChange[] = [];
-
-  if (patches && patches.length > 0) {
-    for (const p of patches) {
-      const path = p.path.replace(/^\//, '').replace(/\//g, '.');
-      if (p.op === 'remove') {
-        changes.push({ path, op: 'remove', category: 'remove', label: pathLabel(path) });
-      } else if (p.op === 'add' || p.op === 'insert') {
-        const v = p.value;
-        const cat: VarChange['category'] = typeof v === 'number' ? 'numeric' : 'add';
-        changes.push({ path, op: 'add', category: cat, label: pathLabel(path), newValue: v });
-      } else {
-        // replace / delta
-        const oldV = p.oldValue;
-        const newV = p.value;
-        if (typeof oldV === 'number' && typeof newV === 'number') {
-          changes.push({
-            path, op: 'replace', category: 'numeric',
-            label: pathLabel(path), oldValue: oldV, newValue: newV, delta: newV - oldV,
-          });
-        } else {
-          changes.push({
-            path, op: 'replace', category: 'text',
-            label: pathLabel(path), oldValue: oldV, newValue: newV,
-          });
-        }
-      }
-    }
-    return changes;
-  }
-
-  // Fallback: walk both trees
-  function walk(pre: any, next: any, prefix: string) {
-    if (pre === next) return;
-    if (pre == null && next != null) {
-      changes.push({ path: prefix, op: 'add', category: 'add', label: pathLabel(prefix), newValue: next });
-      return;
-    }
-    if (pre != null && next == null) {
-      changes.push({ path: prefix, op: 'remove', category: 'remove', label: pathLabel(prefix) });
-      return;
-    }
-    if (typeof pre !== typeof next) {
-      changes.push({ path: prefix, op: 'replace', category: 'text', label: pathLabel(prefix), oldValue: pre, newValue: next });
-      return;
-    }
-    if (typeof pre === 'number' && typeof next === 'number' && pre !== next) {
-      changes.push({ path: prefix, op: 'replace', category: 'numeric', label: pathLabel(prefix), oldValue: pre, newValue: next, delta: next - pre });
-      return;
-    }
-    if (typeof pre === 'string' && pre !== next) {
-      changes.push({ path: prefix, op: 'replace', category: 'text', label: pathLabel(prefix), oldValue: pre, newValue: next });
-      return;
-    }
-    if (Array.isArray(pre) && Array.isArray(next)) {
-      if (JSON.stringify(pre) !== JSON.stringify(next)) {
-        changes.push({ path: prefix, op: 'replace', category: 'text', label: pathLabel(prefix), oldValue: pre, newValue: next });
-      }
-      return;
-    }
-    if (typeof pre === 'object' && typeof next === 'object') {
-      const allKeys = new Set([...Object.keys(pre ?? {}), ...Object.keys(next ?? {})]);
-      for (const k of allKeys) {
-        walk(pre?.[k], next?.[k], prefix ? `${prefix}.${k}` : k);
-      }
-    }
-  }
-  walk(preVars, nextVars, '');
-
-  return changes;
 }

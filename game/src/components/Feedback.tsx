@@ -61,12 +61,11 @@ interface ToastProps {
   message: string;
   type: 'info' | 'warning' | 'error' | 'success';
   onClose: () => void;
-  onClick?: () => void;
   /** 'terminal' = tech/scanline, 'log' = glass/glow; defaults to 'terminal' */
   channel?: 'terminal' | 'log';
 }
 
-export function Toast({ message, type, onClose, onClick, channel = 'terminal' }: ToastProps) {
+export function Toast({ message, type, onClose, channel = 'terminal' }: ToastProps) {
   const colors: Record<string, string> = {
     info:    'border-aether-blue/50 bg-aether-blue/10 text-aether-blue',
     warning: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-400',
@@ -93,8 +92,7 @@ export function Toast({ message, type, onClose, onClick, channel = 'terminal' }:
         isLog
           ? 'glass-panel border-aether-cyan/30 text-aether-cyan/90 shadow-[0_0_20px_rgba(0,242,255,0.08)]'
           : `glass-panel ${colors[type]}`
-      } ${onClick ? 'cursor-pointer hover:brightness-110' : ''}`}
-      onClick={onClick}
+      }`}
       id={`toast-${type}`}
     >
       {/* Tech scanline for terminal toast */}

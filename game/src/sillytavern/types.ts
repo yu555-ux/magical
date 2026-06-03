@@ -338,16 +338,6 @@ export interface DreamAnchor {
   lastEnteredAt?: string;
 }
 
-export interface VarChange {
-  path: string;       // "主要人物.女性.异人.顾昀.好感值"
-  op: 'replace' | 'add' | 'remove';
-  category: 'numeric' | 'text' | 'add' | 'remove';
-  label: string;      // "顾昀 · 好感值"
-  oldValue?: any;
-  newValue?: any;
-  delta?: number;     // numeric changes only
-}
-
 export interface ChatMessage {
   id: string;
   role: 'system' | 'user' | 'assistant';
@@ -358,7 +348,6 @@ export interface ChatMessage {
   dreamAnchorAfter?: DreamAnchor;
   plotHistoryAfter?: HistoryTimeline;
   apiUsed?: ApiTarget;
-  varChanges?: VarChange[];  // 第二API本次变量变更记录
 }
 
 export interface ChatSession {
