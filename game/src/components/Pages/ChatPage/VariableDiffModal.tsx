@@ -1,5 +1,4 @@
 import { motion } from 'motion/react';
-import { TrendingUp, Plus, Minus, Edit3 } from 'lucide-react';
 import type { VarChange } from '../../../sillytavern/types';
 import AetherModal from '../../shared/AetherModal';
 
@@ -9,71 +8,48 @@ interface Props {
   changes: VarChange[];
 }
 
-const CAT_META: Record<string, { Icon: any; color: string }> = {
-  numeric: { Icon: TrendingUp, color: 'text-aether-green' },
-  text:    { Icon: Edit3,       color: 'text-aether-cyan' },
-  add:     { Icon: Plus,        color: 'text-aether-cyan' },
-  remove:  { Icon: Minus,       color: 'text-red-400/60' },
-};
-
-/** 构建 "谁 · 什么变了 + 数值变化" 的完整描述 */
-function describe(c: VarChange): string {
+function describe(c: VarChange): { text: string; color: string } {
   if (c.category === 'remove') {
-    return `${c.label} 已移除`;
+    return { text: `${c.label} 已移除`, color: 'text-red-400/50' };
   }
   if (c.category === 'add') {
-    const v = typeof c.newValue === 'number' ? c.newValue : '';
-    return `${c.label}${v ? ` → ${v}` : ' 新增'}`;
+    const v = typeof c.newValue === 'number' ? ` → ${c.newValue}` : '';
+    return { text: `${c.label}${v}`, color: 'text-aether-cyan/70' };
   }
   if (c.category === 'numeric') {
     const d = c.delta ?? 0;
     const sign = d > 0 ? '+' : '';
-    return `${c.label}  ${c.oldValue} → ${c.newValue}  ${sign}${d}`;
+    const color = d > 0 ? 'text-aether-green' : d < 0 ? 'text-red-400' : 'text-white/70';
+    return { text: `${c.label}  ${c.oldValue} → ${c.newValue}  ${sign}${d}`, color };
   }
-  // text
   const oldS = typeof c.oldValue === 'string' ? c.oldValue : '';
   const newS = typeof c.newValue === 'string' ? c.newValue : '';
-  if (oldS && newS) return `${c.label}  ${oldS} → ${newS}`;
-  return `${c.label} 已变更`;
+  if (oldS && newS) return { text: `${c.label}  ${oldS} → ${newS}`, color: 'text-white/60' };
+  return { text: `${c.label} 已变更`, color: 'text-white/50' };
 }
 
 export default function VariableDiffModal({ isOpen, onClose, changes }: Props) {
   return (
     <AetherModal isOpen={isOpen} onClose={onClose} title="变量更新">
-      <div className="flex-1 overflow-y-auto p-3 md:p-5 space-y-1.5">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-0.5">
         {changes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <p className="text-white/20 font-display text-sm tracking-wide">无变更记录</p>
+            <p className="text-white/20 font-display text-sm tracking-wide">本次无变量更新</p>
           </div>
         ) : (
           changes.map((c, i) => {
-            const meta = CAT_META[c.category] ?? CAT_META.text;
-            const Icon = meta.Icon;
-            const isNum = c.category === 'numeric';
-            const isRemove = c.category === 'remove';
-            const isUp = isNum && (c.delta ?? 0) > 0;
-            const isDown = isNum && (c.delta ?? 0) < 0;
+            const d = describe(c);
             return (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.2 }}
-                className={`flex items-center gap-3 px-3 md:px-4 py-3 rounded-lg border ${
-                  isRemove ? 'border-red-400/10 bg-red-400/[0.02]' :
-                  c.category === 'add' ? 'border-aether-cyan/10 bg-aether-cyan/[0.02]' :
-                  'border-white/[0.04] bg-white/[0.01]'
-                }`}
+                transition={{ delay: Math.min(i * 0.02, 0.3), duration: 0.2 }}
+                className="flex items-center gap-3 px-3 py-2.5"
               >
-                <Icon size={14} className={`shrink-0 ${
-                  isUp ? 'text-aether-green' :
-                  isDown ? 'text-red-400' :
-                  isRemove ? 'text-red-400/60' : meta.color
-                }`} />
-                <span className={`flex-1 text-[12px] md:text-[13px] font-mono leading-relaxed ${
-                  isRemove ? 'text-red-400/50' : 'text-white/70'
-                }`}>
-                  {describe(c)}
+                <span className="w-1 h-1 rounded-full shrink-0 bg-current opacity-40" />
+                <span className={`text-[13px] md:text-[14px] font-mono leading-relaxed ${d.color}`}>
+                  {d.text}
                 </span>
               </motion.div>
             );

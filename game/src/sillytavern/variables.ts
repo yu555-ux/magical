@@ -800,26 +800,74 @@ function pathLabel(path: string): string {
 export function buildVarChanges(
   preVars: Record<string, any>,
   nextVars: Record<string, any>,
-  patches?: Array<{ op: string; path: string; value?: any; oldValue?: any }>,
 ): VarChange[] {
   const changes: VarChange[] = [];
-  if (patches && patches.length > 0) {
-    for (const p of patches) {
-      const path = p.path.replace(/^\//, '').replace(/\//g, '.');
-      if (p.op === 'remove') {
-        changes.push({ path, op: 'remove', category: 'remove', label: pathLabel(path) });
-      } else if (p.op === 'add' || p.op === 'insert') {
-        const v = p.value;
-        changes.push({ path, op: 'add', category: typeof v === 'number' ? 'numeric' : 'add', label: pathLabel(path), newValue: v });
-      } else {
-        const oldV = p.oldValue, newV = p.value;
-        if (typeof oldV === 'number' && typeof newV === 'number') {
-          changes.push({ path, op: 'replace', category: 'numeric', label: pathLabel(path), oldValue: oldV, newValue: newV, delta: newV - oldV });
-        } else {
-          changes.push({ path, op: 'replace', category: 'text', label: pathLabel(path), oldValue: oldV, newValue: newV });
-        }
+
+  function walk(pre: any, next: any, path: string) {
+    if (pre === next) return;
+
+    // 新增
+    if (pre === undefined || pre === null) {
+      if (next !== undefined && next !== null) {
+        changes.push({
+          path, op: 'add',
+          category: typeof next === 'number' ? 'numeric' : 'add',
+          label: pathLabel(path), newValue: next,
+        });
       }
+      return;
+    }
+
+    // 删除
+    if (next === undefined || next === null) {
+      changes.push({ path, op: 'remove', category: 'remove', label: pathLabel(path) });
+      return;
+    }
+
+    // 数值变更
+    if (typeof pre === 'number' && typeof next === 'number') {
+      changes.push({
+        path, op: 'replace', category: 'numeric',
+        label: pathLabel(path), oldValue: pre, newValue: next, delta: next - pre,
+      });
+      return;
+    }
+
+    // 字符串变更
+    if (typeof pre === 'string' || typeof next === 'string') {
+      changes.push({
+        path, op: 'replace', category: 'text',
+        label: pathLabel(path), oldValue: pre, newValue: next,
+      });
+      return;
+    }
+
+    // 数组变更
+    if (Array.isArray(pre) || Array.isArray(next)) {
+      if (JSON.stringify(pre) !== JSON.stringify(next)) {
+        changes.push({
+          path, op: 'replace', category: 'text',
+          label: pathLabel(path), oldValue: pre, newValue: next,
+        });
+      }
+      return;
+    }
+
+    // 对象 → 递归
+    if (typeof pre === 'object' && typeof next === 'object') {
+      const allKeys = new Set([...Object.keys(pre ?? {}), ...Object.keys(next ?? {})]);
+      for (const k of allKeys) {
+        walk(pre?.[k], next?.[k], path ? `${path}.${k}` : k);
+      }
+    } else {
+      // 类型变了
+      changes.push({
+        path, op: 'replace', category: 'text',
+        label: pathLabel(path), oldValue: pre, newValue: next,
+      });
     }
   }
+
+  walk(preVars, nextVars, '');
   return changes;
 }
