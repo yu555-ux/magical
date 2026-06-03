@@ -123,7 +123,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 1.02, filter: 'blur(10px)' }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 h-full overflow-y-auto md:overflow-hidden">
+            className="flex-1 h-full overflow-hidden">
             {renderPage()}
           </motion.div>
         </AnimatePresence>
