@@ -37,7 +37,7 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
             <button
               key={item.type}
               onClick={() => setActivePage(item.type)}
-              className={`flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale shrink-0 ${
+              className={`flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale shrink-0 md:w-full ${
                 isActive
                   ? 'text-aether-cyan'
                   : 'text-white/30 hover:text-white/60'
@@ -68,7 +68,7 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
                 transition={{ type: 'spring', damping: 15 }}
               >
                 <item.icon
-                  size={isActive ? 22 : 18}
+                  size={isActive ? 22 : 20}
                   className={`shrink-0 transition-all ${
                     isActive
                       ? 'drop-shadow-[0_0_6px_rgba(0,242,255,0.6)]'
