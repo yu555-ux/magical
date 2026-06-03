@@ -32,7 +32,7 @@ export default function SocialPage() {
   const ss = useSS();
   const liveVars = ss.activeChat?.variables;
   const defaults = DEFAULT_WORLD_VARS as any;
-  const playerName = ss.settings?.userName ?? '我';
+  const playerName = ss.settings?.userName || '我';
   const characterName = ss.settings?.characterName ?? 'AI';
 
   // Resolve macros in displayed variable values
@@ -405,10 +405,8 @@ export default function SocialPage() {
                     <span className="text-[13px] font-display text-white/80 font-bold tracking-wider">{playerName}</span>
                     <span className="text-[11px] font-mono text-white/55">{selSocial.关系}</span>
                   </div>
-                  {/* Social circle: 人名 + 关系 — skip self (already shown above) */}
-                  {selProfile?.社交圈 && Object.entries(selProfile.社交圈 as Record<string, string>)
-                    .filter(([name]) => name !== playerName && name !== '{{user}}' && name !== '<user>')
-                    .map(([name, rel]) => (
+                  {/* Social circle: 人名 + 关系 — same format */}
+                  {selProfile?.社交圈 && Object.entries(selProfile.社交圈 as Record<string, string>).map(([name, rel]) => (
                     <div key={name} className="flex items-baseline gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-aether-cyan/35 shrink-0" />
                       <span className="text-[13px] font-display text-white/65 font-bold tracking-wider">{name}</span>
