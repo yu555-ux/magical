@@ -120,10 +120,16 @@ export default function ChatPage({
     ? ss.streamState.thinking
     : (latestAssistant?.parsed?.thinking ?? '');
   // 优先流式内容（结束后仍保留），其次已保存的助理消息
-  const maintext = ss.streamState.maintext
+  const rawMaintext = ss.streamState.maintext
     || latestAssistant?.parsed?.maintext
     || latestAssistant?.content
     || '';
+  // 实时解析 {{user}} / <user> 宏（不在消息中烘焙，改名即时生效）
+  const displayName = ss.settings?.userName || '你';
+  const maintext = useMemo(
+    () => rawMaintext.replace(/\{\{user\}\}/g, displayName).replace(/<user>/g, displayName),
+    [rawMaintext, displayName],
+  );
 
   // 优先流式选项（结束后仍保留），其次已保存消息
   const rawOptions = ss.streamState.options.length > 0

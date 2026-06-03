@@ -228,10 +228,8 @@ export function useSillytavern() {
 
   const createChat = useCallback(async (name: string) => {
     const userName = settings?.userName || DEFAULT_SETTINGS.userName;
-    const displayName = userName || '你';
-    const resolvedOpening = DEFAULT_OPENING
-      .replace(/\{\{user\}\}/g, displayName)
-      .replace(/<user>/g, displayName);
+    // 不烘焙用户名——保留<user>/{{user}}宏，显示层根据当前settings实时解析
+    const openingText = DEFAULT_OPENING;
 
     const openingOptions: string[] = [
       '把事情敷衍过去，说自己只是没睡好有点头疼',
@@ -245,13 +243,13 @@ export function useSillytavern() {
       title: '噩梦初醒',
       world: '现实',
       date: '2026年04月06日',
-      location: `${displayName}家`,
-      characters: `${displayName}、张云、周汝`,
-      description: `${displayName}在晚餐时精神萎靡，被母亲张云和姐姐周汝察觉。昨晚他在梦中进入了一个挂着血月的诡异世界，遭遇血瞳和红白冲煞后暴毙惊醒，至今头痛未消。张云关心儿子的状态，周汝则在调侃中藏着担忧。`,
+      location: '{{user}}家',
+      characters: '{{user}}、张云、周汝',
+      description: '{{user}}在晚餐时精神萎靡，被母亲张云和姐姐周汝察觉。昨晚他在梦中进入了一个挂着血月的诡异世界，遭遇血瞳和红白冲煞后暴毙惊醒，至今头痛未消。张云关心儿子的状态，周汝则在调侃中藏着担忧。',
       keyInfo: [
-        `${displayName}拥有进入梦境世界的能力——梦境行走`,
+        '{{user}}拥有进入梦境世界的能力——梦境行走',
         '梦境中悬挂着永恒的血月，与现实世界的建筑格局一致但充满异常',
-        `${displayName}的梦境行走技能等级为"聚砂"，刚刚觉醒不久`,
+        '{{user}}的梦境行走技能等级为"聚砂"，刚刚觉醒不久',
         '张云是退役魔法少女，体内奇迹之源已枯竭，无法再使用魔力',
         '隔壁602室住着青梅竹马顾昀和顾惜姐妹',
       ],
@@ -263,7 +261,7 @@ export function useSillytavern() {
     };
 
     const fullContent = [
-      `<maintext>${resolvedOpening}</maintext>`,
+      `<maintext>${openingText}</maintext>`,
       openingOptions.map(o => `- ${o}`).join('\n'),
       `<history>
 序号: ${openingHistory.sequence}
@@ -288,7 +286,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         content: fullContent,
         timestamp: Date.now(),
         parsed: {
-          maintext: resolvedOpening,
+          maintext: openingText,
           thinking: '',
           options: openingOptions,
           history: openingHistory,
