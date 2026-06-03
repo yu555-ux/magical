@@ -139,10 +139,17 @@ export default function ChatPage({
       if (result?.aborted && !wasOption) {
         setInput(result.retractedText ?? msg);
       }
+      if (result?.formatError) {
+        // 格式错误时始终恢复输入（含选项），并通知玩家
+        setInput(result.retractedText ?? msg);
+        addNotification?.('格式错误', 'AI 回复缺少必要标签，请重试', 'warning');
+      }
       if (result?.varsUpdated) {
         addNotification?.('变量已更新', `第二API已更新 ${result.patchCount ?? 0} 项变量`, 'success');
       }
     } catch (err) {
+      // API 网络错误等 → 恢复输入框
+      setInput(msg);
       addNotification?.('发送失败', String(err), 'error');
     }
   }, [input, isStreaming, ss, addNotification]);
@@ -383,6 +390,7 @@ export default function ChatPage({
         onClose={() => setSaveOpen(false)}
         messages={ss.activeChat?.messages ?? []}
         onJumpToFloor={(id) => ss.jumpToFloor(id)}
+        isBusy={isStreaming || ss.dualRunning}
       />
 
       {/* ── Prompt Viewer Modal ── */}

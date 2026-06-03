@@ -329,7 +329,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     [...DEFAULT_OPAQUE_TAGS],
   );
 
-  const sendGameMessage = useCallback(async (userText: string): Promise<{ aborted: boolean; retractedText?: string; varsUpdated?: boolean; patchCount?: number; formatError?: boolean }> => {
+  const sendGameMessage = useCallback(async (userText: string, opts?: { skipUserMessage?: boolean }): Promise<{ aborted: boolean; retractedText?: string; varsUpdated?: boolean; patchCount?: number; formatError?: boolean }> => {
     if (!activeChat || !settings) return { aborted: false };
 
     // 从 DB 读取最新 chat，避免 regenerate 等操作导致的闭包过期
@@ -353,10 +353,15 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       throw new Error('请先在设置中导入提示词预设');
     }
 
+    const skipUser = opts?.skipUserMessage === true;
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now() };
-    const updatedChat: ChatSession = { ...effectiveChat, messages: [...effectiveChat.messages, userMsg], updatedAt: Date.now() };
-    await db.chats.put(updatedChat);
-    setChats(prev => prev.map(c => c.id === updatedChat.id ? updatedChat : c));
+    const updatedChat: ChatSession = skipUser
+      ? { ...effectiveChat, updatedAt: Date.now() }
+      : { ...effectiveChat, messages: [...effectiveChat.messages, userMsg], updatedAt: Date.now() };
+    if (!skipUser) {
+      await db.chats.put(updatedChat);
+      setChats(prev => prev.map(c => c.id === updatedChat.id ? updatedChat : c));
+    }
 
     // 共用回退：删除刚添加的用户消息，恢复变量/锚点/剧情历史
     const doRetract = async () => {
@@ -448,7 +453,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       console.error('[SillyTavern] 第一API调用失败:', e);
       parser.reset();
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
-      await doRetract();
+      if (!skipUser) await doRetract();
       if (isAbort) return { aborted: true, retractedText: userText };
       throw e;
     }
@@ -481,7 +486,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
           : '缺少有效标签 (maintext/option/history)';
       console.warn(`[SillyTavern] 回退: ${detail}`);
       parser.reset();
-      await doRetract();
+      if (!skipUser) await doRetract();
       showToast(`AI 回复无效（${detail}），已自动回退`);
       return { aborted: true, retractedText: userText, formatError: true };
     }
@@ -733,16 +738,17 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     if (lastUserIdx < 0) return;
     const targetIdx = chat.messages.length - 1 - lastUserIdx;
     const userText = chat.messages[targetIdx].content;
-    const truncated = chat.messages.slice(0, targetIdx);
+    // 保留最后一条 user 消息，仅删除其后的 assistant 回复
+    const truncated = chat.messages.slice(0, targetIdx + 1);
     const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
     const restoredPlotHistory = lastAssistant?.plotHistoryAfter ?? chat.plotHistory;
-    // Restore variables from last assistant too
     const restoredVars = lastAssistant?.variablesAfter ?? chat.variables ?? {};
     const restoredAnchor = lastAssistant?.dreamAnchorAfter ?? chat.dreamAnchor ?? {};
     const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
     await db.chats.put(next);
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
-    await sendGameMessage(userText);
+    // skipUserMessage: 不追加新 user 消息，复用已有的
+    await sendGameMessage(userText, { skipUserMessage: true });
   }, [activeChat, sendGameMessage]);
 
   // 重写变量：保留正文，仅用第二API重新提取变量

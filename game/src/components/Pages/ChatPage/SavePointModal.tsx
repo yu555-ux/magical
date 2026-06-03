@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Save, ChevronRight, ChevronDown, Clock, MapPin, Users, Lightbulb, Eye } from 'lucide-react';
 import type { ChatMessage } from '../../../sillytavern/types';
 import AetherModal from '../../shared/AetherModal';
+import ConfirmModal from '../../shared/ConfirmModal';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   messages: ChatMessage[];
   onJumpToFloor: (messageId: string) => void;
+  isBusy?: boolean;
 }
 
 interface SavePointFull {
@@ -35,8 +37,9 @@ interface TimelineGroup {
   points: SavePointFull[];
 }
 
-export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloor }: Props) {
+export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloor, isBusy }: Props) {
   const [expandedFs, setExpandedFs] = useState<Set<string>>(new Set());
+  const [confirmTarget, setConfirmTarget] = useState<{ id: string; title: string } | null>(null);
 
   const timelines = useMemo<TimelineGroup[]>(() => {
     const raw = messages
@@ -152,17 +155,17 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
                             >
                               <div
                                 onClick={() => {
-                                  onJumpToFloor(sp.messageId);
-                                  onClose();
+                                  if (isBusy) return;
+                                  setConfirmTarget({ id: sp.messageId, title: sp.title || '(无标题)' });
                                 }}
-                                className="w-full text-left group cursor-pointer"
+                                className={`w-full text-left group ${isBusy ? 'opacity-30 pointer-events-none' : 'cursor-pointer'}`}
                                 role="button"
-                                tabIndex={0}
+                                tabIndex={isBusy ? -1 : 0}
                                 onKeyDown={(e) => {
+                                  if (isBusy) return;
                                   if (e.key === 'Enter' || e.key === ' ') {
                                     e.preventDefault();
-                                    onJumpToFloor(sp.messageId);
-                                    onClose();
+                                    setConfirmTarget({ id: sp.messageId, title: sp.title || '(无标题)' });
                                   }
                                 }}
                               >
@@ -295,6 +298,23 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
               </div>
             )}
           </div>
+
+      {/* 回档确认弹窗 */}
+      <ConfirmModal
+        isOpen={!!confirmTarget}
+        title="确认回档"
+        message={`回档到「${confirmTarget?.title ?? ''}」后，该存档点之后的所有对话将被永久删除。此操作不可撤销。`}
+        confirmLabel="确认回档"
+        variant="danger"
+        onConfirm={() => {
+          if (confirmTarget) {
+            onJumpToFloor(confirmTarget.id);
+            onClose();
+          }
+          setConfirmTarget(null);
+        }}
+        onCancel={() => setConfirmTarget(null)}
+      />
 
     </AetherModal>
   );
