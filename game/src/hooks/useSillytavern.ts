@@ -358,6 +358,22 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     await db.chats.put(updatedChat);
     setChats(prev => prev.map(c => c.id === updatedChat.id ? updatedChat : c));
 
+    // 共用回退：删除刚添加的用户消息，恢复变量/锚点/剧情历史
+    const doRetract = async () => {
+      const msgs = updatedChat.messages;
+      const lastUserIdx = [...msgs].reverse().findIndex(m => m.role === 'user');
+      if (lastUserIdx < 0) return;
+      const targetIdx = msgs.length - 1 - lastUserIdx;
+      const truncated = msgs.slice(0, targetIdx);
+      const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
+      const restoredVars = lastAssistant?.variablesAfter ?? updatedChat.variables ?? {};
+      const restoredAnchor = lastAssistant?.dreamAnchorAfter ?? updatedChat.dreamAnchor ?? {};
+      const restoredPlotHistory = lastAssistant?.plotHistoryAfter ?? updatedChat.plotHistory;
+      const next: ChatSession = { ...updatedChat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
+      await db.chats.put(next);
+      setChats(prev => prev.map(c => c.id === next.id ? next : c));
+    };
+
     const chatVars = updatedChat.variables ?? {};
 
     const { messages, totalTokens, stageTokens, stageMessages, stageOrder, stageNames } = assemblePrompt({
@@ -431,22 +447,8 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     } catch (e) {
       console.error('[SillyTavern] 第一API调用失败:', e);
       parser.reset();
-      // Retract: remove last user message, restore variables from previous assistant
-      const retract = async () => {
-        const msgs = updatedChat.messages;
-        const lastUserIdx = [...msgs].reverse().findIndex(m => m.role === 'user');
-        if (lastUserIdx < 0) return;
-        const targetIdx = msgs.length - 1 - lastUserIdx;
-        const truncated = msgs.slice(0, targetIdx);
-        const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
-        const restoredVars = lastAssistant?.variablesAfter ?? updatedChat.variables ?? {};
-        const restoredAnchor = lastAssistant?.dreamAnchorAfter ?? updatedChat.dreamAnchor ?? {};
-        const next: ChatSession = { ...updatedChat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, updatedAt: Date.now() };
-        await db.chats.put(next);
-        setChats(prev => prev.map(c => c.id === next.id ? next : c));
-      };
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
-      await retract();
+      await doRetract();
       if (isAbort) return { aborted: true, retractedText: userText };
       throw e;
     }
@@ -469,28 +471,18 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const hasMaintext = !!parsed.maintext?.trim();
     const hasOptions = (parsed.options?.length ?? 0) > 0;
     const hasHistory = parsed.history !== null;
-    if (!hasMaintext && !hasOptions && !hasHistory && rawContent.trim()) {
-      const detail = unknownTags.length > 0
-        ? `使用了未定义标签: <${unknownTags.join('>, <')}>`
-        : '缺少有效标签 (maintext/option/history)';
-      console.warn(`[SillyTavern] 格式错误: ${detail}，自动回退`);
+    const hasValidContent = hasMaintext || hasOptions || hasHistory;
+    const isEmpty = !rawContent.trim();
+    if (!hasValidContent) {
+      const detail = isEmpty
+        ? 'AI 返回空内容'
+        : unknownTags.length > 0
+          ? `使用了未定义标签: <${unknownTags.join('>, <')}>`
+          : '缺少有效标签 (maintext/option/history)';
+      console.warn(`[SillyTavern] 回退: ${detail}`);
       parser.reset();
-      // 回退：删除刚添加的用户消息，恢复变量
-      const retract = async () => {
-        const msgs = updatedChat.messages;
-        const lastUserIdx = [...msgs].reverse().findIndex(m => m.role === 'user');
-        if (lastUserIdx < 0) return;
-        const targetIdx = msgs.length - 1 - lastUserIdx;
-        const truncated = msgs.slice(0, targetIdx);
-        const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
-        const restoredVars = lastAssistant?.variablesAfter ?? updatedChat.variables ?? {};
-        const restoredAnchor = lastAssistant?.dreamAnchorAfter ?? updatedChat.dreamAnchor ?? {};
-        const next: ChatSession = { ...updatedChat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, updatedAt: Date.now() };
-        await db.chats.put(next);
-        setChats(prev => prev.map(c => c.id === next.id ? next : c));
-      };
-      await retract();
-      showToast(`AI 回复格式错误（${detail}），已自动回退`);
+      await doRetract();
+      showToast(`AI 回复无效（${detail}），已自动回退`);
       return { aborted: true, retractedText: userText, formatError: true };
     }
 
