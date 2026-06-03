@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt } from '../sillytavern/variables';
-import { assemblePrompt, replaceMacros, deepResolveMacros } from '../sillytavern/prompt-assembler';
+import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
@@ -224,10 +224,11 @@ export function useSillytavern() {
   }, []);
 
   const createChat = useCallback(async (name: string) => {
-    const userName = settings?.userName ?? DEFAULT_SETTINGS.userName;
+    const userName = settings?.userName || DEFAULT_SETTINGS.userName;
+    const displayName = userName || '你';
     const resolvedOpening = DEFAULT_OPENING
-      .replace(/\{\{user\}\}/g, userName)
-      .replace(/<user>/g, userName);
+      .replace(/\{\{user\}\}/g, displayName)
+      .replace(/<user>/g, displayName);
 
     const openingOptions: string[] = [
       '把事情敷衍过去，说自己只是没睡好有点头疼',
@@ -241,13 +242,13 @@ export function useSillytavern() {
       title: '噩梦初醒',
       world: '现实',
       date: '2026年04月06日',
-      location: `${userName}家`,
-      characters: `${userName}、张云、周汝`,
-      description: `${userName}在晚餐时精神萎靡，被母亲张云和姐姐周汝察觉。昨晚他在梦中进入了一个挂着血月的诡异世界，遭遇血瞳和红白冲煞后暴毙惊醒，至今头痛未消。张云关心儿子的状态，周汝则在调侃中藏着担忧。`,
+      location: `${displayName}家`,
+      characters: `${displayName}、张云、周汝`,
+      description: `${displayName}在晚餐时精神萎靡，被母亲张云和姐姐周汝察觉。昨晚他在梦中进入了一个挂着血月的诡异世界，遭遇血瞳和红白冲煞后暴毙惊醒，至今头痛未消。张云关心儿子的状态，周汝则在调侃中藏着担忧。`,
       keyInfo: [
-        `${userName}拥有进入梦境世界的能力——梦境行走`,
+        `${displayName}拥有进入梦境世界的能力——梦境行走`,
         '梦境中悬挂着永恒的血月，与现实世界的建筑格局一致但充满异常',
-        `${userName}的梦境行走技能等级为"聚砂"，刚刚觉醒不久`,
+        `${displayName}的梦境行走技能等级为"聚砂"，刚刚觉醒不久`,
         '张云是退役魔法少女，体内奇迹之源已枯竭，无法再使用魔力',
         '隔壁602室住着青梅竹马顾昀和顾惜姐妹',
       ],
@@ -295,11 +296,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       }],
       characterName: settings?.characterName ?? DEFAULT_SETTINGS.characterName,
       userName,
-      variables: deepResolveMacros(
-        JSON.parse(JSON.stringify(DEFAULT_WORLD_VARS)),
-        userName,
-        settings?.characterName ?? DEFAULT_SETTINGS.characterName,
-      ),
+      variables: JSON.parse(JSON.stringify(DEFAULT_WORLD_VARS)),
       plotHistory: { reality: [], dream: [] },
       dreamAnchor: {},
       createdAt: Date.now(), updatedAt: Date.now(),

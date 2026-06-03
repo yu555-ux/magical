@@ -310,7 +310,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   activePresetId: null,
   activeVarsPresetId: null,
   lorebooks: [],
-  userName: '用户',
+  userName: '',
   characterName: 'AI',
   theme: 'dark',
   language: 'zh',
