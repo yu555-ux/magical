@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, User, Heart, Shield, Zap, Database, Diamond, Skull, Package } from 'lucide-react';
+import { Search, User, Heart, Shield, Zap, Database, Diamond, Skull, Package, ChevronDown } from 'lucide-react';
 import { Modal } from '../Feedback';
 import { useSS } from '../../hooks/SillytavernContext';
 import { DEFAULT_WORLD_VARS } from '../../sillytavern/default-world-vars';
@@ -78,6 +78,7 @@ export default function ArchivePage() {
   const [selected, setSelected] = useState<CharacterCard | null>(null);
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [listOpen, setListOpen] = useState(true); // 移动端角色列表折叠
 
   // Flatten characters into cards grouped by category
   const groups = useMemo(() => {
@@ -139,14 +140,25 @@ export default function ArchivePage() {
   return (
     <div className="h-full flex flex-col md:flex-row relative overflow-hidden bg-aether-deep">
       {/* ==================== LEFT PANEL — Character List ==================== */}
-      <div className="w-full md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-aether-border/30 flex flex-col bg-aether-dark/40 max-h-[40vh] md:max-h-full">
+      <div className={`w-full md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-aether-border/30 flex flex-col bg-aether-dark/40 transition-all duration-300 ${
+        listOpen ? 'max-h-[40vh] md:max-h-full' : 'max-h-[48px]'
+      }`}>
         <div className="px-3 md:px-4 pt-3 md:pt-5 pb-2 md:pb-3 space-y-2 md:space-y-3 shrink-0">
           <div className="flex items-center gap-2 md:gap-3">
             <div className="w-1 h-5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.4)]" />
             <h2 className="font-display text-base tracking-[0.12em] text-aether-cyan/90">角色档案</h2>
+            {/* 移动端折叠按钮 */}
+            <button
+              onClick={() => setListOpen(!listOpen)}
+              className="md:hidden ml-auto p-1.5 text-white/30 hover:text-aether-cyan transition-colors"
+            >
+              <motion.div animate={{ rotate: listOpen ? 0 : 180 }} transition={{ duration: 0.2 }}>
+                <ChevronDown size={16} />
+              </motion.div>
+            </button>
             <button
               onClick={() => { setShowAll(!showAll); setSelected(null); }}
-              className={`text-[10px] font-display px-2.5 py-1 rounded border transition-all ml-auto shrink-0 tracking-wider
+              className={`text-[10px] font-display px-2.5 py-1 rounded border transition-all shrink-0 tracking-wider
                 ${showAll
                   ? 'bg-aether-cyan/[0.10] border-aether-cyan/35 text-aether-cyan shadow-[0_0_10px_rgba(0,242,255,0.15)]'
                   : 'bg-aether-cyan/[0.04] border-aether-cyan/25 text-aether-cyan/60 hover:bg-aether-cyan/[0.08] hover:text-aether-cyan hover:shadow-[0_0_8px_rgba(0,242,255,0.1)]'
@@ -333,12 +345,12 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -8 }}
       transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-      className="px-6 md:px-12 py-8 space-y-10"
+      className="px-4 md:px-12 py-6 md:py-8 space-y-8 md:space-y-10"
     >
       {/* ===== Hero Header ===== */}
       <div className="border-l-4 border-aether-cyan pl-6 space-y-3">
         <div className="flex items-baseline gap-3 flex-wrap">
-          <h1 className="font-display text-3xl font-black tracking-tighter text-white/90">{char.name}</h1>
+          <h1 className="font-display text-2xl md:text-3xl font-black tracking-tighter text-white/90">{char.name}</h1>
           <span className="text-sm text-white/30 font-display italic tracking-wide">({p.年龄}岁)</span>
           {p.梦境NPC && (
             <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-purple-400/12 text-purple-300/70 border border-purple-400/20">
@@ -481,7 +493,7 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
             </div>
           )}
           {(baseAttr || specialAttr) && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-3">
               {baseAttr && (['力量', '体质', '精神', '敏捷'] as const).map(key => {
                 const v = baseAttr[key];
                 if (v === undefined) return null;
