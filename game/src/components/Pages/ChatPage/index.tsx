@@ -191,15 +191,19 @@ export default function ChatPage({
           onOpenPrompt={() => setPromptOpen(true)}
         />
 
-        {/* ── Streaming indicator (仅第一API流式生成时显示) ── */}
-        {isStreaming && (
-          <div className="flex items-center justify-end px-3 md:px-5 py-1.5 border-b border-aether-border/15 shrink-0">
+        {/* ── Streaming / dual-running indicator ── */}
+        {(isStreaming || ss.dualRunning) && (
+          <div className={`flex items-center justify-end px-3 md:px-5 py-1.5 border-b shrink-0 ${
+            isStreaming ? 'border-aether-border/15' : 'border-amber-400/10 bg-amber-400/[0.02]'
+          }`}>
             <motion.span
               animate={{ opacity: [0.4, 1, 0.4] }}
               transition={{ duration: 1, repeat: Infinity }}
-              className="text-[10px] text-aether-cyan/60 font-mono"
+              className={`text-[10px] font-mono ${
+                isStreaming ? 'text-aether-cyan/60' : 'text-amber-300/50'
+              }`}
             >
-              AI 生成中...
+              {isStreaming ? 'AI 生成中...' : '变量提取中...'}
             </motion.span>
           </div>
         )}
@@ -376,16 +380,20 @@ export default function ChatPage({
                   className="flex-1 bg-transparent px-3 md:px-5 py-3 md:py-3.5 text-[14px] md:text-[14px] text-white/75 font-display tracking-[0.06em] placeholder:text-white/20 disabled:opacity-40 focus:outline-none chat-input-nozoom"
                 />
                 <button
-                  onClick={() => isStreaming ? ss.abortStream() : handleSend()}
-                  disabled={!isStreaming && !input.trim()}
+                  onClick={() => {
+                    if (isStreaming) ss.abortStream();
+                    else if (ss.dualRunning) ss.abortDual();
+                    else handleSend();
+                  }}
+                  disabled={!isStreaming && !ss.dualRunning && !input.trim()}
                   className={`shrink-0 self-stretch px-3 md:px-5 transition-all duration-300 clickable flex items-center ${
-                    isStreaming
+                    isStreaming || ss.dualRunning
                       ? 'text-aether-cyan drop-shadow-[0_0_12px_rgba(0,242,255,0.6)]'
                       : (isFocused || optionsOpen)
                         ? 'text-aether-cyan drop-shadow-[0_0_10px_rgba(0,242,255,0.5)]'
                         : 'text-aether-cyan/45'
                   } enabled:hover:text-aether-cyan enabled:hover:bg-aether-cyan/[0.04] enabled:active:scale-95 disabled:opacity-40`}
-                  title={isStreaming ? '停止生成' : '发送'}
+                  title={isStreaming ? '停止生成' : ss.dualRunning ? '停止变量提取' : '发送'}
                 >
                   {isStreaming || ss.dualRunning ? (
                     <Square size={16} />

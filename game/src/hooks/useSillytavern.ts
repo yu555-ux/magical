@@ -108,6 +108,7 @@ export function useSillytavern() {
   const [toast, setToast] = useState<string | null>(null);
   const showToast = useCallback((message: string) => { setToast(message); setTimeout(() => setToast(null), 2000); }, []);
   const abortRef = useRef<AbortController | null>(null);
+  const dualAbortRef = useRef<AbortController | null>(null);
 
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId) ?? null, [chats, activeChatId]);
 
@@ -541,12 +542,14 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
             }
             console.log('[SillyTavern] 第二API调用, 消息数:', secMessages.length);
 
+            const dualController = new AbortController();
+            dualAbortRef.current = dualController;
             const secResult = await freshRouter.call('vars', {
               messages: secMessages as any,
               stream: false,
               temperature: effectiveApi.secondary.temperature ?? 0.3,
               max_tokens: effectiveApi.secondary.maxTokens ?? 2048,
-            });
+            }, dualController.signal);
             if (secResult.response.ok) {
               const d = await secResult.response.json();
               const raw = d?.choices?.[0]?.message?.content ?? '';
@@ -606,6 +609,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     if (varsUpdated) {
       varChanges = buildVarChanges(preVars, nextVariables);
     }
+    dualAbortRef.current = null;
     setDualRunning(false);
 
     // 第二API输出追加到正文（确保查看原文能显示完整的XML标签结构）
@@ -801,12 +805,14 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         if (resolved.trim()) secMessages.push({ role: block.role, content: resolved });
       }
 
+      const dualController = new AbortController();
+      dualAbortRef.current = dualController;
       const { response } = await router.call('vars', {
         messages: secMessages as any,
         stream: false,
         temperature: effectiveApi.secondary.temperature ?? 0.3,
         max_tokens: effectiveApi.secondary.maxTokens ?? 2048,
-      });
+      }, dualController.signal);
 
       if (!response.ok) return;
       const d = await response.json();
@@ -856,7 +862,11 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       setChats(prev => prev.map(c => c.id === next.id ? next : c));
       if (varsRegenerated) showToast('变量已更新');
     } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error('[SillyTavern] 变量重写失败:', e);
+    } finally {
+      dualAbortRef.current = null;
+      setDualRunning(false);
     }
   }, [activeChat, settings]);
 
@@ -921,6 +931,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     createChat, selectChat, removeChat, sendGameMessage, jumpToFloor, editMessage, regenerateLast, regenerateVarsOnly,
     updateSettings, setChatVariables, refreshPrompt,
     streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
+    abortDual: () => { dualAbortRef.current?.abort(); dualAbortRef.current = null; setDualRunning(false); },
     dualRunning, lastRawContent, toast, showToast, jumpVersion,
   };
 }
