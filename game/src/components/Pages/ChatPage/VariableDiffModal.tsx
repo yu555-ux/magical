@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { TrendingUp, TrendingDown, Plus, Minus, Edit3 } from 'lucide-react';
+import { TrendingUp, Plus, Minus, Edit3 } from 'lucide-react';
 import type { VarChange } from '../../../sillytavern/types';
 import AetherModal from '../../shared/AetherModal';
 
@@ -16,9 +16,30 @@ const CAT_META: Record<string, { Icon: any; color: string }> = {
   remove:  { Icon: Minus,       color: 'text-red-400/60' },
 };
 
+/** 构建 "谁 · 什么变了 + 数值变化" 的完整描述 */
+function describe(c: VarChange): string {
+  if (c.category === 'remove') {
+    return `${c.label} 已移除`;
+  }
+  if (c.category === 'add') {
+    const v = typeof c.newValue === 'number' ? c.newValue : '';
+    return `${c.label}${v ? ` → ${v}` : ' 新增'}`;
+  }
+  if (c.category === 'numeric') {
+    const d = c.delta ?? 0;
+    const sign = d > 0 ? '+' : '';
+    return `${c.label}  ${c.oldValue} → ${c.newValue}  ${sign}${d}`;
+  }
+  // text
+  const oldS = typeof c.oldValue === 'string' ? c.oldValue : '';
+  const newS = typeof c.newValue === 'string' ? c.newValue : '';
+  if (oldS && newS) return `${c.label}  ${oldS} → ${newS}`;
+  return `${c.label} 已变更`;
+}
+
 export default function VariableDiffModal({ isOpen, onClose, changes }: Props) {
   return (
-    <AetherModal isOpen={isOpen} onClose={onClose} title="变量变更">
+    <AetherModal isOpen={isOpen} onClose={onClose} title="变量更新">
       <div className="flex-1 overflow-y-auto p-3 md:p-5 space-y-1.5">
         {changes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
@@ -31,50 +52,33 @@ export default function VariableDiffModal({ isOpen, onClose, changes }: Props) {
             const isNum = c.category === 'numeric';
             const isRemove = c.category === 'remove';
             const isUp = isNum && (c.delta ?? 0) > 0;
+            const isDown = isNum && (c.delta ?? 0) < 0;
             return (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: Math.min(i * 0.03, 0.3), duration: 0.2 }}
-                className={`flex items-center gap-3 px-3 md:px-4 py-2.5 rounded-lg border ${
+                className={`flex items-center gap-3 px-3 md:px-4 py-3 rounded-lg border ${
                   isRemove ? 'border-red-400/10 bg-red-400/[0.02]' :
                   c.category === 'add' ? 'border-aether-cyan/10 bg-aether-cyan/[0.02]' :
                   'border-white/[0.04] bg-white/[0.01]'
                 }`}
               >
-                <div className={`shrink-0 ${isUp ? 'text-aether-green' : isRemove ? 'text-red-400/60' : meta.color}`}>
-                  <Icon size={isNum ? 15 : 13} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] md:text-[12px] font-display tracking-wide text-white/65 truncate">{c.label}</p>
-                </div>
-                <div className="shrink-0 text-right">
-                  {isRemove ? (
-                    <span className="text-[10px] font-mono text-red-400/50">已移除</span>
-                  ) : isNum ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[9px] font-mono text-white/25">{c.oldValue}</span>
-                      <span className="text-[9px] text-white/10">→</span>
-                      <span className={`text-[11px] font-display font-bold ${isUp ? 'text-aether-green' : 'text-red-400'}`}>{c.newValue}</span>
-                      <span className={`text-[9px] font-mono ml-0.5 ${isUp ? 'text-aether-green/60' : 'text-red-400/60'}`}>
-                        {isUp ? '+' : ''}{c.delta}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-[10px] font-mono text-aether-cyan/60">
-                      {c.category === 'add' ? (typeof c.newValue === 'number' ? c.newValue : '新增') : '变更'}
-                    </span>
-                  )}
-                </div>
+                <Icon size={14} className={`shrink-0 ${
+                  isUp ? 'text-aether-green' :
+                  isDown ? 'text-red-400' :
+                  isRemove ? 'text-red-400/60' : meta.color
+                }`} />
+                <span className={`flex-1 text-[12px] md:text-[13px] font-mono leading-relaxed ${
+                  isRemove ? 'text-red-400/50' : 'text-white/70'
+                }`}>
+                  {describe(c)}
+                </span>
               </motion.div>
             );
           })
         )}
-      </div>
-      <div className="shrink-0 px-4 py-2.5 border-t border-aether-cyan/10 bg-aether-cyan/[0.01] flex items-center justify-between">
-        <span className="text-[9px] font-mono text-white/20">共 {changes.length} 项变更</span>
-        <button onClick={onClose} className="text-[10px] font-display tracking-wider text-aether-cyan/50 hover:text-aether-cyan transition-colors">关闭</button>
       </div>
     </AetherModal>
   );

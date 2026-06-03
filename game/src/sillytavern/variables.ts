@@ -765,10 +765,36 @@ function clampVariableRanges(vars: Record<string, any>): void {
 
 function pathLabel(path: string): string {
   const parts = path.split('.');
-  if (parts.length >= 2) {
-    return `${parts[parts.length - 2]} · ${parts[parts.length - 1]}`;
-  }
-  return path;
+  // 找有意义的名字段: 跳过结构层(女性/男性/异人/普通人/灵宝/诡物/物品)和顶层(主角/仓库/主要人物/世界/地图)
+  const skip = new Set(['主角', '主要人物', '仓库', '世界', '地图', '特殊玩法', '柳三娘商店',
+    '女性', '男性', '异人', '普通人', '灵宝', '诡物', '物品', '技能', '分支',
+    '身体属性', '基础属性', '特殊属性', '所持物品', '持有物品', '资源', '超凡资源', '金钱']);
+  const meaningful = parts.filter(p => !skip.has(p) && !/^\d/.test(p));
+  const last = meaningful.length >= 2
+    ? `${meaningful[meaningful.length - 2]} · ${meaningful[meaningful.length - 1]}`
+    : meaningful.length === 1
+      ? meaningful[0]
+      : parts.length >= 2
+        ? `${parts[parts.length - 2]} · ${parts[parts.length - 1]}`
+        : path;
+  // 翻译常见字段名
+  return last
+    .replace(/好感值/g, '好感值')
+    .replace(/堕落值/g, '堕落值')
+    .replace(/性欲值/g, '性欲值')
+    .replace(/友善值/g, '友善值')
+    .replace(/蝶烬/g, '蝶烬')
+    .replace(/尸气/g, '尸气')
+    .replace(/生命/g, '生命')
+    .replace(/SAN/g, 'SAN')
+    .replace(/能量/g, '能量')
+    .replace(/当前位置/g, '位置')
+    .replace(/当前行动/g, '行动')
+    .replace(/当前想法/g, '想法')
+    .replace(/地点/g, '地点')
+    .replace(/天气/g, '天气')
+    .replace(/时间/g, '时间')
+    .replace(/具现进度/g, '具现进度');
 }
 
 export function buildVarChanges(
