@@ -332,6 +332,10 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
   const sendGameMessage = useCallback(async (userText: string): Promise<{ aborted: boolean; retractedText?: string; varsUpdated?: boolean; patchCount?: number; formatError?: boolean }> => {
     if (!activeChat || !settings) return { aborted: false };
 
+    // 从 DB 读取最新 chat，避免 regenerate 等操作导致的闭包过期
+    const dbChats = await db.chats.toArray();
+    const effectiveChat = dbChats.find(c => c.id === activeChat.id) ?? activeChat;
+
     const latestSettings = await getSettings();
     const effectiveApi = latestSettings?.api ?? settings.api ?? DEFAULT_SETTINGS.api;
     const effectiveSettings = {
@@ -350,7 +354,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     }
 
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now() };
-    const updatedChat: ChatSession = { ...activeChat, messages: [...activeChat.messages, userMsg], updatedAt: Date.now() };
+    const updatedChat: ChatSession = { ...effectiveChat, messages: [...effectiveChat.messages, userMsg], updatedAt: Date.now() };
     await db.chats.put(updatedChat);
     setChats(prev => prev.map(c => c.id === updatedChat.id ? updatedChat : c));
 
@@ -730,25 +734,32 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
 
   const regenerateLast = useCallback(async () => {
     if (!activeChat) return;
-    const lastUserIdx = [...activeChat.messages].reverse().findIndex(m => m.role === 'user');
+    // 从 DB 读取最新 chat，避免闭包过期
+    const dbChats = await db.chats.toArray();
+    const chat = dbChats.find(c => c.id === activeChat.id) ?? activeChat;
+    const lastUserIdx = [...chat.messages].reverse().findIndex(m => m.role === 'user');
     if (lastUserIdx < 0) return;
-    const targetIdx = activeChat.messages.length - 1 - lastUserIdx;
-    const truncated = activeChat.messages.slice(0, targetIdx);
+    const targetIdx = chat.messages.length - 1 - lastUserIdx;
+    const userText = chat.messages[targetIdx].content;
+    const truncated = chat.messages.slice(0, targetIdx);
     const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
-    const restoredPlotHistory = lastAssistant?.plotHistoryAfter ?? activeChat.plotHistory;
+    const restoredPlotHistory = lastAssistant?.plotHistoryAfter ?? chat.plotHistory;
     // Restore variables from last assistant too
-    const restoredVars = lastAssistant?.variablesAfter ?? activeChat.variables ?? {};
-    const restoredAnchor = lastAssistant?.dreamAnchorAfter ?? activeChat.dreamAnchor ?? {};
-    const next: ChatSession = { ...activeChat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
+    const restoredVars = lastAssistant?.variablesAfter ?? chat.variables ?? {};
+    const restoredAnchor = lastAssistant?.dreamAnchorAfter ?? chat.dreamAnchor ?? {};
+    const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
     await db.chats.put(next);
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
-    await sendGameMessage(activeChat.messages[targetIdx].content);
+    await sendGameMessage(userText);
   }, [activeChat, sendGameMessage]);
 
   // 重写变量：保留正文，仅用第二API重新提取变量
   const regenerateVarsOnly = useCallback(async () => {
     if (!activeChat || !settings) return;
-    const lastAssistant = [...activeChat.messages].reverse().find(m => m.role === 'assistant');
+    // 从 DB 读取最新 chat，避免闭包过期
+    const dbChats = await db.chats.toArray();
+    const chat = dbChats.find(c => c.id === activeChat.id) ?? activeChat;
+    const lastAssistant = [...chat.messages].reverse().find(m => m.role === 'assistant');
     if (!lastAssistant?.parsed?.maintext) return;
 
     const latestSettings = await getSettings();
@@ -764,7 +775,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     if (!effectiveApi.secondary?.enabled || !effectiveApi.secondary.baseUrl) return;
 
     const router = createApiRouter(effectiveApi);
-    const preVars = activeChat.variables ?? {};
+    const preVars = chat.variables ?? {};
     const maintextForVars = lastAssistant.parsed.maintext;
 
     const varsPreset = effectiveSettings.presets?.find(
@@ -844,7 +855,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         setLastRawContent(`<maintext>\n${lastAssistant.parsed.maintext}\n</maintext>\n\n${tagged}`);
       }
 
-      const next: ChatSession = { ...activeChat, variables: nextVariables, updatedAt: Date.now() };
+      const next: ChatSession = { ...chat, variables: nextVariables, updatedAt: Date.now() };
       await db.chats.put(next);
       setChats(prev => prev.map(c => c.id === next.id ? next : c));
       if (varsRegenerated) showToast('变量已更新');

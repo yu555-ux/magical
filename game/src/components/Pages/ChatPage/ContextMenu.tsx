@@ -17,7 +17,7 @@ interface Props {
 }
 
 export default function ContextMenu({ ctxMenu, onClose, onViewRaw, onRegenerate, onRegenerateVars, isDualApi }: Props) {
-  // 统一逻辑：双API → 查看原文 + 重写正文 + 重写变量；单API → 查看原文 + 重ROLL
+  // 统一逻辑：双API → 查看原文 + 重 ROLL + 重写变量；单API → 查看原文 + 重 ROLL
   // 桌面端右键触发，移动端长按触发，菜单内容一致
 
   return (
@@ -47,7 +47,7 @@ export default function ContextMenu({ ctxMenu, onClose, onViewRaw, onRegenerate,
               查看原文
             </button>
 
-            {/* 双API → 重写正文 + 重写变量 */}
+            {/* 双API → 重ROLL + 重写变量 */}
             {isDualApi && onRegenerateVars ? (
               <>
                 <button
@@ -55,7 +55,7 @@ export default function ContextMenu({ ctxMenu, onClose, onViewRaw, onRegenerate,
                   className="flex items-center gap-2 px-4 py-2.5 text-[12px] text-white/60 hover:text-aether-cyan hover:bg-aether-cyan/[0.06] transition-all font-display tracking-wide whitespace-nowrap w-full border-t border-aether-border/10"
                 >
                   <RefreshCw size={13} />
-                  重写正文
+                  重 ROLL
                 </button>
                 <button
                   onClick={() => { onClose(); onRegenerateVars(); }}
