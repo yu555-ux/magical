@@ -92,7 +92,7 @@ export function Toast({ message, type, onClose, onClick, channel = 'terminal' }:
         isLog
           ? 'glass-panel border-aether-cyan/30 text-aether-cyan/90 shadow-[0_0_20px_rgba(0,242,255,0.08)]'
           : `glass-panel ${colors[type]}`
-      } ${onClick ? 'cursor-pointer hover:brightness-110 clickable' : ''}`}
+      } ${onClick ? 'cursor-pointer hover:brightness-110 clickable pointer-events-auto' : ''}`}
       onClick={onClick}
       id={`toast-${type}`}
     >

@@ -108,7 +108,11 @@ export default function StatusBell() {
         className="fixed top-20 right-4 z-[80]"
       >
         <motion.button
-          onClick={() => { setOpen(!open); setConfirmClear(false); }}
+          onClick={() => {
+            if (!open && logUnread > 0) setChannel('log');
+            setOpen(!open);
+            setConfirmClear(false);
+          }}
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.97 }}
           className="relative w-9 h-9 flex items-center justify-center clickable transition-all glass-panel hover:border-aether-cyan/60"
