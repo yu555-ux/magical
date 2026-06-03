@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt } from '../sillytavern/variables';
-import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
+import { assemblePrompt, replaceMacros, deepResolveMacros } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
@@ -224,18 +224,82 @@ export function useSillytavern() {
   }, []);
 
   const createChat = useCallback(async (name: string) => {
+    const userName = settings?.userName ?? DEFAULT_SETTINGS.userName;
+    const resolvedOpening = DEFAULT_OPENING
+      .replace(/\{\{user\}\}/g, userName)
+      .replace(/<user>/g, userName);
+
+    const openingOptions: string[] = [
+      '把事情敷衍过去，说自己只是没睡好有点头疼',
+      '把昨晚那个真实得可怕的噩梦告诉妈妈和姐姐',
+      '沉默地低头吃饭，心里还在反复回想梦里的血月和红白队伍',
+      '打起精神，问问姐姐最近在学校怎么样，转移话题',
+    ];
+
+    const openingHistory = {
+      sequence: 1,
+      title: '噩梦初醒',
+      world: '现实',
+      date: '2026年04月06日',
+      location: `${userName}家`,
+      characters: `${userName}、张云、周汝`,
+      description: `${userName}在晚餐时精神萎靡，被母亲张云和姐姐周汝察觉。昨晚他在梦中进入了一个挂着血月的诡异世界，遭遇血瞳和红白冲煞后暴毙惊醒，至今头痛未消。张云关心儿子的状态，周汝则在调侃中藏着担忧。`,
+      keyInfo: [
+        `${userName}拥有进入梦境世界的能力——梦境行走`,
+        '梦境中悬挂着永恒的血月，与现实世界的建筑格局一致但充满异常',
+        `${userName}的梦境行走技能等级为"聚砂"，刚刚觉醒不久`,
+        '张云是退役魔法少女，体内奇迹之源已枯竭，无法再使用魔力',
+        '隔壁602室住着青梅竹马顾昀和顾惜姐妹',
+      ],
+      foreshadowing: [
+        '梦境中的血瞳和红白冲煞暗示着梦境的危险正在逼近现实',
+        '张云作为退役魔法少女的身份尚未对儿子明说',
+        '梦境与现实之间的边界似乎正在变得模糊',
+      ],
+    };
+
+    const fullContent = [
+      `<maintext>${resolvedOpening}</maintext>`,
+      openingOptions.map(o => `- ${o}`).join('\n'),
+      `<history>
+序号: ${openingHistory.sequence}
+标题: ${openingHistory.title}
+世界: ${openingHistory.world}
+日期: ${openingHistory.date}
+地点: ${openingHistory.location}
+相关人物: ${openingHistory.characters}
+描述: ${openingHistory.description}
+关键信息:
+${openingHistory.keyInfo.map(k => `  - ${k}`).join('\n')}
+伏笔:
+${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
+</history>`,
+    ].join('\n');
+
     const chat: ChatSession = {
       id: crypto.randomUUID(), name,
       messages: [{
         id: crypto.randomUUID(),
         role: 'assistant' as const,
-        content: `<maintext>${DEFAULT_OPENING}</maintext>`,
+        content: fullContent,
         timestamp: Date.now(),
-        parsed: { maintext: DEFAULT_OPENING, thinking: '', options: [], history: null, varsRaw: '', varsCommands: { merge: {} }, unknown: {} },
+        parsed: {
+          maintext: resolvedOpening,
+          thinking: '',
+          options: openingOptions,
+          history: openingHistory,
+          varsRaw: '',
+          varsCommands: { merge: {} },
+          unknown: {},
+        },
       }],
       characterName: settings?.characterName ?? DEFAULT_SETTINGS.characterName,
-      userName: settings?.userName ?? DEFAULT_SETTINGS.userName,
-      variables: JSON.parse(JSON.stringify(DEFAULT_WORLD_VARS)),
+      userName,
+      variables: deepResolveMacros(
+        JSON.parse(JSON.stringify(DEFAULT_WORLD_VARS)),
+        userName,
+        settings?.characterName ?? DEFAULT_SETTINGS.characterName,
+      ),
       plotHistory: { reality: [], dream: [] },
       dreamAnchor: {},
       createdAt: Date.now(), updatedAt: Date.now(),
@@ -268,7 +332,7 @@ export function useSillytavern() {
     [...DEFAULT_OPAQUE_TAGS],
   );
 
-  const sendGameMessage = useCallback(async (userText: string): Promise<{ aborted: boolean; retractedText?: string; varsUpdated?: boolean; patchCount?: number }> => {
+  const sendGameMessage = useCallback(async (userText: string): Promise<{ aborted: boolean; retractedText?: string; varsUpdated?: boolean; patchCount?: number; formatError?: boolean }> => {
     if (!activeChat || !settings) return { aborted: false };
 
     const latestSettings = await getSettings();
@@ -387,6 +451,48 @@ export function useSillytavern() {
     }
 
     const { events, parsed } = parser.finish();
+
+    // 格式错误检测：第一API必须输出 maintext / option / history 中至少一个有效标签
+    // 同时检测是否使用了 <content> 等未定义标签
+    const knownTags = new Set([
+      ...(effectiveSettings.customTags ?? []),
+      ...DEFAULT_TAGS,
+    ]);
+    const tagPattern = /<(\w+)[>\s\/]/g;
+    const foundTags = new Set<string>();
+    let tm: RegExpExecArray | null;
+    while ((tm = tagPattern.exec(rawContent)) !== null) {
+      if (!tm[1].startsWith('/')) foundTags.add(tm[1]);
+    }
+    const unknownTags = [...foundTags].filter(t => !knownTags.has(t));
+    const hasMaintext = !!parsed.maintext?.trim();
+    const hasOptions = (parsed.options?.length ?? 0) > 0;
+    const hasHistory = parsed.history !== null;
+    if (!hasMaintext && !hasOptions && !hasHistory && rawContent.trim()) {
+      const detail = unknownTags.length > 0
+        ? `使用了未定义标签: <${unknownTags.join('>, <')}>`
+        : '缺少有效标签 (maintext/option/history)';
+      console.warn(`[SillyTavern] 格式错误: ${detail}，自动回退`);
+      parser.reset();
+      // 回退：删除刚添加的用户消息，恢复变量
+      const retract = async () => {
+        const msgs = updatedChat.messages;
+        const lastUserIdx = [...msgs].reverse().findIndex(m => m.role === 'user');
+        if (lastUserIdx < 0) return;
+        const targetIdx = msgs.length - 1 - lastUserIdx;
+        const truncated = msgs.slice(0, targetIdx);
+        const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
+        const restoredVars = lastAssistant?.variablesAfter ?? updatedChat.variables ?? {};
+        const restoredAnchor = lastAssistant?.dreamAnchorAfter ?? updatedChat.dreamAnchor ?? {};
+        const next: ChatSession = { ...updatedChat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, updatedAt: Date.now() };
+        await db.chats.put(next);
+        setChats(prev => prev.map(c => c.id === next.id ? next : c));
+      };
+      await retract();
+      showToast(`AI 回复格式错误（${detail}），已自动回退`);
+      return { aborted: true, retractedText: userText, formatError: true };
+    }
+
     const preVars = updatedChat.variables ?? {};
     const oldRealTime = (preVars['世界']?.['现实']?.['时间'] ?? null) as string | null;
     const oldDreamTime = (preVars['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
@@ -477,11 +583,19 @@ export function useSillytavern() {
                   } catch { /* fallback */ }
                 }
               }
+              // 第二API有返回但未能解析出有效补丁 → 通知玩家
+              if (apiUsed !== 'dual' && raw.trim()) {
+                console.warn('[SillyTavern] 第二API返回无法解析:', raw.slice(0, 200));
+                showToast('第二API返回格式异常，变量未更新');
+              }
             }
           } else {
             console.log('[SillyTavern] 第二API跳过: 未找到变量预设');
           }
-        } catch (e) { console.error('[SillyTavern] 第二API失败(非致命):', e); }
+        } catch (e) {
+          console.error('[SillyTavern] 第二API失败(非致命):', e);
+          showToast('第二API调用失败，变量未更新');
+        }
       }
     } else if (isDual) {
       console.log('[SillyTavern] 第二API跳过: 未配置URL/Key');
