@@ -186,19 +186,15 @@ export default function ChatPage({
           onOpenPrompt={() => setPromptOpen(true)}
         />
 
-        {/* ── Streaming / dual-running indicator ── */}
-        {(isStreaming || ss.dualRunning) && (
-          <div className={`flex items-center justify-end px-3 md:px-5 py-1.5 border-b shrink-0 ${
-            isStreaming ? 'border-aether-border/15' : 'border-amber-400/10 bg-amber-400/[0.02]'
-          }`}>
+        {/* ── Streaming indicator ── */}
+        {isStreaming && (
+          <div className="flex items-center justify-end px-3 md:px-5 py-1.5 border-b border-aether-border/15 shrink-0">
             <motion.span
               animate={{ opacity: [0.4, 1, 0.4] }}
               transition={{ duration: 1, repeat: Infinity }}
-              className={`text-[10px] font-mono ${
-                isStreaming ? 'text-aether-cyan/60' : 'text-amber-300/50'
-              }`}
+              className="text-[10px] text-aether-cyan/60 font-mono"
             >
-              {isStreaming ? 'AI 生成中...' : '变量提取中...'}
+              AI 生成中...
             </motion.span>
           </div>
         )}
