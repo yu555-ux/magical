@@ -60,27 +60,27 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
           animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[780px] max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
+          className="relative w-full max-w-[780px] max-h-[92vh] md:max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
                      shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
         >
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent z-10" />
           <div className="absolute top-0 left-0 right-0 h-[40px] bg-gradient-to-b from-aether-cyan/[0.03] to-transparent pointer-events-none" />
 
           {/* Header */}
-          <div className="relative z-10 flex items-center justify-between px-6 py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="relative">
+          <div className="relative z-10 flex items-center justify-between px-3 md:px-6 py-3 md:py-4.5 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0">
+              <div className="relative shrink-0">
                 <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
                 <div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-20" />
               </div>
-              <h2 className="font-display font-black text-sm tracking-[0.15em] text-aether-cyan/90 uppercase">
+              <h2 className="font-display font-black text-xs md:text-sm tracking-[0.15em] text-aether-cyan/90 uppercase truncate">
                 {view === 'secondary' ? '变量提示词' : '正文提示词'}
               </h2>
               {hasSecondary && (
-                <div className="flex items-center gap-0.5 ml-2">
+                <div className="flex items-center gap-0.5 ml-1 md:ml-2 shrink-0">
                   <button
                     onClick={() => setView('primary')}
-                    className={`px-2 py-0.5 text-[10px] font-display tracking-wide border transition-all ${
+                    className={`px-1.5 md:px-2 py-1 md:py-0.5 text-[9px] md:text-[10px] font-display tracking-wide border transition-all ${
                       view === 'primary'
                         ? 'border-aether-cyan/40 bg-aether-cyan/10 text-aether-cyan'
                         : 'border-white/10 text-white/25 hover:text-white/45'
@@ -88,7 +88,7 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
                   >第一API</button>
                   <button
                     onClick={() => setView('secondary')}
-                    className={`px-2 py-0.5 text-[10px] font-display tracking-wide border transition-all ${
+                    className={`px-1.5 md:px-2 py-1 md:py-0.5 text-[9px] md:text-[10px] font-display tracking-wide border transition-all ${
                       view === 'secondary'
                         ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
                         : 'border-white/10 text-white/25 hover:text-white/45'
@@ -97,26 +97,26 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono text-aether-cyan/40">
+            <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+              <span className="text-[9px] md:text-[10px] font-mono text-aether-cyan/40 hidden sm:inline">
                 ~{promptTokens}<span className="text-white/20"> tk</span>
                 {view === 'primary' && replyTokens > 0 && (
                   <span> +{replyTokens}<span className="text-white/20">(回复)</span></span>
                 )}
               </span>
               {onRefresh && (
-                <button onClick={onRefresh} className="text-white/15 hover:text-aether-cyan transition-colors p-1 clickable rounded" title="刷新提示词">
-                  <RefreshCw size={14} />
+                <button onClick={onRefresh} className="text-white/15 hover:text-aether-cyan transition-colors p-2 md:p-1 clickable rounded" title="刷新提示词">
+                  <RefreshCw size={16} />
                 </button>
               )}
-              <button onClick={onClose} className="text-white/15 hover:text-aether-cyan transition-colors p-1 clickable rounded">
-                <X size={16} />
+              <button onClick={onClose} className="text-white/15 hover:text-aether-cyan transition-colors p-2 md:p-1 clickable rounded">
+                <X size={20} />
               </button>
             </div>
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-2 md:space-y-3">
             {!active ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <FileText size={36} className="text-white/8 mb-3" />
@@ -141,23 +141,23 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
                         }`}>
                         <button
                           onClick={() => toggle(id)}
-                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-aether-cyan/[0.02] transition-colors text-left"
+                          className="w-full flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-2.5 md:py-2 hover:bg-aether-cyan/[0.02] transition-colors text-left"
                         >
-                          {isOpen ? <ChevronDown size={10} className="text-white/18" /> : <ChevronRight size={10} className="text-white/10" />}
-                          <span className="text-[10px] font-display font-semibold tracking-wide text-white/40 flex-1 truncate">
+                          {isOpen ? <ChevronDown size={12} className="text-white/18 shrink-0" /> : <ChevronRight size={12} className="text-white/10 shrink-0" />}
+                          <span className="text-[10px] md:text-[11px] font-display font-semibold tracking-wide text-white/40 flex-1 truncate">
                             {names[id] || id}
                           </span>
-                          <span className="text-[8px] text-white/12 font-mono">{blockMsgs.length} msg</span>
-                          <span className={`text-[8px] font-mono w-10 text-right ${(tokens[id] || 0) > 500 ? 'text-aether-yellow/40' : 'text-white/15'}`}>
+                          <span className="text-[9px] text-white/15 font-mono hidden xs:inline">{blockMsgs.length} msg</span>
+                          <span className={`text-[9px] font-mono w-8 md:w-10 text-right shrink-0 ${(tokens[id] || 0) > 500 ? 'text-aether-yellow/40' : 'text-white/15'}`}>
                             ~{tokens[id] || 0} tk
                           </span>
                         </button>
                         {isOpen && (
                           <div className="border-t border-aether-border/5">
                             {blockMsgs.map((msg, j) => (
-                              <div key={j} className="flex items-start gap-2 px-3 py-2 border-b border-aether-border/3 last:border-b-0">
+                              <div key={j} className="flex items-start gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 border-b border-aether-border/3 last:border-b-0">
                                 <RoleIcon role={msg.role} />
-                                <pre className="text-[10px] text-white/40 leading-relaxed font-mono whitespace-pre-wrap flex-1 max-h-[160px] overflow-y-auto">
+                                <pre className="text-[9px] md:text-[10px] text-white/40 leading-relaxed font-mono whitespace-pre-wrap flex-1 max-h-[120px] md:max-h-[160px] overflow-y-auto break-all">
                                   {msg.content}
                                 </pre>
                               </div>

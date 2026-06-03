@@ -118,7 +118,7 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
               </div>
             ) : (
               /* Dual timeline */
-              <div className="px-6 py-6 space-y-10">
+              <div className="px-3 md:px-6 py-4 md:py-6 space-y-8 md:space-y-10">
                 {timelines.map((tl) => (
                   <div key={tl.world}>
                     {/* Section header */}
