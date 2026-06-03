@@ -17,7 +17,7 @@ export default function AetherModal({ isOpen, onClose, title, children, zIndex =
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 flex items-center justify-center p-2 md:p-4" style={{ zIndex }}>
+      <div className="fixed inset-0 flex items-center justify-center p-3 md:p-4" style={{ zIndex }}>
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
