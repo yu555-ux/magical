@@ -48,7 +48,7 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
               {isActive && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute left-0 md:left-0 right-0 md:right-auto bottom-0 md:bottom-auto md:top-1 md:bottom-1 h-0.5 md:h-auto md:w-0.5 bg-aether-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)] rounded-t-full md:rounded-t-none md:rounded-r-full"
+                  className="absolute z-10 left-0 md:left-0 right-0 md:right-auto bottom-0 md:bottom-auto md:top-1 md:bottom-1 h-0.5 md:h-auto md:w-0.5 bg-aether-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)] rounded-t-full md:rounded-t-none md:rounded-r-full"
                   transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                 />
               )}
