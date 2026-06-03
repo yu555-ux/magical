@@ -268,7 +268,7 @@ export function useSillytavern() {
     [...DEFAULT_OPAQUE_TAGS],
   );
 
-  const sendGameMessage = useCallback(async (userText: string): Promise<{ aborted: boolean; retractedText?: string }> => {
+  const sendGameMessage = useCallback(async (userText: string): Promise<{ aborted: boolean; retractedText?: string; varsUpdated?: boolean; patchCount?: number }> => {
     if (!activeChat || !settings) return { aborted: false };
 
     const latestSettings = await getSettings();
@@ -401,6 +401,8 @@ export function useSillytavern() {
 
     let apiUsed: 'primary' | 'secondary' | 'dual' = 'primary';
     let secondaryRaw = '';
+    let varsUpdated = false;
+    let patchCount = 0;
     if (isDual && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
       setDualRunning(true);
       const maintextForVars = parsed.maintext || rawContent;
@@ -453,6 +455,8 @@ export function useSillytavern() {
                     autoTagDreamItems(preVars, nextVariables);
                     snapshot = JSON.parse(JSON.stringify(nextVariables));
                     apiUsed = 'dual';
+                    varsUpdated = true;
+                    patchCount = patches.length;
                   }
                 } catch { /* JSON parse failed */ }
               }
@@ -467,6 +471,8 @@ export function useSillytavern() {
                       autoTagDreamItems(preVars, nextVariables);
                       snapshot = JSON.parse(JSON.stringify(nextVariables));
                       apiUsed = 'dual';
+                      varsUpdated = true;
+                      patchCount = Object.keys(sp).length;
                     }
                   } catch { /* fallback */ }
                 }
@@ -482,10 +488,24 @@ export function useSillytavern() {
     }
     setDualRunning(false);
 
-    // 第二API输出追加到正文
-    const finalContent = secondaryRaw
-      ? rawContent + '\n\n' + secondaryRaw
-      : rawContent;
+    // 第二API输出追加到正文（确保查看原文能显示完整的XML标签结构）
+    // 第一API输出：若不含 <maintext 标签则包裹
+    let displayContent = rawContent;
+    if (!/<maintext/i.test(displayContent)) {
+      displayContent = `<maintext>\n${displayContent}\n</maintext>`;
+    }
+    // 第二API输出：若不含 <JSONPatch / <Analysis 标签则包裹
+    if (secondaryRaw) {
+      let taggedSecondary = secondaryRaw;
+      if (!/<JSONPatch/i.test(taggedSecondary)) {
+        taggedSecondary = `<JSONPatch>\n${taggedSecondary}\n</JSONPatch>`;
+      }
+      if (!/<Analysis/i.test(taggedSecondary)) {
+        taggedSecondary = `<Analysis>\n变量分析\n</Analysis>\n${taggedSecondary}`;
+      }
+      displayContent = displayContent + '\n\n' + taggedSecondary;
+    }
+    const finalContent = displayContent;
     setLastRawContent(finalContent);
     const msgId = crypto.randomUUID();
 
@@ -551,7 +571,7 @@ export function useSillytavern() {
       setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
       abortRef.current = null;
-      return { aborted: false };
+      return { aborted: false, varsUpdated, patchCount };
     }
 
     const assistantMsg: ChatMessage = {
@@ -565,7 +585,7 @@ export function useSillytavern() {
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
     abortRef.current = null;
-    return { aborted: false };
+    return { aborted: false, varsUpdated, patchCount };
   }, [activeChat, settings, parser]);
 
   const jumpToFloor = useCallback(async (messageId: string) => {
@@ -676,12 +696,14 @@ export function useSillytavern() {
       let nextVariables = JSON.parse(JSON.stringify(preVars));
 
       const mArr = raw.match(/\[[\s\S]*\]/);
+      let varsRegenerated = false;
       if (mArr) {
         try {
           const patches = JSON.parse(mArr[0]);
           if (Array.isArray(patches) && patches.length > 0) {
             nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: {}, patches }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
             autoTagDreamItems(preVars, nextVariables);
+            varsRegenerated = true;
           }
         } catch { /* ignore */ }
       }
@@ -693,14 +715,28 @@ export function useSillytavern() {
             if (sp && typeof sp === 'object' && !Array.isArray(sp)) {
               nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: sp }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
               autoTagDreamItems(preVars, nextVariables);
+              varsRegenerated = true;
             }
           } catch { /* ignore */ }
         }
       }
 
+      // 更新查看原文：构建带标签结构的显示内容
+      if (raw) {
+        let tagged = raw;
+        if (!/<JSONPatch/i.test(tagged)) {
+          tagged = `<JSONPatch>\n${tagged}\n</JSONPatch>`;
+        }
+        if (!/<Analysis/i.test(tagged)) {
+          tagged = `<Analysis>\n变量分析\n</Analysis>\n${tagged}`;
+        }
+        setLastRawContent(`<maintext>\n${lastAssistant.parsed.maintext}\n</maintext>\n\n${tagged}`);
+      }
+
       const next: ChatSession = { ...activeChat, variables: nextVariables, updatedAt: Date.now() };
       await db.chats.put(next);
       setChats(prev => prev.map(c => c.id === next.id ? next : c));
+      if (varsRegenerated) showToast('变量已更新');
     } catch (e) {
       console.error('[SillyTavern] 变量重写失败:', e);
     }

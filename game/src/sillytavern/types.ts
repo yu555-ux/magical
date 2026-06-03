@@ -298,11 +298,11 @@ export const DEFAULT_OPAQUE_TAGS = ['thinking', 'think', 'Analysis'] as const;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   api: {
-    baseUrl: 'https://api.openai.com/v1',
+    baseUrl: 'https://gcli.ggchan.dev',
     apiKey: '',
-    model: 'gpt-3.5-turbo',
+    model: '假流式-gemini-3.1-pro-preview',
     timeout: 60000,
-    secondary: { enabled: true, baseUrl: '', apiKey: '', model: '', temperature: 0.7, maxTokens: 8000 },
+    secondary: { enabled: true, baseUrl: 'https://gcli.ggchan.dev', apiKey: '', model: '假流式-gemini-3.0-flash-preview', temperature: 0.7, maxTokens: 8000 },
   },
   apiMode: 'dual',
   presetBlocks: DEFAULT_PRESET_BLOCKS,

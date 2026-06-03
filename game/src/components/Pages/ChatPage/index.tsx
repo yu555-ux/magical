@@ -139,6 +139,9 @@ export default function ChatPage({
       if (result?.aborted && !wasOption) {
         setInput(result.retractedText ?? msg);
       }
+      if (result?.varsUpdated) {
+        addNotification?.('变量已更新', `第二API已更新 ${result.patchCount ?? 0} 项变量`, 'success');
+      }
     } catch (err) {
       addNotification?.('发送失败', String(err), 'error');
     }
@@ -433,6 +436,20 @@ export default function ChatPage({
           }
         }}
       />
+
+      {/* ── Local toast（SillyTavern hook 内部通知） ── */}
+      <AnimatePresence>
+        {ss.toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -24 }}
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-[150] px-4 py-2 rounded-lg bg-aether-cyan/20 border border-aether-cyan/30 text-aether-cyan text-xs font-display tracking-wide shadow-[0_0_20px_rgba(0,242,255,0.15)] backdrop-blur-sm"
+          >
+            {ss.toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
