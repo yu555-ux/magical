@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
-import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt } from '../sillytavern/variables';
+import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt, buildVarChanges } from '../sillytavern/variables';
+import type { VarChange } from '../sillytavern/types';
 import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
@@ -103,6 +104,7 @@ export function useSillytavern() {
 
   const [dualRunning, setDualRunning] = useState(false);
   const [lastRawContent, setLastRawContent] = useState(''); // 最近一轮原始输出（查看原文用）
+  const [jumpVersion, setJumpVersion] = useState(0); // 每次回档+1，强制ChatPage刷新
   const [toast, setToast] = useState<string | null>(null);
   const showToast = useCallback((message: string) => { setToast(message); setTimeout(() => setToast(null), 2000); }, []);
   const abortRef = useRef<AbortController | null>(null);
@@ -507,6 +509,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     let secondaryRaw = '';
     let varsUpdated = false;
     let patchCount = 0;
+    let varChanges: VarChange[] | undefined;
     if (isDual && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
       setDualRunning(true);
       const maintextForVars = parsed.maintext || rawContent;
@@ -598,6 +601,10 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     } else if (isDual) {
       console.log('[SillyTavern] 第二API跳过: 未配置URL/Key');
     }
+    // 计算变量变更（供前端展示 diff）
+    if (varsUpdated) {
+      varChanges = buildVarChanges(preVars, nextVariables);
+    }
     setDualRunning(false);
 
     // 第二API输出追加到正文（确保查看原文能显示完整的XML标签结构）
@@ -656,7 +663,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
 
     // enrichHistory 使用 postVars（变量更新后的最新状态）
     if (parsed.history) {
-      parsed.history = enrichHistory(parsed.history, nextVariables);
+      parsed.history = enrichHistory(parsed.history, nextVariables, effectiveSettings.userName);
 
       // 增量更新 plotHistory 缓存
       const prevPH = updatedChat.plotHistory ?? { reality: [], dream: [] };
@@ -675,7 +682,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       const assistantMsg: ChatMessage = {
         id: msgId, role: 'assistant',
         content: finalContent,
-        timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, plotHistoryAfter: plotHistorySnapshot, apiUsed,
+        timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, plotHistoryAfter: plotHistorySnapshot, apiUsed, varChanges,
       };
       const updatedMessages = [...updatedChat.messages, assistantMsg];
       const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, plotHistory, updatedAt: Date.now() };
@@ -689,7 +696,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const assistantMsg: ChatMessage = {
       id: msgId, role: 'assistant',
       content: finalContent,
-      timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, apiUsed,
+      timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, apiUsed, varChanges,
     };
     const updatedMessages = [...updatedChat.messages, assistantMsg];
     const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, updatedAt: Date.now() };
@@ -717,6 +724,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     // 从 DB 重新读取全部 chats 后直接 setState，避免 updater 竞态导致 UI 不刷新
     const freshChats = await db.chats.toArray();
     setChats(freshChats);
+    setJumpVersion(v => v + 1);  // 强制触发 ChatPage 刷新
   }, [activeChatId]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
@@ -925,7 +933,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     createChat, selectChat, removeChat, sendGameMessage, jumpToFloor, editMessage, regenerateLast, regenerateVarsOnly,
     updateSettings, setChatVariables, refreshPrompt,
     streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
-    dualRunning, lastRawContent, toast, showToast,
+    dualRunning, lastRawContent, toast, showToast, jumpVersion,
   };
 }
 
