@@ -80,7 +80,7 @@ export default function App() {
     } else {
       // 变量更新等 → 右上角toast + 铃铛双通道
       addToast(message, type, undefined, onClick);
-      pushStatus({ title, message, type: type === 'success' ? 'ok' : type, source: '游戏', channel: 'log', onClick });
+      pushStatus({ title, message, type: type === 'success' ? 'ok' : type, source: '游戏', onClick });
     }
   }, [addToast]);
 

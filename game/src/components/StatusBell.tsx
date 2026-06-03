@@ -109,7 +109,7 @@ export default function StatusBell() {
       >
         <motion.button
           onClick={() => {
-            if (!open && logUnread > 0) setChannel('log');
+            if (!open && terminalUnread > 0) setChannel('terminal');
             setOpen(!open);
             setConfirmClear(false);
           }}
