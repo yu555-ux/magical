@@ -425,6 +425,7 @@ export default function ChatPage({
         isOpen={readerOpen}
         onClose={() => setReaderOpen(false)}
         messages={ss.activeChat?.messages ?? []}
+        userName={ss.settings?.userName || '你'}
       />
 
       {/* ── Variable Viewer Modal ── */}
@@ -442,6 +443,7 @@ export default function ChatPage({
         messages={ss.activeChat?.messages ?? []}
         onJumpToFloor={(id) => ss.jumpToFloor(id)}
         isBusy={isStreaming || ss.dualRunning}
+        userName={ss.settings?.userName || '你'}
       />
 
       {/* ── Variable Diff Modal ── */}

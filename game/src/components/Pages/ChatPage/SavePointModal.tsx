@@ -11,7 +11,11 @@ interface Props {
   messages: ChatMessage[];
   onJumpToFloor: (messageId: string) => void;
   isBusy?: boolean;
+  userName?: string;
 }
+
+const resolve = (s: string, name: string) =>
+  name ? s.replace(/\{\{user\}\}/g, name).replace(/<user>/g, name) : s;
 
 interface SavePointFull {
   messageId: string;
@@ -37,7 +41,7 @@ interface TimelineGroup {
   points: SavePointFull[];
 }
 
-export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloor, isBusy }: Props) {
+export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloor, isBusy, userName = '' }: Props) {
   const [expandedFs, setExpandedFs] = useState<Set<string>>(new Set());
   const [confirmTarget, setConfirmTarget] = useState<{ id: string; title: string } | null>(null);
 
@@ -47,18 +51,19 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
       .filter(({ msg }) => msg.role === 'assistant' && msg.parsed?.history)
       .map(({ msg, index }) => {
         const h = msg.parsed!.history!;
+        const r = (s: string) => resolve(s, userName);
         return {
           messageId: msg.id,
           index,
-          sequence: 0, // will be reassigned per-world
-          title: h.title,
+          sequence: 0,
+          title: r(h.title),
           world: h.world,
           date: h.date,
-          location: h.location,
-          characters: h.characters,
-          description: h.description,
-          keyInfo: h.keyInfo,
-          foreshadowing: h.foreshadowing,
+          location: r(h.location),
+          characters: r(h.characters),
+          description: r(h.description),
+          keyInfo: h.keyInfo.map(r),
+          foreshadowing: h.foreshadowing.map(r),
           timestamp: msg.timestamp,
         };
       });
@@ -93,7 +98,7 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
     ];
 
     return groups;
-  }, [messages]);
+  }, [messages, userName]);
 
   const totalPoints = timelines.reduce((s, t) => s + t.points.length, 0);
 

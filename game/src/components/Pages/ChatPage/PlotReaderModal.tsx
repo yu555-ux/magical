@@ -8,7 +8,11 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   messages: ChatMessage[];
+  userName?: string;
 }
+
+const resolve = (s: string, name: string) =>
+  name ? s.replace(/\{\{user\}\}/g, name).replace(/<user>/g, name) : s;
 
 interface Chapter {
   id: string;
@@ -18,15 +22,16 @@ interface Chapter {
   userMsgId: string;
 }
 
-export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
+export default function PlotReaderModal({ isOpen, onClose, messages, userName = '' }: Props) {
   const chapters: Chapter[] = useMemo(() => {
+    const r = (s: string) => resolve(s, userName);
     const result: Chapter[] = [];
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i];
       if (m.role !== 'assistant') continue;
-      const maintext = (m.parsed?.maintext || m.content).trim();
+      const maintext = r((m.parsed?.maintext || m.content).trim());
       if (!maintext) continue;
-      const title = m.parsed?.history?.title || '';
+      const title = r(m.parsed?.history?.title || '');
       // Find preceding user message
       let userInput = '';
       let userMsgId = '';
@@ -40,7 +45,7 @@ export default function PlotReaderModal({ isOpen, onClose, messages }: Props) {
       result.push({ id: m.id, title, maintext, userInput, userMsgId });
     }
     return result;
-  }, [messages]);
+  }, [messages, userName]);
 
   const [page, setPage] = useState(0);
   const [userOpen, setUserOpen] = useState(false);
