@@ -12,6 +12,7 @@ import { DEFAULT_SETTINGS } from '../../../sillytavern/types';
 import { cleanOption } from '../../../utils/string';
 import RichTextRenderer from '../../Settings/RichTextRenderer';
 import RawXmlViewerModal from './RawXmlViewerModal';
+import VariableDiffModal from './VariableDiffModal';
 import ContextMenu from './ContextMenu';
 import ShopBanner from './ShopBanner';
 import ShopModal from './ShopModal';
@@ -25,6 +26,7 @@ export default function ChatPage({
     title: string,
     message: string,
     type: 'info' | 'warning' | 'error' | 'success',
+    onClick?: () => void,
   ) => void;
 }) {
   const ss = useSS();
@@ -61,6 +63,7 @@ export default function ChatPage({
   const [editedRaw, setEditedRaw] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
   const [shopOpen, setShopOpen] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +112,8 @@ export default function ChatPage({
     return null;
   }, [ss.activeChat?.messages, ss.jumpVersion]);
 
+  const latestVarChanges = latestAssistant?.varChanges;
+
   const thinking = isStreaming
     ? ss.streamState.thinking
     : (latestAssistant?.parsed?.thinking ?? '');
@@ -151,7 +156,7 @@ export default function ChatPage({
         addNotification?.('格式错误', 'AI 回复缺少必要标签，请重试', 'warning');
       }
       if (result?.varsUpdated) {
-        addNotification?.('变量已更新', `第二API已更新 ${result.patchCount ?? 0} 项变量`, 'success');
+        addNotification?.('变量已更新', `第二API已更新 ${result.patchCount ?? 0} 项变量`, 'success', () => setDiffOpen(true));
       }
     } catch (err) {
       // API 网络错误等 → 恢复输入框
@@ -403,6 +408,13 @@ export default function ChatPage({
         onJumpToFloor={(id) => ss.jumpToFloor(id)}
         isBusy={isStreaming || ss.dualRunning}
         userName={ss.settings?.userName || '你'}
+      />
+
+      {/* ── Variable Diff Modal ── */}
+      <VariableDiffModal
+        isOpen={diffOpen}
+        onClose={() => setDiffOpen(false)}
+        changes={latestVarChanges ?? []}
       />
 
       {/* ── Prompt Viewer Modal ── */}

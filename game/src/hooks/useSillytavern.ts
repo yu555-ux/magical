@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
-import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt } from '../sillytavern/variables';
+import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt, buildVarChanges } from '../sillytavern/variables';
 import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
@@ -508,6 +508,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     let secondaryRaw = '';
     let varsUpdated = false;
     let patchCount = 0;
+    let varChanges: import('../sillytavern/types').VarChange[] | undefined;
     if (isDual && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
       setDualRunning(true);
       const maintextForVars = parsed.maintext || rawContent;
@@ -601,6 +602,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     } else if (isDual) {
       console.log('[SillyTavern] 第二API跳过: 未配置URL/Key');
     }
+    if (varsUpdated) varChanges = buildVarChanges(preVars, nextVariables);
     dualAbortRef.current = null;
     setDualRunning(false);
 
@@ -680,7 +682,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const assistantMsg: ChatMessage = {
       id: msgId, role: 'assistant',
       content: finalContent,
-      timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, plotHistoryAfter: plotHistorySnapshot, apiUsed,
+      timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, plotHistoryAfter: plotHistorySnapshot, apiUsed, varChanges,
     };
     const updatedMessages = [...updatedChat.messages, assistantMsg];
     const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, plotHistory, updatedAt: Date.now() };

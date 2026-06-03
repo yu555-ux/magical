@@ -2,7 +2,7 @@
  * Variable System Utilities
  */
 
-import type { ParsedTags, SavePoint } from './types';
+import type { ParsedTags, SavePoint, VarChange } from './types';
 import type { ParserEvent } from './stream-parser';
 import { parseVarsBlock, applyVarsPatch, applyJsonPatch } from './vars-merger';
 
@@ -759,4 +759,41 @@ function clampVariableRanges(vars: Record<string, any>): void {
 
   // 3) Map anomalies — clamp 具现进度 0~100
   if (vars['地图']) clampAnomalies(vars['地图']);
+}
+
+// ========== Variable change diff for UI notification ==========
+
+function pathLabel(path: string): string {
+  const parts = path.split('.');
+  if (parts.length >= 2) {
+    return `${parts[parts.length - 2]} · ${parts[parts.length - 1]}`;
+  }
+  return path;
+}
+
+export function buildVarChanges(
+  preVars: Record<string, any>,
+  nextVars: Record<string, any>,
+  patches?: Array<{ op: string; path: string; value?: any; oldValue?: any }>,
+): VarChange[] {
+  const changes: VarChange[] = [];
+  if (patches && patches.length > 0) {
+    for (const p of patches) {
+      const path = p.path.replace(/^\//, '').replace(/\//g, '.');
+      if (p.op === 'remove') {
+        changes.push({ path, op: 'remove', category: 'remove', label: pathLabel(path) });
+      } else if (p.op === 'add' || p.op === 'insert') {
+        const v = p.value;
+        changes.push({ path, op: 'add', category: typeof v === 'number' ? 'numeric' : 'add', label: pathLabel(path), newValue: v });
+      } else {
+        const oldV = p.oldValue, newV = p.value;
+        if (typeof oldV === 'number' && typeof newV === 'number') {
+          changes.push({ path, op: 'replace', category: 'numeric', label: pathLabel(path), oldValue: oldV, newValue: newV, delta: newV - oldV });
+        } else {
+          changes.push({ path, op: 'replace', category: 'text', label: pathLabel(path), oldValue: oldV, newValue: newV });
+        }
+      }
+    }
+  }
+  return changes;
 }

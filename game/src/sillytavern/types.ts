@@ -338,6 +338,16 @@ export interface DreamAnchor {
   lastEnteredAt?: string;
 }
 
+export interface VarChange {
+  path: string;
+  op: 'replace' | 'add' | 'remove';
+  category: 'numeric' | 'text' | 'add' | 'remove';
+  label: string;
+  oldValue?: any;
+  newValue?: any;
+  delta?: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'system' | 'user' | 'assistant';
@@ -348,6 +358,7 @@ export interface ChatMessage {
   dreamAnchorAfter?: DreamAnchor;
   plotHistoryAfter?: HistoryTimeline;
   apiUsed?: ApiTarget;
+  varChanges?: VarChange[];
 }
 
 export interface ChatSession {
