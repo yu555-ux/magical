@@ -508,6 +508,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     let secondaryRaw = '';
     let varsUpdated = false;
     let patchCount = 0;
+    let appliedPatches: Array<{ op: string; path: string; value?: any; oldValue?: any }> | undefined;
     let varChanges: import('../sillytavern/types').VarChange[] | undefined;
     if (isDual && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
       setDualRunning(true);
@@ -565,6 +566,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
                     apiUsed = 'dual';
                     varsUpdated = true;
                     patchCount = patches.length;
+                    appliedPatches = patches;
                   }
                 } catch { /* JSON parse failed */ }
               }
@@ -602,7 +604,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     } else if (isDual) {
       console.log('[SillyTavern] 第二API跳过: 未配置URL/Key');
     }
-    if (varsUpdated) varChanges = buildVarChanges(preVars, nextVariables);
+    if (varsUpdated) varChanges = buildVarChanges(preVars, nextVariables, appliedPatches);
     dualAbortRef.current = null;
     setDualRunning(false);
 
