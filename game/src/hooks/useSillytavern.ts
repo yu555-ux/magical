@@ -750,6 +750,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
   // 重写变量：保留正文，仅用第二API重新提取变量
   const regenerateVarsOnly = useCallback(async () => {
     if (!activeChat || !settings) return;
+    setDualRunning(true);
     // 从 DB 读取最新 chat，避免闭包过期
     const dbChats = await db.chats.toArray();
     const chat = dbChats.find(c => c.id === activeChat.id) ?? activeChat;
