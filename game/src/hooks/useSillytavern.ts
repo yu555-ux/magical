@@ -295,6 +295,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
           varsCommands: { merge: {} },
           unknown: {},
         },
+        plotHistoryAfter: { reality: [], dream: [] },
       }],
       characterName: settings?.characterName ?? DEFAULT_SETTINGS.characterName,
       userName,
@@ -662,44 +663,31 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     }
 
     // enrichHistory 使用 postVars（变量更新后的最新状态）
+    let plotHistory: HistoryTimeline = updatedChat.plotHistory ?? { reality: [], dream: [] };
     if (parsed.history) {
       parsed.history = enrichHistory(parsed.history, nextVariables, effectiveSettings.userName);
-
-      // 增量更新 plotHistory 缓存
-      const prevPH = updatedChat.plotHistory ?? { reality: [], dream: [] };
+      // 增量追加到本轮的 plotHistory
       const sp = parsed.history;
-      const plotHistory: HistoryTimeline = {
-        reality: [...prevPH.reality],
-        dream: [...prevPH.dream],
+      plotHistory = {
+        reality: [...plotHistory.reality],
+        dream: [...plotHistory.dream],
       };
       if (sp.world === '现实') {
         plotHistory.reality.push({ ...sp, sequence: plotHistory.reality.length + 1 });
       } else if (sp.world === '梦境') {
         plotHistory.dream.push({ ...sp, sequence: plotHistory.dream.length + 1 });
       }
-      const plotHistorySnapshot = JSON.parse(JSON.stringify(plotHistory));
-
-      const assistantMsg: ChatMessage = {
-        id: msgId, role: 'assistant',
-        content: finalContent,
-        timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, plotHistoryAfter: plotHistorySnapshot, apiUsed, varChanges,
-      };
-      const updatedMessages = [...updatedChat.messages, assistantMsg];
-      const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, plotHistory, updatedAt: Date.now() };
-      await db.chats.put(finalChat);
-      setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
-
-      abortRef.current = null;
-      return { aborted: false, varsUpdated, patchCount };
     }
+    // 无论是否有 <history>，都保存快照（回档时恢复用）
+    const plotHistorySnapshot = JSON.parse(JSON.stringify(plotHistory));
 
     const assistantMsg: ChatMessage = {
       id: msgId, role: 'assistant',
       content: finalContent,
-      timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, apiUsed, varChanges,
+      timestamp: Date.now(), parsed, variablesAfter: snapshot, dreamAnchorAfter: { ...updatedDreamAnchor }, plotHistoryAfter: plotHistorySnapshot, apiUsed, varChanges,
     };
     const updatedMessages = [...updatedChat.messages, assistantMsg];
-    const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, updatedAt: Date.now() };
+    const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedDreamAnchor, plotHistory, updatedAt: Date.now() };
     await db.chats.put(finalChat);
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
@@ -718,7 +706,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const target = truncated[truncated.length - 1];
     const restoredVars = target?.role === 'assistant' && target.variablesAfter ? target.variablesAfter : chat.variables ?? {};
     const restoredAnchor = target?.role === 'assistant' && target.dreamAnchorAfter ? target.dreamAnchorAfter : chat.dreamAnchor ?? {};
-    const restoredPlotHistory = target?.role === 'assistant' && target.plotHistoryAfter ? target.plotHistoryAfter : chat.plotHistory;
+    const restoredPlotHistory = target?.plotHistoryAfter ?? chat.plotHistory;
     const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
     await db.chats.put(next);
     // 从 DB 重新读取全部 chats 后直接 setState，避免 updater 竞态导致 UI 不刷新
