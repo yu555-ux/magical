@@ -12,6 +12,7 @@ export interface StatusEvent {
   read: boolean;
   source?: string;
   channel?: 'terminal' | 'log';
+  onClick?: () => void;  // 点击通知时的回调（如打开变量变更弹窗）
 }
 
 let globalAddStatus: ((e: Omit<StatusEvent, 'id' | 'timestamp' | 'read'>) => void) | null = null;
@@ -243,8 +244,8 @@ export default function StatusBell() {
                     return (
                       <button
                         key={e.id}
-                        onClick={() => markRead(e.id)}
-                        className={`w-full text-left px-5 py-3 border-b border-aether-border/10 transition-colors hover:bg-aether-cyan/[0.02] ${
+                        onClick={() => { markRead(e.id); e.onClick?.(); }}
+                        className={`w-full text-left px-5 py-3 border-b border-aether-border/10 transition-colors hover:bg-aether-cyan/[0.02] cursor-pointer ${
                           !e.read ? 'bg-aether-cyan/[0.02]' : ''
                         }`}
                       >

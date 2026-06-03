@@ -74,12 +74,12 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addNotification = useCallback((title: string, message: string, type: 'info' | 'warning' | 'error' | 'success') => {
+  const addNotification = useCallback((title: string, message: string, type: 'info' | 'warning' | 'error' | 'success', onClick?: () => void) => {
     // 仅系统事件走铃铛，单次错误/警告走 Toast 即可
     if (type === 'error' || type === 'warning') {
       addToast(message, type);
     } else {
-      pushStatus({ title, message, type: type === 'success' ? 'ok' : type, source: '游戏' });
+      pushStatus({ title, message, type: type === 'success' ? 'ok' : type, source: '游戏', onClick });
     }
   }, [addToast]);
 
@@ -123,7 +123,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 1.02, filter: 'blur(10px)' }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 h-full overflow-hidden">
+            className="flex-1 h-full overflow-y-auto md:overflow-hidden">
             {renderPage()}
           </motion.div>
         </AnimatePresence>

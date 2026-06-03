@@ -26,6 +26,7 @@ export default function ChatPage({
     title: string,
     message: string,
     type: 'info' | 'warning' | 'error' | 'success',
+    onClick?: () => void,
   ) => void;
 }) {
   const ss = useSS();
@@ -63,8 +64,6 @@ export default function ChatPage({
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
   const [shopOpen, setShopOpen] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
-  const [diffToast, setDiffToast] = useState<import('../../../sillytavern/types').VarChange[] | null>(null);
-  const pendingDiff = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -158,7 +157,7 @@ export default function ChatPage({
         addNotification?.('格式错误', 'AI 回复缺少必要标签，请重试', 'warning');
       }
       if (result?.varsUpdated) {
-        pendingDiff.current = true;
+        addNotification?.('变量已更新', `第二API已更新 ${result.patchCount ?? 0} 项变量`, 'success', () => setDiffOpen(true));
       }
     } catch (err) {
       // API 网络错误等 → 恢复输入框
@@ -166,16 +165,6 @@ export default function ChatPage({
       addNotification?.('发送失败', String(err), 'error');
     }
   }, [input, isStreaming, ss, addNotification]);
-
-  // 变量更新后自动弹出可点击 toast
-  useEffect(() => {
-    if (pendingDiff.current && latestVarChanges && latestVarChanges.length > 0) {
-      pendingDiff.current = false;
-      setDiffToast(latestVarChanges);
-      const t = setTimeout(() => setDiffToast(null), 6000);
-      return () => clearTimeout(t);
-    }
-  }, [latestVarChanges]);
 
   /* keyboard */
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -213,26 +202,6 @@ export default function ChatPage({
             </motion.span>
           </div>
         )}
-
-        {/* ── Variable diff clickable toast ── */}
-        <AnimatePresence>
-          {diffToast && diffToast.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="flex items-center justify-end px-3 md:px-5 py-1.5 border-b border-aether-green/15 shrink-0 bg-aether-green/[0.02]"
-            >
-              <button
-                onClick={() => { setDiffOpen(true); setDiffToast(null); }}
-                className="flex items-center gap-2 text-[10px] md:text-[11px] text-aether-green/70 hover:text-aether-green font-display tracking-wide transition-colors"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-aether-green shadow-[0_0_6px_rgba(74,222,128,0.4)]" />
-                变量已更新 · {diffToast.length} 项变更 · 点击查看
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* ── Thinking fold ── */}
         {thinking && (
