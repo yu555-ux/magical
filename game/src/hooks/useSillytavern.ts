@@ -702,8 +702,8 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
 
   const jumpToFloor = useCallback(async (messageId: string) => {
     // Read latest from DB to avoid stale closure over activeChat
-    const chats = await db.chats.toArray();
-    const chat = chats.find(c => c.id === activeChatId);
+    const allChats = await db.chats.toArray();
+    const chat = allChats.find(c => c.id === activeChatId);
     if (!chat) return;
     const idx = chat.messages.findIndex(m => m.id === messageId);
     if (idx < 0) return;
@@ -714,7 +714,9 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const restoredPlotHistory = target?.role === 'assistant' && target.plotHistoryAfter ? target.plotHistoryAfter : chat.plotHistory;
     const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
     await db.chats.put(next);
-    setChats(prev => prev.map(c => c.id === next.id ? next : c));
+    // 从 DB 重新读取全部 chats 后直接 setState，避免 updater 竞态导致 UI 不刷新
+    const freshChats = await db.chats.toArray();
+    setChats(freshChats);
   }, [activeChatId]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
