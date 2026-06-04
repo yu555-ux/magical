@@ -75,13 +75,9 @@ export default function App() {
   }, []);
 
   const addNotification = useCallback((title: string, message: string, type: 'info' | 'warning' | 'error' | 'success', onClick?: () => void) => {
-    if (type === 'error' || type === 'warning') {
-      addToast(message, type);
-    } else {
-      // 变量更新等 → 右上角toast + 铃铛双通道
-      addToast(message, type, undefined, onClick);
-      pushStatus({ title, message, type: type === 'success' ? 'ok' : type, source: '游戏', onClick });
-    }
+    const bellType = type === 'success' ? 'ok' : type;
+    addToast(message, type, undefined, onClick);
+    pushStatus({ title, message, type: bellType, source: '游戏', onClick });
   }, [addToast]);
 
   // ── Game event monitor: affection changes → bell + toast ──
