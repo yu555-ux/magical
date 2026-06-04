@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertTriangle, CheckCircle, Plus, Upload } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
+import { showTopCenter } from '../../shared/TopCenterToast';
 import type { AppSettings, PresetBlock, PresetParams, SavedPreset } from '../../../sillytavern/types';
 import { DEFAULT_PRESET_PARAMS } from '../../../sillytavern/types';
 import { importPresetFromJson } from '../../../sillytavern/presetImporter';
@@ -26,16 +27,10 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
   const filteredPresets = presets.filter(p => p.type === presetFilter);
 
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  }, []);
 
   const saveDraft = async (patch: Partial<AppSettings>) => {
     setDraft({ ...draft, ...patch });
-    try { await onPersist(patch); } catch { showToast('保存失败', 'error'); }
+    try { await onPersist(patch); } catch { showTopCenter('保存失败', 'error'); }
   };
 
   // ── Preset ops ──
@@ -51,7 +46,7 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
       patch.presetParams = preset.params ?? DEFAULT_PRESET_PARAMS;
     }
     saveDraft(patch);
-    showToast(`${isVars ? '变量' : '剧情'}预设已切换为「${preset.name}」`, 'success');
+    showTopCenter(`${isVars ? '变量' : '剧情'}预设已切换为「${preset.name}」`, 'success');
   };
 
   const handleNewPreset = () => {
@@ -80,7 +75,7 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
   };
 
   const handleDeletePreset = (id: string) => {
-    if (presets.length <= 1) { showToast('请至少保留一个预设', 'error'); return; }
+    if (presets.length <= 1) { showTopCenter('请至少保留一个预设', 'error'); return; }
     const deleted = presets.find(p => p.id === id);
     const isVars = deleted?.type === 'vars';
     const nextPresets = presets.filter(p => p.id !== id);
@@ -138,7 +133,7 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
     a.href = url; a.download = `${preset.name}.json`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast(`已导出「${preset.name}」`, 'success');
+    showTopCenter(`已导出「${preset.name}」`, 'success');
   };
 
   const handleImportPreset = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,7 +143,7 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
       const raw = JSON.parse(await file.text());
       const result = importPresetFromJson(raw);
       if (result.blocks.length === 0) {
-        showToast('未识别到任何预设词块', 'error');
+        showTopCenter('未识别到任何预设词块', 'error');
         return;
       }
       const isVarsImport = presetFilter === 'vars';
@@ -194,12 +189,12 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
         ),
       });
       const skipped = result.blocks.length - filteredBlocks.length;
-      showToast(`已导入「${newPreset.name}」: ${filteredBlocks.length} 个词块${skipped > 0 ? `（已跳过${skipped}个内部块）` : ''}`, 'success');
+      showTopCenter(`已导入「${newPreset.name}」: ${filteredBlocks.length} 个词块${skipped > 0 ? `（已跳过${skipped}个内部块）` : ''}`, 'success');
     } catch (err: any) {
-      showToast(`导入失败: ${err?.message || '无法解析'}`, 'error');
+      showTopCenter(`导入失败: ${err?.message || '无法解析'}`, 'error');
     }
     try { e.target.value = ''; } catch { /* ignore */ }
-  }, [presets, presetFilter, showToast]);
+  }, [presets, presetFilter]);
 
   // ── Block ops ──
 
@@ -254,7 +249,7 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
 
   const handleResetOrder = () => {
     updateActiveBlocks([...blocks]);
-    showToast('顺序未变更（当前无默认顺序基准）', 'error');
+    showTopCenter('顺序未变更（当前无默认顺序基准）', 'error');
   };
 
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -348,7 +343,6 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
             onImport={(impBlocks, impParams, name) => handleImportBlocks(impBlocks, impParams, name)}
             onExport={() => activePreset && handleExportPreset(activePreset)}
             onResetOrder={handleResetOrder}
-            onToast={showToast}
           />
         </>
       )}
@@ -360,19 +354,6 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
         onClose={() => setEditingBlockId(null)}
         onSave={handleSaveBlock}
       />
-
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className={`fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium z-[200] ${
-              toast.type === 'success' ? 'bg-aether-green/20 border border-aether-green/30 text-aether-green' : 'bg-aether-red/20 border border-aether-red/30 text-aether-red'
-            }`}>
-            {toast.type === 'success' ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
-            {toast.message}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

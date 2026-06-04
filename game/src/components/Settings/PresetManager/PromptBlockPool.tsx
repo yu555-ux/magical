@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Plus, Upload, Download, Undo2 } from 'lucide-react';
 import type { PresetBlock, PresetParams, SavedPreset } from '../../../sillytavern/types';
 import { importPresetFromJson } from '../../../sillytavern/presetImporter';
+import { showTopCenter } from '../../shared/TopCenterToast';
 
 interface Props {
   blocks: PresetBlock[];
@@ -9,10 +10,9 @@ interface Props {
   onImport: (blocks: PresetBlock[], params?: PresetParams, name?: string) => void;
   onExport: () => void;
   onResetOrder: () => void;
-  onToast: (msg: string, type: 'success' | 'error') => void;
 }
 
-export default function PromptBlockPool({ blocks, onNew, onImport, onExport, onResetOrder, onToast }: Props) {
+export default function PromptBlockPool({ blocks, onNew, onImport, onExport, onResetOrder }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,13 +22,13 @@ export default function PromptBlockPool({ blocks, onNew, onImport, onExport, onR
       const raw = JSON.parse(await file.text());
       const result = importPresetFromJson(raw);
       if (result.blocks.length === 0) {
-        onToast('未识别到任何预设词块', 'error');
+        showTopCenter('未识别到任何预设词块', 'error');
         return;
       }
       onImport(result.blocks, result.params, result.name || file.name.replace(/\.json$/i, ''));
-      onToast(`已导入「${result.name || file.name}」: ${result.blocks.length} 个词块`, 'success');
+      showTopCenter(`已导入「${result.name || file.name}」: ${result.blocks.length} 个词块`, 'success');
     } catch (err: any) {
-      onToast(`导入失败: ${err?.message || '无法解析'}`, 'error');
+      showTopCenter(`导入失败: ${err?.message || '无法解析'}`, 'error');
     }
     try { e.target.value = ''; } catch { /* ignore */ }
   };

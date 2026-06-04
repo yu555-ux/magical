@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, Download, Trash2, AlertTriangle, CheckCircle, Plus, Search, ChevronLeft, ChevronRight, ChevronDown, Pencil, X, Settings } from 'lucide-react';
+import { Upload, Download, Trash2, Plus, Search, ChevronLeft, ChevronRight, ChevronDown, Pencil, X, Settings } from 'lucide-react';
+import { showTopCenter } from '../shared/TopCenterToast';
 import type { AppSettings, Lorebook, LorebookEntry } from '../../sillytavern/types';
 import { importLorebookFromJson, exportLorebookToJson } from '../../sillytavern/lorebookImporter';
 import { saveSettings } from '../../sillytavern/database';
@@ -331,7 +332,6 @@ export default function LorebookTab({ draft, setDraft, onPersist }: Props) {
   const lorebooks: Lorebook[] = draft.lorebooks ?? [];
   const [expandedBook, setExpandedBook] = useState<string | null>(null);
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState(50);
   const [pages, setPages] = useState<Record<string, number>>({});
@@ -342,16 +342,12 @@ export default function LorebookTab({ draft, setDraft, onPersist }: Props) {
   const bookNameRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  }, []);
 
   const save = async (next: Lorebook[]) => {
     const nextDraft = { ...draft, lorebooks: next };
     setDraft(nextDraft);
     try { await onPersist({ lorebooks: next }); } catch {
-      showToast('保存失败，请重试', 'error');
+      showTopCenter('保存失败，请重试', 'error');
     }
   };
 
@@ -415,15 +411,15 @@ export default function LorebookTab({ draft, setDraft, onPersist }: Props) {
       setDraft({ ...draft, lorebooks: next });
       await onPersist({ lorebooks: next });
       setExpandedBook(book.id);
-      showToast(`已导入「${book.name}」: ${book.entries.length} 个条目`, 'success');
+      showTopCenter(`已导入「${book.name}」: ${book.entries.length} 个条目`, 'success');
     } catch (err: any) {
-      showToast(`导入失败: ${err?.message || '无法解析'}`, 'error');
+      showTopCenter(`导入失败: ${err?.message || '无法解析'}`, 'error');
     }
     try { e.target.value = ''; } catch { /* ignore */ }
-  }, [draft, lorebooks, showToast]);
+  }, [draft, lorebooks]);
 
   const handleExportAll = () => {
-    if (lorebooks.length === 0) { showToast('没有可导出的世界书', 'error'); return; }
+    if (lorebooks.length === 0) { showTopCenter('没有可导出的世界书', 'error'); return; }
     const data = lorebooks.length === 1
       ? exportLorebookToJson(lorebooks[0])
       : lorebooks.map(b => exportLorebookToJson(b));
@@ -435,11 +431,11 @@ export default function LorebookTab({ draft, setDraft, onPersist }: Props) {
     a.download = lorebooks.length === 1 ? `${lorebooks[0].name}.json` : 'worldbooks.json';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast(`已导出 ${lorebooks.length} 本世界书`, 'success');
+    showTopCenter(`已导出 ${lorebooks.length} 本世界书`, 'success');
   };
 
   const handleNewEntry = async () => {
-    if (lorebooks.length === 0) { showToast('请先导入世界书', 'error'); return; }
+    if (lorebooks.length === 0) { showTopCenter('请先导入世界书', 'error'); return; }
     const targetId = expandedBook || lorebooks[0].id;
     const newEntry: LorebookEntry = {
       id: crypto.randomUUID(), keys: [], secondaryKeys: [], content: '',
@@ -453,7 +449,7 @@ export default function LorebookTab({ draft, setDraft, onPersist }: Props) {
     setExpandedBook(targetId);
     setExpandedEntry(newEntry.id);
     await save(next);
-    showToast('已添加新条目', 'success');
+    showTopCenter('已添加新条目', 'success');
   };
 
   const removeBook = async (bookId: string) => {
@@ -690,20 +686,6 @@ export default function LorebookTab({ draft, setDraft, onPersist }: Props) {
           </div>
         )}
       </section>
-
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            className={`fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium z-[200] ${
-              toast.type === 'success' ? 'bg-aether-green/20 border border-aether-green/30 text-aether-green' : 'bg-aether-red/20 border border-aether-red/30 text-aether-red'
-            }`}>
-            {toast.type === 'success' ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
-            {toast.message}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

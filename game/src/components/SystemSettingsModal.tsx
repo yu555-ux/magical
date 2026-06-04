@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Server, BookOpen, Sliders, User, Monitor, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Server, BookOpen, Sliders, User, Monitor } from 'lucide-react';
+import { showTopCenter } from './shared/TopCenterToast';
 import { useSS } from '../hooks/SillytavernContext';
 import type { AppSettings, ApiSettings } from '../sillytavern/types';
 import { DEFAULT_SETTINGS } from '../sillytavern/types';
@@ -26,7 +27,6 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
 
   const [draft, setDraft] = useState<AppSettings | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [primaryModels, setPrimaryModels] = useState<string[]>([]);
   const [secondaryModels, setSecondaryModels] = useState<string[]>([]);
 
@@ -35,11 +35,6 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       setDraft(JSON.parse(JSON.stringify(ss.settings)));
     }
   }, [isOpen, ss.initialized, ss.settings]);
-
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 2500);
-  }, []);
 
   const dirty = useMemo(() => {
     if (!draft || !ss.settings) return false;
@@ -82,8 +77,8 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
         useProcessedMap: draft.useProcessedMap ?? true,
         useProcessedCharacters: draft.useProcessedCharacters ?? true,
       });
-      showToast('配置已保存', 'success');
-    } catch { showToast('保存失败', 'error'); }
+      showTopCenter('配置已保存', 'success');
+    } catch { showTopCenter('保存失败', 'error'); }
   };
 
   const handleFetchModels = async (which: 'primary' | 'secondary') => {
@@ -95,7 +90,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       const target = which === 'primary' ? { baseUrl: api.baseUrl, apiKey: api.apiKey } : { baseUrl: sec.baseUrl, apiKey: sec.apiKey };
       const { source, models, error } = await fetchModels(target);
       if (which === 'primary') setPrimaryModels(models); else setSecondaryModels(models);
-      source === 'remote' ? showToast(`获取到 ${models.length} 个模型`, 'success') : showToast(`获取失败 (${error})`, 'error');
+      source === 'remote' ? showTopCenter(`获取到 ${models.length} 个模型`, 'success') : showTopCenter(`获取失败 (${error})`, 'error');
     } finally { setBusy(null); }
   };
 
@@ -107,7 +102,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       const sec = api.secondary ?? { enabled: false, baseUrl: '', apiKey: '', model: '' };
       const target = which === 'primary' ? { baseUrl: api.baseUrl, apiKey: api.apiKey, model: api.model } : { baseUrl: sec.baseUrl, apiKey: sec.apiKey, model: sec.model };
       const result = await testConnection(target);
-      result.ok ? showToast(`${which === 'primary' ? '主' : '次'} API 连通正常`, 'success') : showToast(`测试失败: HTTP ${result.status ?? result.error}`, 'error');
+      result.ok ? showTopCenter(`${which === 'primary' ? '主' : '次'} API 连通正常`, 'success') : showTopCenter(`测试失败: HTTP ${result.status ?? result.error}`, 'error');
     } finally { setBusy(null); }
   };
 
@@ -168,16 +163,6 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
           </div>
         </motion.div>
 
-        <AnimatePresence>
-          {toast && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-              className={`fixed bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium z-[200] ${
-                toast.type === 'success' ? 'bg-aether-green/20 border border-aether-green/30 text-aether-green' : 'bg-aether-red/20 border border-aether-red/30 text-aether-red'}`}>
-              {toast.type === 'success' ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
-              {toast.message}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </AnimatePresence>
   );

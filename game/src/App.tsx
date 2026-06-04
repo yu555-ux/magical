@@ -12,6 +12,7 @@ import EntryOverlay from './components/EntryOverlay';
 import StatusBell, { pushStatus } from './components/StatusBell';
 import { PageType } from './types';
 import { Toast } from './components/Feedback';
+import TopCenterToast from './components/shared/TopCenterToast';
 import { SillytavernProvider } from './hooks/SillytavernContext';
 import { useKeyboardAware } from './hooks/useKeyboardAware';
 import { useGameEventMonitor } from './hooks/useGameEventMonitor';
@@ -136,6 +137,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
+      <TopCenterToast />
       <SystemSettingsModal isOpen={showSystemSettings} onClose={() => setShowSystemSettings(false)} />
 
       <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden opacity-[0.03]"
