@@ -95,7 +95,7 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
       <div className="hidden md:block w-8 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/30 to-transparent mx-auto" />
 
       {/* Settings button — bottom on desktop, inline on mobile */}
-      <div className="pb-0 md:pb-6 px-1 md:px-2 flex-shrink-0">
+      <div className="pb-0 md:pb-6 px-1 md:px-2 flex-shrink-0 mt-0.5 md:mt-0">
         <button
           onClick={onOpenSettings}
           className="flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale shrink-0 md:w-full text-white/30 hover:text-white/60"

@@ -242,7 +242,7 @@ export default function ArchivePage() {
       </div>
 
       {/* ==================== RIGHT PANEL — Character Detail ==================== */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-aether-deep">
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-aether-deep pt-2 md:pt-0">
         <AnimatePresence mode="wait">
           {selected ? (
             <CharacterDetail key={selected.name} char={selected} />
