@@ -22,6 +22,9 @@ import { useKeyboardAware, scrollToBottomSmooth } from '../../../hooks/useKeyboa
 
 export default function ChatPage({
   addNotification,
+  diffOpen,
+  setDiffOpen,
+  openVariableDiff,
 }: {
   addNotification?: (
     title: string,
@@ -29,6 +32,9 @@ export default function ChatPage({
     type: 'info' | 'warning' | 'error' | 'success',
     onClick?: () => void,
   ) => void;
+  diffOpen: boolean;
+  setDiffOpen: (v: boolean) => void;
+  openVariableDiff: () => void;
 }) {
   const ss = useSS();
 
@@ -64,7 +70,6 @@ export default function ChatPage({
   const [editedRaw, setEditedRaw] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
   const [shopOpen, setShopOpen] = useState(false);
-  const [diffOpen, setDiffOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -157,7 +162,7 @@ export default function ChatPage({
         showTopCenter('AI 回复缺少必要标签，请重试', 'warning');
       }
       if (result?.varsUpdated) {
-        addNotification?.('变量已更新', `第二API已更新 ${result.patchCount ?? 0} 项变量`, 'success', () => setDiffOpen(true));
+        addNotification?.('变量已更新', `第二API已更新 ${result.patchCount ?? 0} 项变量`, 'success', openVariableDiff);
 
         // 从变量变更中检测好感度变化
         const affectionChanges = result.varChanges?.filter(
@@ -166,7 +171,7 @@ export default function ChatPage({
         for (const c of affectionChanges) {
           const name = c.path.split('/').slice(-2, -1)[0] ?? '角色';
           const dir = (c.delta ?? 0) > 0 ? '+' : '';
-          addNotification?.('好感度变化', `${name} 好感度 ${dir}${c.delta}  (${c.oldValue} → ${c.newValue})`, 'success');
+          addNotification?.('好感度变化', `${name} 好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
         }
       }
     } catch (err) {

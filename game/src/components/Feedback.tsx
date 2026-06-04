@@ -84,15 +84,16 @@ export function Toast({ message, type, onClose, onClick, channel = 'variable' }:
 
   return (
     <motion.div
-      initial={{ x: 120, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 120, opacity: 0 }}
+      layout
+      initial={{ x: 120, opacity: 0, height: 0 }}
+      animate={{ x: 0, opacity: 1, height: 'auto' }}
+      exit={{ x: 120, opacity: 0, height: 0 }}
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-      className={`fixed right-6 top-24 z-[1000] p-4 border flex items-center gap-4 min-w-[320px] ${
+      className={`pointer-events-auto p-4 border flex items-center gap-4 min-w-[320px] max-w-[420px] ${
         isStory
           ? 'glass-panel border-aether-cyan/30 text-aether-cyan/90 shadow-[0_0_20px_rgba(0,242,255,0.08)]'
           : `glass-panel ${colors[type]}`
-      } ${onClick ? 'cursor-pointer hover:brightness-110 clickable pointer-events-auto' : ''}`}
+      } ${onClick ? 'cursor-pointer hover:brightness-110 clickable' : ''}`}
       onClick={onClick}
       id={`toast-${type}`}
     >

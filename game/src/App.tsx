@@ -23,7 +23,13 @@ export default function App() {
   const [activePage, setActivePage] = useState<PageType>(PageType.HOME);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [showSystemSettings, setShowSystemSettings] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
   const [entryDone, setEntryDone] = useState(false);
+
+  const openVariableDiff = useCallback(() => {
+    setActivePage(PageType.HOME);
+    setDiffOpen(true);
+  }, []);
 
   const { isKeyboardOpen, keyboardHeight } = useKeyboardAware();
 
@@ -86,13 +92,13 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case PageType.HOME:   return <ChatPage addNotification={addNotification} />;
+      case PageType.HOME:   return <ChatPage addNotification={addNotification} diffOpen={diffOpen} setDiffOpen={setDiffOpen} openVariableDiff={openVariableDiff} />;
       case PageType.PERSONA: return <PersonaPage />;
       case PageType.WAREHOUSE: return <WarehousePage />;
       case PageType.MAP:     return <MapPage />;
       case PageType.SOCIAL:  return <SocialPage />;
       case PageType.ARCHIVE: return <ArchivePage />;
-      default:               return <ChatPage addNotification={addNotification} />;
+      default:               return <ChatPage addNotification={addNotification} diffOpen={diffOpen} setDiffOpen={setDiffOpen} openVariableDiff={openVariableDiff} />;
     }
   };
 
@@ -128,8 +134,8 @@ export default function App() {
         <StatusBell />
       </main>
 
-      {/* Toast Overlay */}
-      <div className="fixed inset-0 pointer-events-none z-[1000]">
+      {/* Toast Overlay — stacked top-right */}
+      <div className="fixed right-6 top-24 z-[1000] pointer-events-none flex flex-col gap-2 items-end">
         <AnimatePresence>
           {toasts.map((toast) => (
             <Toast key={toast.id} message={toast.message} type={toast.type} channel={toast.channel} onClick={toast.onClick} onClose={() => removeToast(toast.id)} />
