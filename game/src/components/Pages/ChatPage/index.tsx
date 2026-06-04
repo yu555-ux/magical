@@ -431,7 +431,7 @@ export default function ChatPage({
       {/* ── Variable Diff Modal ── */}
       <VariableDiffModal
         isOpen={diffOpen}
-        onClose={() => setDiffOpen(false)}
+        onClose={() => { console.log('[DiffModal] onClose'); setDiffOpen(false); }}
         changes={latestVarChanges ?? []}
       />
 

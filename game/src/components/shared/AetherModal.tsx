@@ -22,7 +22,7 @@ export default function AetherModal({ isOpen, onClose, title, children, zIndex =
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={() => { console.log('[AetherModal] backdrop clicked'); onClose(); }}
           className="absolute inset-0 bg-aether-dark/92 backdrop-blur-xl"
         />
         <motion.div
@@ -48,7 +48,7 @@ export default function AetherModal({ isOpen, onClose, title, children, zIndex =
               )}
               <h2 className="font-display font-black text-xs md:text-sm tracking-[0.15em] text-aether-cyan/90 uppercase truncate">{title}</h2>
             </div>
-            <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="text-white/30 hover:text-aether-cyan transition-colors p-2 md:p-1.5 shrink-0">
+            <button onClick={(e) => { e.stopPropagation(); console.log('[AetherModal] X button clicked'); onClose(); }} className="text-white/30 hover:text-aether-cyan transition-colors p-2 md:p-1.5 shrink-0">
               <X size={18} />
             </button>
           </div>
