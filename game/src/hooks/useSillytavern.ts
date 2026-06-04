@@ -512,6 +512,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     let secondaryRaw = '';
     let varsUpdated = false;
     let patchCount = 0;
+    let semenPatches: any[] = []; // AI 修改宫内精液.总量的 patch，用于重置注入时间
     let varChanges: import('../sillytavern/types').VarChange[] | undefined;
     if (isDual && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
       setDualRunning(true);
@@ -564,6 +565,8 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
                   const patches = JSON.parse(mArr[0]);
                   if (Array.isArray(patches) && patches.length > 0) {
                     nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: {}, patches }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
+                    // 记录AI修改了哪些角色的宫内精液.总量，稍后重置注入时间
+                    for (const p of patches) if (p.path && p.path.includes('宫内精液.总量')) semenPatches.push(p);
                     autoTagDreamItems(preVars, nextVariables);
                     snapshot = JSON.parse(JSON.stringify(nextVariables));
                     apiUsed = 'dual';
@@ -647,6 +650,21 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       } else if (!oldInDream && newInDream) {
         // 进入梦境 → 记录梦境时间作为锚点
         updatedDreamAnchor.lastEnteredAt = nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? '';
+      }
+    }
+
+    // AI 修改了宫内精液.总量 → 重置注入时间，代码从新值开始衰减
+    for (const p of semenPatches) {
+      const parts = (p.path as string).split('/');
+      const semenIdx = parts.indexOf('宫内精液');
+      if (semenIdx > 0) {
+        const base = parts.slice(0, semenIdx + 1);
+        let node: any = nextVariables;
+        for (const seg of base) { if (node && typeof node === 'object') node = node[seg]; else break; }
+        if (node && typeof node === 'object') {
+          const worldTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? '') as string;
+          if (worldTime) node['注入时间'] = worldTime;
+        }
       }
     }
 
