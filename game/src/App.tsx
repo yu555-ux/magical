@@ -117,7 +117,7 @@ export default function App() {
 
       <Sidebar activePage={activePage} setActivePage={setActivePage} onOpenSettings={() => setShowSystemSettings(true)} />
 
-      <main className="flex-1 relative z-10 overflow-hidden md:overflow-hidden flex flex-col">
+      <main className="flex-1 relative z-[60] overflow-hidden md:overflow-hidden flex flex-col">
         <AnimatePresence mode="wait">
           <motion.div key={activePage}
             initial={{ opacity: 0, scale: 0.98, filter: 'blur(10px)' }}

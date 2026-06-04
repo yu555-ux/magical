@@ -15,7 +15,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:bottom-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] md:top-0 z-[100] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -46,7 +46,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 max-h-[calc(100vh-3.5rem-4rem)] md:max-h-[70vh] overflow-y-auto">
+            <div className="p-6 max-h-[calc(100vh-3.5rem-4rem-env(safe-area-inset-top,0px))] md:max-h-[70vh] overflow-y-auto">
               {children}
             </div>
           </motion.div>
@@ -196,7 +196,7 @@ export function ConfirmDialog({ isOpen, onConfirm, onCancel, title, message, con
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:bottom-0 z-[150] flex items-center justify-center p-4">
+        <div className="fixed inset-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] md:top-0 z-[150] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

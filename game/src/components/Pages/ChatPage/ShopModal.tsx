@@ -121,7 +121,7 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:bottom-0 z-[145] flex items-center justify-center">
+        <div className="fixed inset-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] md:top-0 z-[145] flex items-center justify-center">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -139,7 +139,7 @@ export default function ShopModal({ isOpen, onClose, onNotify }: Props) {
             exit={{ opacity: 0, scale: 0.94, filter: 'blur(4px)' }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="
-              relative w-[880px] max-w-[95vw] h-[680px] max-h-[calc(100vh-3.5rem)] md:max-h-[88vh]
+              relative w-[880px] max-w-[95vw] h-[680px] max-h-[calc(100vh-3.5rem-env(safe-area-inset-top,0px))] md:max-h-[88vh]
               flex flex-col
               rounded-2xl overflow-hidden
             "

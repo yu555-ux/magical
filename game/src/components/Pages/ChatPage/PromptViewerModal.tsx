@@ -51,7 +51,7 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:bottom-0 z-[160] flex items-center justify-center p-3 md:p-4">
+      <div className="fixed inset-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] md:top-0 z-[160] flex items-center justify-center p-3 md:p-4">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           onClick={onClose} className="absolute inset-0 bg-aether-dark/92 backdrop-blur-xl" />
 
@@ -60,7 +60,7 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
           animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-[88vw] md:w-full max-w-[780px] max-h-[calc(100vh-3.5rem-1.5rem)] md:max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
+          className="relative w-[88vw] md:w-full max-w-[780px] max-h-[calc(100vh-3.5rem-1.5rem-env(safe-area-inset-top,0px))] md:max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
                      shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
         >
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/50 to-transparent z-10" />
