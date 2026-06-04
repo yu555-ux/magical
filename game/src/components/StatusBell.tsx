@@ -147,7 +147,7 @@ export default function StatusBell() {
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-[85]"
-              onClick={() => { console.log('[Bell] backdrop clicked'); setOpen(false); setConfirmClear(false); }}
+              onClick={() => { setOpen(false); setConfirmClear(false); }}
             />
 
             <motion.div
