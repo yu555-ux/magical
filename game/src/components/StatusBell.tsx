@@ -65,7 +65,9 @@ export default function StatusBell() {
   const addStatus = useCallback((e: Omit<StatusEvent, 'id' | 'timestamp' | 'read'>) => {
     const id = Math.random().toString(36).substr(2, 9);
     setEvents((prev) => {
-      const next = [{ ...e, id, timestamp: Date.now(), read: false }, ...prev];
+      // 每轮新"变量已更新"到达时，清空旧的同名通知
+      const base = e.title === '变量已更新' ? prev.filter(x => x.title !== '变量已更新') : prev;
+      const next = [{ ...e, id, timestamp: Date.now(), read: false }, ...base];
       if (next.length > 100) next.length = 100;
       return next;
     });

@@ -30,6 +30,7 @@ export default function AetherModal({ isOpen, onClose, title, children, zIndex =
           animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          onClick={(e) => e.stopPropagation()}
           className="relative w-[88vw] md:w-full max-h-full md:max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
                      shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
           style={{ maxWidth }}
@@ -47,7 +48,7 @@ export default function AetherModal({ isOpen, onClose, title, children, zIndex =
               )}
               <h2 className="font-display font-black text-xs md:text-sm tracking-[0.15em] text-aether-cyan/90 uppercase truncate">{title}</h2>
             </div>
-            <button onClick={onClose} className="text-white/30 hover:text-aether-cyan transition-colors p-2 md:p-1.5 shrink-0">
+            <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="text-white/30 hover:text-aether-cyan transition-colors p-2 md:p-1.5 shrink-0">
               <X size={18} />
             </button>
           </div>
