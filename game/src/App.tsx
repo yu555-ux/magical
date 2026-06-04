@@ -16,7 +16,7 @@ import { SillytavernProvider } from './hooks/SillytavernContext';
 import { useKeyboardAware } from './hooks/useKeyboardAware';
 import { useGameEventMonitor, type ToastOptions } from './hooks/useGameEventMonitor';
 
-type ToastItem = { id: string; message: string; type: 'info' | 'warning' | 'error' | 'success'; channel?: 'terminal' | 'log'; onClick?: () => void };
+type ToastItem = { id: string; message: string; type: 'info' | 'warning' | 'error' | 'success'; channel?: 'variable' | 'story'; onClick?: () => void };
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageType>(PageType.HOME);
@@ -65,7 +65,7 @@ export default function App() {
     };
   }, []);
 
-  const addToast = useCallback((message: string, type: 'info' | 'warning' | 'success' | 'error', channel?: 'terminal' | 'log', onClick?: () => void) => {
+  const addToast = useCallback((message: string, type: 'info' | 'warning' | 'success' | 'error', channel?: 'variable' | 'story', onClick?: () => void) => {
     const id = Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, message, type, channel, onClick }]);
   }, []);

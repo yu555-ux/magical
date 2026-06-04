@@ -11,7 +11,7 @@ export interface StatusEvent {
   timestamp: number;
   read: boolean;
   source?: string;
-  channel?: 'terminal' | 'log';
+  channel?: 'variable' | 'story';
   onClick?: () => void;
 }
 
@@ -32,10 +32,10 @@ function saveEvents(events: StatusEvent[]) {
 }
 
 /* ── Config ── */
-type Channel = 'terminal' | 'log';
+type Channel = 'variable' | 'story';
 const CHANNELS: { key: Channel; label: string }[] = [
-  { key: 'terminal', label: '终端' },
-  { key: 'log',      label: '日志' },
+  { key: 'variable', label: '变量' },
+  { key: 'story',    label: '剧情' },
 ];
 
 const TYPE_STYLE: Record<string, { icon: any; color: string }> = {
@@ -57,7 +57,7 @@ function CheckIcon({ size }: { size: number }) {
 export default function StatusBell() {
   const [events, setEvents] = useState<StatusEvent[]>(loadEvents);
   const [open, setOpen] = useState(false);
-  const [channel, setChannel] = useState<Channel>('log');
+  const [channel, setChannel] = useState<Channel>('variable');
   const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => { saveEvents(events); }, [events]);
@@ -77,27 +77,27 @@ export default function StatusBell() {
 
   const markAllRead = () =>
     setEvents((prev) => prev.map((e) =>
-      (e.channel === 'log' || (!e.channel && channel === 'terminal')) && !e.read
+      (e.channel === 'story' || (!e.channel && channel === 'variable')) && !e.read
         ? { ...e, read: true } : e,
     ));
 
   const clearChannel = () => {
     setEvents((prev) => prev.filter((e) => {
-      const ec = e.channel ?? 'terminal';
+      const ec = e.channel ?? 'variable';
       return ec !== channel;
     }));
     setConfirmClear(false);
   };
 
   /* ── Derived ── */
-  const channelEvents = (ch: Channel) => events.filter((e) => (e.channel ?? 'terminal') === ch);
+  const channelEvents = (ch: Channel) => events.filter((e) => (e.channel ?? 'variable') === ch);
   const visibleEvents = channelEvents(channel);
-  const terminalEvents = channelEvents('terminal');
-  const logEvents = channelEvents('log');
-  const terminalUnread = terminalEvents.filter((e) => !e.read).length;
-  const logUnread = logEvents.filter((e) => !e.read).length;
-  const hasTerminalError = terminalEvents.some((e) => e.type === 'error');
-  const totalUnread = terminalUnread + logUnread;
+  const variableEvents = channelEvents('variable');
+  const storyEvents = channelEvents('story');
+  const variableUnread = variableEvents.filter((e) => !e.read).length;
+  const storyUnread = storyEvents.filter((e) => !e.read).length;
+  const hasVariableError = variableEvents.some((e) => e.type === 'error');
+  const totalUnread = variableUnread + storyUnread;
 
   return (
     <>
@@ -109,7 +109,7 @@ export default function StatusBell() {
       >
         <motion.button
           onClick={() => {
-            if (!open && terminalUnread > 0) setChannel('terminal');
+            if (!open && variableUnread > 0) setChannel('variable');
             setOpen(!open);
             setConfirmClear(false);
           }}
@@ -172,8 +172,8 @@ export default function StatusBell() {
               <div className="shrink-0 flex border-b border-aether-border/20">
                 {CHANNELS.map((ch) => {
                   const active = channel === ch.key;
-                  const unread = ch.key === 'terminal' ? terminalUnread : logUnread;
-                  const badgeError = ch.key === 'terminal' && hasTerminalError;
+                  const unread = ch.key === 'variable' ? variableUnread : storyUnread;
+                  const badgeError = ch.key === 'variable' && hasVariableError;
                   return (
                     <button
                       key={ch.key}
@@ -203,7 +203,7 @@ export default function StatusBell() {
                   {visibleEvents.length} 条记录
                 </span>
                 <div className="flex items-center gap-3">
-                  {channel === 'log' && logUnread > 0 && (
+                  {channel === 'story' && storyUnread > 0 && (
                     <button
                       onClick={markAllRead}
                       className="text-[9px] font-display tracking-wider text-aether-cyan/40 hover:text-aether-cyan transition-colors"
@@ -238,13 +238,13 @@ export default function StatusBell() {
                       <div className="w-1.5 h-1.5 rounded-full bg-aether-cyan/20" />
                     </div>
                     <p className="text-[11px] font-display tracking-wider text-white/15">
-                      {channel === 'terminal' ? '系统运行正常' : '暂无剧情事件'}
+                      {channel === 'variable' ? '暂无变量事件' : '暂无剧情事件'}
                     </p>
                   </div>
                 ) : (
                   visibleEvents.map((e) => {
                     const style = TYPE_STYLE[e.type] ?? TYPE_STYLE.info;
-                    const isTerminal = channel === 'terminal';
+                    const isVariable = channel === 'variable';
                     return (
                       <button
                         key={e.id}
@@ -264,20 +264,20 @@ export default function StatusBell() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className={`text-[12px] font-medium ${
-                                isTerminal ? 'font-mono text-white/60' : 'font-display tracking-wide text-white/75'
+                                isVariable ? 'font-mono text-white/60' : 'font-display tracking-wide text-white/75'
                               }`}>
                                 {e.title}
                               </p>
                             </div>
                             <p className={`text-[10px] leading-relaxed mt-0.5 ${
-                              isTerminal ? 'font-mono text-white/30' : 'text-white/35'
+                              isVariable ? 'font-mono text-white/30' : 'text-white/35'
                             }`}>
                               {e.message}
                             </p>
                             <div className="flex items-center gap-2 mt-1.5">
                               {e.source && (
                                 <span className={`text-[8px] font-mono tracking-wider px-1 py-0.5 rounded-sm ${
-                                  isTerminal ? 'text-white/12 bg-white/[0.02]' : 'text-aether-cyan/30 bg-aether-cyan/[0.03]'
+                                  isVariable ? 'text-white/12 bg-white/[0.02]' : 'text-aether-cyan/30 bg-aether-cyan/[0.03]'
                                 }`}>
                                   {e.source}
                                 </span>

@@ -6,7 +6,7 @@ import { pushStatus } from '../components/StatusBell';
 export interface ToastOptions {
   message: string;
   type: 'info' | 'warning' | 'error' | 'success';
-  channel: 'terminal' | 'log';
+  channel: 'variable' | 'story';
 }
 
 /**
@@ -86,9 +86,9 @@ export function useGameEventMonitor(addToast?: (opts: ToastOptions) => void) {
               message: msg,
               type: 'success',
               source: '好感变化',
-              channel: 'log',
+              channel: 'story',
             });
-            addToast?.({ message: `${cur.name}  ${msg}`, type: 'success', channel: 'log' });
+            addToast?.({ message: `${cur.name}  ${msg}`, type: 'success', channel: 'story' });
           }
 
           // ── Stage changed (threshold crossed) ──
@@ -99,9 +99,9 @@ export function useGameEventMonitor(addToast?: (opts: ToastOptions) => void) {
               message: msg,
               type: 'info',
               source: '阶段突破',
-              channel: 'log',
+              channel: 'story',
             });
-            addToast?.({ message: `${cur.name}  ${msg}`, type: 'info', channel: 'log' });
+            addToast?.({ message: `${cur.name}  ${msg}`, type: 'info', channel: 'story' });
           }
 
           // Update snapshot

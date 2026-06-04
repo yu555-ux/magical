@@ -62,10 +62,10 @@ interface ToastProps {
   type: 'info' | 'warning' | 'error' | 'success';
   onClose: () => void;
   onClick?: () => void;
-  channel?: 'terminal' | 'log';
+  channel?: 'variable' | 'story';
 }
 
-export function Toast({ message, type, onClose, onClick, channel = 'terminal' }: ToastProps) {
+export function Toast({ message, type, onClose, onClick, channel = 'variable' }: ToastProps) {
   const colors: Record<string, string> = {
     info:    'border-aether-blue/50 bg-aether-blue/10 text-aether-blue',
     warning: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-400',
@@ -80,7 +80,7 @@ export function Toast({ message, type, onClose, onClick, channel = 'terminal' }:
     success: <CheckCircle size={16} />,
   };
 
-  const isLog = channel === 'log';
+  const isStory = channel === 'story';
 
   return (
     <motion.div
@@ -89,7 +89,7 @@ export function Toast({ message, type, onClose, onClick, channel = 'terminal' }:
       exit={{ x: 120, opacity: 0 }}
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
       className={`fixed right-6 top-24 z-[1000] p-4 border flex items-center gap-4 min-w-[320px] ${
-        isLog
+        isStory
           ? 'glass-panel border-aether-cyan/30 text-aether-cyan/90 shadow-[0_0_20px_rgba(0,242,255,0.08)]'
           : `glass-panel ${colors[type]}`
       } ${onClick ? 'cursor-pointer hover:brightness-110 clickable pointer-events-auto' : ''}`}
@@ -97,15 +97,15 @@ export function Toast({ message, type, onClose, onClick, channel = 'terminal' }:
       id={`toast-${type}`}
     >
       {/* Tech scanline for terminal toast */}
-      {!isLog && (
+      {!isStory && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-[0.03]"
           style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,242,255,0.3) 2px, rgba(0,242,255,0.3) 3px)' }} />
       )}
 
       {type !== 'error' && <span className="shrink-0">{icons[type]}</span>}
-      <div className={`flex-1 text-sm tracking-wider ${isLog ? 'font-display' : 'font-mono'}`}>
+      <div className={`flex-1 text-sm tracking-wider ${isStory ? 'font-display' : 'font-mono'}`}>
         {type !== 'error' && (
-          <span className={`font-bold mr-2 uppercase text-[10px] opacity-70 ${isLog ? 'font-display' : 'font-mono'}`}>
+          <span className={`font-bold mr-2 uppercase text-[10px] opacity-70 ${isStory ? 'font-display' : 'font-mono'}`}>
             [{type}]
           </span>
         )}
@@ -119,7 +119,7 @@ export function Toast({ message, type, onClose, onClick, channel = 'terminal' }:
         animate={{ width: '0%' }}
         transition={{ duration: 5, ease: 'linear' }}
         onAnimationComplete={onClose}
-        className={`absolute bottom-0 left-0 h-0.5 ${isLog ? 'bg-aether-cyan/30' : 'bg-current opacity-30'}`}
+        className={`absolute bottom-0 left-0 h-0.5 ${isStory ? 'bg-aether-cyan/30' : 'bg-current opacity-30'}`}
       />
     </motion.div>
   );
