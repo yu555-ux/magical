@@ -28,7 +28,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-lg glass-panel overflow-hidden border-glow"
+            className="relative w-full max-w-lg glass-panel bg-aether-dark overflow-hidden border-glow"
           >
             <div className="flex items-center justify-between p-4 border-b border-aether-cyan/15 bg-aether-cyan/[0.02]">
               <div className="flex items-center gap-3">
