@@ -7,7 +7,7 @@ import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLO
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 import { showTopCenter } from '../components/shared/TopCenterToast';
-import { tickAllFemales } from '../sillytavern/physiology';
+import { tickAllFemales, type FertilizationEvent } from '../sillytavern/physiology';
 
 const DEFAULT_OPENING = `餐桌上方的吊灯洒下暖白色的光。张云夹了一块排骨，没放进自己碗里，而是越过半个桌子，稳稳地落在了<user>的米饭上。排骨上的糖醋汁洇进白白的米粒里。
 
@@ -329,7 +329,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     [...DEFAULT_OPAQUE_TAGS],
   );
 
-  const sendGameMessage = useCallback(async (userText: string, opts?: { skipUserMessage?: boolean }): Promise<{ aborted: boolean; retractedText?: string; varsUpdated?: boolean; patchCount?: number; formatError?: boolean; varChanges?: import('../sillytavern/types').VarChange[] }> => {
+  const sendGameMessage = useCallback(async (userText: string, opts?: { skipUserMessage?: boolean }): Promise<{ aborted: boolean; retractedText?: string; varsUpdated?: boolean; patchCount?: number; formatError?: boolean; varChanges?: import('../sillytavern/types').VarChange[]; fertilizationEvents?: FertilizationEvent[] }> => {
     if (!activeChat || !settings) return { aborted: false };
 
     // 从 DB 读取最新 chat，避免 regenerate 等操作导致的闭包过期
@@ -513,6 +513,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     let varsUpdated = false;
     let patchCount = 0;
     let semenPatches: any[] = []; // AI 修改宫内精液.总量的 patch，用于重置注入时间
+    let fertilizationEvents: FertilizationEvent[] = [];
     let varChanges: import('../sillytavern/types').VarChange[] | undefined;
     if (isDual && effectiveApi.secondary.baseUrl && effectiveApi.secondary.apiKey) {
       setDualRunning(true);
@@ -673,10 +674,10 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
 
     if (newRealTime && newRealTime !== oldRealTime) {
-      tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false });
+      fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false }));
     }
     if (newDreamTime && newDreamTime !== oldDreamTime) {
-      tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true });
+      fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true }));
     }
     if (newRealTime !== oldRealTime || newDreamTime !== oldDreamTime) {
       snapshot = JSON.parse(JSON.stringify(nextVariables));
@@ -712,7 +713,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
     abortRef.current = null;
-    return { aborted: false, varsUpdated, patchCount, varChanges };
+    return { aborted: false, varsUpdated, patchCount, varChanges, fertilizationEvents };
   }, [activeChat, settings, parser]);
 
   const jumpToFloor = useCallback(async (messageId: string) => {

@@ -278,6 +278,13 @@ export function tickFemalePhysiology(
   }
 }
 
+// ── 受精事件 ──
+
+export interface FertilizationEvent {
+  name: string;
+  father: string;
+}
+
 // ── 批量 tick（按日迭代） ──
 
 export function tickAllFemales(
@@ -285,26 +292,28 @@ export function tickAllFemales(
   oldTime: string | null,
   newTime: string,
   opts?: { dreamOnly?: boolean },
-): void {
+): FertilizationEvent[] {
+  const events: FertilizationEvent[] = [];
   const newDate = getDatePart(newTime);
-  if (!newDate) return;
+  if (!newDate) return events;
   const oldDate = oldTime ? getDatePart(oldTime) : null;
   const dreamOnly = opts?.dreamOnly ?? false;
 
   if (!oldDate) {
-    runTickPass(variables, newDate, dreamOnly);
-    return;
+    runTickPass(variables, newDate, dreamOnly, events);
+    return events;
   }
 
   const daysPassed = daysBetween(oldDate, newDate);
-  if (daysPassed <= 0) return;
+  if (daysPassed <= 0) return events;
 
   for (let d = 1; d <= daysPassed; d++) {
-    runTickPass(variables, advanceDate(oldDate, d), dreamOnly);
+    runTickPass(variables, advanceDate(oldDate, d), dreamOnly, events);
   }
+  return events;
 }
 
-function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly: boolean): void {
+function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly: boolean, events: FertilizationEvent[]): void {
   const females = variables?.['主要人物']?.['女性'];
   if (!females) return;
 
@@ -325,7 +334,12 @@ function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly:
         data['子宫'] = createDefaultUterus('2026年03月28日', 28, 5);
       }
 
+      const oldStatus = data['子宫']?.怀孕状态?.状态;
       tickFemalePhysiology(data['子宫'], dateStr, age);
+      const newStatus = data['子宫']?.怀孕状态?.状态;
+      if (oldStatus === '未孕' && newStatus === '受精') {
+        events.push({ name: charName, father: data['子宫'].怀孕状态.父方 ?? '未知' });
+      }
     }
   }
 }

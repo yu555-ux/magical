@@ -175,6 +175,13 @@ export default function ChatPage({
           const dir = (c.delta ?? 0) > 0 ? '+' : '';
           addNotification?.('好感度变化', `${name} 好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
         }
+
+        // 受精事件通知
+        if (result.fertilizationEvents?.length) {
+          for (const ev of result.fertilizationEvents) {
+            addNotification?.('受精', `${ev.name}已受精，父方${ev.father}`, 'success');
+          }
+        }
       }
     } catch (err) {
       // API 网络错误等 → 恢复输入框
