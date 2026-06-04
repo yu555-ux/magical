@@ -96,7 +96,7 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
         {/* Settings button — same row on mobile, bottom on desktop */}
         <button
           onClick={onOpenSettings}
-          className="flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale shrink-0 md:w-full text-white/30 hover:text-white/60"
+          className="flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale shrink-0 md:w-full md:mt-auto text-white/30 hover:text-white/60"
           id="nav-settings"
         >
           <motion.div
