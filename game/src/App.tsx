@@ -116,7 +116,7 @@ export default function App() {
         <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/20 to-transparent" />
       </div>
 
-      <Sidebar activePage={activePage} setActivePage={setActivePage} onOpenSettings={() => setShowSystemSettings(true)} />
+      <Sidebar activePage={activePage} setActivePage={setActivePage} onOpenSettings={() => setShowSystemSettings(true)} isSettingsOpen={showSystemSettings} />
 
       <main className="flex-1 relative z-[60] overflow-hidden md:overflow-hidden flex flex-col">
         <AnimatePresence mode="wait">

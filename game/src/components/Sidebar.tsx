@@ -15,6 +15,7 @@ interface SidebarProps {
   activePage: PageType;
   setActivePage: (page: PageType) => void;
   onOpenSettings: () => void;
+  isSettingsOpen: boolean;
 }
 
 const navItems = [
@@ -26,7 +27,7 @@ const navItems = [
   { type: PageType.ARCHIVE, icon: FileText, label: '档案' },
 ];
 
-export default function Sidebar({ activePage, setActivePage, onOpenSettings }: SidebarProps) {
+export default function Sidebar({ activePage, setActivePage, onOpenSettings, isSettingsOpen }: SidebarProps) {
   return (
     <div className="w-full md:w-20 lg:w-24 h-14 md:h-full flex flex-row md:flex-col bg-aether-dark/80 backdrop-blur-xl border-b md:border-b-0 md:border-r border-aether-border relative z-50 shrink-0 pt-[env(safe-area-inset-top,0px)]">
       {/* Navigation */}
@@ -96,19 +97,46 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
         {/* Settings button — same row on mobile, bottom on desktop */}
         <button
           onClick={onOpenSettings}
-          className="flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale shrink-0 md:w-full md:mt-auto text-white/30 hover:text-white/60"
+          className={`flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale shrink-0 md:w-full md:mt-auto ${
+            isSettingsOpen ? 'text-aether-cyan' : 'text-white/30 hover:text-white/60'
+          }`}
           id="nav-settings"
         >
+          {/* Active indicator — same style as nav items */}
+          {isSettingsOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute z-10 left-0 md:left-0 right-0 md:right-auto bottom-0 md:top-1 md:bottom-1 h-0.5 md:h-auto md:w-0.5 bg-aether-cyan shadow-[0_0_10px_rgba(0,242,255,0.8)] rounded-t-full md:rounded-t-none md:rounded-r-full"
+            />
+          )}
+
+          {/* Active glow bg */}
+          {isSettingsOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-aether-cyan/10 to-transparent rounded-sm"
+            />
+          )}
+
           <motion.div
-            whileHover={{ scale: 1.1, rotate: 90 }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            animate={{ scale: isSettingsOpen ? 1.1 : 1 }}
+            whileHover={isSettingsOpen ? { scale: 1.15, rotate: 90 } : { scale: 1.1, rotate: 90 }}
+            transition={{ type: 'spring', damping: 15 }}
           >
             <Settings
-              size={20}
-              className="shrink-0 transition-all group-hover:drop-shadow-[0_0_3px_rgba(0,242,255,0.3)]"
+              size={isSettingsOpen ? 22 : 20}
+              className={`shrink-0 transition-all ${
+                isSettingsOpen
+                  ? 'drop-shadow-[0_0_6px_rgba(0,242,255,0.6)]'
+                  : 'group-hover:drop-shadow-[0_0_3px_rgba(0,242,255,0.3)]'
+              }`}
             />
           </motion.div>
-          <span className="hidden md:block font-display text-xs tracking-widest font-medium leading-none">
+          <span className={`hidden md:block font-display text-xs tracking-widest font-medium leading-none ${
+            isSettingsOpen ? 'cyan-glow' : ''
+          }`}>
             设置
           </span>
           <div className="absolute inset-0 bg-aether-cyan/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-sm" />
