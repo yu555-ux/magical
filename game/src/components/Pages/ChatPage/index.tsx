@@ -169,7 +169,9 @@ export default function ChatPage({
           c => c.path.endsWith('好感值') && c.category === 'numeric'
         ) ?? [];
         for (const c of affectionChanges) {
-          const name = c.path.split('/').slice(-2, -1)[0] ?? '角色';
+          const segs = c.path.split('/');
+          const idx = segs.indexOf('好感值');
+          const name = idx > 0 ? segs[idx - 1] : '角色';
           const dir = (c.delta ?? 0) > 0 ? '+' : '';
           addNotification?.('好感度变化', `${name} 好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
         }
