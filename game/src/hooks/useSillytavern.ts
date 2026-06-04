@@ -733,6 +733,13 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     if (lastUserIdx < 0) return;
     const targetIdx = chat.messages.length - 1 - lastUserIdx;
     const userText = chat.messages[targetIdx].content;
+    // 保存原始快照，用于取消时恢复
+    const backup = {
+      messages: [...chat.messages],
+      variables: chat.variables,
+      dreamAnchor: chat.dreamAnchor,
+      plotHistory: chat.plotHistory,
+    };
     // 保留最后一条 user 消息，仅删除其后的 assistant 回复
     const truncated = chat.messages.slice(0, targetIdx + 1);
     const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
@@ -743,7 +750,13 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     await db.chats.put(next);
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
     // skipUserMessage: 不追加新 user 消息，复用已有的
-    await sendGameMessage(userText, { skipUserMessage: true });
+    const result = await sendGameMessage(userText, { skipUserMessage: true });
+    // 取消重roll → 恢复原始消息、变量、锚点和剧情历史
+    if (result.aborted) {
+      const restored: ChatSession = { ...chat, messages: backup.messages, variables: backup.variables, dreamAnchor: backup.dreamAnchor, plotHistory: backup.plotHistory, updatedAt: Date.now() };
+      await db.chats.put(restored);
+      setChats(prev => prev.map(c => c.id === restored.id ? restored : c));
+    }
   }, [activeChat, sendGameMessage]);
 
   // 重写变量：保留正文，仅用第二API重新提取变量
