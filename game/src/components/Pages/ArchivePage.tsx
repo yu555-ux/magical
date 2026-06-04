@@ -140,7 +140,7 @@ export default function ArchivePage() {
   return (
     <div className="h-full flex flex-col md:flex-row relative overflow-hidden bg-aether-deep">
       {/* ==================== LEFT PANEL — Character List ==================== */}
-      <div className={`w-full md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-aether-border/30 flex flex-col bg-aether-dark/40 transition-all duration-300 ${
+      <div className={`w-full md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-aether-border/30 flex flex-col bg-aether-dark/80 backdrop-blur-sm transition-all duration-300 ${
         listOpen ? 'max-h-[40vh] md:max-h-full' : 'max-h-[48px]'
       }`}>
         <div className="px-3 md:px-4 pt-3 md:pt-5 pb-2 md:pb-3 space-y-2 md:space-y-3 shrink-0">
@@ -242,7 +242,7 @@ export default function ArchivePage() {
       </div>
 
       {/* ==================== RIGHT PANEL — Character Detail ==================== */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-aether-deep">
         <AnimatePresence mode="wait">
           {selected ? (
             <CharacterDetail key={selected.name} char={selected} />
