@@ -17,7 +17,7 @@ export default function AetherModal({ isOpen, onClose, title, children, zIndex =
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] md:top-0 flex items-center justify-center p-3 md:p-4" style={{ zIndex }}>
+      <div className="fixed inset-0 flex items-center justify-center p-3 pt-[calc(0.75rem+env(safe-area-inset-top,0px))] md:p-4" style={{ zIndex }}>
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -30,7 +30,7 @@ export default function AetherModal({ isOpen, onClose, title, children, zIndex =
           animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.94, filter: 'blur(6px)' }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-[88vw] md:w-full max-h-[calc(100vh-3.5rem-1.5rem-env(safe-area-inset-top,0px))] md:max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
+          className="relative w-[88vw] md:w-full max-h-full md:max-h-[88vh] glass-panel border-glow overflow-hidden flex flex-col
                      shadow-[0_0_80px_rgba(0,242,255,0.04),0_0_160px_rgba(0,0,0,0.6)]"
           style={{ maxWidth }}
         >

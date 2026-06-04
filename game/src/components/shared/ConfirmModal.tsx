@@ -19,7 +19,7 @@ export default function ConfirmModal({ isOpen, title, message, confirmLabel = 'ç
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] md:top-0 flex items-center justify-center p-4" style={{ zIndex: 200 }}>
+      <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 200 }}>
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

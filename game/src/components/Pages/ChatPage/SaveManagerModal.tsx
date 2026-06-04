@@ -83,7 +83,7 @@ export default function SaveManagerModal({ isOpen, onClose, addNotification }: P
     <AnimatePresence>
       {isOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-          className="fixed inset-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] md:top-0 z-[120] flex items-center justify-center bg-aether-dark/90 backdrop-blur-md" onClick={onClose}>
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-aether-dark/90 backdrop-blur-md" onClick={onClose}>
           <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }} onClick={(e) => e.stopPropagation()}
             className="glass-panel border-glow w-[360px] shadow-[0_0_40px_rgba(0,242,255,0.06)]">

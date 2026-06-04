@@ -315,7 +315,7 @@ export default function WarehousePage() {
         {realizeTarget && realizePreview && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-            className="fixed inset-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] md:top-0 z-[130] flex items-center justify-center bg-aether-dark/90 backdrop-blur-md"
+            className="fixed inset-0 z-[130] flex items-center justify-center bg-aether-dark/90 backdrop-blur-md"
             onClick={() => { setRealizeTarget(null); setRealizePreview(null); setRealizeError(''); setRealizeQty(1); }}
           >
             <motion.div
