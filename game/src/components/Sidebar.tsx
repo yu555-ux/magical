@@ -94,9 +94,10 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
         <div className="hidden md:block w-8 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/30 to-transparent mx-auto" />
 
         {/* Settings button — same row on mobile, bottom on desktop */}
-        <button
+        <motion.button
           onClick={onOpenSettings}
-          className="flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale shrink-0 md:w-full md:mt-auto text-white/30 hover:text-white/60"
+          whileTap={{ scale: 0.94 }}
+          className="flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable shrink-0 md:w-full md:mt-auto text-white/30 hover:text-white/60"
           id="nav-settings"
         >
           <motion.div
@@ -112,7 +113,7 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
             设置
           </span>
           <div className="absolute inset-0 bg-aether-cyan/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-sm" />
-        </button>
+        </motion.button>
       </nav>
 
       {/* Decorative edge line — right edge on desktop, hidden on mobile */}
