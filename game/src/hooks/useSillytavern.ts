@@ -701,16 +701,36 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     if (idx < 0) return;
     const truncated = chat.messages.slice(0, idx + 1);
     const target = truncated[truncated.length - 1];
-    const restoredVars = target?.role === 'assistant' && target.variablesAfter ? target.variablesAfter : chat.variables ?? {};
-    const restoredAnchor = target?.role === 'assistant' && target.dreamAnchorAfter ? target.dreamAnchorAfter : chat.dreamAnchor ?? {};
-    const restoredPlotHistory = target?.plotHistoryAfter ?? chat.plotHistory;
+    // 从截断后的消息中，反向查找最近的 assistant 的 variablesAfter（兼容旧存档点无此字段）
+    const lastVarsAfter = (() => {
+      for (let i = truncated.length - 1; i >= 0; i--) {
+        if (truncated[i].role === 'assistant' && truncated[i].variablesAfter) return truncated[i].variablesAfter;
+      }
+      return undefined;
+    })();
+    const restoredVars = lastVarsAfter ?? chat.variables ?? {};
+    const lastAnchorAfter = (() => {
+      for (let i = truncated.length - 1; i >= 0; i--) {
+        if (truncated[i].role === 'assistant' && truncated[i].dreamAnchorAfter) return truncated[i].dreamAnchorAfter;
+      }
+      return undefined;
+    })();
+    const restoredAnchor = lastAnchorAfter ?? chat.dreamAnchor ?? {};
+    const lastPlotAfter = (() => {
+      for (let i = truncated.length - 1; i >= 0; i--) {
+        if (truncated[i].role === 'assistant' && truncated[i].plotHistoryAfter) return truncated[i].plotHistoryAfter;
+      }
+      return undefined;
+    })();
+    const restoredPlotHistory = lastPlotAfter ?? chat.plotHistory;
     const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
     await db.chats.put(next);
     // 从 DB 重新读取全部 chats 后直接 setState，避免 updater 竞态导致 UI 不刷新
     const freshChats = await db.chats.toArray();
     setChats(freshChats);
+    parser.reset();  // 清空流式状态，让 rawMaintext 回退到 latestAssistant
     setJumpVersion(v => v + 1);  // 强制触发 ChatPage 刷新
-  }, [activeChatId]);
+  }, [activeChatId, parser]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
     const chats = await db.chats.toArray();
