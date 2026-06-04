@@ -118,7 +118,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
           className="relative w-full max-w-[900px] max-h-full glass-panel border-glow overflow-hidden flex flex-col">
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/40 to-transparent" />
 
-          <div className="flex items-center justify-between px-5 py-4 border-b border-aether-border/30 bg-aether-cyan/[0.03]">
+          <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-aether-border/30 bg-aether-cyan/[0.03]">
             <div className="flex items-center gap-3">
               <div className="relative"><div className="w-2.5 h-2.5 bg-aether-cyan rounded-full" /><div className="absolute inset-0 w-2.5 h-2.5 bg-aether-cyan rounded-full animate-ping opacity-30" /></div>
               <h2 className="font-display font-bold text-sm tracking-[0.2em] text-aether-cyan uppercase">系统设置</h2>
@@ -126,7 +126,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
             <button onClick={onClose} className="text-white/30 hover:text-aether-cyan transition-colors p-1.5"><X size={18} /></button>
           </div>
 
-          <div className="flex gap-1 px-5 py-3 border-b border-aether-border/20 bg-aether-dark/40 overflow-x-auto">
+          <div className="shrink-0 flex gap-1 px-5 py-3 border-b border-aether-border/20 bg-aether-dark/40 overflow-x-auto">
             {TABS.map((t) => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`relative flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs tracking-wider transition-all font-display whitespace-nowrap ${
@@ -153,7 +153,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
 
           <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/20 to-transparent" />
 
-          <div className="flex items-center justify-between px-5 py-3 border-t border-aether-border/30 bg-aether-dark/60">
+          <div className="shrink-0 flex items-center justify-between px-5 py-3 border-t border-aether-border/30 bg-aether-dark/60">
             <div className="text-[11px] text-white/25">{dirty ? '有未保存的修改' : '配置已是最新'}</div>
             <motion.button onClick={handleSave} disabled={!dirty} whileTap={dirty ? { scale: 0.97 } : undefined}
               className={`relative px-6 py-2 rounded font-display text-xs tracking-widest uppercase transition-all ${
