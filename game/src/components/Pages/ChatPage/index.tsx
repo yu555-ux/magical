@@ -328,7 +328,7 @@ export default function ChatPage({
 
               {/* Toggle bar */}
               <button
-                onClick={() => { setOptionsOpen(!optionsOpen); inputRef.current?.focus(); }}
+                onClick={() => setOptionsOpen(!optionsOpen)}
                 className={`w-full flex items-center justify-center h-5 transition-all duration-300 clickable border ${
                   optionsOpen
                     ? 'border-aether-cyan/50 shadow-[0_0_24px_rgba(0,242,255,0.1)] bg-aether-deep/98 backdrop-blur-xl text-aether-cyan/60 border-t-white/[0.04] rounded-b-none border-b-transparent'
