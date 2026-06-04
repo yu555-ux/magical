@@ -708,7 +708,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       }
       return undefined;
     })();
-    const restoredVars = lastVarsAfter ?? chat.variables ?? {};
+    const restoredVars = lastVarsAfter ?? JSON.parse(JSON.stringify(DEFAULT_WORLD_VARS));
     const lastAnchorAfter = (() => {
       for (let i = truncated.length - 1; i >= 0; i--) {
         if (truncated[i].role === 'assistant' && truncated[i].dreamAnchorAfter) return truncated[i].dreamAnchorAfter;
