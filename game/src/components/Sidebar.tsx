@@ -30,7 +30,7 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
   return (
     <div className="w-full md:w-20 lg:w-24 h-14 md:h-full flex flex-row md:flex-col bg-aether-dark/80 backdrop-blur-xl border-b md:border-b-0 md:border-r border-aether-border relative z-50 shrink-0 pt-[env(safe-area-inset-top,0px)]">
       {/* Navigation */}
-      <nav className="flex-1 flex flex-row md:flex-col items-center gap-0.5 md:gap-1 px-1 md:px-2 md:pt-6 overflow-x-auto md:overflow-visible scrollbar-none">
+      <nav className="flex-1 flex flex-row md:flex-col items-center gap-0.5 md:gap-1 px-1 md:px-2 md:pt-6 md:pb-6 overflow-x-auto md:overflow-visible scrollbar-none">
         {navItems.map((item) => {
           const isActive = activePage === item.type;
           return (
@@ -89,20 +89,18 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
             </button>
           );
         })}
-      </nav>
 
-      {/* Divider — hidden on mobile, visible on desktop */}
-      <div className="hidden md:block w-8 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/30 to-transparent mx-auto" />
+        {/* Divider — hidden on mobile, visible on desktop */}
+        <div className="hidden md:block w-8 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/30 to-transparent mx-auto" />
 
-      {/* Settings button — bottom on desktop, inline on mobile */}
-      <div className="pb-0 md:pb-6 px-1 md:px-2 flex-shrink-0 mt-1 md:mt-0">
+        {/* Settings button — same row on mobile, bottom on desktop */}
         <button
           onClick={onOpenSettings}
           className="flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale shrink-0 md:w-full text-white/30 hover:text-white/60"
           id="nav-settings"
         >
           <motion.div
-            whileHover={{ scale: 1.08, rotate: 90 }}
+            whileHover={{ scale: 1.1, rotate: 90 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           >
             <Settings
@@ -115,7 +113,7 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
           </span>
           <div className="absolute inset-0 bg-aether-cyan/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-sm" />
         </button>
-      </div>
+      </nav>
 
       {/* Decorative edge line — right edge on desktop, hidden on mobile */}
       <div className="hidden md:block absolute right-0 top-1/4 bottom-1/4 w-[1px] bg-gradient-to-b from-transparent via-aether-cyan/20 to-transparent" />
