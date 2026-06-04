@@ -48,7 +48,7 @@ export default function TopCenterToast() {
               transition={{ duration: 0.25, ease: 'easeOut' }}
               className={`pointer-events-auto flex items-center gap-2 md:gap-3 px-4 py-2 md:px-5 md:py-2.5 rounded-lg ${s.bg} ${s.border} border shadow-[0_0_20px_rgba(0,0,0,0.3)] backdrop-blur-sm`}
             >
-              <Icon size={14} className={`shrink-0 ${s.text} md:size-4`} />
+              <Icon className={`shrink-0 size-[14px] md:size-4 ${s.text}`} />
               <span className={`text-xs md:text-sm font-display tracking-wide ${s.text}`}>{t.message}</span>
             </motion.div>
           );
