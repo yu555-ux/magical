@@ -89,16 +89,14 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
             </button>
           );
         })}
-      </nav>
 
-      {/* Divider — hidden on mobile, visible on desktop */}
-      <div className="hidden md:block w-8 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/30 to-transparent mx-auto" />
+        {/* Divider — hidden on mobile, visible on desktop */}
+        <div className="hidden md:block w-8 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/30 to-transparent mx-auto" />
 
-      {/* Settings button — at the end on both layouts */}
-      <div className="pb-0 md:pb-6 px-1 md:px-2 flex-shrink-0">
+        {/* Settings button — same height as nav items */}
         <button
           onClick={onOpenSettings}
-          className="flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale text-white/30 hover:text-white/60 shrink-0 w-full"
+          className="flex flex-col md:flex-col items-center justify-center gap-0.5 md:gap-1.5 px-2 md:px-0 py-2 md:py-3.5 rounded-sm transition-all relative group overflow-hidden clickable press-scale shrink-0 md:w-full text-white/30 hover:text-white/60"
           id="nav-settings"
         >
           <motion.div
@@ -106,7 +104,7 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           >
             <Settings
-              size={18}
+              size={20}
               className="shrink-0 transition-all group-hover:drop-shadow-[0_0_3px_rgba(0,242,255,0.3)]"
             />
           </motion.div>
@@ -115,7 +113,7 @@ export default function Sidebar({ activePage, setActivePage, onOpenSettings }: S
           </span>
           <div className="absolute inset-0 bg-aether-cyan/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-sm" />
         </button>
-      </div>
+      </nav>
 
       {/* Decorative edge line — right edge on desktop, hidden on mobile */}
       <div className="hidden md:block absolute right-0 top-1/4 bottom-1/4 w-[1px] bg-gradient-to-b from-transparent via-aether-cyan/20 to-transparent" />
