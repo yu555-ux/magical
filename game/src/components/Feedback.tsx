@@ -28,7 +28,8 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-lg glass-panel bg-aether-dark overflow-hidden border-glow"
+            className="relative w-full max-w-lg glass-panel overflow-hidden border-glow"
+            style={{ background: 'var(--color-aether-dark)' }}
           >
             <div className="flex items-center justify-between p-4 border-b border-aether-cyan/15 bg-aether-cyan/[0.02]">
               <div className="flex items-center gap-3">
@@ -211,6 +212,7 @@ export function ConfirmDialog({ isOpen, onConfirm, onCancel, title, message, con
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="relative w-full max-w-md glass-panel border-glow p-6"
+            style={{ background: 'var(--color-aether-dark)' }}
           >
             <div className="flex items-start gap-4 mb-6">
               <div className={`p-2 rounded-full ${destructive ? 'bg-red-500/20 text-red-400' : 'bg-aether-cyan/20 text-aether-cyan'}`}>
