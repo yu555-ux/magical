@@ -13,6 +13,7 @@ import { cleanOption } from '../../../utils/string';
 import RichTextRenderer from '../../Settings/RichTextRenderer';
 import RawXmlViewerModal from './RawXmlViewerModal';
 import VariableDiffModal from './VariableDiffModal';
+import { showTopCenter } from '../../shared/TopCenterToast';
 import ContextMenu from './ContextMenu';
 import ShopBanner from './ShopBanner';
 import ShopModal from './ShopModal';
@@ -153,7 +154,7 @@ export default function ChatPage({
       if (result?.formatError) {
         // 格式错误时始终恢复输入（含选项），并通知玩家
         setInput(result.retractedText ?? msg);
-        addNotification?.('格式错误', 'AI 回复缺少必要标签，请重试', 'warning');
+        showTopCenter('AI 回复缺少必要标签，请重试', 'warning');
       }
       if (result?.varsUpdated) {
         addNotification?.('变量已更新', `第二API已更新 ${result.patchCount ?? 0} 项变量`, 'success', () => setDiffOpen(true));
@@ -171,7 +172,7 @@ export default function ChatPage({
     } catch (err) {
       // API 网络错误等 → 恢复输入框
       setInput(msg);
-      addNotification?.('发送失败', String(err), 'error');
+      showTopCenter(String(err), 'error');
     }
   }, [input, isStreaming, ss, addNotification]);
 
@@ -456,7 +457,7 @@ export default function ChatPage({
       <ShopModal
         isOpen={shopOpen}
         onClose={() => setShopOpen(false)}
-        onNotify={(msg, type) => addNotification?.('柳三娘的铺子', msg, type)}
+        onNotify={(msg, type) => showTopCenter(msg, type === 'success' ? 'success' : 'error')}
       />
 
       {/* ── Raw XML View Modal ── */}
@@ -474,24 +475,11 @@ export default function ChatPage({
           if (lastAssistant) {
             await ss.editMessage(lastAssistant.id, editedRaw);
             setRawViewOpen(false);
-            addNotification?.('已应用', '原文已修改并保存', 'success');
+            showTopCenter('原文已修改并保存', 'success');
           }
         }}
       />
 
-      {/* ── Local toast（SillyTavern hook 内部通知） ── */}
-      <AnimatePresence>
-        {ss.toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -24 }}
-            className="absolute top-4 left-1/2 -translate-x-1/2 z-[150] px-4 py-2 rounded-lg bg-aether-cyan/20 border border-aether-cyan/30 text-aether-cyan text-xs font-display tracking-wide shadow-[0_0_20px_rgba(0,242,255,0.15)] backdrop-blur-sm"
-          >
-            {ss.toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

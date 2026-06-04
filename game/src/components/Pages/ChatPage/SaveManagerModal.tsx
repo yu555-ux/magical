@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Download, Upload, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { getDatabase } from '../../../sillytavern/database';
+import { showTopCenter } from '../../shared/TopCenterToast';
 
 interface Props {
   isOpen: boolean;
@@ -58,7 +59,7 @@ export default function SaveManagerModal({ isOpen, onClose, addNotification }: P
       const ts = new Date(backup.exportedAt).toLocaleString('zh-CN');
       exportToJson(backup, `梦·异常_存档_${ts.replace(/[/:]/g, '-')}.json`);
       setStatus('done'); setStatusMsg(`存档已导出`);
-      addNotification?.('存档成功', '已导出全部数据。', 'success');
+      showTopCenter('已导出全部数据。', 'success');
       setTimeout(() => { setStatus('idle'); setStatusMsg(''); }, 3000);
     } catch (e: any) { setStatus('error'); setStatusMsg(e?.message || '导出失败'); }
     setBusy(false);
@@ -73,7 +74,7 @@ export default function SaveManagerModal({ isOpen, onClose, addNotification }: P
       setStatusMsg('正在恢复存档...');
       await importAllData(backup);
       setStatus('done'); setStatusMsg('已恢复');
-      addNotification?.('读档成功', '页面将刷新以加载新数据。', 'success');
+      showTopCenter('页面将刷新以加载新数据。', 'success');
       setTimeout(() => { window.location.reload(); }, 1500);
     } catch (e: any) { setStatus('error'); setStatusMsg(e?.message || '导入失败'); }
     setBusy(false);

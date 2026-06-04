@@ -6,6 +6,7 @@ import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
+import { showTopCenter } from '../components/shared/TopCenterToast';
 import { tickAllFemales } from '../sillytavern/physiology';
 
 const DEFAULT_OPENING = `餐桌上方的吊灯洒下暖白色的光。张云夹了一块排骨，没放进自己碗里，而是越过半个桌子，稳稳地落在了<user>的米饭上。排骨上的糖醋汁洇进白白的米粒里。
@@ -104,8 +105,6 @@ export function useSillytavern() {
   const [dualRunning, setDualRunning] = useState(false);
   const [lastRawContent, setLastRawContent] = useState(''); // 最近一轮原始输出（查看原文用）
   const [jumpVersion, setJumpVersion] = useState(0); // 每次回档+1，强制ChatPage刷新
-  const [toast, setToast] = useState<string | null>(null);
-  const showToast = useCallback((message: string) => { setToast(message); setTimeout(() => setToast(null), 2000); }, []);
   const abortRef = useRef<AbortController | null>(null);
   const dualAbortRef = useRef<AbortController | null>(null);
 
@@ -488,7 +487,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       console.warn(`[SillyTavern] 回退: ${detail}`);
       parser.reset();
       if (!skipUser) await doRetract();
-      showToast(`AI 回复无效（${detail}），已自动回退`);
+      showTopCenter(`AI 回复无效（${detail}），已自动回退`);
       return { aborted: true, retractedText: userText, formatError: true };
     }
 
@@ -588,7 +587,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
               // 第二API有返回但未能解析出有效补丁 → 通知玩家
               if (apiUsed !== 'dual' && raw.trim()) {
                 console.warn('[SillyTavern] 第二API返回无法解析:', raw.slice(0, 200));
-                showToast('第二API返回格式异常，变量未更新');
+                showTopCenter('第二API返回格式异常，变量未更新');
               }
             }
           } else {
@@ -596,7 +595,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
           }
         } catch (e) {
           console.error('[SillyTavern] 第二API失败(非致命):', e);
-          showToast('第二API调用失败，变量未更新');
+          showTopCenter('第二API调用失败，变量未更新');
         }
       }
     } else if (isDual) {
@@ -855,7 +854,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       const next: ChatSession = { ...chat, variables: nextVariables, updatedAt: Date.now() };
       await db.chats.put(next);
       setChats(prev => prev.map(c => c.id === next.id ? next : c));
-      if (varsRegenerated) showToast('变量已更新');
+      if (varsRegenerated) showTopCenter('变量已更新');
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
       console.error('[SillyTavern] 变量重写失败:', e);
@@ -927,7 +926,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     updateSettings, setChatVariables, refreshPrompt,
     streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
     abortDual: () => { dualAbortRef.current?.abort(); dualAbortRef.current = null; setDualRunning(false); },
-    dualRunning, lastRawContent, toast, showToast, jumpVersion,
+    dualRunning, lastRawContent, jumpVersion,
   };
 }
 
