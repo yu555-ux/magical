@@ -139,6 +139,7 @@ function resolveContent(content: string, presetVars: Record<string, string>, mac
     .replace(/<user>/g, macroCtx.userName)
     .replace(/\{\{char\}\}/g, macroCtx.characterName)
     .replace(/\{\{original\}\}/g, macroCtx.userInput)
+    .replace(/\{\{lastUserMessage\}\}/g, macroCtx.userInput)
     .replace(/\{\{player_description\}\}/g, macroCtx.playerDescription ?? '')
     .replace(/\{\{char_description\}\}/g, macroCtx.characterDescription ?? '')
     .replace(/\{\{MAP\}\}/g, macroCtx.mapText ?? '')
@@ -577,6 +578,7 @@ export const SUPPORTED_MACROS = [
   { name: '{{user}}', description: '用户名' },
   { name: '{{char}}', description: 'AI角色名' },
   { name: '{{original}}', description: '用户原始输入' },
+  { name: '{{lastUserMessage}}', description: '最新玩家输入（同{{original}}）' },
   { name: '{{player_description}}', description: '玩家设定（IdentityTab）' },
   { name: '{{char_description}}', description: '角色设定（IdentityTab）' },
   { name: '{{MAP}}', description: '地图上下文（自动按位置距离过滤）' },

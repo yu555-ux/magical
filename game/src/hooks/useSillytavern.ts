@@ -355,9 +355,14 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
 
     const skipUser = opts?.skipUserMessage === true;
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now() };
+    // 构建消息列表：若末位已是用户消息，则替换（去重，只保留最新玩家输入）
+    let newMessages = [...effectiveChat.messages, userMsg];
+    while (newMessages.length >= 2 && newMessages[newMessages.length - 1].role === 'user' && newMessages[newMessages.length - 2].role === 'user') {
+      newMessages = [...newMessages.slice(0, -2), newMessages[newMessages.length - 1]];
+    }
     const updatedChat: ChatSession = skipUser
       ? { ...effectiveChat, updatedAt: Date.now() }
-      : { ...effectiveChat, messages: [...effectiveChat.messages, userMsg], updatedAt: Date.now() };
+      : { ...effectiveChat, messages: newMessages, updatedAt: Date.now() };
     if (!skipUser) {
       await db.chats.put(updatedChat);
       setChats(prev => prev.map(c => c.id === updatedChat.id ? updatedChat : c));
