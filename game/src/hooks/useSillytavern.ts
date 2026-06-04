@@ -330,7 +330,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     [...DEFAULT_OPAQUE_TAGS],
   );
 
-  const sendGameMessage = useCallback(async (userText: string, opts?: { skipUserMessage?: boolean }): Promise<{ aborted: boolean; retractedText?: string; varsUpdated?: boolean; patchCount?: number; formatError?: boolean }> => {
+  const sendGameMessage = useCallback(async (userText: string, opts?: { skipUserMessage?: boolean }): Promise<{ aborted: boolean; retractedText?: string; varsUpdated?: boolean; patchCount?: number; formatError?: boolean; varChanges?: import('../sillytavern/types').VarChange[] }> => {
     if (!activeChat || !settings) return { aborted: false };
 
     // 从 DB 读取最新 chat，避免 regenerate 等操作导致的闭包过期
@@ -690,7 +690,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
     abortRef.current = null;
-    return { aborted: false, varsUpdated, patchCount };
+    return { aborted: false, varsUpdated, patchCount, varChanges };
   }, [activeChat, settings, parser]);
 
   const jumpToFloor = useCallback(async (messageId: string) => {

@@ -2,13 +2,6 @@ import { useEffect, useRef } from 'react';
 import { getDatabase } from '../sillytavern/database';
 import { getAffectionStage, type StageDef } from '../sillytavern/social-stages';
 import { pushStatus } from '../components/StatusBell';
-
-export interface ToastOptions {
-  message: string;
-  type: 'info' | 'warning' | 'error' | 'success';
-  channel: 'variable' | 'story';
-}
-
 /**
  * Polls IndexedDB every 3s, diffs female character affection values,
  * and pushes story-log notifications to both the bell and (optionally) toast.
@@ -47,7 +40,7 @@ function collectFemaleChars(vars: Record<string, any> | undefined): CharSnapshot
 
 let firstRun = true; // suppress notifications on initial load
 
-export function useGameEventMonitor(addToast?: (opts: ToastOptions) => void) {
+export function useGameEventMonitor() {
   const prevRef = useRef<Map<string, CharSnapshot>>(new Map());
 
   useEffect(() => {
@@ -88,7 +81,6 @@ export function useGameEventMonitor(addToast?: (opts: ToastOptions) => void) {
               source: '好感变化',
               channel: 'story',
             });
-            addToast?.({ message: `${cur.name}  ${msg}`, type: 'success', channel: 'story' });
           }
 
           // ── Stage changed (threshold crossed) ──
@@ -101,7 +93,6 @@ export function useGameEventMonitor(addToast?: (opts: ToastOptions) => void) {
               source: '阶段突破',
               channel: 'story',
             });
-            addToast?.({ message: `${cur.name}  ${msg}`, type: 'info', channel: 'story' });
           }
 
           // Update snapshot

@@ -157,6 +157,16 @@ export default function ChatPage({
       }
       if (result?.varsUpdated) {
         addNotification?.('变量已更新', `第二API已更新 ${result.patchCount ?? 0} 项变量`, 'success', () => setDiffOpen(true));
+
+        // 从变量变更中检测好感度变化
+        const affectionChanges = result.varChanges?.filter(
+          c => c.path.endsWith('好感值') && c.category === 'numeric'
+        ) ?? [];
+        for (const c of affectionChanges) {
+          const name = c.path.split('/').slice(-2, -1)[0] ?? '角色';
+          const dir = (c.delta ?? 0) > 0 ? '+' : '';
+          addNotification?.('好感度变化', `${name} 好感度 ${dir}${c.delta}  (${c.oldValue} → ${c.newValue})`, 'success');
+        }
       }
     } catch (err) {
       // API 网络错误等 → 恢复输入框

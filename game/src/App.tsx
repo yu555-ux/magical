@@ -14,7 +14,7 @@ import { PageType } from './types';
 import { Toast } from './components/Feedback';
 import { SillytavernProvider } from './hooks/SillytavernContext';
 import { useKeyboardAware } from './hooks/useKeyboardAware';
-import { useGameEventMonitor, type ToastOptions } from './hooks/useGameEventMonitor';
+import { useGameEventMonitor } from './hooks/useGameEventMonitor';
 
 type ToastItem = { id: string; message: string; type: 'info' | 'warning' | 'error' | 'success'; channel?: 'variable' | 'story'; onClick?: () => void };
 
@@ -80,10 +80,8 @@ export default function App() {
     pushStatus({ title, message, type: bellType, source: '游戏', onClick });
   }, [addToast]);
 
-  // ── Game event monitor: affection changes → bell + toast ──
-  useGameEventMonitor((opts: ToastOptions) => {
-    addToast(opts.message, opts.type, opts.channel);
-  });
+  // ── Game event monitor: affection/stage changes → bell (剧情 tab) ──
+  useGameEventMonitor();
 
   const renderPage = () => {
     switch (activePage) {
