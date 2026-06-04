@@ -115,7 +115,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
           className="absolute inset-0 bg-aether-dark/90 backdrop-blur-md" />
         <motion.div initial={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }} animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
           exit={{ opacity: 0, scale: 0.95, filter: 'blur(4px)' }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-[900px] max-h-full glass-panel border-glow overflow-hidden flex flex-col">
+          className="relative w-full max-w-[900px] max-h-full md:h-[75vh] glass-panel border-glow overflow-hidden flex flex-col">
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/40 to-transparent" />
 
           <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-aether-border/30 bg-aether-cyan/[0.03]">
@@ -135,7 +135,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto select-none">
             <AnimatePresence mode="wait">
               <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
                 {tab === 'api' && draft && (
