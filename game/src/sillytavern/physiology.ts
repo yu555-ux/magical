@@ -14,7 +14,7 @@ interface ParsedDate {
   day: number;
 }
 
-export function parseWorldTime(time: string) {
+export function parseWorldTime(time: string): ParsedTime | null {
   const m = time.match(WORLD_TIME_RE);
   if (!m) return null;
   return {
@@ -63,10 +63,7 @@ export function getDatePart(worldTime: string): string {
   return formatDate(t.year, t.month, t.day);
 }
 
-export function hoursBetween(
-  a: { year: number; month: number; day: number; hour: number; minute: number },
-  b: { year: number; month: number; day: number; hour: number; minute: number },
-): number {
+export function hoursBetween(a: ParsedTime, b: ParsedTime): number {
   const timeA = new Date(a.year, a.month - 1, a.day, a.hour, a.minute).getTime();
   const timeB = new Date(b.year, b.month - 1, b.day, b.hour, b.minute).getTime();
   return (timeB - timeA) / 3600000;
@@ -180,10 +177,10 @@ export function createDefaultUterus(
 export interface FertilizationResult {
   name: string;
   father: string | null;
-  probability: number;    // 折算后的实际概率
-  dailyProb: number;      // 日概率（未折算）
+  dailyProb: number;      // 判定使用的日概率（不再缩放）
   rolled: number;
   success: boolean;
+  trigger: 'fresh' | 'daily';  // 触发原因：新鲜注入 | 日期翻篇
   hoursPassed: number;
   cycleDay: number;
   dateCoeff: number;
@@ -193,12 +190,22 @@ export interface FertilizationResult {
   phase: Phase;
 }
 
+/** parseWorldTime 的返回类型 */
+export type ParsedTime = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+};
+
 export function tickFemalePhysiology(
   uterus: Uterus,
   worldDate: string,
   age: number,
   hoursPassed: number,
   dateChanged: boolean,
+  prevInjTime: string | null,
 ): FertilizationResult | null {
   // 1. 生理周期（仅日期变化且未孕时运行）
   if (dateChanged && uterus.怀孕状态.状态 === '未孕') {
@@ -228,30 +235,34 @@ export function tickFemalePhysiology(
     }
   }
 
-  // 3. 受精判定（每次时间推进都判定，概率按小时比例缩放）
+  // 3. 受精判定（事件驱动：注入时间变化时 + 每日翻篇时，各判定一次）
+  // 使用完整日概率，不按小时缩放。
+  // 受孕是伯努利试验（事件概率），不是泊松过程（风险率）。
   let result: FertilizationResult | null = null;
-  if (
+  // 新精液注入的判断：注入时间发生变化（包括从 null 变为有值）
+  const isFreshInjection = semen.注入时间 !== null && semen.注入时间 !== prevInjTime;
+  const shouldRoll =
     uterus.怀孕状态.状态 === '未孕' &&
     semen.总量 > 0 &&
     isOvulation(uterus.生理周期.当前阶段) &&
-    hoursPassed > 0
-  ) {
+    (dateChanged || isFreshInjection);
+
+  if (shouldRoll) {
     const daysSince = daysBetween(uterus.生理周期.上次经期日, worldDate);
     const currentDay = (daysSince % uterus.生理周期.周期天数) + 1;
     const dc = dateCoefficient(currentDay);
     const ac = ageCoefficient(age);
     const sc = semenCoefficient(semen.总量);
-    const dailyProb = dc * ac * sc;
-    const scaledProb = dailyProb * (hoursPassed / 24);
+    const prob = dc * ac * sc;       // 完整日概率，不缩放
     const rolled = Math.random();
 
     result = {
       name: '', // 由调用方填入
       father: semen.来源,
-      probability: scaledProb,
-      dailyProb,
+      dailyProb: prob,
       rolled,
-      success: rolled < scaledProb,
+      success: rolled < prob,
+      trigger: isFreshInjection ? 'fresh' : 'daily',
       hoursPassed,
       cycleDay: currentDay,
       dateCoeff: dc,
@@ -332,7 +343,7 @@ export function tickAllFemales(
   const daysPassed = dateChanged ? daysBetween(oldDate!, newDate) : 0;
 
   if (daysPassed > 1) {
-    // 跨多天：逐日迭代，每天 24h
+    // 跨多天：逐日迭代，每天 24h，每天 dateChanged=true
     for (let d = 1; d <= daysPassed; d++) {
       runTickPass(variables, advanceDate(oldDate!, d), dreamOnly, 24, true, results);
     }
@@ -371,7 +382,12 @@ function runTickPass(
         data['子宫'] = createDefaultUterus('2026年03月28日', 28, 5);
       }
 
-      const fr = tickFemalePhysiology(data['子宫'], dateStr, age, hoursPassed, dateChanged);
+      // 记录本次 tick 前的注入时间，用于检测 AI 是否写入了新精液
+      const prevInjTime: string | null = data['子宫'].宫内精液?.注入时间 ?? null;
+
+      const fr = tickFemalePhysiology(
+        data['子宫'], dateStr, age, hoursPassed, dateChanged, prevInjTime,
+      );
       if (fr) {
         fr.name = charName;
         results.push(fr);

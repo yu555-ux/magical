@@ -177,15 +177,15 @@ export default function ChatPage({
           addNotification?.('好感度变化', `${name}好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
         }
 
-        // 受孕判定通知（每次时间推进都展示骰子+计算过程）
+        // 受孕判定通知（事件驱动：新鲜注入时 + 每日翻篇时）
         if (result.fertilizationEvents?.length) {
           for (const ev of result.fertilizationEvents) {
             const dp = (ev.dailyProb * 100).toFixed(2);
-            const sp = (ev.probability * 100).toFixed(2);
             const dice = ev.rolled.toFixed(3);
+            const triggerLabel = ev.trigger === 'fresh' ? '🆕新鲜注入' : '📅日期翻篇';
             const lines = [
               `周期D${ev.cycleDay}·${ev.phase} | 精液${ev.semenVolume}ml`,
-              `${ev.dateCoeff}×${ev.ageCoeff}×${ev.semenCoeff}=${dp}%/日 ×${ev.hoursPassed.toFixed(1)}h→${sp}%`,
+              `${ev.dateCoeff}×${ev.ageCoeff}×${ev.semenCoeff}=${dp}%  ${triggerLabel}`,
               `骰子${dice} ${ev.success ? '✅命中' : '❌未命中'}`,
             ];
             addNotification?.('🎲 受孕', lines.join('\n'), ev.success ? 'success' : 'info', undefined, 'story');
@@ -489,15 +489,15 @@ export default function ChatPage({
               addNotification?.('好感度变化', `${name}好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
             }
 
-            // 受孕判定通知
+            // 受孕判定通知（事件驱动：新鲜注入时 + 每日翻篇时）
             if (result.fertilizationEvents?.length) {
               for (const ev of result.fertilizationEvents) {
                 const dp = (ev.dailyProb * 100).toFixed(2);
-                const sp = (ev.probability * 100).toFixed(2);
                 const dice = ev.rolled.toFixed(3);
+                const triggerLabel = ev.trigger === 'fresh' ? '🆕新鲜注入' : '📅日期翻篇';
                 const lines = [
                   `周期D${ev.cycleDay}·${ev.phase} | 精液${ev.semenVolume}ml`,
-                  `${ev.dateCoeff}×${ev.ageCoeff}×${ev.semenCoeff}=${dp}%/日 ×${ev.hoursPassed.toFixed(1)}h→${sp}%`,
+                  `${ev.dateCoeff}×${ev.ageCoeff}×${ev.semenCoeff}=${dp}%  ${triggerLabel}`,
                   `骰子${dice} ${ev.success ? '✅命中' : '❌未命中'}`,
                 ];
                 addNotification?.('🎲 受孕', lines.join('\n'), ev.success ? 'success' : 'info', undefined, 'story');
