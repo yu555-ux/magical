@@ -25,8 +25,17 @@ export default function PromptBlockPool({ blocks, onNew, onImport, onExport, onR
         showTopCenter('未识别到任何预设词块', 'error');
         return;
       }
-      onImport(result.blocks, result.params, result.name || file.name.replace(/\.json$/i, ''));
-      showTopCenter(`已导入「${result.name || file.name}」: ${result.blocks.length} 个词块`, 'success');
+      // 过滤 ST 内部块
+      const ST_INTERNAL_IDS = new Set([
+        'SPresetSettings', 'nsfw', 'jailbreak', 'enhanceDefinitions',
+      ]);
+      const ST_INTERNAL_NAME_RE = /^(main\s*prompt|auxiliary|post[.\-\s]history|neutralize|impersonation|new[.\-\s]chat|group[.\-\s]chat|example[.\-\s]chat|continue[.\-\s]nudge|group[.\-\s]nudge|wi[.\-\s]format|scenario[.\-\s]format|personality[.\-\s]format|send[.\-\s]if[.\-\s]empty|bias[.\-\s]preset)$/i;
+      const filtered = result.blocks
+        .filter(b => !ST_INTERNAL_IDS.has(b.identifier))
+        .filter(b => !ST_INTERNAL_NAME_RE.test(b.name?.trim() ?? ''));
+      const skipped = result.blocks.length - filtered.length;
+      onImport(filtered, result.params, result.name || file.name.replace(/\.json$/i, ''));
+      showTopCenter(`已导入「${result.name || file.name}」: ${filtered.length} 个词块${skipped > 0 ? `（已跳过${skipped}个内部块）` : ''}`, 'success');
     } catch (err: any) {
       showTopCenter(`导入失败: ${err?.message || '无法解析'}`, 'error');
     }

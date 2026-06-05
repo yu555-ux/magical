@@ -147,19 +147,24 @@ export default function PromptManagerRoot({ draft, setDraft, onPersist }: Prompt
         return;
       }
       const isVarsImport = presetFilter === 'vars';
-      // 类型特有过滤
-      // SPresetSettings 对任何类型都无用（ST正则扩展配置）
+
+      // ST 内部块标识符（两种预设都不需要）
+      const ST_INTERNAL_IDS = new Set([
+        'SPresetSettings', 'nsfw', 'jailbreak', 'enhanceDefinitions',
+      ]);
+      // ST 内部块名称模式（如 "Main Prompt"、"Auxiliary Prompt"）
+      const ST_INTERNAL_NAME_RE = /^(main\s*prompt|auxiliary|post[.\-\s]history|neutralize|impersonation|new[.\-\s]chat|group[.\-\s]chat|example[.\-\s]chat|continue[.\-\s]nudge|group[.\-\s]nudge|wi[.\-\s]format|scenario[.\-\s]format|personality[.\-\s]format|send[.\-\s]if[.\-\s]empty|bias[.\-\s]preset)$/i;
+
       const filteredBlocks = result.blocks
-        .filter(b => b.identifier !== 'SPresetSettings')
+        .filter(b => !ST_INTERNAL_IDS.has(b.identifier))
+        .filter(b => !ST_INTERNAL_NAME_RE.test(b.name?.trim() ?? ''))
         .filter(b => {
           if (isVarsImport) {
-            // 变量预设：排除ST内部块（marker/空内容/系统关键词）
+            // 变量预设额外过滤：排除 marker 块和空内容块
             if (b.marker) return false;
             if (!b.content?.trim()) return false;
-            if (['nsfw', 'jailbreak', 'enhanceDefinitions'].includes(b.identifier)) return false;
-            if (/main|prompt|auxiliary|post.history/i.test(b.name)) return false;
           }
-          // 剧情预设：全部保留（marker块、空内容块都是合法结构）
+          // 剧情预设：marker 块和空内容块是合法结构，保留
           return true;
         });
       const newPreset: SavedPreset = {
