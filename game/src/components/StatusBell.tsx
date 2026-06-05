@@ -274,7 +274,7 @@ export default function StatusBell() {
                                 {e.title}
                               </p>
                             </div>
-                            <p className={`text-[9px] md:text-[10px] leading-relaxed mt-0.5 ${
+                            <p className={`text-[9px] md:text-[10px] leading-relaxed mt-0.5 whitespace-pre-line ${
                               isVariable ? 'font-mono text-white/30' : 'text-white/35'
                             }`}>
                               {e.message}

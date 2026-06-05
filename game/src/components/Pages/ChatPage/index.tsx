@@ -177,16 +177,18 @@ export default function ChatPage({
           addNotification?.('好感度变化', `${name}好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
         }
 
-        // 受孕判定通知（每次时间推进都展示骰子）
+        // 受孕判定通知（每次时间推进都展示骰子+计算过程）
         if (result.fertilizationEvents?.length) {
           for (const ev of result.fertilizationEvents) {
-            const pct = (ev.probability * 100).toFixed(1);
+            const dp = (ev.dailyProb * 100).toFixed(2);
+            const sp = (ev.probability * 100).toFixed(2);
             const dice = ev.rolled.toFixed(3);
-            if (ev.success) {
-              addNotification?.('🎲 受孕', `${ev.name} 概率${pct}% 骰子${dice} ✅命中！父方${ev.father}`, 'success', undefined, 'story');
-            } else {
-              addNotification?.('🎲 受孕', `${ev.name} 概率${pct}% 骰子${dice} ❌未命中`, 'info', undefined, 'story');
-            }
+            const lines = [
+              `周期D${ev.cycleDay}·${ev.phase} | 精液${ev.semenVolume}ml`,
+              `${ev.dateCoeff}×${ev.ageCoeff}×${ev.semenCoeff}=${dp}%/日 ×${ev.hoursPassed.toFixed(1)}h→${sp}%`,
+              `骰子${dice} ${ev.success ? '✅命中' : '❌未命中'}`,
+            ];
+            addNotification?.('🎲 受孕', lines.join('\n'), ev.success ? 'success' : 'info', undefined, 'story');
           }
         }
       }
@@ -490,13 +492,15 @@ export default function ChatPage({
             // 受孕判定通知
             if (result.fertilizationEvents?.length) {
               for (const ev of result.fertilizationEvents) {
-                const pct = (ev.probability * 100).toFixed(1);
+                const dp = (ev.dailyProb * 100).toFixed(2);
+                const sp = (ev.probability * 100).toFixed(2);
                 const dice = ev.rolled.toFixed(3);
-                if (ev.success) {
-                  addNotification?.('🎲 受孕', `${ev.name} 概率${pct}% 骰子${dice} ✅命中！父方${ev.father}`, 'success', undefined, 'story');
-                } else {
-                  addNotification?.('🎲 受孕', `${ev.name} 概率${pct}% 骰子${dice} ❌未命中`, 'info', undefined, 'story');
-                }
+                const lines = [
+                  `周期D${ev.cycleDay}·${ev.phase} | 精液${ev.semenVolume}ml`,
+                  `${ev.dateCoeff}×${ev.ageCoeff}×${ev.semenCoeff}=${dp}%/日 ×${ev.hoursPassed.toFixed(1)}h→${sp}%`,
+                  `骰子${dice} ${ev.success ? '✅命中' : '❌未命中'}`,
+                ];
+                addNotification?.('🎲 受孕', lines.join('\n'), ev.success ? 'success' : 'info', undefined, 'story');
               }
             }
           }

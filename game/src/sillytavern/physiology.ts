@@ -180,9 +180,17 @@ export function createDefaultUterus(
 export interface FertilizationResult {
   name: string;
   father: string | null;
-  probability: number;
+  probability: number;    // 折算后的实际概率
+  dailyProb: number;      // 日概率（未折算）
   rolled: number;
   success: boolean;
+  hoursPassed: number;
+  cycleDay: number;
+  dateCoeff: number;
+  ageCoeff: number;
+  semenCoeff: number;
+  semenVolume: number;
+  phase: Phase;
 }
 
 export function tickFemalePhysiology(
@@ -230,7 +238,10 @@ export function tickFemalePhysiology(
   ) {
     const daysSince = daysBetween(uterus.生理周期.上次经期日, worldDate);
     const currentDay = (daysSince % uterus.生理周期.周期天数) + 1;
-    const dailyProb = dateCoefficient(currentDay) * ageCoefficient(age) * semenCoefficient(semen.总量);
+    const dc = dateCoefficient(currentDay);
+    const ac = ageCoefficient(age);
+    const sc = semenCoefficient(semen.总量);
+    const dailyProb = dc * ac * sc;
     const scaledProb = dailyProb * (hoursPassed / 24);
     const rolled = Math.random();
 
@@ -238,8 +249,16 @@ export function tickFemalePhysiology(
       name: '', // 由调用方填入
       father: semen.来源,
       probability: scaledProb,
+      dailyProb,
       rolled,
       success: rolled < scaledProb,
+      hoursPassed,
+      cycleDay: currentDay,
+      dateCoeff: dc,
+      ageCoeff: ac,
+      semenCoeff: sc,
+      semenVolume: semen.总量,
+      phase: uterus.生理周期.当前阶段,
     };
 
     if (result.success) {

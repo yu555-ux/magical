@@ -105,7 +105,7 @@ export function Toast({ message, type, onClose, onClick, channel = 'variable' }:
       )}
 
       {type !== 'error' && <span className="shrink-0">{icons[type]}</span>}
-      <div className={`flex-1 text-sm tracking-wider ${isStory ? 'font-display' : 'font-mono'}`}>
+      <div className={`flex-1 text-sm tracking-wider whitespace-pre-line ${isStory ? 'font-display' : 'font-mono'}`}>
         {type !== 'error' && (
           <span className={`font-bold mr-2 uppercase text-[10px] opacity-70 ${isStory ? 'font-display' : 'font-mono'}`}>
             [{type}]
