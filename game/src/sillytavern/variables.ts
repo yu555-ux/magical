@@ -20,7 +20,33 @@ function treeFormat(obj: Record<string, any>, lines: string[], depth: number) {
       lines.push(`${indent}${key}:`);
       treeFormat(value, lines, depth + 1);
     } else if (Array.isArray(value)) {
-      lines.push(`${indent}${key}: [${value.join(', ')}]`);
+      if (value.length === 0) {
+        lines.push(`${indent}${key}: []`);
+      } else if (typeof value[0] === 'object' && value[0] !== null) {
+        lines.push(`${indent}${key}:`);
+        for (const item of value) {
+          if (typeof item === 'object' && item !== null) {
+            // 字段排序：来源、容量、注入时间 优先
+            const entryOrder = ['来源', '容量', '注入时间'];
+            const sorted: Record<string, any> = {};
+            for (const ek of entryOrder) { if (ek in item) sorted[ek] = item[ek]; }
+            for (const ek of Object.keys(item).sort()) { if (!(ek in sorted)) sorted[ek] = item[ek]; }
+            const nestedLines: string[] = [];
+            treeFormat(sorted, nestedLines, depth + 2);
+            for (let i = 0; i < nestedLines.length; i++) {
+              if (i === 0) {
+                lines.push(`${indent}  - ${nestedLines[i].trimStart()}`);
+              } else {
+                lines.push(nestedLines[i]);
+              }
+            }
+          } else {
+            lines.push(`${indent}  - ${item}`);
+          }
+        }
+      } else {
+        lines.push(`${indent}${key}: [${value.join(', ')}]`);
+      }
     } else {
       lines.push(`${indent}${key}: ${value}`);
     }
