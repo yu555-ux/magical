@@ -13,14 +13,30 @@ export function formatVariablesForPrompt(variables: Record<string, any>): string
   return lines.join('\n');
 }
 
+function isObj(v: any): v is Record<string, any> {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
 function treeFormat(obj: Record<string, any>, lines: string[], depth: number) {
   const indent = '  '.repeat(depth);
   for (const [key, value] of Object.entries(obj)) {
-    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    if (isObj(value)) {
       lines.push(`${indent}${key}:`);
       treeFormat(value, lines, depth + 1);
     } else if (Array.isArray(value)) {
-      lines.push(`${indent}${key}: [${value.join(', ')}]`);
+      if (value.length > 0 && isObj(value[0])) {
+        // 对象数组：逐条展示结构
+        for (const item of value) {
+          if (!isObj(item)) continue;
+          const flat = Object.entries(item)
+            .map(([k, v]) => `${k}: ${isObj(v) || Array.isArray(v) ? JSON.stringify(v) : v}`)
+            .join(', ');
+          lines.push(`${indent}${key}:`);
+          lines.push(`${indent}  - ${flat}`);
+        }
+      } else {
+        lines.push(`${indent}${key}: [${value.join(', ')}]`);
+      }
     } else {
       lines.push(`${indent}${key}: ${value}`);
     }
@@ -112,7 +128,13 @@ function varsListWalk(obj: Record<string, any>, lines: string[], depth: number):
     if (value === null) {
       lines.push(`${indent}${key}: null`);
     } else if (Array.isArray(value)) {
-      lines.push(`${indent}${key}: string[]`);
+      if (value.length > 0 && isObj(value[0])) {
+        // 对象数组：展开内部结构
+        lines.push(`${indent}${key}:`);
+        varsListWalk(value[0], lines, depth + 1);
+      } else {
+        lines.push(`${indent}${key}: ${leafType(value)}[]`);
+      }
     } else if (typeof value === 'object') {
       const visibleKeys = Object.keys(value).filter(k => !SKIP_INTERNAL.has(k));
       if (visibleKeys.length === 0) {
