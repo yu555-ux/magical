@@ -674,10 +674,10 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
 
     if (newRealTime && newRealTime !== oldRealTime) {
-      fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false }));
+      fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false, prevVariables: preVars }));
     }
     if (newDreamTime && newDreamTime !== oldDreamTime) {
-      fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true }));
+      fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true, prevVariables: preVars }));
     }
     if (newRealTime !== oldRealTime || newDreamTime !== oldDreamTime) {
       snapshot = JSON.parse(JSON.stringify(nextVariables));
@@ -930,10 +930,10 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
       const fertilizationEvents: FertilizationResult[] = [];
       if (newRealTime && newRealTime !== oldRealTime) {
-        fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false }));
+        fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false, prevVariables: preVars }));
       }
       if (newDreamTime && newDreamTime !== oldDreamTime) {
-        fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true }));
+        fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true, prevVariables: preVars }));
       }
 
       // 更新查看原文：构建带标签结构的显示内容

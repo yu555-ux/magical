@@ -320,7 +320,7 @@ export function tickAllFemales(
   variables: Record<string, any>,
   oldTime: string | null,
   newTime: string,
-  opts?: { dreamOnly?: boolean },
+  opts?: { dreamOnly?: boolean; prevVariables?: Record<string, any> },
 ): FertilizationResult[] {
   const results: FertilizationResult[] = [];
   const newParsed = parseWorldTime(newTime);
@@ -329,10 +329,11 @@ export function tickAllFemales(
   const oldParsed = oldTime ? parseWorldTime(oldTime) : null;
   const oldDate = oldParsed ? formatDate(oldParsed.year, oldParsed.month, oldParsed.day) : null;
   const dreamOnly = opts?.dreamOnly ?? false;
+  const prevVariables = opts?.prevVariables;
 
   if (!oldParsed) {
     // 首次 tick：仅初始化周期，不衰减不判定
-    runTickPass(variables, newDate, dreamOnly, 0, false, results);
+    runTickPass(variables, newDate, dreamOnly, 0, false, results, null);
     return results;
   }
 
@@ -345,11 +346,11 @@ export function tickAllFemales(
   if (daysPassed > 1) {
     // 跨多天：逐日迭代，每天 24h，每天 dateChanged=true
     for (let d = 1; d <= daysPassed; d++) {
-      runTickPass(variables, advanceDate(oldDate!, d), dreamOnly, 24, true, results);
+      runTickPass(variables, advanceDate(oldDate!, d), dreamOnly, 24, true, results, null);
     }
   } else {
     // 同一天或跨 1 天：按实际小时数
-    runTickPass(variables, newDate, dreamOnly, hoursPassed, dateChanged, results);
+    runTickPass(variables, newDate, dreamOnly, hoursPassed, dateChanged, results, prevVariables);
   }
   return results;
 }
@@ -361,6 +362,7 @@ function runTickPass(
   hoursPassed: number,
   dateChanged: boolean,
   results: FertilizationResult[],
+  prevVariables: Record<string, any> | null,
 ): void {
   const females = variables?.['主要人物']?.['女性'];
   if (!females) return;
@@ -368,6 +370,7 @@ function runTickPass(
   for (const group of ['异人', '普通人']) {
     const chars = females[group];
     if (!chars || typeof chars !== 'object') continue;
+    const prevChars = prevVariables?.['主要人物']?.['女性']?.[group];
     for (const charName of Object.keys(chars)) {
       const data = chars[charName];
       if (!data || typeof data !== 'object') continue;
@@ -382,8 +385,12 @@ function runTickPass(
         data['子宫'] = createDefaultUterus('2026年03月28日', 28, 5);
       }
 
-      // 记录本次 tick 前的注入时间，用于检测 AI 是否写入了新精液
-      const prevInjTime: string | null = data['子宫'].宫内精液?.注入时间 ?? null;
+      // 从 AI 合并前的快照读取旧注入时间，避免被 semenPatches 重写覆盖
+      const prevData = prevChars?.[charName];
+      const prevInjTime: string | null =
+        (prevData && typeof prevData === 'object'
+          ? prevData['子宫']?.['宫内精液']?.['注入时间']
+          : null) ?? null;
 
       const fr = tickFemalePhysiology(
         data['子宫'], dateStr, age, hoursPassed, dateChanged, prevInjTime,
