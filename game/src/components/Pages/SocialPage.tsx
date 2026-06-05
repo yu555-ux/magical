@@ -90,7 +90,7 @@ export default function SocialPage() {
   // ── Layout ──
   const cx = graphBounds.width / 2;
   const cy = graphBounds.height / 2;
-  const orbitR = Math.min(graphBounds.width, graphBounds.height) * (graphBounds.width < 768 ? 0.36 : 0.30);
+  const orbitR = Math.min(graphBounds.width, graphBounds.height) * (graphBounds.width < 768 ? 0.44 : 0.30);
 
   const nodesWithPositions = useMemo((): LiveNode[] => {
     // Mutual filter: must be in 主角.社交 AND have {{user}} in their 社交圈
@@ -107,9 +107,11 @@ export default function SocialPage() {
       // Affection/friendliness drives both distance and size
       const profile = findCharProfile(charData, name);
       const aff = profile ? (profile.好感值 ?? profile.友善值 ?? 0) : 0;
-      const distFactor = 1.6 - ((aff + 200) / 400) * 1.0;
-      const r = orbitR * distFactor;
       const isMobile = graphBounds.width < 768;
+      const distFactor = isMobile
+        ? 1.8 - ((aff + 200) / 400) * 0.7   // mobile: 1.1~1.8 节点离中心更远
+        : 1.6 - ((aff + 200) / 400) * 1.0;  // desktop: 0.6~1.6
+      const r = orbitR * distFactor;
       const baseSize = isMobile ? 26 : 44;
       const sizeRange = isMobile ? 0.3 : 0.4;
       const sizeScale = isMobile ? 0.25 : 0.3;

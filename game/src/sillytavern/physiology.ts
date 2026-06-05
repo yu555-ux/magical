@@ -246,7 +246,6 @@ export function tickFemalePhysiology(
     const prob = dateCoefficient(currentDay) * ageCoefficient(age) * semenCoefficient(semen.总量);
 
     if (Math.random() < prob) {
-      console.log(`[生理tick] 🎲 受精判定通过！概率=${(prob*100).toFixed(1)}%`);
       uterus.怀孕状态.状态 = '受精';
       uterus.怀孕状态.受孕日期 = worldDate;
       uterus.怀孕状态.父方 = semen.来源;
@@ -301,21 +300,17 @@ export function tickAllFemales(
 ): FertilizationEvent[] {
   const events: FertilizationEvent[] = [];
   const newDate = getDatePart(newTime);
-  if (!newDate) { console.log('[生理tick] 跳过：无法解析新时间', newTime); return events; }
+  if (!newDate) return events;
   const oldDate = oldTime ? getDatePart(oldTime) : null;
   const dreamOnly = opts?.dreamOnly ?? false;
-  console.log(`[生理tick] dreamOnly=${dreamOnly} old=${oldDate || '(首次)'} new=${newDate}`);
 
   if (!oldDate) {
-    console.log('[生理tick] 首次tick，执行全量');
     runTickPass(variables, newDate, dreamOnly, events);
-    console.log(`[生理tick] 完成，受精事件=${events.length}`);
     return events;
   }
 
   const daysPassed = daysBetween(oldDate, newDate);
-  if (daysPassed <= 0) { console.log(`[生理tick] 跳过：天数未增加 daysPassed=${daysPassed}`); return events; }
-  console.log(`[生理tick] 跨${daysPassed}天，逐日迭代`);
+  if (daysPassed <= 0) return events;
 
   for (let d = 1; d <= daysPassed; d++) {
     const prevDate = d === 1 ? oldDate! : advanceDate(oldDate, d - 1);
@@ -326,8 +321,7 @@ export function tickAllFemales(
 
 function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly: boolean, events: FertilizationEvent[], prevDate?: string): void {
   const females = variables?.['主要人物']?.['女性'];
-  if (!females) { console.log('[生理tick] 跳过：variables中没有主要人物.女性'); return; }
-  let tickedCount = 0;
+  if (!females) return;
 
   for (const group of ['异人', '普通人']) {
     const chars = females[group];
@@ -348,13 +342,10 @@ function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly:
 
       const oldStatus = data['子宫']?.怀孕状态?.状态;
       tickFemalePhysiology(data['子宫'], dateStr, age, prevDate);
-      tickedCount++;
       const newStatus = data['子宫']?.怀孕状态?.状态;
       if (oldStatus === '未孕' && newStatus === '受精') {
-        console.log(`[生理tick] 🔥 受精！${charName} 父方=${data['子宫'].怀孕状态.父方}`);
         events.push({ name: charName, father: data['子宫'].怀孕状态.父方 ?? '未知' });
       }
     }
   }
-  if (tickedCount > 0) console.log(`[生理tick] 日期=${dateStr} tick了${tickedCount}个角色`);
 }
