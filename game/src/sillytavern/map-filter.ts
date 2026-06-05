@@ -351,8 +351,20 @@ export function formatMap(tree: Record<string, any>, indentLevel: number = 0): s
       output += `${indent}${key}:\n`;
       for (const item of value) {
         if (typeof item === 'object' && item !== null) {
-          const nested = formatMap(item, indentLevel + 1);
-          if (nested) output += `${indent}  - ${nested.trimStart()}`;
+          // 字段排序：来源、容量、注入时间 优先，其余按字母序
+          const entryOrder = ['来源', '容量', '注入时间'];
+          const sortedItem: Record<string, any> = {};
+          for (const ek of entryOrder) { if (ek in item) sortedItem[ek] = item[ek]; }
+          for (const ek of Object.keys(item).sort()) { if (!(ek in sortedItem)) sortedItem[ek] = item[ek]; }
+          const nested = formatMap(sortedItem, indentLevel + 2);
+          if (nested) {
+            const nl = nested.indexOf('\n');
+            if (nl >= 0) {
+              output += `${indent}  - ${nested.substring(0, nl).trimStart()}\n${nested.substring(nl + 1)}`;
+            } else {
+              output += `${indent}  - ${nested.trimStart()}\n`;
+            }
+          }
         } else {
           output += `${indent}  - ${item}\n`;
         }
