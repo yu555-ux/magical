@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Sidebar from './components/Sidebar';
 import ChatPage from './components/Pages/ChatPage';
@@ -72,8 +72,11 @@ export default function App() {
     };
   }, []);
 
+  const toastCountRef = useRef(0);
   const addToast = useCallback((message: string, type: 'info' | 'warning' | 'success' | 'error', channel?: 'variable' | 'story', onClick?: () => void) => {
     const id = Math.random().toString(36).substr(2, 9);
+    toastCountRef.current += 1;
+    console.log(`🔔 [TOAST #${toastCountRef.current}] [${type}] ${message.slice(0, 50)}`);
     setToasts((prev) => [...prev, { id, message, type, channel, onClick }]);
   }, []);
 
