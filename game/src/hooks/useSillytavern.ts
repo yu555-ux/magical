@@ -567,7 +567,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
                   if (Array.isArray(patches) && patches.length > 0) {
                     nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: {}, patches }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
                     // 记录AI修改了哪些角色的宫内精液.总量，稍后重置注入时间
-                    for (const p of patches) if (p.path && p.path.includes('宫内精液.总量')) semenPatches.push(p);
+                    for (const p of patches) if (p.path && (p.path.includes('宫内精液.总量') || p.path.includes('宫内精液.来源列表'))) semenPatches.push(p);
                     autoTagDreamItems(preVars, nextVariables);
                     snapshot = JSON.parse(JSON.stringify(nextVariables));
                     apiUsed = 'dual';
@@ -654,7 +654,8 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       }
     }
 
-    // AI 修改了宫内精液.总量 → 重置注入时间，代码从新值开始衰减
+    // AI 修改了宫内精液 → 补全注入时间 + 同步总量
+    const processedSemenNodes = new Set<any>();
     for (const p of semenPatches) {
       const parts = (p.path as string).split('/');
       const semenIdx = parts.indexOf('宫内精液');
@@ -662,9 +663,26 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         const base = parts.slice(0, semenIdx + 1);
         let node: any = nextVariables;
         for (const seg of base) { if (node && typeof node === 'object') node = node[seg]; else break; }
-        if (node && typeof node === 'object') {
-          const worldTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? '') as string;
-          if (worldTime) node['注入时间'] = worldTime;
+        if (!node || typeof node !== 'object' || processedSemenNodes.has(node)) continue;
+        processedSemenNodes.add(node);
+        const worldTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? '') as string;
+        // 向后兼容：旧 { 总量, 来源, 注入时间 } → 新 { 总量, 来源列表 }
+        if (!node['来源列表']) {
+          if (node['来源'] != null && node['总量'] > 0) {
+            node['来源列表'] = [{ 来源: node['来源'], 容量: node['总量'], 注入时间: node['注入时间'] || worldTime }];
+          } else {
+            node['来源列表'] = [];
+          }
+          delete node['来源'];
+          delete node['注入时间'];
+        }
+        // 补全缺失的注入时间
+        if (worldTime && Array.isArray(node['来源列表'])) {
+          for (const entry of node['来源列表']) {
+            if (!entry['注入时间']) entry['注入时间'] = worldTime;
+          }
+          // 同步总量
+          node['总量'] = node['来源列表'].reduce((sum: number, e: any) => sum + (e['容量'] || 0), 0);
         }
       }
     }
@@ -913,7 +931,8 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       // 计算变量变更
       const varChanges = varsRegenerated ? buildVarChanges(preVars, nextVariables) : [];
 
-      // 精液注入时间重置（AI 修改了宫内精液.总量 → 重置注入时间）
+      // AI 修改了宫内精液 → 补全注入时间 + 同步总量
+      const processedSemenNodes2 = new Set<any>();
       for (const p of semenPatches) {
         const parts = (p.path as string).split('/');
         const semenIdx = parts.indexOf('宫内精液');
@@ -921,9 +940,26 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
           const base = parts.slice(0, semenIdx + 1);
           let node: any = nextVariables;
           for (const seg of base) { if (node && typeof node === 'object') node = node[seg]; else break; }
-          if (node && typeof node === 'object') {
-            const worldTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? '') as string;
-            if (worldTime) node['注入时间'] = worldTime;
+          if (!node || typeof node !== 'object' || processedSemenNodes2.has(node)) continue;
+          processedSemenNodes2.add(node);
+          const worldTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? '') as string;
+          // 向后兼容：旧 { 总量, 来源, 注入时间 } → 新 { 总量, 来源列表 }
+          if (!node['来源列表']) {
+            if (node['来源'] != null && node['总量'] > 0) {
+              node['来源列表'] = [{ 来源: node['来源'], 容量: node['总量'], 注入时间: node['注入时间'] || worldTime }];
+            } else {
+              node['来源列表'] = [];
+            }
+            delete node['来源'];
+            delete node['注入时间'];
+          }
+          // 补全缺失的注入时间
+          if (worldTime && Array.isArray(node['来源列表'])) {
+            for (const entry of node['来源列表']) {
+              if (!entry['注入时间']) entry['注入时间'] = worldTime;
+            }
+            // 同步总量
+            node['总量'] = node['来源列表'].reduce((sum: number, e: any) => sum + (e['容量'] || 0), 0);
           }
         }
       }

@@ -128,11 +128,16 @@ function semenCoefficient(volume: number): number {
 
 // ── 类型 ──
 
+export interface SemenEntry {
+  来源: string;
+  容量: number;        // ml, 该来源当前剩余量（衰减后）
+  注入时间: string;    // "YYYY年MM月DD日-HH:MM"
+}
+
 export interface Uterus {
   宫内精液: {
-    总量: number;
-    来源: string | null;
-    注入时间: string | null;
+    总量: number;              // 所有来源.容量之和，代码自动同步
+    来源列表: SemenEntry[];     // 按注入时间排序
   };
   生理周期: {
     上次经期日: string;
@@ -160,7 +165,7 @@ export function createDefaultUterus(
   periodLen: number,
 ): Uterus {
   return {
-    宫内精液: { 总量: 0, 来源: null, 注入时间: null },
+    宫内精液: { 总量: 0, 来源列表: [] },
     生理周期: {
       上次经期日: lastPeriod,
       周期天数: cycleDays,
@@ -199,13 +204,23 @@ export type ParsedTime = {
   minute: number;
 };
 
+// 计算旧来源列表的指纹（来源:注入时间 集合），用于检测新鲜注入
+function buildFingerprint(entries: SemenEntry[] | null | undefined): Set<string> {
+  const set = new Set<string>();
+  if (!entries) return set;
+  for (const e of entries) {
+    if (e.注入时间) set.add(`${e.来源}:${e.注入时间}`);
+  }
+  return set;
+}
+
 export function tickFemalePhysiology(
   uterus: Uterus,
   worldDate: string,
   age: number,
   hoursPassed: number,
   dateChanged: boolean,
-  prevInjTime: string | null,
+  prevEntries: SemenEntry[] | null,
 ): FertilizationResult | null {
   // 1. 生理周期（仅日期变化且未孕时运行）
   if (dateChanged && uterus.怀孕状态.状态 === '未孕') {
@@ -222,60 +237,69 @@ export function tickFemalePhysiology(
     uterus.生理周期.当前阶段 = determinePhase(currentDay, periodLen);
   }
 
-  // 2. 宫内精液衰减（按实际小时数）
+  // 2. 宫内精液衰减（多来源独立衰减）
   const semen = uterus.宫内精液;
-  if (semen.总量 > 0 && hoursPassed > 0) {
-    const rate = isOvulation(uterus.生理周期.当前阶段) ? 0.97 : 0.85;
-    semen.总量 = Math.round(semen.总量 * Math.pow(rate, hoursPassed));
-
-    if (semen.总量 < 1) {
-      semen.总量 = 0;
-      semen.来源 = null;
-      semen.注入时间 = null;
+  const ovulating = isOvulation(uterus.生理周期.当前阶段);
+  if (semen.来源列表.length > 0 && hoursPassed > 0) {
+    const rate = ovulating ? 0.97 : 0.85;
+    for (const entry of semen.来源列表) {
+      entry.容量 = Math.round(entry.容量 * Math.pow(rate, hoursPassed));
     }
+    // 清理归零条目，同步总量
+    semen.来源列表 = semen.来源列表.filter(e => e.容量 >= 1);
+    semen.总量 = semen.来源列表.reduce((sum, e) => sum + e.容量, 0);
   }
 
-  // 3. 受精判定（事件驱动：注入时间变化时 + 每日翻篇时，各判定一次）
-  // 使用完整日概率，不按小时缩放。
-  // 受孕是伯努利试验（事件概率），不是泊松过程（风险率）。
+  // 3. 受精判定（事件驱动：每条来源独立判定，命中即停）
   let result: FertilizationResult | null = null;
-  // 新精液注入的判断：注入时间发生变化（包括从 null 变为有值）
-  const isFreshInjection = semen.注入时间 !== null && semen.注入时间 !== prevInjTime;
-  const shouldRoll =
+  const canRoll =
     uterus.怀孕状态.状态 === '未孕' &&
-    semen.总量 > 0 &&
-    isOvulation(uterus.生理周期.当前阶段) &&
-    (dateChanged || isFreshInjection);
+    semen.来源列表.length > 0 &&
+    ovulating;
 
-  if (shouldRoll) {
+  if (canRoll) {
+    const prevFingerprint = buildFingerprint(prevEntries);
     const daysSince = daysBetween(uterus.生理周期.上次经期日, worldDate);
     const currentDay = (daysSince % uterus.生理周期.周期天数) + 1;
     const dc = dateCoefficient(currentDay);
     const ac = ageCoefficient(age);
-    const sc = semenCoefficient(semen.总量);
-    const prob = dc * ac * sc;       // 完整日概率，不缩放
-    const rolled = Math.random();
 
-    result = {
-      name: '', // 由调用方填入
-      father: semen.来源,
-      dailyProb: prob,
-      rolled,
-      success: rolled < prob,
-      trigger: isFreshInjection ? 'fresh' : 'daily',
-      hoursPassed,
-      cycleDay: currentDay,
-      dateCoeff: dc,
-      ageCoeff: ac,
-      semenCoeff: sc,
-      semenVolume: semen.总量,
-      phase: uterus.生理周期.当前阶段,
-    };
+    // 按注入时间排序，先注入的先判定
+    for (const entry of semen.来源列表) {
+      const entryKey = `${entry.来源}:${entry.注入时间}`;
+      const isFresh = !prevFingerprint.has(entryKey);
+      if (!(dateChanged || isFresh)) continue;
 
-    if (result.success) {
-      uterus.怀孕状态.状态 = '受精';
-      uterus.怀孕状态.受孕日期 = worldDate;
-      uterus.怀孕状态.父方 = semen.来源;
+      const sc = semenCoefficient(entry.容量);
+      const prob = dc * ac * sc;
+      const rolled = Math.random();
+
+      result = {
+        name: '',
+        father: entry.来源,
+        dailyProb: prob,
+        rolled,
+        success: rolled < prob,
+        trigger: isFresh ? 'fresh' : 'daily',
+        hoursPassed,
+        cycleDay: currentDay,
+        dateCoeff: dc,
+        ageCoeff: ac,
+        semenCoeff: sc,
+        semenVolume: entry.容量,
+        phase: uterus.生理周期.当前阶段,
+      };
+
+      if (result.success) {
+        uterus.怀孕状态.状态 = '受精';
+        uterus.怀孕状态.受孕日期 = worldDate;
+        uterus.怀孕状态.父方 = entry.来源;
+        // 受精后将精液全部清零
+        semen.来源列表 = [];
+        semen.总量 = 0;
+        break;
+      }
+      // 未命中 → 继续判下一条
     }
   }
 
@@ -385,15 +409,15 @@ function runTickPass(
         data['子宫'] = createDefaultUterus('2026年03月28日', 28, 5);
       }
 
-      // 从 AI 合并前的快照读取旧注入时间，避免被 semenPatches 重写覆盖
+      // 从 AI 合并前的快照读取旧来源列表，用于指纹比对检测新鲜注入
       const prevData = prevChars?.[charName];
-      const prevInjTime: string | null =
+      const prevEntries: SemenEntry[] | null =
         (prevData && typeof prevData === 'object'
-          ? prevData['子宫']?.['宫内精液']?.['注入时间']
+          ? prevData['子宫']?.['宫内精液']?.['来源列表']
           : null) ?? null;
 
       const fr = tickFemalePhysiology(
-        data['子宫'], dateStr, age, hoursPassed, dateChanged, prevInjTime,
+        data['子宫'], dateStr, age, hoursPassed, dateChanged, prevEntries,
       );
       if (fr) {
         fr.name = charName;

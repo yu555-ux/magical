@@ -34,11 +34,14 @@ function filterUterusForAI(uterus: Record<string, any>): Record<string, any> | n
   if (cycle?.['当前阶段']) {
     result['生理周期'] = { 当前阶段: cycle['当前阶段'] };
   }
-  if (semen?.['总量'] > 0) {
+  if (semen?.['总量'] > 0 && Array.isArray(semen['来源列表'])) {
     result['宫内精液'] = {
       总量: `${semen['总量']}ml`,
-      来源: semen['来源'],
-      注入时间: semen['注入时间'],
+      来源列表: semen['来源列表'].map((e: any) => ({
+        来源: e['来源'],
+        容量: e['容量'],
+        注入时间: e['注入时间'],
+      })),
     };
   }
   if (preg?.['状态'] && preg['状态'] !== '未孕') {

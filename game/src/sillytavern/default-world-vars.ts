@@ -202,8 +202,7 @@ export const DEFAULT_WORLD_VARS: Record<string, any> = {
           子宫: {
             宫内精液: {
               总量: 0,
-              来源: null,
-              注入时间: null,
+              来源列表: [],
             },
             生理周期: {
               上次经期日: '2026年03月28日',
@@ -301,8 +300,7 @@ export const DEFAULT_WORLD_VARS: Record<string, any> = {
           子宫: {
             宫内精液: {
               总量: 0,
-              来源: null,
-              注入时间: null,
+              来源列表: [],
             },
             生理周期: {
               上次经期日: '2026年03月23日',
@@ -419,8 +417,7 @@ export const DEFAULT_WORLD_VARS: Record<string, any> = {
           子宫: {
             宫内精液: {
               总量: 0,
-              来源: null,
-              注入时间: null,
+              来源列表: [],
             },
             生理周期: {
               上次经期日: '2026年03月15日',
@@ -490,8 +487,7 @@ export const DEFAULT_WORLD_VARS: Record<string, any> = {
           子宫: {
             宫内精液: {
               总量: 0,
-              来源: null,
-              注入时间: null,
+              来源列表: [],
             },
             生理周期: {
               上次经期日: '2026年04月01日',
@@ -559,8 +555,7 @@ export const DEFAULT_WORLD_VARS: Record<string, any> = {
           子宫: {
             宫内精液: {
               总量: 0,
-              来源: null,
-              注入时间: null,
+              来源列表: [],
             },
             生理周期: {
               上次经期日: '2026年03月23日',
