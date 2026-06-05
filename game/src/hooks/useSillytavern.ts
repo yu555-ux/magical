@@ -830,7 +830,12 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     if (!effectiveApi.secondary?.enabled || !effectiveApi.secondary.baseUrl) { setDualRunning(false); return null; }
 
     const router = createApiRouter(effectiveApi);
-    const preVars = chat.variables ?? {};
+    // 回滚到最后一条 assistant 之前的状态，避免变量在旧 patch 上反复叠加
+    const lastIdx = chat.messages.indexOf(lastAssistant);
+    let preVars = chat.variables ?? {};
+    for (let i = lastIdx - 1; i >= 0; i--) {
+      if (chat.messages[i].variablesAfter) { preVars = chat.messages[i].variablesAfter; break; }
+    }
     const maintextForVars = lastAssistant.parsed.maintext;
 
     const varsPreset = effectiveSettings.presets?.find(
