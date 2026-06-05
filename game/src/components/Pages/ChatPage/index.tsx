@@ -464,7 +464,31 @@ export default function ChatPage({
           setRawViewOpen(true);
         }}
         onRegenerate={() => ss.regenerateLast()}
-        onRegenerateVars={() => ss.regenerateVarsOnly()}
+        onRegenerateVars={async () => {
+          const result = await ss.regenerateVarsOnly();
+          if (result) {
+            addNotification?.('变量已更新', `第二API已更新 ${result.patchCount} 项变量`, 'success', openVariableDiff);
+
+            // 从变量变更中检测好感度变化
+            const affectionChanges = result.varChanges?.filter(
+              c => c.path.endsWith('好感值') && c.category === 'numeric'
+            ) ?? [];
+            for (const c of affectionChanges) {
+              const segs = c.path.split('.');
+              const idx = segs.indexOf('好感值');
+              const name = idx > 0 ? segs[idx - 1] : '角色';
+              const dir = (c.delta ?? 0) > 0 ? '+' : '';
+              addNotification?.('好感度变化', `${name}好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
+            }
+
+            // 受精事件通知
+            if (result.fertilizationEvents?.length) {
+              for (const ev of result.fertilizationEvents) {
+                addNotification?.('受孕', `${ev.name}已受孕，父方${ev.father}`, 'success', undefined, 'story');
+              }
+            }
+          }
+        }}
         isDualApi={isDualApi}
       />
 

@@ -492,7 +492,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       console.warn(`[SillyTavern] 回退: ${detail}`);
       parser.reset();
       if (!skipUser) await doRetract();
-      showTopCenter(`AI 回复无效（${detail}），已自动回退`);
+      // Toast 由 ChatPage.handleSend 统一显示（避免顶端中央出现重复 toast）
       return { aborted: true, retractedText: userText, formatError: true };
     }
 
@@ -804,14 +804,18 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
   }, [activeChat, sendGameMessage]);
 
   // 重写变量：保留正文，仅用第二API重新提取变量
-  const regenerateVarsOnly = useCallback(async () => {
-    if (!activeChat || !settings) return;
+  const regenerateVarsOnly = useCallback(async (): Promise<{
+    patchCount: number;
+    varChanges: import('../sillytavern/types').VarChange[];
+    fertilizationEvents: FertilizationEvent[];
+  } | null> => {
+    if (!activeChat || !settings) return null;
     setDualRunning(true);
     // 从 DB 读取最新 chat，避免闭包过期
     const dbChats = await db.chats.toArray();
     const chat = dbChats.find(c => c.id === activeChat.id) ?? activeChat;
     const lastAssistant = [...chat.messages].reverse().find(m => m.role === 'assistant');
-    if (!lastAssistant?.parsed?.maintext) return;
+    if (!lastAssistant?.parsed?.maintext) { setDualRunning(false); return null; }
 
     const latestSettings = await getSettings();
     const effectiveApi = latestSettings?.api ?? settings.api ?? DEFAULT_SETTINGS.api;
@@ -823,7 +827,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       lorebooks: latestSettings?.lorebooks ?? settings?.lorebooks ?? DEFAULT_SETTINGS.lorebooks,
     };
 
-    if (!effectiveApi.secondary?.enabled || !effectiveApi.secondary.baseUrl) return;
+    if (!effectiveApi.secondary?.enabled || !effectiveApi.secondary.baseUrl) { setDualRunning(false); return null; }
 
     const router = createApiRouter(effectiveApi);
     const preVars = chat.variables ?? {};
@@ -833,7 +837,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       (p) => p.id === effectiveSettings.activeVarsPresetId && p.type === 'vars',
     );
 
-    if (!varsPreset) return;
+    if (!varsPreset) { setDualRunning(false); return null; }
 
     try {
       const secMessages: Array<{ role: string; content: string }> = [];
@@ -869,6 +873,8 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       const d = await response.json();
       const raw = d?.choices?.[0]?.message?.content ?? '';
       let nextVariables = JSON.parse(JSON.stringify(preVars));
+      let patchCount = 0;
+      const semenPatches: any[] = [];
 
       const mArr = raw.match(/\[[\s\S]*\]/);
       let varsRegenerated = false;
@@ -878,6 +884,8 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
           if (Array.isArray(patches) && patches.length > 0) {
             nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: {}, patches }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
             autoTagDreamItems(preVars, nextVariables);
+            patchCount = patches.length;
+            for (const p of patches) if (p.path && (p.path as string).includes('宫内精液.总量')) semenPatches.push(p);
             varsRegenerated = true;
           }
         } catch { /* ignore */ }
@@ -890,10 +898,42 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
             if (sp && typeof sp === 'object' && !Array.isArray(sp)) {
               nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: sp }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
               autoTagDreamItems(preVars, nextVariables);
+              patchCount = Object.keys(sp).length;
               varsRegenerated = true;
             }
           } catch { /* ignore */ }
         }
+      }
+
+      // 计算变量变更
+      const varChanges = varsRegenerated ? buildVarChanges(preVars, nextVariables) : [];
+
+      // 精液注入时间重置（AI 修改了宫内精液.总量 → 重置注入时间）
+      for (const p of semenPatches) {
+        const parts = (p.path as string).split('/');
+        const semenIdx = parts.indexOf('宫内精液');
+        if (semenIdx > 0) {
+          const base = parts.slice(0, semenIdx + 1);
+          let node: any = nextVariables;
+          for (const seg of base) { if (node && typeof node === 'object') node = node[seg]; else break; }
+          if (node && typeof node === 'object') {
+            const worldTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? '') as string;
+            if (worldTime) node['注入时间'] = worldTime;
+          }
+        }
+      }
+
+      // 生理 tick → 受孕检测
+      const oldRealTime = (preVars?.['世界']?.['现实']?.['时间'] ?? null) as string | null;
+      const oldDreamTime = (preVars?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
+      const newRealTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? null) as string | null;
+      const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
+      const fertilizationEvents: FertilizationEvent[] = [];
+      if (newRealTime && newRealTime !== oldRealTime) {
+        fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false }));
+      }
+      if (newDreamTime && newDreamTime !== oldDreamTime) {
+        fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true }));
       }
 
       // 更新查看原文：构建带标签结构的显示内容
@@ -908,13 +948,19 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         setLastRawContent(`<maintext>\n${lastAssistant.parsed.maintext}\n</maintext>\n\n${tagged}`);
       }
 
-      const next: ChatSession = { ...chat, variables: nextVariables, updatedAt: Date.now() };
+      // 更新最后一条 assistant 消息的 varChanges（确保 VariableDiffModal 显示正确数据）
+      const updatedMessages = chat.messages.map(m =>
+        m.id === lastAssistant.id ? { ...m, varChanges } : m
+      );
+
+      const next: ChatSession = { ...chat, messages: updatedMessages, variables: nextVariables, updatedAt: Date.now() };
       await db.chats.put(next);
       setChats(prev => prev.map(c => c.id === next.id ? next : c));
-      if (varsRegenerated) showTopCenter('变量已更新');
+      return varsRegenerated ? { patchCount, varChanges, fertilizationEvents } : null;
     } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return;
+      if (e instanceof DOMException && e.name === 'AbortError') return null;
       console.error('[SillyTavern] 变量重写失败:', e);
+      return null;
     } finally {
       dualAbortRef.current = null;
       setDualRunning(false);
