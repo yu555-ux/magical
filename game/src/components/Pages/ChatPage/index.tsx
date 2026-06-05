@@ -177,10 +177,16 @@ export default function ChatPage({
           addNotification?.('好感度变化', `${name}好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
         }
 
-        // 受精事件通知
+        // 受孕判定通知（每次时间推进都展示骰子）
         if (result.fertilizationEvents?.length) {
           for (const ev of result.fertilizationEvents) {
-            addNotification?.('受孕', `${ev.name}已受孕，父方${ev.father}`, 'success', undefined, 'story');
+            const pct = (ev.probability * 100).toFixed(1);
+            const dice = ev.rolled.toFixed(3);
+            if (ev.success) {
+              addNotification?.('🎲 受孕', `${ev.name} 概率${pct}% 骰子${dice} ✅命中！父方${ev.father}`, 'success', undefined, 'story');
+            } else {
+              addNotification?.('🎲 受孕', `${ev.name} 概率${pct}% 骰子${dice} ❌未命中`, 'info', undefined, 'story');
+            }
           }
         }
       }
@@ -481,10 +487,16 @@ export default function ChatPage({
               addNotification?.('好感度变化', `${name}好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
             }
 
-            // 受精事件通知
+            // 受孕判定通知
             if (result.fertilizationEvents?.length) {
               for (const ev of result.fertilizationEvents) {
-                addNotification?.('受孕', `${ev.name}已受孕，父方${ev.father}`, 'success', undefined, 'story');
+                const pct = (ev.probability * 100).toFixed(1);
+                const dice = ev.rolled.toFixed(3);
+                if (ev.success) {
+                  addNotification?.('🎲 受孕', `${ev.name} 概率${pct}% 骰子${dice} ✅命中！父方${ev.father}`, 'success', undefined, 'story');
+                } else {
+                  addNotification?.('🎲 受孕', `${ev.name} 概率${pct}% 骰子${dice} ❌未命中`, 'info', undefined, 'story');
+                }
               }
             }
           }

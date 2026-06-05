@@ -63,6 +63,15 @@ export function getDatePart(worldTime: string): string {
   return formatDate(t.year, t.month, t.day);
 }
 
+export function hoursBetween(
+  a: { year: number; month: number; day: number; hour: number; minute: number },
+  b: { year: number; month: number; day: number; hour: number; minute: number },
+): number {
+  const timeA = new Date(a.year, a.month - 1, a.day, a.hour, a.minute).getTime();
+  const timeB = new Date(b.year, b.month - 1, b.day, b.hour, b.minute).getTime();
+  return (timeB - timeA) / 3600000;
+}
+
 // ── 阶段判定 ──
 
 export type Phase = '经期' | '安全期' | '排卵期';
@@ -146,26 +155,6 @@ export interface Uterus {
   }>;
 }
 
-// ── 历史阶段推算（用于衰减逐日迭代） ──
-
-function phaseOnDate(
-  uterus: Uterus,
-  dateStr: string,
-): Phase {
-  const status = uterus.怀孕状态.状态;
-  // 怀孕后周期冻结：受孕日起，所有日期视为非排卵期
-  if (status !== '未孕' && uterus.怀孕状态.受孕日期) {
-    if (daysBetween(uterus.怀孕状态.受孕日期, dateStr) >= 0) return '安全期';
-  }
-
-  let daysSince = daysBetween(uterus.生理周期.上次经期日, dateStr);
-  // 补齐可能的历史周期推进
-  const cycle = uterus.生理周期.周期天数;
-  while (daysSince >= cycle) daysSince -= cycle;
-  const cd = (daysSince % cycle) + 1;
-  return determinePhase(cd, uterus.生理周期.经期长度);
-}
-
 // ── 默认子宫 ──
 
 export function createDefaultUterus(
@@ -186,16 +175,25 @@ export function createDefaultUterus(
   };
 }
 
-// ── 单日 tick ──
+// ── 小时级 tick ──
+
+export interface FertilizationResult {
+  name: string;
+  father: string | null;
+  probability: number;
+  rolled: number;
+  success: boolean;
+}
 
 export function tickFemalePhysiology(
   uterus: Uterus,
   worldDate: string,
   age: number,
-  prevDate?: string,
-): void {
-  // 1. 生理周期（仅未孕时运行）
-  if (uterus.怀孕状态.状态 === '未孕') {
+  hoursPassed: number,
+  dateChanged: boolean,
+): FertilizationResult | null {
+  // 1. 生理周期（仅日期变化且未孕时运行）
+  if (dateChanged && uterus.怀孕状态.状态 === '未孕') {
     const cycle = uterus.生理周期.周期天数;
     const periodLen = uterus.生理周期.经期长度;
     let daysSince = daysBetween(uterus.生理周期.上次经期日, worldDate);
@@ -209,117 +207,131 @@ export function tickFemalePhysiology(
     uterus.生理周期.当前阶段 = determinePhase(currentDay, periodLen);
   }
 
-  // 2. 宫内精液衰减（只衰减上次tick到本次tick之间的天数，避免重复计算）
+  // 2. 宫内精液衰减（按实际小时数）
   const semen = uterus.宫内精液;
-  if (semen.总量 > 0 && semen.注入时间) {
-    const injDateMatch = semen.注入时间.match(DATE_RE);
-    const injDate = injDateMatch ? injDateMatch[0] : semen.注入时间;
-    const daysTotal = daysBetween(injDate, worldDate);
+  if (semen.总量 > 0 && hoursPassed > 0) {
+    const rate = isOvulation(uterus.生理周期.当前阶段) ? 0.97 : 0.85;
+    semen.总量 = Math.round(semen.总量 * Math.pow(rate, hoursPassed));
 
-    // 如果传了 prevDate，跳过已衰减的天数，只处理新增的日期
-    const alreadyDecayed = prevDate ? daysBetween(injDate, prevDate) : 0;
-    const startD = Math.max(1, alreadyDecayed + 1);
-
-    for (let d = startD; d <= daysTotal; d++) {
-      const thatDate = advanceDate(injDate, d);
-      const thatPhase = phaseOnDate(uterus, thatDate);
-      const rate = isOvulation(thatPhase) ? 0.97 : 0.85;
-      semen.总量 = Math.round(semen.总量 * Math.pow(rate, 24));
-
-      if (semen.总量 < 1) {
-        semen.总量 = 0;
-        semen.来源 = null;
-        semen.注入时间 = null;
-        break;
-      }
+    if (semen.总量 < 1) {
+      semen.总量 = 0;
+      semen.来源 = null;
+      semen.注入时间 = null;
     }
   }
 
-  // 3. 受精判定
+  // 3. 受精判定（每次时间推进都判定，概率按小时比例缩放）
+  let result: FertilizationResult | null = null;
   if (
     uterus.怀孕状态.状态 === '未孕' &&
     semen.总量 > 0 &&
-    isOvulation(uterus.生理周期.当前阶段)
+    isOvulation(uterus.生理周期.当前阶段) &&
+    hoursPassed > 0
   ) {
     const daysSince = daysBetween(uterus.生理周期.上次经期日, worldDate);
     const currentDay = (daysSince % uterus.生理周期.周期天数) + 1;
-    const prob = dateCoefficient(currentDay) * ageCoefficient(age) * semenCoefficient(semen.总量);
+    const dailyProb = dateCoefficient(currentDay) * ageCoefficient(age) * semenCoefficient(semen.总量);
+    const scaledProb = dailyProb * (hoursPassed / 24);
+    const rolled = Math.random();
 
-    if (Math.random() < prob) {
+    result = {
+      name: '', // 由调用方填入
+      father: semen.来源,
+      probability: scaledProb,
+      rolled,
+      success: rolled < scaledProb,
+    };
+
+    if (result.success) {
       uterus.怀孕状态.状态 = '受精';
       uterus.怀孕状态.受孕日期 = worldDate;
       uterus.怀孕状态.父方 = semen.来源;
     }
   }
 
-  // 4. 怀孕阶段推进
-  const status = uterus.怀孕状态.状态;
-  if (['受精', '早孕', '中孕', '晚孕'].includes(status) && uterus.怀孕状态.受孕日期) {
-    const gestationalWeeks = Math.floor(daysBetween(uterus.怀孕状态.受孕日期, worldDate) / 7);
+  // 4. 怀孕阶段推进（仅日期变化时）
+  if (dateChanged) {
+    const status = uterus.怀孕状态.状态;
+    if (['受精', '早孕', '中孕', '晚孕'].includes(status) && uterus.怀孕状态.受孕日期) {
+      const gestationalWeeks = Math.floor(daysBetween(uterus.怀孕状态.受孕日期, worldDate) / 7);
 
-    if (gestationalWeeks >= 38 && status === '晚孕') {
-      uterus.怀孕状态.状态 = '产褥期';
-    } else if (gestationalWeeks >= 28 && status === '中孕') {
-      uterus.怀孕状态.状态 = '晚孕';
-    } else if (gestationalWeeks >= 14 && status === '早孕') {
-      uterus.怀孕状态.状态 = '中孕';
-    } else if (gestationalWeeks >= 2 && status === '受精') {
-      uterus.怀孕状态.状态 = '早孕';
+      if (gestationalWeeks >= 38 && status === '晚孕') {
+        uterus.怀孕状态.状态 = '产褥期';
+      } else if (gestationalWeeks >= 28 && status === '中孕') {
+        uterus.怀孕状态.状态 = '晚孕';
+      } else if (gestationalWeeks >= 14 && status === '早孕') {
+        uterus.怀孕状态.状态 = '中孕';
+      } else if (gestationalWeeks >= 2 && status === '受精') {
+        uterus.怀孕状态.状态 = '早孕';
+      }
+    }
+
+    // 5. 产褥期恢复
+    if (uterus.怀孕状态.状态 === '产褥期' && uterus.怀孕状态.受孕日期) {
+      const deliveryDate = advanceDate(uterus.怀孕状态.受孕日期, 266);
+      const ppDays = daysBetween(deliveryDate, worldDate);
+
+      if (ppDays >= 42) {
+        uterus.怀孕状态.状态 = '未孕';
+        uterus.怀孕状态.受孕日期 = null;
+        uterus.怀孕状态.父方 = null;
+        uterus.生理周期.上次经期日 = worldDate;
+        uterus.生理周期.当前阶段 = '经期';
+      }
     }
   }
 
-  // 5. 产褥期恢复
-  if (uterus.怀孕状态.状态 === '产褥期' && uterus.怀孕状态.受孕日期) {
-    const deliveryDate = advanceDate(uterus.怀孕状态.受孕日期, 266);
-    const ppDays = daysBetween(deliveryDate, worldDate);
-
-    if (ppDays >= 42) {
-      uterus.怀孕状态.状态 = '未孕';
-      uterus.怀孕状态.受孕日期 = null;
-      uterus.怀孕状态.父方 = null;
-      uterus.生理周期.上次经期日 = worldDate;
-      uterus.生理周期.当前阶段 = '经期';
-    }
-  }
+  return result;
 }
 
-// ── 受精事件 ──
-
-export interface FertilizationEvent {
-  name: string;
-  father: string;
-}
-
-// ── 批量 tick（按日迭代） ──
+// ── 批量 tick ──
 
 export function tickAllFemales(
   variables: Record<string, any>,
   oldTime: string | null,
   newTime: string,
   opts?: { dreamOnly?: boolean },
-): FertilizationEvent[] {
-  const events: FertilizationEvent[] = [];
-  const newDate = getDatePart(newTime);
-  if (!newDate) return events;
-  const oldDate = oldTime ? getDatePart(oldTime) : null;
+): FertilizationResult[] {
+  const results: FertilizationResult[] = [];
+  const newParsed = parseWorldTime(newTime);
+  if (!newParsed) return results;
+  const newDate = formatDate(newParsed.year, newParsed.month, newParsed.day);
+  const oldParsed = oldTime ? parseWorldTime(oldTime) : null;
+  const oldDate = oldParsed ? formatDate(oldParsed.year, oldParsed.month, oldParsed.day) : null;
   const dreamOnly = opts?.dreamOnly ?? false;
 
-  if (!oldDate) {
-    runTickPass(variables, newDate, dreamOnly, events);
-    return events;
+  if (!oldParsed) {
+    // 首次 tick：仅初始化周期，不衰减不判定
+    runTickPass(variables, newDate, dreamOnly, 0, false, results);
+    return results;
   }
 
-  const daysPassed = daysBetween(oldDate, newDate);
-  if (daysPassed <= 0) return events;
+  const hoursPassed = hoursBetween(oldParsed, newParsed);
+  if (hoursPassed <= 0) return results;
 
-  for (let d = 1; d <= daysPassed; d++) {
-    const prevDate = d === 1 ? oldDate! : advanceDate(oldDate, d - 1);
-    runTickPass(variables, advanceDate(oldDate, d), dreamOnly, events, prevDate);
+  const dateChanged = newDate !== oldDate;
+  const daysPassed = dateChanged ? daysBetween(oldDate!, newDate) : 0;
+
+  if (daysPassed > 1) {
+    // 跨多天：逐日迭代，每天 24h
+    for (let d = 1; d <= daysPassed; d++) {
+      runTickPass(variables, advanceDate(oldDate!, d), dreamOnly, 24, true, results);
+    }
+  } else {
+    // 同一天或跨 1 天：按实际小时数
+    runTickPass(variables, newDate, dreamOnly, hoursPassed, dateChanged, results);
   }
-  return events;
+  return results;
 }
 
-function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly: boolean, events: FertilizationEvent[], prevDate?: string): void {
+function runTickPass(
+  variables: Record<string, any>,
+  dateStr: string,
+  dreamOnly: boolean,
+  hoursPassed: number,
+  dateChanged: boolean,
+  results: FertilizationResult[],
+): void {
   const females = variables?.['主要人物']?.['女性'];
   if (!females) return;
 
@@ -340,11 +352,10 @@ function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly:
         data['子宫'] = createDefaultUterus('2026年03月28日', 28, 5);
       }
 
-      const oldStatus = data['子宫']?.怀孕状态?.状态;
-      tickFemalePhysiology(data['子宫'], dateStr, age, prevDate);
-      const newStatus = data['子宫']?.怀孕状态?.状态;
-      if (oldStatus === '未孕' && newStatus === '受精') {
-        events.push({ name: charName, father: data['子宫'].怀孕状态.父方 ?? '未知' });
+      const fr = tickFemalePhysiology(data['子宫'], dateStr, age, hoursPassed, dateChanged);
+      if (fr) {
+        fr.name = charName;
+        results.push(fr);
       }
     }
   }
