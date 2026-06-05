@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Sidebar from './components/Sidebar';
 import ChatPage from './components/Pages/ChatPage';
@@ -72,11 +72,8 @@ export default function App() {
     };
   }, []);
 
-  const toastCountRef = useRef(0);
   const addToast = useCallback((message: string, type: 'info' | 'warning' | 'success' | 'error', channel?: 'variable' | 'story', onClick?: () => void) => {
     const id = Math.random().toString(36).substr(2, 9);
-    toastCountRef.current += 1;
-    console.log(`🔔 [TOAST #${toastCountRef.current}] [${type}] ${message.slice(0, 50)}`);
     setToasts((prev) => [...prev, { id, message, type, channel, onClick }]);
   }, []);
 
@@ -87,7 +84,7 @@ export default function App() {
   const addNotification = useCallback((title: string, message: string, type: 'info' | 'warning' | 'error' | 'success', onClick?: () => void, channel?: 'variable' | 'story') => {
     const bellType = type === 'success' ? 'ok' : type;
     addToast(message, type, channel, onClick);
-    pushStatus({ title, message, type: bellType, source: '游戏', channel, onClick });
+    try { pushStatus({ title, message, type: bellType, source: '游戏', channel, onClick }); } catch { /* pushStatus 不应阻断 toast */ }
   }, [addToast]);
 
   // ── Game event monitor: affection/stage changes → bell (剧情 tab) ──
