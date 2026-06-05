@@ -14,10 +14,6 @@ interface ParsedDate {
   day: number;
 }
 
-function toJd(y: number, m: number, d: number): number {
-  return Math.floor(new Date(y, m - 1, d).getTime() / 86400000);
-}
-
 export function parseWorldTime(time: string) {
   const m = time.match(WORLD_TIME_RE);
   if (!m) return null;
@@ -40,7 +36,9 @@ export function daysBetween(a: string, b: string): number {
   const da = parseDate(a);
   const db = parseDate(b);
   if (!da || !db) return 0;
-  return toJd(db.year, db.month, db.day) - toJd(da.year, da.month, da.day);
+  const timeA = new Date(da.year, da.month - 1, da.day).getTime();
+  const timeB = new Date(db.year, db.month - 1, db.day).getTime();
+  return Math.round((timeB - timeA) / 86400000);
 }
 
 export function formatDate(y: number, m: number, d: number): string {
@@ -54,8 +52,8 @@ export function formatDateTime(y: number, m: number, d: number, h: number, min: 
 export function advanceDate(dateStr: string, days: number): string {
   const d = parseDate(dateStr);
   if (!d) return dateStr;
-  const jd = toJd(d.year, d.month, d.day) + days;
-  const nd = new Date(jd * 86400000);
+  const nd = new Date(d.year, d.month - 1, d.day);
+  nd.setDate(nd.getDate() + days);
   return formatDate(nd.getFullYear(), nd.getMonth() + 1, nd.getDate());
 }
 
