@@ -194,6 +194,7 @@ export function tickFemalePhysiology(
   uterus: Uterus,
   worldDate: string,
   age: number,
+  prevDate?: string,
 ): void {
   // 1. 生理周期（仅未孕时运行）
   if (uterus.怀孕状态.状态 === '未孕') {
@@ -210,14 +211,18 @@ export function tickFemalePhysiology(
     uterus.生理周期.当前阶段 = determinePhase(currentDay, periodLen);
   }
 
-  // 2. 宫内精液衰减（逐日迭代）
+  // 2. 宫内精液衰减（只衰减上次tick到本次tick之间的天数，避免重复计算）
   const semen = uterus.宫内精液;
   if (semen.总量 > 0 && semen.注入时间) {
     const injDateMatch = semen.注入时间.match(DATE_RE);
     const injDate = injDateMatch ? injDateMatch[0] : semen.注入时间;
     const daysTotal = daysBetween(injDate, worldDate);
 
-    for (let d = 1; d <= daysTotal; d++) {
+    // 如果传了 prevDate，跳过已衰减的天数，只处理新增的日期
+    const alreadyDecayed = prevDate ? daysBetween(injDate, prevDate) : 0;
+    const startD = Math.max(1, alreadyDecayed + 1);
+
+    for (let d = startD; d <= daysTotal; d++) {
       const thatDate = advanceDate(injDate, d);
       const thatPhase = phaseOnDate(uterus, thatDate);
       const rate = isOvulation(thatPhase) ? 0.97 : 0.85;
@@ -310,12 +315,13 @@ export function tickAllFemales(
   if (daysPassed <= 0) return events;
 
   for (let d = 1; d <= daysPassed; d++) {
-    runTickPass(variables, advanceDate(oldDate, d), dreamOnly, events);
+    const prevDate = d === 1 ? oldDate! : advanceDate(oldDate, d - 1);
+    runTickPass(variables, advanceDate(oldDate, d), dreamOnly, events, prevDate);
   }
   return events;
 }
 
-function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly: boolean, events: FertilizationEvent[]): void {
+function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly: boolean, events: FertilizationEvent[], prevDate?: string): void {
   const females = variables?.['主要人物']?.['女性'];
   if (!females) return;
 
@@ -337,7 +343,7 @@ function runTickPass(variables: Record<string, any>, dateStr: string, dreamOnly:
       }
 
       const oldStatus = data['子宫']?.怀孕状态?.状态;
-      tickFemalePhysiology(data['子宫'], dateStr, age);
+      tickFemalePhysiology(data['子宫'], dateStr, age, prevDate);
       const newStatus = data['子宫']?.怀孕状态?.状态;
       if (oldStatus === '未孕' && newStatus === '受精') {
         events.push({ name: charName, father: data['子宫'].怀孕状态.父方 ?? '未知' });
