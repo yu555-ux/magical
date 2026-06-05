@@ -51,6 +51,28 @@ export default function SocialPage() {
   const graphRef = useRef<HTMLDivElement>(null);
   const [graphBounds, setGraphBounds] = useState({ width: 800, height: 600 });
 
+  // ── Pan / drag ──
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panOrigin = useRef({ x: 0, y: 0 });
+  const hasPanned = useRef(false);
+
+  const handleGraphPointerDown = (e: React.PointerEvent) => {
+    // Don't start drag on buttons (nodes / modal trigger)
+    if ((e.target as HTMLElement).closest('button')) return;
+    panOrigin.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+    hasPanned.current = false;
+    setIsPanning(true);
+  };
+  const handleGraphPointerMove = (e: React.PointerEvent) => {
+    if (!isPanning) return;
+    const dx = e.clientX - panOrigin.current.x;
+    const dy = e.clientY - panOrigin.current.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasPanned.current = true;
+    setPanOffset({ x: dx, y: dy });
+  };
+  const handleGraphPointerUp = () => setIsPanning(false);
+
   useEffect(() => {
     const el = graphRef.current; if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -68,7 +90,7 @@ export default function SocialPage() {
   // ── Layout ──
   const cx = graphBounds.width / 2;
   const cy = graphBounds.height / 2;
-  const orbitR = Math.min(graphBounds.width, graphBounds.height) * 0.30;
+  const orbitR = Math.min(graphBounds.width, graphBounds.height) * (graphBounds.width < 768 ? 0.36 : 0.30);
 
   const nodesWithPositions = useMemo((): LiveNode[] => {
     // Mutual filter: must be in 主角.社交 AND have {{user}} in their 社交圈
@@ -86,18 +108,29 @@ export default function SocialPage() {
       const profile = findCharProfile(charData, name);
       const aff = profile ? (profile.好感值 ?? profile.友善值 ?? 0) : 0;
       const distFactor = 1.6 - ((aff + 200) / 400) * 1.0;
-      const sizeFactor = 0.4 + ((aff + 200) / 400) * 0.3; // 0.4 (small) to 0.7 (large)
       const r = orbitR * distFactor;
       const isMobile = graphBounds.width < 768;
-      const baseSize = isMobile ? 32 : 44;
+      const baseSize = isMobile ? 26 : 44;
+      const sizeRange = isMobile ? 0.3 : 0.4;
+      const sizeScale = isMobile ? 0.25 : 0.3;
       return {
         id: name, name, relation: data.关系,
         x: Math.cos(angle) * r + cx,
         y: Math.sin(angle) * r + cy,
-        size: baseSize + sizeFactor * baseSize,
+        size: baseSize + (sizeRange + ((aff + 200) / 400) * sizeScale) * baseSize,
       };
     });
   }, [socialData, orbitR, cx, cy, charData, playerName]);
+
+  // Reset pan when node count changes
+  const prevNodeCount = useRef(0);
+  useEffect(() => {
+    const count = nodesWithPositions.length;
+    if (count !== prevNodeCount.current) {
+      setPanOffset({ x: 0, y: 0 });
+      prevNodeCount.current = count;
+    }
+  }, [nodesWithPositions.length]);
 
   const posMap = useMemo(() => {
     const m = new Map<string, { x: number; y: number }>();
@@ -154,12 +187,20 @@ export default function SocialPage() {
 
       {/* ── Graph ── */}
       <div ref={graphRef} className="flex-1 relative overflow-hidden rounded-xl border border-white/[0.04]"
-        style={{ background: 'radial-gradient(ellipse at center, rgba(0,242,255,0.04) 0%, transparent 65%), rgba(3,5,10,0.7)' }}>
+        style={{ background: 'radial-gradient(ellipse at center, rgba(0,242,255,0.04) 0%, transparent 65%), rgba(3,5,10,0.7)', cursor: isPanning ? 'grabbing' : 'grab', touchAction: 'none' }}
+        onPointerDown={handleGraphPointerDown}
+        onPointerMove={handleGraphPointerMove}
+        onPointerUp={handleGraphPointerUp}
+        onPointerLeave={handleGraphPointerUp}>
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-aether-cyan/[0.02] to-transparent" />
         <CornerMark tl /><CornerMark tr /><CornerMark bl /><CornerMark br />
 
-        <div className="absolute inset-0" style={{ zIndex: 2 }}>
+        <div className="absolute inset-0" style={{
+          zIndex: 2,
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+          transition: isPanning ? 'none' : 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+        }}>
           {/* ===== Lines (Phase 1) ===== */}
           <AnimatePresence>
             {isTopLevel && (
@@ -217,10 +258,10 @@ export default function SocialPage() {
           <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: 'translate(-50%, -50%)' }}>
             <motion.div initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
               transition={{ type: 'spring', damping: 10, stiffness: 160, delay: 0.1 }}>
-              <div className="absolute rounded-full" style={{ width: graphBounds.width < 768 ? 90 : 120, height: graphBounds.width < 768 ? 90 : 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
-              <div className={`relative rounded-full flex items-center justify-center border-2 border-aether-cyan ${graphBounds.width < 768 ? 'w-16 h-16' : 'w-20 h-20'}`}
+              <div className="absolute rounded-full" style={{ width: graphBounds.width < 768 ? 70 : 120, height: graphBounds.width < 768 ? 70 : 120, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'radial-gradient(circle, rgba(0,242,255,0.06) 0%, transparent 70%)', animation: 'pulse-slow 3s ease-in-out infinite' }} />
+              <div className={`relative rounded-full flex items-center justify-center border-2 border-aether-cyan ${graphBounds.width < 768 ? 'w-12 h-12' : 'w-20 h-20'}`}
                 style={{ background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: `0 0 36px ${NODE_COLOR}40, 0 0 80px ${NODE_COLOR}12` }}>
-                <span className="font-display font-bold text-aether-cyan select-none whitespace-nowrap" style={{ fontSize: Math.max(10, (graphBounds.width < 768 ? 16 : 20) - playerName.length * 2), textShadow: `0 0 16px ${NODE_COLOR}80` }}>{playerName}</span>
+                <span className="font-display font-bold text-aether-cyan select-none whitespace-nowrap" style={{ fontSize: Math.max(10, (graphBounds.width < 768 ? 13 : 20) - playerName.length * 2), textShadow: `0 0 16px ${NODE_COLOR}80` }}>{playerName}</span>
               </div>
             </motion.div>
           </div>
