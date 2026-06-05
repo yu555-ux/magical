@@ -319,7 +319,15 @@ export function filterMap(
 
 // ── text formatter ──
 
-const FIELD_ORDER = ['方位', '描述', '现实原型', '地点细节', '子地图'];
+const FIELD_ORDER = [
+  // 人物字段
+  '年龄', '身份', '评级', '好感值', '堕落值', '友善值', '性欲值',
+  '当前位置', '当前行动', '当前想法', '状态',
+  '身体属性', '基础属性', '特殊属性',
+  '技能', '所持物品', '着装', '身体开发', '子宫', '社交圈',
+  // 地图字段
+  '方位', '描述', '现实原型', '地点细节', '子地图',
+];
 
 /**
  * Convert a filtered map tree to indented prompt-ready text.
