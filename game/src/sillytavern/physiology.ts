@@ -426,3 +426,37 @@ function runTickPass(
     }
   }
 }
+
+// ── 年龄 tick ──
+
+/** 世界年份变化时，所有人物年龄 +1 */
+export function tickAges(
+  variables: Record<string, any>,
+  oldTime: string | null,
+  newTime: string,
+): void {
+  if (!oldTime) return;
+  const oldY = parseWorldTime(oldTime)?.year;
+  const newY = parseWorldTime(newTime)?.year;
+  if (!oldY || !newY || newY <= oldY) return;
+
+  // 主角
+  const hero = variables?.['主角'];
+  if (hero && typeof hero['年龄'] === 'number') hero['年龄'] += (newY - oldY);
+
+  // 所有人物
+  const chars = variables?.['主要人物'];
+  if (!chars) return;
+  for (const gender of ['女性', '男性']) {
+    for (const group of ['异人', '普通人']) {
+      const g = chars[gender]?.[group];
+      if (!g || typeof g !== 'object') continue;
+      for (const name of Object.keys(g)) {
+        const c = g[name];
+        if (c && typeof c === 'object' && typeof c['年龄'] === 'number') {
+          c['年龄'] += (newY - oldY);
+        }
+      }
+    }
+  }
+}

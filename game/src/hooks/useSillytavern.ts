@@ -7,7 +7,7 @@ import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLO
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 import { showTopCenter } from '../components/shared/TopCenterToast';
-import { tickAllFemales, type FertilizationResult } from '../sillytavern/physiology';
+import { tickAllFemales, tickAges, type FertilizationResult } from '../sillytavern/physiology';
 
 const DEFAULT_OPENING = `餐桌上方的吊灯洒下暖白色的光。张云夹了一块排骨，没放进自己碗里，而是越过半个桌子，稳稳地落在了<user>的米饭上。排骨上的糖醋汁洇进白白的米粒里。
 
@@ -692,6 +692,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
 
     if (newRealTime && newRealTime !== oldRealTime) {
+      tickAges(nextVariables, oldRealTime, newRealTime);
       fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false, prevVariables: preVars }));
     }
     if (newDreamTime && newDreamTime !== oldDreamTime) {
@@ -971,6 +972,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
       const fertilizationEvents: FertilizationResult[] = [];
       if (newRealTime && newRealTime !== oldRealTime) {
+        tickAges(nextVariables, oldRealTime, newRealTime);
         fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false, prevVariables: preVars }));
       }
       if (newDreamTime && newDreamTime !== oldDreamTime) {

@@ -6,10 +6,36 @@ import type { ParsedTags, SavePoint, VarChange } from './types';
 import type { ParserEvent } from './stream-parser';
 import { parseVarsBlock, applyVarsPatch, applyJsonPatch } from './vars-merger';
 
+/** 剥离代码维护的字段，防止 AI 通过 <vars> 覆盖 */
+function stripCodeManaged(vars: Record<string, any>): Record<string, any> {
+  const clone = JSON.parse(JSON.stringify(vars));
+  // 主角年龄（代码按年份自动 +1）
+  if (clone['主角']) delete clone['主角']['年龄'];
+  // 遍历所有女性角色子宫
+  const females = clone?.['主要人物']?.['女性'];
+  if (females) {
+    for (const group of ['异人', '普通人']) {
+      const g = females[group];
+      if (!g || typeof g !== 'object') continue;
+      for (const name of Object.keys(g)) {
+        const c = g[name];
+        const u = c?.['子宫'];
+        if (!u || typeof u !== 'object') continue;
+        const semen = u['宫内精液'];
+        if (semen && typeof semen === 'object') delete semen['总量'];     // 代码同步
+        const cycle = u['生理周期'];
+        if (cycle && typeof cycle === 'object') delete cycle['当前阶段']; // 代码写入
+        delete u['怀孕状态'];                                              // 代码写入
+      }
+    }
+  }
+  return clone;
+}
+
 export function formatVariablesForPrompt(variables: Record<string, any>): string {
   if (!variables || Object.keys(variables).length === 0) return '';
   const lines: string[] = [];
-  treeFormat(variables, lines, 0);
+  treeFormat(stripCodeManaged(variables), lines, 0);
   return lines.join('\n');
 }
 
