@@ -673,10 +673,13 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const newRealTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? null) as string | null;
     const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
 
+    console.log('[SillyTavern] tick前检查:', { oldRealTime, newRealTime, changed: newRealTime !== oldRealTime, hasFemales: !!nextVariables?.['主要人物']?.['女性'] });
     if (newRealTime && newRealTime !== oldRealTime) {
+      console.log('[SillyTavern] 触发现实tick');
       fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false }));
     }
     if (newDreamTime && newDreamTime !== oldDreamTime) {
+      console.log('[SillyTavern] 触发梦境tick');
       fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true }));
     }
     if (newRealTime !== oldRealTime || newDreamTime !== oldDreamTime) {
@@ -929,10 +932,13 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       const newRealTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? null) as string | null;
       const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
       const fertilizationEvents: FertilizationEvent[] = [];
+      console.log('[SillyTavern-varRegen] tick前检查:', { oldRealTime, newRealTime, changed: newRealTime !== oldRealTime, hasFemales: !!nextVariables?.['主要人物']?.['女性'] });
       if (newRealTime && newRealTime !== oldRealTime) {
+        console.log('[SillyTavern-varRegen] 触发现实tick');
         fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false }));
       }
       if (newDreamTime && newDreamTime !== oldDreamTime) {
+        console.log('[SillyTavern-varRegen] 触发梦境tick');
         fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true }));
       }
 
