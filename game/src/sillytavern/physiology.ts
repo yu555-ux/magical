@@ -95,18 +95,19 @@ function ageCoefficient(age: number): number {
   if (age <= 30) return 0.9;
   if (age <= 35) return 0.6;
   if (age <= 40) return 0.3;
-  if (age <= 43) return 0.1;
-  return 0.02;
+  return 0.1;
 }
 
 function semenCoefficient(volume: number): number {
-  // 5 档：3ml → 0.8, 5ml → 1.2, 10ml → 1.45, 20ml → 1.7, 50ml → 2.0（上限）
+  // 6 档：1ml→0.35, 3ml→0.7, 5ml→1.0, 10ml→1.35, 20ml→1.6, 50ml→3.0
+  // 超过 50ml 用幂函数外推：3.0 × (量 / 50) ^ 1.2
   const tiers: [number, number][] = [
-    [3, 0.8],
-    [5, 1.2],
-    [10, 1.45],
-    [20, 1.7],
-    [50, 2.0],
+    [1, 0.35],
+    [3, 0.7],
+    [5, 1.0],
+    [10, 1.35],
+    [20, 1.6],
+    [50, 3.0],
   ];
   if (volume <= tiers[0][0]) return tiers[0][1];
   for (let i = 0; i < tiers.length - 1; i++) {
@@ -117,7 +118,8 @@ function semenCoefficient(volume: number): number {
       return c1 + t * (c2 - c1);
     }
   }
-  return tiers[tiers.length - 1][1];
+  // 超过 50ml：幂函数外推，不封顶
+  return 3.0 * Math.pow(volume / 50, 1.2);
 }
 
 // ── 类型 ──
