@@ -31,6 +31,7 @@ export default function ChatPage({
     message: string,
     type: 'info' | 'warning' | 'error' | 'success',
     onClick?: () => void,
+    channel?: 'variable' | 'story',
   ) => void;
   diffOpen: boolean;
   setDiffOpen: (v: boolean) => void;
@@ -179,7 +180,7 @@ export default function ChatPage({
         // 受精事件通知
         if (result.fertilizationEvents?.length) {
           for (const ev of result.fertilizationEvents) {
-            addNotification?.('受孕', `${ev.name}已受孕，父方${ev.father}`, 'success');
+            addNotification?.('受孕', `${ev.name}已受孕，父方${ev.father}`, 'success', undefined, 'story');
           }
         }
       }

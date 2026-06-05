@@ -81,10 +81,10 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addNotification = useCallback((title: string, message: string, type: 'info' | 'warning' | 'error' | 'success', onClick?: () => void) => {
+  const addNotification = useCallback((title: string, message: string, type: 'info' | 'warning' | 'error' | 'success', onClick?: () => void, channel?: 'variable' | 'story') => {
     const bellType = type === 'success' ? 'ok' : type;
-    addToast(message, type, undefined, onClick);
-    pushStatus({ title, message, type: bellType, source: '游戏', onClick });
+    addToast(message, type, channel, onClick);
+    pushStatus({ title, message, type: bellType, source: '游戏', channel, onClick });
   }, [addToast]);
 
   // ── Game event monitor: affection/stage changes → bell (剧情 tab) ──
