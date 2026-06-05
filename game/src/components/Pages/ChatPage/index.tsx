@@ -173,7 +173,7 @@ export default function ChatPage({
           const idx = segs.indexOf('好感值');
           const name = idx > 0 ? segs[idx - 1] : '角色';
           const dir = (c.delta ?? 0) > 0 ? '+' : '';
-          addNotification?.('好感度变化', `${name} 好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
+          addNotification?.('好感度变化', `${name}好感度${dir}${c.delta}（${c.oldValue}→${c.newValue}）`, 'success');
         }
 
         // 受精事件通知

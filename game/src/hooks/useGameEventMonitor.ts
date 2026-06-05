@@ -68,22 +68,9 @@ export function useGameEventMonitor() {
             continue;
           }
 
-          // ── Affection value increased ──
-          if (cur.affection > old.affection) {
-            const diff = cur.affection - old.affection;
-            const msg = `好感度 +${diff}  (${old.affection} → ${cur.affection})`;
-            pushStatus({
-              title: cur.name,
-              message: msg,
-              type: 'success',
-              source: '好感变化',
-              channel: 'story',
-            });
-          }
-
-          // ── Stage changed (threshold crossed) ──
+          // ── Stage changed (threshold crossed) ── 仅「剧情」tab
           if (cur.stage !== old.stage) {
-            const msg = `好感阶段：${old.stage} → ${cur.stage}`;
+            const msg = `好感阶段：${old.stage}→${cur.stage}`;
             pushStatus({
               title: cur.name,
               message: msg,
