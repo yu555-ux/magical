@@ -169,7 +169,7 @@ export default function ChatPage({
           c => c.path.endsWith('好感值') && c.category === 'numeric'
         ) ?? [];
         for (const c of affectionChanges) {
-          const segs = c.path.split('/');
+          const segs = c.path.split('.');
           const idx = segs.indexOf('好感值');
           const name = idx > 0 ? segs[idx - 1] : '角色';
           const dir = (c.delta ?? 0) > 0 ? '+' : '';
@@ -179,7 +179,7 @@ export default function ChatPage({
         // 受精事件通知
         if (result.fertilizationEvents?.length) {
           for (const ev of result.fertilizationEvents) {
-            addNotification?.('受精', `${ev.name}已受精，父方${ev.father}`, 'success');
+            addNotification?.('受孕', `${ev.name}已受孕，父方${ev.father}`, 'success');
           }
         }
       }

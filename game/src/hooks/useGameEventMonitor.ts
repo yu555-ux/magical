@@ -19,20 +19,18 @@ interface CharSnapshot {
 
 function collectFemaleChars(vars: Record<string, any> | undefined): CharSnapshot[] {
   if (!vars) return [];
-  const chars = vars['主要人物'] ?? {};
+  const femaleChars = vars['主要人物']?.['女性'];
+  if (!femaleChars || typeof femaleChars !== 'object') return [];
   const result: CharSnapshot[] = [];
-  for (const genderKey of ['女性-异人', '女性-普通人']) {
-    const genderData = chars[genderKey];
-    if (!genderData || typeof genderData !== 'object') continue;
-    for (const [, members] of Object.entries(genderData as Record<string, any>)) {
-      if (!members || typeof members !== 'object') continue;
-      for (const [name, profile] of Object.entries(members as Record<string, any>)) {
-        if (!profile || typeof profile !== 'object') continue;
-        const aff = profile['好感值'];
-        if (aff === undefined || aff === null) continue;
-        const stage = getAffectionStage(aff).name;
-        result.push({ name, affection: aff, stage });
-      }
+  for (const categoryKey of ['异人', '普通人']) {
+    const categoryData = femaleChars[categoryKey];
+    if (!categoryData || typeof categoryData !== 'object') continue;
+    for (const [name, profile] of Object.entries(categoryData as Record<string, any>)) {
+      if (!profile || typeof profile !== 'object') continue;
+      const aff = profile['好感值'];
+      if (aff === undefined || aff === null) continue;
+      const stage = getAffectionStage(aff).name;
+      result.push({ name, affection: aff, stage });
     }
   }
   return result;
