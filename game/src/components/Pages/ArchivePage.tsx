@@ -321,11 +321,11 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
   // 子宫数据
   const uterus = p.子宫 as Record<string, any> | undefined;
   const uterusPhase = uterus?.['生理周期']?.['当前阶段'] as string | undefined;
-  const uterusSemen = uterus?.['宫内精液'] as { 总量?: number; 来源?: string } | undefined;
+  const uterusSemen = uterus?.['宫内精液'] as { 总量?: number; 来源列表?: Array<{ 来源: string; 容量: number; 注入时间: string }> } | undefined;
   const uterusPreg = uterus?.['怀孕状态'] as { 状态?: string; 父方?: string } | undefined;
   const hasUterus = !!uterusPhase;
   const uterusPregActive = uterusPreg?.['状态'] && uterusPreg['状态'] !== '未孕';
-  const uterusHasSemen = uterusSemen?.['总量'] && uterusSemen['总量'] > 0;
+  const uterusHasSemen = (uterusSemen?.['总量'] ?? 0) > 0 && (uterusSemen?.['来源列表']?.length ?? 0) > 0;
   const uterusTitle = hasUterus
     ? (uterusPregActive
         ? `子宫 · ${uterusPreg!['状态']}`
@@ -665,19 +665,20 @@ function CharacterDetail({ char }: { char: CharacterCard }) {
 
                 {/* ── 宫内精液卡片 ── */}
                 {uterusHasSemen && (
-                  <div className="border border-amber-400/10 bg-gradient-to-r from-amber-400/[0.04] to-transparent p-3 flex items-center gap-4">
-                    <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="border border-amber-400/10 bg-gradient-to-r from-amber-400/[0.04] to-transparent p-3 space-y-2">
+                    <div className="flex items-center gap-3">
                       <span className="text-[8px]">💧</span>
                       <span className="text-[10px] font-mono tracking-wider text-amber-200/35 uppercase">宫内精液</span>
+                      <span className="text-sm font-display font-bold text-amber-200/70">{uterusSemen!['总量']}ml</span>
                     </div>
-                    <span className="text-sm font-display font-bold text-amber-200/70">
-                      {uterusSemen!['总量']}ml
-                      {uterusSemen!['来源'] && <span className="text-amber-200/40 font-normal">（{uterusSemen!['来源']}）</span>}
-                    </span>
-                    <div className="flex-1" />
-                    {uterus?.['宫内精液']?.['注入时间'] && (
-                      <span className="text-[9px] font-mono text-white/12">{uterus['宫内精液']['注入时间']}</span>
-                    )}
+                    {(uterusSemen!['来源列表'] ?? []).map((entry, i) => (
+                      <div key={i} className="flex items-center gap-3 pl-5 text-[10px] font-mono">
+                        <span className="text-white/50">{entry['来源']}</span>
+                        <span className="text-amber-200/40">{entry['容量']}ml</span>
+                        <div className="flex-1" />
+                        <span className="text-white/12">{entry['注入时间']}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
 
