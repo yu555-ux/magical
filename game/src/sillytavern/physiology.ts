@@ -435,18 +435,43 @@ export function tickAges(
   oldTime: string | null,
   newTime: string,
 ): void {
-  if (!oldTime) return;
-  const oldY = parseWorldTime(oldTime)?.year;
-  const newY = parseWorldTime(newTime)?.year;
-  if (!oldY || !newY || newY <= oldY) return;
+  console.log('[tickAges] ═══ 调用入口 ═══');
+  console.log('[tickAges] oldTime:', oldTime);
+  console.log('[tickAges] newTime:', newTime);
+
+  if (!oldTime) {
+    console.log('[tickAges] ❌ oldTime 为空，退出');
+    return;
+  }
+  const oldParsed = parseWorldTime(oldTime);
+  const newParsed = parseWorldTime(newTime);
+  console.log('[tickAges] oldParsed:', oldParsed);
+  console.log('[tickAges] newParsed:', newParsed);
+
+  const oldY = oldParsed?.year;
+  const newY = newParsed?.year;
+  console.log('[tickAges] oldY:', oldY, 'newY:', newY, 'newY > oldY?', (newY ?? 0) > (oldY ?? 0));
+
+  if (!oldY || !newY || newY <= oldY) {
+    console.log('[tickAges] ❌ 年份未增长或解析失败，退出');
+    return;
+  }
+
+  const yearDiff = newY - oldY;
+  console.log('[tickAges] ✅ 年份增长了 ' + yearDiff + ' 年，开始更新年龄');
 
   // 主角
   const hero = variables?.['主角'];
-  if (hero && typeof hero['年龄'] === 'number') hero['年龄'] += (newY - oldY);
+  console.log('[tickAges] 主角对象存在?', !!hero, '年龄类型:', typeof hero?.['年龄']);
+  if (hero && typeof hero['年龄'] === 'number') {
+    const oldAge = hero['年龄'];
+    hero['年龄'] += yearDiff;
+    console.log('[tickAges] 主角年龄: ' + oldAge + ' → ' + hero['年龄']);
+  }
 
   // 所有人物
   const chars = variables?.['主要人物'];
-  if (!chars) return;
+  if (!chars) { console.log('[tickAges] 无主要人物数据'); return; }
   for (const gender of ['女性', '男性']) {
     for (const group of ['异人', '普通人']) {
       const g = chars[gender]?.[group];
@@ -454,9 +479,12 @@ export function tickAges(
       for (const name of Object.keys(g)) {
         const c = g[name];
         if (c && typeof c === 'object' && typeof c['年龄'] === 'number') {
-          c['年龄'] += (newY - oldY);
+          const oldAge = c['年龄'];
+          c['年龄'] += yearDiff;
+          console.log('[tickAges] ' + name + ' 年龄: ' + oldAge + ' → ' + c['年龄']);
         }
       }
     }
   }
+  console.log('[tickAges] ═══ 完成 ═══');
 }

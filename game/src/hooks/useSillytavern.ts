@@ -356,6 +356,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const skipUser = opts?.skipUserMessage === true;
     // 保存发送前的变量快照到 user 消息，供重写时回退使用
     const preSendVars = JSON.parse(JSON.stringify(effectiveChat.variables ?? {}));
+    console.log('[send] 保存 user 消息快照, 时间:', preSendVars?.['世界']?.['现实']?.['时间'], '主角年龄:', preSendVars?.['主角']?.['年龄']);
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now(), variablesAfter: preSendVars };
     // 构建消息列表：若末位已是用户消息，则替换（去重，只保留最新玩家输入）
     let newMessages = [...effectiveChat.messages, userMsg];
@@ -501,6 +502,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const preVars = updatedChat.variables ?? {};
     const oldRealTime = (preVars['世界']?.['现实']?.['时间'] ?? null) as string | null;
     const oldDreamTime = (preVars['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
+    console.log('[send] oldRealTime:', oldRealTime, 'oldDreamTime:', oldDreamTime);
     // 双API模式: 第一API不处理变量  [SillyTavern] 第一API完成
     const isDual = effectiveSettings.apiMode === 'dual' && effectiveApi.secondary?.enabled;
     let { nextVariables, snapshot } = isDual
@@ -677,12 +679,18 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     // 只有世界时间实际变化时才跑生理 tick
     const newRealTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? null) as string | null;
     const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
+    console.log('[send-tick] oldRealTime:', oldRealTime, '→ newRealTime:', newRealTime, 'changed:', newRealTime !== oldRealTime);
+    console.log('[send-tick] oldDreamTime:', oldDreamTime, '→ newDreamTime:', newDreamTime, 'changed:', newDreamTime !== oldDreamTime);
 
     if (newRealTime && newRealTime !== oldRealTime) {
+      console.log('[send-tick] ✅ 现实时间变化，触发 tickAges + tickAllFemales');
       tickAges(nextVariables, oldRealTime, newRealTime);
       fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false, prevVariables: preVars }));
+    } else {
+      console.log('[send-tick] 跳过现实 tick: newRealTime存在=' + !!newRealTime + ' changed=' + (newRealTime !== oldRealTime));
     }
     if (newDreamTime && newDreamTime !== oldDreamTime) {
+      console.log('[send-tick] ✅ 梦境时间变化，触发 tickAllFemales');
       fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true, prevVariables: preVars }));
     }
     if (newRealTime !== oldRealTime || newDreamTime !== oldDreamTime) {
@@ -763,6 +771,8 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
   }, [activeChatId, parser]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
+    console.log('[editMessage] ═══ 入口 ═══ messageId:', messageId);
+    const t0 = performance.now();
     // 重新提取 maintext/thinking 等字段，确保编辑后界面显示正确
     const extractTag = (tag: string) => {
       const m = newContent.match(new RegExp(`<${tag}>\\s*([\\s\\S]*?)\\s*<\\/${tag}>`, 'i'));
@@ -771,8 +781,10 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
 
     // 乐观更新：先更新 React state（即时渲染），再异步写 DB
     setChats(prev => {
+      const t1 = performance.now();
+      console.log('[editMessage] setChats 回调触发, 距入口 ' + (t1 - t0).toFixed(1) + 'ms');
       const chat = prev.find(c => c.id === activeChatId);
-      if (!chat) return prev;
+      if (!chat) { console.log('[editMessage] ❌ chat 未找到'); return prev; }
       const nextMessages = chat.messages.map(m => {
         if (m.id !== messageId) return m;
         const oldParsed = m.parsed;
@@ -781,11 +793,16 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
           maintext: extractTag('maintext') ?? oldParsed.maintext,
           thinking: extractTag('think(?:ing)?') ?? oldParsed.thinking,
         } : undefined;
+        console.log('[editMessage] 更新 parsed.maintext: ' + (oldParsed?.maintext?.substring(0, 30) ?? '(无)') + ' → ' + (updatedParsed?.maintext?.substring(0, 30) ?? '(无)'));
         return { ...m, content: newContent, parsed: updatedParsed };
       });
       const next: ChatSession = { ...chat, messages: nextMessages, updatedAt: Date.now() };
+      const t2 = performance.now();
       // 异步写 DB（不阻塞 UI）
-      db.chats.put(next).catch(e => console.error('[editMessage] DB 写入失败:', e));
+      db.chats.put(next).then(() => {
+        console.log('[editMessage] DB 写入完成, 耗时 ' + (performance.now() - t2).toFixed(1) + 'ms');
+      }).catch(e => console.error('[editMessage] DB 写入失败:', e));
+      console.log('[editMessage] ✅ State 更新完成, 总耗时 ' + (t2 - t0).toFixed(1) + 'ms');
       return prev.map(c => c.id === next.id ? next : c);
     });
   }, [activeChatId]);
@@ -854,10 +871,26 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const router = createApiRouter(effectiveApi);
     // 回滚到最后一条 assistant 之前的状态，避免变量在旧 patch 上反复叠加
     const lastIdx = chat.messages.indexOf(lastAssistant);
+    console.log('[rewrite] ═══ 回退搜索 ═══');
+    console.log('[rewrite] 消息总数:', chat.messages.length, 'lastAssistant idx:', lastIdx);
+    console.log('[rewrite] chat.variables 时间:', chat.variables?.['世界']?.['现实']?.['时间']);
     let preVars = JSON.parse(JSON.stringify(chat.variables ?? {}));
+    console.log('[rewrite] preVars 初始值(chat.variables) 时间:', preVars?.['世界']?.['现实']?.['时间']);
+    let foundAtIndex = -1;
     for (let i = lastIdx - 1; i >= 0; i--) {
-      if (chat.messages[i].variablesAfter) { preVars = JSON.parse(JSON.stringify(chat.messages[i].variablesAfter)); break; }
+      const msg = chat.messages[i];
+      console.log('[rewrite]   i=' + i + ' role=' + msg.role + ' hasVariablesAfter=' + !!msg.variablesAfter);
+      if (msg.variablesAfter) {
+        preVars = JSON.parse(JSON.stringify(msg.variablesAfter));
+        foundAtIndex = i;
+        console.log('[rewrite]   ✅ 在 i=' + i + ' 找到 variablesAfter, 时间:', preVars?.['世界']?.['现实']?.['时间']);
+        break;
+      }
     }
+    if (foundAtIndex < 0) {
+      console.log('[rewrite]   ❌ 未找到任何 variablesAfter，preVars 退化为 chat.variables (当前状态)');
+    }
+    console.log('[rewrite] 最终 preVars 时间:', preVars?.['世界']?.['现实']?.['时间']);
     const maintextForVars = lastAssistant.parsed.maintext;
 
     const varsPreset = effectiveSettings.presets?.find(
@@ -958,12 +991,18 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       const oldDreamTime = (preVars?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
       const newRealTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? null) as string | null;
       const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
+      console.log('[rewrite-tick] oldRealTime:', oldRealTime, '→ newRealTime:', newRealTime, 'changed:', newRealTime !== oldRealTime);
+      console.log('[rewrite-tick] oldDreamTime:', oldDreamTime, '→ newDreamTime:', newDreamTime, 'changed:', newDreamTime !== oldDreamTime);
       const fertilizationEvents: FertilizationResult[] = [];
       if (newRealTime && newRealTime !== oldRealTime) {
+        console.log('[rewrite-tick] ✅ 现实时间变化，触发 tick');
         tickAges(nextVariables, oldRealTime, newRealTime);
         fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false, prevVariables: preVars }));
+      } else {
+        console.log('[rewrite-tick] 跳过现实 tick: newRealTime存在=' + !!newRealTime + ' changed=' + (newRealTime !== oldRealTime));
       }
       if (newDreamTime && newDreamTime !== oldDreamTime) {
+        console.log('[rewrite-tick] ✅ 梦境时间变化，触发 tick');
         fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true, prevVariables: preVars }));
       }
 
