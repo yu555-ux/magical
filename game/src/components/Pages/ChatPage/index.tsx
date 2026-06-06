@@ -471,7 +471,10 @@ export default function ChatPage({
           setEditedRaw(content);
           setRawViewOpen(true);
         }}
-        onRegenerate={() => ss.regenerateLast()}
+        onRegenerate={async () => {
+          const retractedText = await ss.regenerateLast();
+          if (retractedText) setInput(retractedText);
+        }}
         onRegenerateVars={async () => {
           const result = await ss.regenerateVarsOnly();
           if (result) {

@@ -539,11 +539,34 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
               fullVars: nextVariables,
             };
             const secMessages: Array<{ role: string; content: string }> = [];
+            const secStageMessages: Record<string, Array<{ role: string; content: string }>> = {};
+            const secStageTokens: Record<string, number> = {};
+            const secStageOrder: string[] = [];
+            const secStageNames: Record<string, string> = {};
+            let secTotalTokens = 0;
             for (const block of varsPreset.blocks) {
               if (!block.enabled || !block.content?.trim()) continue;
               let resolved = resolveLorebyMacro(block.content, lorebooks);
               resolved = replaceMacros(resolved, secMacroCtx);
-              if (resolved.trim()) secMessages.push({ role: block.role, content: resolved });
+              if (!resolved.trim()) continue;
+              secMessages.push({ role: block.role, content: resolved });
+              const tokenEst = Math.round(resolved.length / 4);
+              secTotalTokens += tokenEst;
+              secStageMessages[block.identifier] = [{ role: block.role, content: resolved }];
+              secStageTokens[block.identifier] = tokenEst;
+              secStageOrder.push(block.identifier);
+              secStageNames[block.identifier] = block.name || block.identifier;
+            }
+            // 同步更新提示词查看弹窗
+            if (secStageOrder.length > 0) {
+              setLastSecondaryPrompt({
+                messages: [],
+                estimatedTokens: secTotalTokens,
+                stageTokens: secStageTokens,
+                stageMessages: secStageMessages,
+                stageOrder: secStageOrder,
+                stageNames: secStageNames,
+              });
             }
             console.log('[SillyTavern] 第二API调用, 消息数:', secMessages.length);
 
@@ -791,22 +814,15 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     parser.reset();
   }, [activeChatId, parser]);
 
-  const regenerateLast = useCallback(async () => {
-    if (!activeChat) return;
+  const regenerateLast = useCallback(async (): Promise<string | null> => {
+    if (!activeChat) return null;
     // 从 DB 读取最新 chat，避免闭包过期
     const dbChats = await db.chats.toArray();
     const chat = dbChats.find(c => c.id === activeChat.id) ?? activeChat;
     const lastUserIdx = [...chat.messages].reverse().findIndex(m => m.role === 'user');
-    if (lastUserIdx < 0) return;
+    if (lastUserIdx < 0) return null;
     const targetIdx = chat.messages.length - 1 - lastUserIdx;
     const userText = chat.messages[targetIdx].content;
-    // 保存原始快照，用于取消时恢复
-    const backup = {
-      messages: [...chat.messages],
-      variables: chat.variables,
-      dreamAnchor: chat.dreamAnchor,
-      plotHistory: chat.plotHistory,
-    };
     // 保留最后一条 user 消息，仅删除其后的 assistant 回复
     const truncated = chat.messages.slice(0, targetIdx + 1);
     const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
@@ -817,12 +833,21 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     await db.chats.put(next);
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
     // skipUserMessage: 不追加新 user 消息，复用已有的
-    const result = await sendGameMessage(userText, { skipUserMessage: true });
-    // 取消重roll → 恢复原始消息、变量、锚点和剧情历史
-    if (result.aborted) {
-      const restored: ChatSession = { ...chat, messages: backup.messages, variables: backup.variables, dreamAnchor: backup.dreamAnchor, plotHistory: backup.plotHistory, updatedAt: Date.now() };
-      await db.chats.put(restored);
-      setChats(prev => prev.map(c => c.id === restored.id ? restored : c));
+    try {
+      const result = await sendGameMessage(userText, { skipUserMessage: true });
+      if (result.aborted) {
+        // 中止 → 保持截断状态（assistant已删除），返回玩家输入
+        return userText;
+      }
+      if (result.formatError) {
+        showTopCenter('AI 回复缺少必要标签，请重试', 'warning');
+        return userText;
+      }
+      return null;
+    } catch (err: any) {
+      // API 网络错误等 → 保持截断状态，返回玩家输入
+      showTopCenter(err?.message || String(err), 'error');
+      return userText;
     }
   }, [activeChat, sendGameMessage]);
 
