@@ -94,10 +94,10 @@ function pointStyle(depth: number, key?: string): PointColorSet {
 
 /* ===== Danger ===== */
 function getDangerLevel(point: MapLocationRender): number {
-  const r = Object.keys(point.reality.地点细节.异常);
+  const r = Object.keys(point.reality?.地点细节?.异常 ?? {});
   if (r.length > 0) return 1;
-  const d = Object.values(point.dream.地点细节.异常);
-  if (d.some((a) => a.具现进度 >= 100)) return 2;
+  const d = Object.values(point.dream?.地点细节?.异常 ?? {});
+  if (d.some((a: any) => (a?.具现进度 ?? 0) >= 100)) return 2;
   return 0;
 }
 const DANGER_STYLES: Record<number, { ring: string; glow: string; text: string }> = {
@@ -762,9 +762,10 @@ function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter, onGoTo
     return () => window.removeEventListener('resize', onResize);
   }, []);
   const detail = layer === '现实' ? point.reality : point.dream;
-  const anomalies = Object.entries(detail.地点细节.异常);
+  const locationDetail = detail?.地点细节 ?? {};
+  const anomalies = Object.entries(locationDetail.异常 ?? {});
   const hasAnomalies = anomalies.length > 0;
-  const infoList = detail.地点细节.信息;
+  const infoList: string[] = Array.isArray(locationDetail.信息) ? locationDetail.信息 : [];
   const danger = getDangerLevel(point);
 
   const cardW = mobile ? window.innerWidth : 440;
@@ -929,7 +930,7 @@ function CardBody({ detail, accent, point, anomalies, hasAnomalies, infoList }: 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-5 py-3 md:py-4 space-y-3 md:space-y-4">
       <div className="p-3 md:p-3.5 rounded-lg border" style={{ borderColor: `${accent}12`, backgroundColor: `${accent}04` }}>
-        <p className="text-[11px] md:text-[12px] text-white/60 leading-relaxed font-mono tracking-wide">{detail.描述}</p>
+        <p className="text-[11px] md:text-[12px] text-white/60 leading-relaxed font-mono tracking-wide">{detail?.描述 ?? '暂无描述'}</p>
       </div>
       {point.bounds && (
         <div className="grid grid-cols-3 gap-1.5 md:gap-2">
@@ -960,9 +961,10 @@ function CardBody({ detail, accent, point, anomalies, hasAnomalies, infoList }: 
    ============================================================ */
 function AnomalyCard({ name, anomaly }: { name: string; anomaly: MapAnomaly }) {
   const [expanded, setExpanded] = useState(false);
-  const rating = getRating(anomaly.评级);
-  const traits = Object.entries(anomaly.特性);
-  const progress = Math.min(100, Math.max(0, anomaly.具现进度));
+  if (!anomaly || typeof anomaly !== 'object') return null;
+  const rating = getRating(anomaly.评级 ?? '微末');
+  const traits = Object.entries(anomaly.特性 ?? {});
+  const progress = Math.min(100, Math.max(0, anomaly.具现进度 ?? 0));
   const isFull = progress >= 100;
   return (
     <div className={`p-3.5 rounded-lg border transition-all ${rating.border} ${rating.bg} ${isFull ? 'border-red-500/50 shadow-[0_0_12px_rgba(239,68,68,0.2)]' : ''}`}>
