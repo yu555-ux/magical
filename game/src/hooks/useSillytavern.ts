@@ -764,9 +764,23 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const chats = await db.chats.toArray();
     const chat = chats.find(c => c.id === activeChatId);
     if (!chat) return;
-    const nextMessages = chat.messages.map(m =>
-      m.id === messageId ? { ...m, content: newContent } : m,
-    );
+
+    // 重新提取 maintext/thinking 等字段，确保编辑后界面显示正确
+    const extractTag = (tag: string) => {
+      const m = newContent.match(new RegExp(`<${tag}>\\s*([\\s\\S]*?)\\s*<\\/${tag}>`, 'i'));
+      return m ? m[1] : undefined;
+    };
+
+    const nextMessages = chat.messages.map(m => {
+      if (m.id !== messageId) return m;
+      const oldParsed = m.parsed;
+      const updatedParsed = oldParsed ? {
+        ...oldParsed,
+        maintext: extractTag('maintext') ?? oldParsed.maintext,
+        thinking: extractTag('think(?:ing)?') ?? oldParsed.thinking,
+      } : undefined;
+      return { ...m, content: newContent, parsed: updatedParsed };
+    });
     const next: ChatSession = { ...chat, messages: nextMessages, updatedAt: Date.now() };
     await db.chats.put(next);
     setChats(prev => prev.map(c => c.id === next.id ? next : c));
@@ -836,9 +850,9 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const router = createApiRouter(effectiveApi);
     // 回滚到最后一条 assistant 之前的状态，避免变量在旧 patch 上反复叠加
     const lastIdx = chat.messages.indexOf(lastAssistant);
-    let preVars = chat.variables ?? {};
+    let preVars = JSON.parse(JSON.stringify(chat.variables ?? {}));
     for (let i = lastIdx - 1; i >= 0; i--) {
-      if (chat.messages[i].variablesAfter) { preVars = chat.messages[i].variablesAfter; break; }
+      if (chat.messages[i].variablesAfter) { preVars = JSON.parse(JSON.stringify(chat.messages[i].variablesAfter)); break; }
     }
     const maintextForVars = lastAssistant.parsed.maintext;
 

@@ -134,7 +134,7 @@ export function getVariablePath(variables: Record<string, any>, path: string): s
 
 // ── Variable list (type reference for AI) ──
 
-const SKIP_INTERNAL = new Set(['检索词', '梦境NPC', '方位']);
+const SKIP_INTERNAL = new Set(['检索词', '梦境NPC', '方位', '年龄']);
 
 function leafType(v: any): string {
   if (v === null) return 'null';
