@@ -26,16 +26,16 @@ function styleOf(c: VarChange) {
 }
 
 function fmt(v: any): string {
-  if (typeof v === 'string') return v.length > 40 ? v.slice(0, 40) + '…' : v;
+  if (typeof v === 'string') return v.length > 200 ? v.slice(0, 200) + '…' : v;
   if (typeof v === 'number') return String(v);
   if (v === null || v === undefined) return '—';
-  return JSON.stringify(v).slice(0, 40);
+  return JSON.stringify(v).slice(0, 200);
 }
 
 export default function VariableDiffModal({ isOpen, onClose, changes }: Props) {
   return (
     <AetherModal isOpen={isOpen} onClose={onClose} title="变量更新" zIndex={200}>
-      <div className="flex-1 overflow-y-auto overflow-x-auto p-3 md:p-5 space-y-1">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-5 space-y-1 min-h-0 break-words">
         {changes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-10 h-10 rounded-full border border-white/[0.06] flex items-center justify-center bg-white/[0.01] mb-3">
@@ -66,13 +66,13 @@ export default function VariableDiffModal({ isOpen, onClose, changes }: Props) {
                   <Icon size={14} className={`shrink-0 ${s.text} opacity-70`} />
 
                   {/* 描述 */}
-                  <div className="flex-1 min-w-0 flex items-baseline gap-2 flex-wrap">
-                    <span className="text-[13px] font-display tracking-wide text-white/65 whitespace-nowrap">
+                  <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-baseline md:gap-2 gap-1">
+                    <span className="text-[13px] font-display tracking-wide text-white/65">
                       {c.label}
                     </span>
 
                     {/* 值变化 */}
-                    <span className="text-[13px] font-mono whitespace-nowrap">
+                    <span className="text-[13px] font-mono break-all">
                       {isRemove ? (
                         <span className="text-red-400/50">已移除</span>
                       ) : isAdd ? (
@@ -88,9 +88,9 @@ export default function VariableDiffModal({ isOpen, onClose, changes }: Props) {
                         </>
                       ) : (
                         <>
-                          <span className="text-white/30 whitespace-nowrap">{fmt(c.oldValue)}</span>
+                          <span className="text-white/30">{fmt(c.oldValue)}</span>
                           <span className="text-white/15 mx-1">→</span>
-                          <span className="text-amber-300/70 whitespace-nowrap">{fmt(c.newValue)}</span>
+                          <span className="text-amber-300/70">{fmt(c.newValue)}</span>
                         </>
                       )}
                     </span>
