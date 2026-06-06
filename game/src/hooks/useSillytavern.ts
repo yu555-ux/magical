@@ -913,6 +913,35 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         if (resolved.trim()) secMessages.push({ role: block.role, content: resolved });
       }
 
+      // 同步更新提示词查看器（第二API变量提示词）
+      if (secMessages.length > 0) {
+        const secStageMessages: Record<string, Array<{ role: string; content: string }>> = {};
+        const secStageTokens: Record<string, number> = {};
+        const secStageOrder: string[] = [];
+        const secStageNames: Record<string, string> = {};
+        let secTotalTokens = 0;
+        for (const block of varsPreset.blocks) {
+          if (!block.enabled || !block.content?.trim()) continue;
+          let resolved = resolveLorebyMacro(block.content, lorebooks);
+          resolved = replaceMacros(resolved, secMacroCtx);
+          if (!resolved.trim()) continue;
+          secStageMessages[block.identifier] = [{ role: block.role, content: resolved }];
+          const tokenEst = Math.round(resolved.length / 4);
+          secStageTokens[block.identifier] = tokenEst;
+          secTotalTokens += tokenEst;
+          secStageOrder.push(block.identifier);
+          secStageNames[block.identifier] = block.name || block.identifier;
+        }
+        setLastSecondaryPrompt({
+          messages: [],
+          estimatedTokens: secTotalTokens,
+          stageTokens: secStageTokens,
+          stageMessages: secStageMessages,
+          stageOrder: secStageOrder,
+          stageNames: secStageNames,
+        });
+      }
+
       const dualController = new AbortController();
       dualAbortRef.current = dualController;
       const { response } = await router.call('vars', {
@@ -922,7 +951,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         max_tokens: effectiveApi.secondary.maxTokens ?? 2048,
       }, dualController.signal);
 
-      if (!response.ok) return;
+      if (!response.ok) { showTopCenter('变量重写失败', 'error'); return null; }
       const d = await response.json();
       const raw = d?.choices?.[0]?.message?.content ?? '';
       let nextVariables = JSON.parse(JSON.stringify(preVars));
@@ -1017,6 +1046,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return null;
       console.error('[SillyTavern] 变量重写失败:', e);
+      showTopCenter('变量重写失败', 'error');
       return null;
     } finally {
       dualAbortRef.current = null;

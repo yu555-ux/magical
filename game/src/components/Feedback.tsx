@@ -102,7 +102,7 @@ export function Toast({ message, type, onClose, onClick, channel = 'variable' }:
       animate={{ x: 0, opacity: 1, height: 'auto' }}
       exit={{ x: 120, opacity: 0, height: 0 }}
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-      className={`pointer-events-auto p-4 border flex items-center gap-4 min-w-[320px] max-w-[420px] ${
+      className={`pointer-events-auto p-3 md:p-4 border flex items-center gap-3 md:gap-4 min-w-0 max-w-[calc(100vw-2rem)] md:max-w-[420px] ${
         isStory
           ? 'glass-panel border-aether-cyan/30 text-aether-cyan/90 shadow-[0_0_20px_rgba(0,242,255,0.08)]'
           : `glass-panel ${colors[type]}`

@@ -135,7 +135,7 @@ export default function App() {
       </main>
 
       {/* Toast Overlay — stacked top-right */}
-      <div className="fixed right-6 top-24 z-[1000] pointer-events-none flex flex-col gap-2 items-end">
+      <div className="fixed right-3 md:right-6 left-3 md:left-auto top-24 z-[1000] pointer-events-none flex flex-col gap-2 items-end">
         <AnimatePresence>
           {toasts.map((toast) => (
             <Toast key={toast.id} message={toast.message} type={toast.type} channel={toast.channel} onClick={toast.onClick} onClose={() => removeToast(toast.id)} />

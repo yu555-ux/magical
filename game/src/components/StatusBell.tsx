@@ -158,7 +158,7 @@ export default function StatusBell() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.97 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="absolute right-0 top-[calc(100%+8px)] w-[70vw] max-w-[250px] sm:max-w-[340px] max-h-[50vh] md:max-h-[60vh] flex flex-col overflow-hidden glass-panel border-glow"
+              className="absolute right-0 top-[calc(100%+8px)] w-[66vw] max-w-[220px] sm:max-w-[300px] max-h-[50vh] md:max-h-[60vh] flex flex-col overflow-hidden glass-panel border-glow"
             >
               {/* ═══ Header ═══ */}
               <div className="shrink-0 px-3 md:px-5 py-2 md:py-3 border-b border-aether-border/30 flex items-center justify-between bg-aether-cyan/[0.02]">
