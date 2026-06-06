@@ -151,14 +151,8 @@ function resolveContent(content: string, presetVars: Record<string, string>, mac
     .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
     .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, path: string) => {
       const trimmedPath = path.trim();
-      console.log('[GET_VAR-MACRO] 匹配到 {{GET_VAR::' + trimmedPath + '}}, fullVars 是否存在:', !!macroCtx.fullVars);
-      if (!macroCtx.fullVars) {
-        console.log('[GET_VAR-MACRO] ❌ fullVars 为空, 返回空字符串');
-        return '';
-      }
-      const result = getVariablePath(macroCtx.fullVars, trimmedPath);
-      console.log('[GET_VAR-MACRO] 结果长度:', result.length, '结果前100字符:', result.substring(0, 100));
-      return result;
+      if (!macroCtx.fullVars) return '';
+      return getVariablePath(macroCtx.fullVars, trimmedPath);
     })
     .replace(/\{\{LOREBY::([^}]+)\}\}/g, '')
     .replace(/\{\{trim\}\}/gi, '');
@@ -266,14 +260,8 @@ export function assemblePrompt(options: AssembleOptions): AssembleResult {
      .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
      .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, path: string) => {
        const trimmedPath = path.trim();
-       console.log('[GET_VAR-LOREBOOK] 匹配到 {{GET_VAR::' + trimmedPath + '}}, fullVars 是否存在:', !!macroCtx.fullVars);
-       if (!macroCtx.fullVars) {
-         console.log('[GET_VAR-LOREBOOK] ❌ fullVars 为空, 返回空字符串');
-         return '';
-       }
-       const result = getVariablePath(macroCtx.fullVars, trimmedPath);
-       console.log('[GET_VAR-LOREBOOK] 结果长度:', result.length, '结果前100字符:', result.substring(0, 100));
-       return result;
+       if (!macroCtx.fullVars) return '';
+       return getVariablePath(macroCtx.fullVars, trimmedPath);
      })
      .replace(/\{\{LOREBY::([^}]+)\}\}/g, '');
 
