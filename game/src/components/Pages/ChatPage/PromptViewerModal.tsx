@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, FileText, ChevronDown, ChevronRight, User, Bot, RefreshCw } from 'lucide-react';
 
@@ -32,6 +32,11 @@ export default function PromptViewerModal({ isOpen, onClose, onRefresh, prompt, 
   const replyTokens = replyText ? Math.round(replyText.length / 4) : 0;
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [view, setView] = useState<'primary' | 'secondary'>('primary');
+
+  // 打开弹窗时自动拉取最新提示词
+  useEffect(() => {
+    if (isOpen) onRefresh?.();
+  }, [isOpen]);
 
   const toggle = (id: string) => setCollapsed(prev => {
     const s = new Set(prev);

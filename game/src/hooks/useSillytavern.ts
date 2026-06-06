@@ -913,14 +913,6 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         if (resolved.trim()) secMessages.push({ role: block.role, content: resolved });
       }
 
-      // 重写变量宏替换追踪日志
-      console.log('[rewrite-macro] fullVars 时间:', secMacroCtx.fullVars?.['世界']?.['现实']?.['时间']);
-      for (const m of secMessages) {
-        console.log('[rewrite-macro] ───── ' + m.role + ' ─────');
-        console.log(m.content);
-      }
-      console.log('[rewrite-macro] ═════ 共 ' + secMessages.length + ' 条消息 ═════');
-
       const dualController = new AbortController();
       dualAbortRef.current = dualController;
       const { response } = await router.call('vars', {
