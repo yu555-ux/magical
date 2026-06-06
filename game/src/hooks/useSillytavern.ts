@@ -354,7 +354,9 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     }
 
     const skipUser = opts?.skipUserMessage === true;
-    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now() };
+    // 保存发送前的变量快照到 user 消息，供重写时回退使用
+    const preSendVars = JSON.parse(JSON.stringify(effectiveChat.variables ?? {}));
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: userText, timestamp: Date.now(), variablesAfter: preSendVars };
     // 构建消息列表：若末位已是用户消息，则替换（去重，只保留最新玩家输入）
     let newMessages = [...effectiveChat.messages, userMsg];
     while (newMessages.length >= 2 && newMessages[newMessages.length - 1].role === 'user' && newMessages[newMessages.length - 2].role === 'user') {
@@ -761,29 +763,31 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
   }, [activeChatId, parser]);
 
   const editMessage = useCallback(async (messageId: string, newContent: string) => {
-    const chats = await db.chats.toArray();
-    const chat = chats.find(c => c.id === activeChatId);
-    if (!chat) return;
-
     // 重新提取 maintext/thinking 等字段，确保编辑后界面显示正确
     const extractTag = (tag: string) => {
       const m = newContent.match(new RegExp(`<${tag}>\\s*([\\s\\S]*?)\\s*<\\/${tag}>`, 'i'));
       return m ? m[1] : undefined;
     };
 
-    const nextMessages = chat.messages.map(m => {
-      if (m.id !== messageId) return m;
-      const oldParsed = m.parsed;
-      const updatedParsed = oldParsed ? {
-        ...oldParsed,
-        maintext: extractTag('maintext') ?? oldParsed.maintext,
-        thinking: extractTag('think(?:ing)?') ?? oldParsed.thinking,
-      } : undefined;
-      return { ...m, content: newContent, parsed: updatedParsed };
+    // 乐观更新：先更新 React state（即时渲染），再异步写 DB
+    setChats(prev => {
+      const chat = prev.find(c => c.id === activeChatId);
+      if (!chat) return prev;
+      const nextMessages = chat.messages.map(m => {
+        if (m.id !== messageId) return m;
+        const oldParsed = m.parsed;
+        const updatedParsed = oldParsed ? {
+          ...oldParsed,
+          maintext: extractTag('maintext') ?? oldParsed.maintext,
+          thinking: extractTag('think(?:ing)?') ?? oldParsed.thinking,
+        } : undefined;
+        return { ...m, content: newContent, parsed: updatedParsed };
+      });
+      const next: ChatSession = { ...chat, messages: nextMessages, updatedAt: Date.now() };
+      // 异步写 DB（不阻塞 UI）
+      db.chats.put(next).catch(e => console.error('[editMessage] DB 写入失败:', e));
+      return prev.map(c => c.id === next.id ? next : c);
     });
-    const next: ChatSession = { ...chat, messages: nextMessages, updatedAt: Date.now() };
-    await db.chats.put(next);
-    setChats(prev => prev.map(c => c.id === next.id ? next : c));
   }, [activeChatId]);
 
   const regenerateLast = useCallback(async () => {
