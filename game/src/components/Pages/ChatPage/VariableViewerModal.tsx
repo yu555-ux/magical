@@ -156,7 +156,7 @@ export default function VariableViewerModal({ isOpen, onClose, variables, onSave
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto px-5 pb-5">
+          <div className="flex-1 overflow-y-auto overflow-x-auto px-5 pb-5">
             {searchResults ? (
               /* Search results — flat list with paths */
               searchResults.length === 0 ? (
@@ -241,7 +241,7 @@ function TreeNode({
 
         return (
           <div key={key} className="group">
-            <div className="flex items-center gap-1.5 py-1.5 hover:bg-white/[0.02] rounded px-1 -mx-1 transition-colors">
+            <div className="flex items-center gap-1.5 py-1.5 hover:bg-white/[0.02] rounded px-1 -mx-1 transition-colors flex-nowrap">
               {/* Expand/collapse */}
               {isObject ? (
                 <button onClick={() => onToggle(pathStr)} className="text-white/25 hover:text-white/50 p-0.5">
@@ -252,7 +252,7 @@ function TreeNode({
               )}
 
               {/* Key */}
-              <span className={`font-mono tracking-wide ${isObject ? 'text-white/50 text-[13px] font-semibold' : 'text-white/30 text-[12px]'}`}>
+              <span className={`font-mono tracking-wide whitespace-nowrap ${isObject ? 'text-white/50 text-[13px] font-semibold' : 'text-white/30 text-[12px]'}`}>
                 {key}
               </span>
 
@@ -285,7 +285,7 @@ function TreeNode({
                     </div>
                   ) : (
                     <span
-                      className={`text-[12px] ml-2 font-mono cursor-pointer truncate ${
+                      className={`text-[12px] ml-2 font-mono cursor-pointer whitespace-nowrap ${
                         typeof value === 'number' ? 'text-aether-gold' : 'text-white/60'
                       }`}
                       onClick={() => onStartEdit(path, key, value)}

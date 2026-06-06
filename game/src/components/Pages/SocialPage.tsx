@@ -362,47 +362,47 @@ export default function SocialPage() {
       {/* ── Modal ── */}
       <Modal isOpen={!!selectedNode} onClose={() => setSelectedNode(null)} title="">
         {selectedNode && selProfile && (
-          <div className="space-y-4 md:space-y-5 w-full md:min-w-[430px] md:max-w-[520px]">
+          <div className="space-y-2.5 md:space-y-5 w-full md:min-w-[430px] md:max-w-[520px]">
             {/* ── Hero: avatar + name + identity ── */}
-            <div className="flex gap-3 md:gap-5">
+            <div className="flex gap-2.5 md:gap-5">
               <div className="relative shrink-0">
                 <div className="absolute inset-0 rounded-full" style={{ margin: '-6px', boxShadow: `0 0 28px ${NODE_COLOR}25` }} />
-                <div className="w-14 h-14 md:w-20 md:h-20 rounded-full border-2 flex items-center justify-center text-2xl md:text-3xl font-bold font-display"
+                <div className="w-12 h-12 md:w-20 md:h-20 rounded-full border-2 flex items-center justify-center text-xl md:text-3xl font-bold font-display"
                   style={{ borderColor: `${NODE_COLOR}70`, color: NODE_COLOR, background: 'linear-gradient(135deg, rgba(0,30,40,0.95), rgba(0,8,14,0.98))', boxShadow: `0 0 20px ${NODE_COLOR}20` }}>
                   {selectedNode.name[0]}
                 </div>
               </div>
-              <div className="min-w-0 pt-0.5 md:pt-1">
-                <div className="flex items-center gap-1.5 md:gap-2 flex-wrap mb-0.5 md:mb-1">
-                  <h3 className="text-base md:text-xl font-display font-bold text-white/95 tracking-wide">{selectedNode.name}</h3>
-                  <span className="text-[10px] md:text-[12px] font-mono text-white/45 font-bold">{selProfile.年龄}岁</span>
+              <div className="min-w-0 pt-0 md:pt-1">
+                <div className="flex items-center gap-1 md:gap-2 flex-wrap mb-0 md:mb-1">
+                  <h3 className="text-sm md:text-xl font-display font-bold text-white/95 tracking-wide">{selectedNode.name}</h3>
+                  <span className="text-[9px] md:text-[12px] font-mono text-white/45 font-bold">{selProfile.年龄}岁</span>
                   {selProfile.梦境NPC && <span className="text-[7px] md:text-[8px] font-mono px-1 md:px-1.5 py-0.5 rounded bg-purple-400/12 text-purple-300/70 border border-purple-400/20">梦境NPC</span>}
                 </div>
-                <p className="text-[11px] md:text-[12px] text-white/80 font-mono leading-relaxed">{selProfile.身份}</p>
+                <p className="text-[10px] md:text-[12px] text-white/80 font-mono leading-relaxed">{selProfile.身份}</p>
               </div>
             </div>
 
             {/* ── Affection & Corruption bars ── */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
-              <div className="p-2.5 md:p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.01]">
-                <div className="flex items-baseline justify-between mb-1">
-                  <span className="text-[9px] font-mono text-white/70 tracking-[0.08em] uppercase">{selIsFemale ? '好感' : '友善'}</span>
-                  <span className="text-[13px] md:text-[15px] font-display font-bold italic tracking-[0.1em]" style={{ color: selAffStage.color, textShadow: `0 0 16px ${selAffStage.color}30` }}>{selAffStage.name}</span>
+              <div className="p-2 md:p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.01]">
+                <div className="flex items-baseline justify-between mb-0.5 md:mb-1">
+                  <span className="text-[8px] md:text-[9px] font-mono text-white/70 tracking-[0.08em] uppercase">{selIsFemale ? '好感' : '友善'}</span>
+                  <span className="text-[11px] md:text-[15px] font-display font-bold italic tracking-[0.1em]" style={{ color: selAffStage.color, textShadow: `0 0 16px ${selAffStage.color}30` }}>{selAffStage.name}</span>
                 </div>
-                <span className="text-[10px] md:text-[11px] font-mono" style={{ color: selAffStage.color, opacity: 0.85 }}>{selAffection}</span>
-                <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: `${selAffStage.color}10` }}>
+                <span className="text-[9px] md:text-[11px] font-mono" style={{ color: selAffStage.color, opacity: 0.85 }}>{selAffection}</span>
+                <div className="mt-1 h-1 md:h-1.5 rounded-full overflow-hidden" style={{ background: `${selAffStage.color}10` }}>
                   <div
                     className="h-full rounded-full" style={{ width: `${Math.abs(selAffection) / 200 * 100}%`, background: `linear-gradient(90deg, ${selAffStage.color}80, ${selAffStage.color})` }} />
                 </div>
               </div>
               {selIsFemale && selCorruption !== undefined && (
-                <div className="p-2.5 md:p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.01]">
-                  <div className="flex items-baseline justify-between mb-1">
-                    <span className="text-[9px] font-mono text-white/70 tracking-[0.08em] uppercase">堕落</span>
-                    <span className="text-[13px] md:text-[15px] font-display font-bold italic tracking-[0.1em]" style={{ color: selCorrStage!.color, textShadow: `0 0 16px ${selCorrStage!.color}30` }}>{selCorrStage!.name}</span>
+                <div className="p-2 md:p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.01]">
+                  <div className="flex items-baseline justify-between mb-0.5 md:mb-1">
+                    <span className="text-[8px] md:text-[9px] font-mono text-white/70 tracking-[0.08em] uppercase">堕落</span>
+                    <span className="text-[11px] md:text-[15px] font-display font-bold italic tracking-[0.1em]" style={{ color: selCorrStage!.color, textShadow: `0 0 16px ${selCorrStage!.color}30` }}>{selCorrStage!.name}</span>
                   </div>
-                  <span className="text-[10px] md:text-[11px] font-mono" style={{ color: selCorrStage!.color, opacity: 0.85 }}>{selCorruption}</span>
-                  <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: `${selCorrStage!.color}10` }}>
+                  <span className="text-[9px] md:text-[11px] font-mono" style={{ color: selCorrStage!.color, opacity: 0.85 }}>{selCorruption}</span>
+                  <div className="mt-1 h-1 md:h-1.5 rounded-full overflow-hidden" style={{ background: `${selCorrStage!.color}10` }}>
                     <div
                       className="h-full rounded-full" style={{ width: `${selCorruption / 500 * 100}%`, background: `linear-gradient(90deg, ${selCorrStage!.color}80, ${selCorrStage!.color})` }} />
                   </div>
@@ -414,7 +414,7 @@ export default function SocialPage() {
             <div className="h-px bg-gradient-to-r from-transparent via-white/[0.05] to-transparent" />
 
             {/* ── Status: location / action / thought ── */}
-            <div className="space-y-1.5 md:space-y-2.5">
+            <div className="space-y-1 md:space-y-2.5">
               <InfoRow label="位置" value={selProfile.当前位置} />
               <InfoRow label="行动" value={selProfile.当前行动} />
               <InfoRow label="想法" value={selProfile.当前想法} muted />
@@ -422,13 +422,13 @@ export default function SocialPage() {
 
             {/* ── Status effects ── */}
             {Object.keys(selProfile.状态).length > 0 && (
-              <div className="space-y-1 md:space-y-1.5">
-                <span className="text-[8px] md:text-[9px] font-mono text-white/70 tracking-[0.12em] uppercase">状态效果</span>
+              <div className="space-y-1">
+                <span className="text-[7px] md:text-[9px] font-mono text-white/70 tracking-[0.12em] uppercase">状态效果</span>
                 {(Object.entries(selProfile.状态) as [string, { 描述?: string; 持续时间?: string }][]).map(([name, s]) => (
-                  <div key={name} className="flex items-center gap-2 md:gap-3 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg border border-white/[0.04] bg-white/[0.01]">
+                  <div key={name} className="flex items-center gap-1.5 md:gap-3 px-2 md:px-3 py-1 md:py-2 rounded-lg border border-white/[0.04] bg-white/[0.01]">
                     <div className="w-1 h-1 rounded-full bg-aether-cyan/50 shrink-0" />
-                    <span className="text-[10px] md:text-[11px] font-mono text-white/80">{name}</span>
-                    <span className="ml-auto text-[8px] md:text-[9px] font-mono text-white/50 truncate">{s.描述} · {s.持续时间}</span>
+                    <span className="text-[9px] md:text-[11px] font-mono text-white/80">{name}</span>
+                    <span className="ml-auto text-[7px] md:text-[9px] font-mono text-white/50 truncate">{s.描述} · {s.持续时间}</span>
                   </div>
                 ))}
               </div>
@@ -439,23 +439,23 @@ export default function SocialPage() {
 
             {/* ── Social relation ── */}
             {selSocial && (
-              <div className="p-3 md:p-4 rounded-xl border border-aether-cyan/[0.06]" style={{ background: 'linear-gradient(135deg, rgba(0,242,255,0.025), rgba(0,242,255,0.005))' }}>
-                <span className="text-[8px] md:text-[9px] font-mono text-aether-cyan/70 tracking-[0.1em] uppercase">社交关系</span>
-                <div className="mt-1.5 md:mt-2 space-y-1.5 md:space-y-2">
+              <div className="p-2.5 md:p-4 rounded-xl border border-aether-cyan/[0.06]" style={{ background: 'linear-gradient(135deg, rgba(0,242,255,0.025), rgba(0,242,255,0.005))' }}>
+                <span className="text-[7px] md:text-[9px] font-mono text-aether-cyan/70 tracking-[0.1em] uppercase">社交关系</span>
+                <div className="mt-1 md:mt-2 space-y-1 md:space-y-2">
                   {/* Relationship to me: 玩家名 + 关系 */}
-                  <div className="flex items-baseline gap-1.5 md:gap-2">
+                  <div className="flex items-baseline gap-1 md:gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-aether-cyan/50 shrink-0" />
-                    <span className="text-[12px] md:text-[13px] font-display text-white/80 font-bold tracking-wider">{playerName}</span>
-                    <span className="text-[10px] md:text-[11px] font-mono text-white/55">{selSocial.关系}</span>
+                    <span className="text-[11px] md:text-[13px] font-display text-white/80 font-bold tracking-wider">{playerName}</span>
+                    <span className="text-[9px] md:text-[11px] font-mono text-white/55">{selSocial.关系}</span>
                   </div>
                   {/* Social circle: 人名 + 关系 — skip self (already shown as primary above) */}
                   {selProfile?.社交圈 && Object.entries(selProfile.社交圈 as Record<string, string>)
                     .filter(([name]) => name !== playerName && name !== '{{user}}' && name !== '<user>')
                     .map(([name, rel]) => (
-                    <div key={name} className="flex items-baseline gap-1.5 md:gap-2">
+                    <div key={name} className="flex items-baseline gap-1 md:gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-aether-cyan/35 shrink-0" />
-                      <span className="text-[12px] md:text-[13px] font-display text-white/65 font-bold tracking-wider">{name}</span>
-                      <span className="text-[10px] md:text-[11px] font-mono text-white/55">{rel}</span>
+                      <span className="text-[11px] md:text-[13px] font-display text-white/65 font-bold tracking-wider">{name}</span>
+                      <span className="text-[9px] md:text-[11px] font-mono text-white/55">{rel}</span>
                     </div>
                   ))}
                 </div>
@@ -472,9 +472,9 @@ export default function SocialPage() {
 
 function InfoRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="flex items-start gap-2 md:gap-3 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg border border-white/[0.03] bg-white/[0.005]">
-      <span className="text-[8px] md:text-[9px] font-mono text-white/55 tracking-[0.1em] uppercase shrink-0 w-7 md:w-8 pt-0.5">{label}</span>
-      <span className={`text-[11px] md:text-[12px] font-mono leading-relaxed ${muted ? 'text-white/85 italic' : 'text-white'}`}>{value}</span>
+    <div className="flex items-start gap-1.5 md:gap-3 px-2 md:px-3 py-1 md:py-2 rounded-lg border border-white/[0.03] bg-white/[0.005]">
+      <span className="text-[7px] md:text-[9px] font-mono text-white/55 tracking-[0.1em] uppercase shrink-0 w-6 md:w-8 pt-0.5">{label}</span>
+      <span className={`text-[10px] md:text-[12px] font-mono leading-relaxed ${muted ? 'text-white/85 italic' : 'text-white'}`}>{value}</span>
     </div>
   );
 }

@@ -35,7 +35,7 @@ function fmt(v: any): string {
 export default function VariableDiffModal({ isOpen, onClose, changes }: Props) {
   return (
     <AetherModal isOpen={isOpen} onClose={onClose} title="变量更新" zIndex={200}>
-      <div className="flex-1 overflow-y-auto p-3 md:p-5 space-y-1">
+      <div className="flex-1 overflow-y-auto overflow-x-auto p-3 md:p-5 space-y-1">
         {changes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-10 h-10 rounded-full border border-white/[0.06] flex items-center justify-center bg-white/[0.01] mb-3">
@@ -67,7 +67,7 @@ export default function VariableDiffModal({ isOpen, onClose, changes }: Props) {
 
                   {/* 描述 */}
                   <div className="flex-1 min-w-0 flex items-baseline gap-2 flex-wrap">
-                    <span className="text-[13px] font-display tracking-wide text-white/65 truncate">
+                    <span className="text-[13px] font-display tracking-wide text-white/65 whitespace-nowrap">
                       {c.label}
                     </span>
 
@@ -88,9 +88,9 @@ export default function VariableDiffModal({ isOpen, onClose, changes }: Props) {
                         </>
                       ) : (
                         <>
-                          <span className="text-white/30 line-clamp-1">{fmt(c.oldValue)}</span>
+                          <span className="text-white/30 whitespace-nowrap">{fmt(c.oldValue)}</span>
                           <span className="text-white/15 mx-1">→</span>
-                          <span className="text-amber-300/70 line-clamp-1">{fmt(c.newValue)}</span>
+                          <span className="text-amber-300/70 whitespace-nowrap">{fmt(c.newValue)}</span>
                         </>
                       )}
                     </span>
