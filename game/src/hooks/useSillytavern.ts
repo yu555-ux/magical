@@ -8,6 +8,9 @@ import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, delet
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 import { showTopCenter } from '../components/shared/TopCenterToast';
 import { tickAllFemales, tickAges, type FertilizationResult } from '../sillytavern/physiology';
+import { resolveLorebyMacro } from '../sillytavern/lorebook-resolver';
+import { buildSecondaryPrompt } from '../sillytavern/secondary-prompt-builder';
+import { useRegenerateVars } from './useRegenerateVars';
 
 const DEFAULT_OPENING = `餐桌上方的吊灯洒下暖白色的光。张云夹了一块排骨，没放进自己碗里，而是越过半个桌子，稳稳地落在了<user>的米饭上。排骨上的糖醋汁洇进白白的米粒里。
 
@@ -111,96 +114,13 @@ export function useSillytavern() {
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId) ?? null, [chats, activeChatId]);
 
   /** 将 {{LOREBY::pattern}} 替换为匹配的世界书条目内容（按条目标题/检索词匹配） */
-  const resolveLorebyMacro = useCallback((content: string, lorebooks: typeof settings extends { lorebooks: infer L } ? L : any): string => {
-    if (!lorebooks?.length) return content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
-    const patterns: string[] = [];
-    const re = /\{\{LOREBY::([^}]+)\}\}/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(content)) !== null) {
-      patterns.push(m[1].trim());
-    }
-    if (patterns.length === 0) return content;
-    // 按世界书条目标题(comment)匹配
-    const parts: string[] = [];
-    for (const lb of lorebooks) {
-      console.log('[LOREBY] 世界书:', lb.name, '条目数:', lb.entries?.length);
-      for (const entry of (lb.entries ?? [])) {
-        if (!entry.enabled) continue;
-        const keys = (entry.keys || []).concat(entry.secondaryKeys || []);
-        const matchText = [entry.comment || '', ...keys].join(' ');
-        if (patterns.some(p => matchText.includes(p))) {
-          console.log('[LOREBY] 命中:', entry.comment);
-          parts.push(entry.content);
-        }
-      }
-    }
-    console.log('[LOREBY] 匹配条目数:', parts.length);
-    const replacement = parts.join('\n\n');
-    return replacement ? content.replace(/\{\{LOREBY::[^}]+\}\}/g, replacement) : content.replace(/\{\{LOREBY::[^}]+\}\}/g, '');
-  }, []);
-
-  // 构建第二API提示词预览（响应 settings / activeChat 变化）
-  const buildSecondaryPrompt = useCallback((s: AppSettings, chat: ChatSession | null) => {
-    const varsPreset = s.presets?.find(
-      p => p.id === s.activeVarsPresetId && p.type === 'vars',
-    );
-    if (!varsPreset) { setLastSecondaryPrompt(null); return; }
-
-    const chatVars = chat?.variables ?? {};
-    const lastAssistant = [...(chat?.messages ?? [])].reverse().find(m => m.role === 'assistant');
-    const lastMaintext = lastAssistant?.parsed?.maintext ?? '';
-
-    const secMacroCtx = {
-      userName: s.userName ?? DEFAULT_SETTINGS.userName,
-      characterName: s.characterName ?? DEFAULT_SETTINGS.characterName,
-      userInput: '',
-      playerDescription: s.playerDescription,
-      characterDescription: s.characterDescription,
-      varsListText: formatVariablesForPrompt(chatVars),
-      lastMaintext: lastMaintext || '(暂无AI回复正文)',
-      fullVars: chatVars,
-    };
-
-    const secStageMessages: Record<string, Array<{ role: string; content: string }>> = {};
-    const secStageTokens: Record<string, number> = {};
-    const secStageOrder: string[] = [];
-    const secStageNames: Record<string, string> = {};
-    let secTotalTokens = 0;
-
-    const lorebooks = s.lorebooks ?? [];
-    for (const block of varsPreset.blocks) {
-      if (!block.enabled || !block.content?.trim()) continue;
-      let resolved = resolveLorebyMacro(block.content, lorebooks);
-      resolved = replaceMacros(resolved, secMacroCtx);
-      if (!resolved.trim()) continue;
-      const tokenEst = Math.round(resolved.length / 4);
-      secTotalTokens += tokenEst;
-      secStageMessages[block.identifier] = [{ role: block.role, content: resolved }];
-      secStageTokens[block.identifier] = tokenEst;
-      secStageOrder.push(block.identifier);
-      secStageNames[block.identifier] = block.name || block.identifier;
-    }
-
-    if (secStageOrder.length > 0) {
-      setLastSecondaryPrompt({
-        messages: [],
-        estimatedTokens: secTotalTokens,
-        stageTokens: secStageTokens,
-        stageMessages: secStageMessages,
-        stageOrder: secStageOrder,
-        stageNames: secStageNames,
-      });
-    } else {
-      setLastSecondaryPrompt(null);
-    }
-  }, []);
-
   // 响应 settings 变化自动重建第二API提示词预览
   useEffect(() => {
     if (settings && initialized) {
-      buildSecondaryPrompt(settings, activeChat);
+      const prompt = buildSecondaryPrompt(settings, activeChat);
+      setLastSecondaryPrompt(prompt);
     }
-  }, [settings, activeChat, initialized, buildSecondaryPrompt]);
+  }, [settings, activeChat, initialized]);
 
   useEffect(() => {
     let cancelled = false;
@@ -851,208 +771,10 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     }
   }, [activeChat, sendGameMessage]);
 
-  // 重写变量：保留正文，仅用第二API重新提取变量
-  const regenerateVarsOnly = useCallback(async (): Promise<{
-    patchCount: number;
-    varChanges: import('../sillytavern/types').VarChange[];
-    fertilizationEvents: FertilizationResult[];
-  } | null> => {
-    if (!activeChat || !settings) return null;
-    setDualRunning(true);
-    // 从 DB 读取最新 chat，避免闭包过期
-    const dbChats = await db.chats.toArray();
-    const chat = dbChats.find(c => c.id === activeChat.id) ?? activeChat;
-    const lastAssistant = [...chat.messages].reverse().find(m => m.role === 'assistant');
-    if (!lastAssistant?.parsed?.maintext) { setDualRunning(false); return null; }
-
-    const latestSettings = await getSettings();
-    const effectiveApi = latestSettings?.api ?? settings.api ?? DEFAULT_SETTINGS.api;
-    const effectiveSettings = {
-      ...(latestSettings ?? DEFAULT_SETTINGS),
-      ...(settings ?? {}),
-      api: effectiveApi,
-      presetBlocks: latestSettings?.presetBlocks ?? settings?.presetBlocks ?? DEFAULT_PRESET_BLOCKS,
-      lorebooks: latestSettings?.lorebooks ?? settings?.lorebooks ?? DEFAULT_SETTINGS.lorebooks,
-    };
-
-    if (!effectiveApi.secondary?.enabled || !effectiveApi.secondary.baseUrl) { setDualRunning(false); return null; }
-
-    const router = createApiRouter(effectiveApi);
-    // 回滚到最后一条 assistant 之前的状态，避免变量在旧 patch 上反复叠加
-    const lastIdx = chat.messages.indexOf(lastAssistant);
-    let preVars = JSON.parse(JSON.stringify(chat.variables ?? {}));
-    for (let i = lastIdx - 1; i >= 0; i--) {
-      if (chat.messages[i].variablesAfter) { preVars = JSON.parse(JSON.stringify(chat.messages[i].variablesAfter)); break; }
-    }
-    const maintextForVars = lastAssistant.parsed.maintext;
-
-    const varsPreset = effectiveSettings.presets?.find(
-      (p) => p.id === effectiveSettings.activeVarsPresetId && p.type === 'vars',
-    );
-
-    if (!varsPreset) { setDualRunning(false); return null; }
-
-    try {
-      const secMessages: Array<{ role: string; content: string }> = [];
-      const lorebooks = effectiveSettings.lorebooks ?? [];
-      const secMacroCtx = {
-        userName: effectiveSettings.userName,
-        characterName: effectiveSettings.characterName,
-        userInput: '',
-        playerDescription: effectiveSettings.playerDescription,
-        characterDescription: effectiveSettings.characterDescription,
-        varsListText: formatVariablesForPrompt(preVars),
-        lastMaintext: maintextForVars,
-        fullVars: preVars,
-      };
-
-      for (const block of varsPreset.blocks) {
-        if (!block.enabled || !block.content?.trim()) continue;
-        let resolved = resolveLorebyMacro(block.content, lorebooks);
-        resolved = replaceMacros(resolved, secMacroCtx);
-        if (resolved.trim()) secMessages.push({ role: block.role, content: resolved });
-      }
-
-      // 同步更新提示词查看器（第二API变量提示词）
-      if (secMessages.length > 0) {
-        const secStageMessages: Record<string, Array<{ role: string; content: string }>> = {};
-        const secStageTokens: Record<string, number> = {};
-        const secStageOrder: string[] = [];
-        const secStageNames: Record<string, string> = {};
-        let secTotalTokens = 0;
-        for (const block of varsPreset.blocks) {
-          if (!block.enabled || !block.content?.trim()) continue;
-          let resolved = resolveLorebyMacro(block.content, lorebooks);
-          resolved = replaceMacros(resolved, secMacroCtx);
-          if (!resolved.trim()) continue;
-          secStageMessages[block.identifier] = [{ role: block.role, content: resolved }];
-          const tokenEst = Math.round(resolved.length / 4);
-          secStageTokens[block.identifier] = tokenEst;
-          secTotalTokens += tokenEst;
-          secStageOrder.push(block.identifier);
-          secStageNames[block.identifier] = block.name || block.identifier;
-        }
-        setLastSecondaryPrompt({
-          messages: [],
-          estimatedTokens: secTotalTokens,
-          stageTokens: secStageTokens,
-          stageMessages: secStageMessages,
-          stageOrder: secStageOrder,
-          stageNames: secStageNames,
-        });
-      }
-
-      const dualController = new AbortController();
-      dualAbortRef.current = dualController;
-      const { response } = await router.call('vars', {
-        messages: secMessages as any,
-        stream: false,
-        temperature: effectiveApi.secondary.temperature ?? 0.3,
-        max_tokens: effectiveApi.secondary.maxTokens ?? 2048,
-      }, dualController.signal);
-
-      if (!response.ok) { showTopCenter('变量重写失败', 'error'); return null; }
-      const d = await response.json();
-      const raw = d?.choices?.[0]?.message?.content ?? '';
-      let nextVariables = JSON.parse(JSON.stringify(preVars));
-      let patchCount = 0;
-      const semenPatches: any[] = [];
-
-      const mArr = raw.match(/\[[\s\S]*\]/);
-      let varsRegenerated = false;
-      if (mArr) {
-        try {
-          const patches = JSON.parse(mArr[0]);
-          if (Array.isArray(patches) && patches.length > 0) {
-            nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: {}, patches }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
-            autoTagDreamItems(preVars, nextVariables);
-            patchCount = patches.length;
-            for (const p of patches) if (p.path && (p.path as string).includes('宫内精液.总量')) semenPatches.push(p);
-            varsRegenerated = true;
-          }
-        } catch { /* ignore */ }
-      }
-      if (nextVariables === preVars) {
-        const mObj = raw.match(/\{[\s\S]*\}/);
-        if (mObj) {
-          try {
-            const sp = JSON.parse(mObj[0]);
-            if (sp && typeof sp === 'object' && !Array.isArray(sp)) {
-              nextVariables = applyParsedToChat(nextVariables, { varsCommands: { merge: sp }, varsRaw: '', maintext: '', options: [], history: null, thinking: '', unknown: {} }).nextVariables;
-              autoTagDreamItems(preVars, nextVariables);
-              patchCount = Object.keys(sp).length;
-              varsRegenerated = true;
-            }
-          } catch { /* ignore */ }
-        }
-      }
-
-      // 计算变量变更
-      const varChanges = varsRegenerated ? buildVarChanges(preVars, nextVariables) : [];
-
-      // AI 修改了宫内精液 → 同步总量（注入时间由 AI 负责）
-      const processedSemenNodes2 = new Set<any>();
-      for (const p of semenPatches) {
-        const parts = (p.path as string).split('/');
-        const semenIdx = parts.indexOf('宫内精液');
-        if (semenIdx > 0) {
-          const base = parts.slice(0, semenIdx + 1);
-          let node: any = nextVariables;
-          for (const seg of base) { if (node && typeof node === 'object') node = node[seg]; else break; }
-          if (!node || typeof node !== 'object' || processedSemenNodes2.has(node)) continue;
-          processedSemenNodes2.add(node);
-          // 同步总量 = sum(来源列表[*].容量)
-          if (Array.isArray(node['来源列表'])) {
-            node['总量'] = node['来源列表'].reduce((sum: number, e: any) => sum + (e['容量'] || 0), 0);
-          }
-        }
-      }
-
-      // 生理 tick → 受孕检测
-      const oldRealTime = (preVars?.['世界']?.['现实']?.['时间'] ?? null) as string | null;
-      const oldDreamTime = (preVars?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
-      const newRealTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? null) as string | null;
-      const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
-      const fertilizationEvents: FertilizationResult[] = [];
-      if (newRealTime && newRealTime !== oldRealTime) {
-        tickAges(nextVariables, oldRealTime, newRealTime);
-        fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false, prevVariables: preVars }));
-      }
-      if (newDreamTime && newDreamTime !== oldDreamTime) {
-        fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true, prevVariables: preVars }));
-      }
-
-      // 更新查看原文：构建带标签结构的显示内容
-      if (raw) {
-        let tagged = raw;
-        if (!/<JSONPatch/i.test(tagged)) {
-          tagged = `<JSONPatch>\n${tagged}\n</JSONPatch>`;
-        }
-        if (!/<Analysis/i.test(tagged)) {
-          tagged = `<Analysis>\n变量分析\n</Analysis>\n${tagged}`;
-        }
-        setLastRawContent(`<maintext>\n${lastAssistant.parsed.maintext}\n</maintext>\n\n${tagged}`);
-      }
-
-      // 更新最后一条 assistant 消息的 varChanges（确保 VariableDiffModal 显示正确数据）
-      const updatedMessages = chat.messages.map(m =>
-        m.id === lastAssistant.id ? { ...m, varChanges } : m
-      );
-
-      const next: ChatSession = { ...chat, messages: updatedMessages, variables: nextVariables, updatedAt: Date.now() };
-      await db.chats.put(next);
-      setChats(prev => prev.map(c => c.id === next.id ? next : c));
-      return varsRegenerated ? { patchCount, varChanges, fertilizationEvents } : null;
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return null;
-      console.error('[SillyTavern] 变量重写失败:', e);
-      showTopCenter('变量重写失败', 'error');
-      return null;
-    } finally {
-      dualAbortRef.current = null;
-      setDualRunning(false);
-    }
-  }, [activeChat, settings]);
+  const regenerateVarsOnly = useRegenerateVars({
+    activeChat, settings, db, setDualRunning, dualAbortRef,
+    setLastRawContent, setChats, setLastSecondaryPrompt,
+  });
 
   const setChatVariables = useCallback(async (vars: Record<string, any>) => {
     if (!activeChat) return;
