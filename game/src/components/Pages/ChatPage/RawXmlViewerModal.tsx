@@ -13,7 +13,7 @@ interface Props {
 export default function RawXmlViewerModal({ isOpen, onClose, content, edited, onEditedChange, onApply, dirty }: Props) {
   return (
     <AetherModal isOpen={isOpen} onClose={onClose} title="原始输出">
-      <div className="flex-1 overflow-y-auto p-3 md:p-5 flex flex-col gap-3">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-5 flex flex-col gap-3">
         <textarea
           value={edited}
           onChange={(e) => onEditedChange(e.target.value)}

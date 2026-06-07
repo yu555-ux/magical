@@ -28,11 +28,11 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-lg glass-panel overflow-hidden border-glow flex flex-col max-h-[90vh]"
+            className="relative w-full max-w-lg glass-panel overflow-hidden border-glow"
             style={{ background: 'var(--color-aether-dark)' }}
           >
             {title ? (
-              <div className="flex items-center justify-between p-4 border-b border-aether-cyan/15 bg-aether-cyan/[0.02] shrink-0">
+              <div className="flex items-center justify-between p-4 border-b border-aether-cyan/15 bg-aether-cyan/[0.02]">
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <div className="w-2.5 h-2.5 bg-aether-cyan rounded-full shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
@@ -49,7 +49,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center justify-end p-2 shrink-0">
+              <div className="flex items-center justify-end p-2">
                 <button
                   onClick={onClose}
                   className="text-white/40 hover:text-aether-cyan transition-colors p-1 clickable press-scale"
@@ -59,7 +59,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
                 </button>
               </div>
             )}
-            <div className="p-3 md:p-6 overflow-y-auto overflow-x-auto flex-1 min-h-0">
+            <div className="p-3 md:p-6 max-h-[calc(100vh-8rem-env(safe-area-inset-top,0px))] md:max-h-[70vh] overflow-y-auto overflow-x-auto">
               {children}
             </div>
           </motion.div>

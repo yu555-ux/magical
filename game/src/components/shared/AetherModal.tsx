@@ -53,9 +53,7 @@ export default function AetherModal({ isOpen, onClose, title, children, zIndex =
             </button>
           </div>
 
-          <div className="flex-1 min-h-0 flex flex-col">
-            {children}
-          </div>
+          {children}
 
           <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-aether-cyan/15 to-transparent" />
         </motion.div>

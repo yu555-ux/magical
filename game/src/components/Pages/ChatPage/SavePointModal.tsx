@@ -105,7 +105,7 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
   return (
     <AetherModal isOpen={isOpen} onClose={onClose} title="存档点" zIndex={150}>
       {/* ── Content ── */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {totalPoints === 0 ? (
               /* Empty state */
               <div className="flex flex-col items-center justify-center py-24 text-center px-8">
