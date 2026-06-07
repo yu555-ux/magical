@@ -620,10 +620,10 @@ function LocationInfoCard({ point, origin, hasChildren, onClose, onEnter, onGoTo
     return () => window.removeEventListener('resize', onResize);
   }, []);
   const detail = layer === '现实' ? point.reality : point.dream;
-  const locationDetail = detail?.地点细节 ?? {};
-  const anomalies = Object.entries(locationDetail.异常 ?? {});
+  const locationDetail = detail?.地点细节 ?? { 信息: [] as string[], 异常: {} as Record<string, MapAnomaly> };
+  const anomalies = Object.entries(locationDetail.异常) as [string, MapAnomaly][];
   const hasAnomalies = anomalies.length > 0;
-  const infoList: string[] = Array.isArray(locationDetail.信息) ? locationDetail.信息 : [];
+  const infoList: string[] = locationDetail.信息;
   const danger = getDangerLevel(point);
 
   const cardW = mobile ? window.innerWidth : 440;

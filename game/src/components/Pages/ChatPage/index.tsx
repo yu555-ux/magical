@@ -183,10 +183,16 @@ export default function ChatPage({
             const dp = (ev.dailyProb * 100).toFixed(2);
             const dice = ev.rolled.toFixed(3);
             const triggerLabel = ev.trigger === 'fresh' ? '🆕新鲜注入' : '📅日期翻篇';
+            const sourceText = ev.sourceList?.length
+              ? ev.sourceList.map(s => `${s.source}(${s.volume}ml)`).join('+')
+              : '';
             const lines = [
               `周期D${ev.cycleDay}·${ev.phase} | 精液${ev.semenVolume}ml`,
-              `${ev.dateCoeff}×${ev.ageCoeff}×${ev.semenCoeff}=${dp}%  ${triggerLabel}`,
-              `骰子${dice} ${ev.success ? '✅命中' : '❌未命中'}`,
+              sourceText ? `${sourceText}  ${triggerLabel}` : triggerLabel,
+              `${ev.dateCoeff}×${ev.ageCoeff}×${ev.semenCoeff}=${dp}%`,
+              ev.success
+                ? `骰子${dice} ✅命中 → ${ev.father}`
+                : `骰子${dice} ❌未命中`,
             ];
             addNotification?.('🎲 受孕', lines.join('\n'), ev.success ? 'success' : 'info', undefined, 'story');
           }
@@ -498,10 +504,16 @@ export default function ChatPage({
                 const dp = (ev.dailyProb * 100).toFixed(2);
                 const dice = ev.rolled.toFixed(3);
                 const triggerLabel = ev.trigger === 'fresh' ? '🆕新鲜注入' : '📅日期翻篇';
+                const sourceText = ev.sourceList?.length
+                  ? ev.sourceList.map(s => `${s.source}(${s.volume}ml)`).join('+')
+                  : '';
                 const lines = [
                   `周期D${ev.cycleDay}·${ev.phase} | 精液${ev.semenVolume}ml`,
-                  `${ev.dateCoeff}×${ev.ageCoeff}×${ev.semenCoeff}=${dp}%  ${triggerLabel}`,
-                  `骰子${dice} ${ev.success ? '✅命中' : '❌未命中'}`,
+                  sourceText ? `${sourceText}  ${triggerLabel}` : triggerLabel,
+                  `${ev.dateCoeff}×${ev.ageCoeff}×${ev.semenCoeff}=${dp}%`,
+                  ev.success
+                    ? `骰子${dice} ✅命中 → ${ev.father}`
+                    : `骰子${dice} ❌未命中`,
                 ];
                 addNotification?.('🎲 受孕', lines.join('\n'), ev.success ? 'success' : 'info', undefined, 'story');
               }

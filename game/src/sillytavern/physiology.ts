@@ -182,7 +182,7 @@ export function createDefaultUterus(
 export interface FertilizationResult {
   name: string;
   father: string | null;
-  dailyProb: number;      // 判定使用的日概率（不再缩放）
+  dailyProb: number;      // 判定使用的日概率（合并后的总概率，不再缩放）
   rolled: number;
   success: boolean;
   trigger: 'fresh' | 'daily';  // 触发原因：新鲜注入 | 日期翻篇
@@ -190,9 +190,10 @@ export interface FertilizationResult {
   cycleDay: number;
   dateCoeff: number;
   ageCoeff: number;
-  semenCoeff: number;
-  semenVolume: number;
+  semenCoeff: number;     // 合并后的总权重系数（所有来源 sc 之和）
+  semenVolume: number;    // 所有来源容量之和 ml
   phase: Phase;
+  sourceList: Array<{ source: string; volume: number; weight: number }>; // 各来源明细
 }
 
 /** parseWorldTime 的返回类型 */
@@ -250,7 +251,7 @@ export function tickFemalePhysiology(
     semen.总量 = semen.来源列表.reduce((sum, e) => sum + e.容量, 0);
   }
 
-  // 3. 受精判定（事件驱动：每条来源独立判定，命中即停）
+  // 3. 受精判定（合并所有来源权重，一次掷骰）
   let result: FertilizationResult | null = null;
   const canRoll =
     uterus.怀孕状态.状态 === '未孕' &&
@@ -264,42 +265,65 @@ export function tickFemalePhysiology(
     const dc = dateCoefficient(currentDay);
     const ac = ageCoefficient(age);
 
-    // 按注入时间排序，先注入的先判定
-    for (const entry of semen.来源列表) {
-      const entryKey = `${entry.来源}:${entry.注入时间}`;
-      const isFresh = !prevFingerprint.has(entryKey);
-      if (!(dateChanged || isFresh)) continue;
+    // 收集所有可判定的来源，合并权重
+    const candidates: { entry: SemenEntry; sc: number; isFresh: boolean }[] = [];
+    let totalWeight = 0;
+    let totalVolume = 0;
+    let anyFresh = false;
 
+    for (const entry of semen.来源列表) {
+      const isFresh = !prevFingerprint.has(`${entry.来源}:${entry.注入时间}`);
+      if (!(dateChanged || isFresh)) continue;
       const sc = semenCoefficient(entry.容量);
-      const prob = dc * ac * sc;
+      candidates.push({ entry, sc, isFresh });
+      totalWeight += sc;
+      totalVolume += entry.容量;
+      if (isFresh) anyFresh = true;
+    }
+
+    if (candidates.length > 0) {
+      const totalProb = dc * ac * totalWeight;
       const rolled = Math.random();
+      const success = rolled < totalProb;
+
+      // 命中 → 按权重随机选父方
+      let father: string | null = null;
+      if (success) {
+        let r = Math.random() * totalWeight;
+        for (const c of candidates) {
+          r -= c.sc;
+          if (r <= 0) { father = c.entry.来源; break; }
+        }
+        if (!father) father = candidates[0].entry.来源; // 浮点安全兜底
+
+        uterus.怀孕状态.状态 = '受精';
+        uterus.怀孕状态.受孕日期 = worldDate;
+        uterus.怀孕状态.父方 = father;
+        // 受精后将精液全部清零
+        semen.来源列表 = [];
+        semen.总量 = 0;
+      }
 
       result = {
         name: '',
-        father: entry.来源,
-        dailyProb: prob,
+        father,
+        dailyProb: totalProb,
         rolled,
-        success: rolled < prob,
-        trigger: isFresh ? 'fresh' : 'daily',
+        success,
+        trigger: anyFresh ? 'fresh' : 'daily',
         hoursPassed,
         cycleDay: currentDay,
         dateCoeff: dc,
         ageCoeff: ac,
-        semenCoeff: sc,
-        semenVolume: entry.容量,
+        semenCoeff: Math.round(totalWeight * 100) / 100,
+        semenVolume: totalVolume,
         phase: uterus.生理周期.当前阶段,
+        sourceList: candidates.map(c => ({
+          source: c.entry.来源,
+          volume: c.entry.容量,
+          weight: Math.round(c.sc * 100) / 100,
+        })),
       };
-
-      if (result.success) {
-        uterus.怀孕状态.状态 = '受精';
-        uterus.怀孕状态.受孕日期 = worldDate;
-        uterus.怀孕状态.父方 = entry.来源;
-        // 受精后将精液全部清零
-        semen.来源列表 = [];
-        semen.总量 = 0;
-        break;
-      }
-      // 未命中 → 继续判下一条
     }
   }
 
