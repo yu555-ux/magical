@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Heart, Shield, Zap } from 'lucide-react';
+import { Heart, Shield, Zap, Database } from 'lucide-react';
 import { Modal } from '../../Feedback';
 import { getAffectionStage, getFriendlinessStage, getCorruptionStage } from '../../../sillytavern/social-stages';
 import {
@@ -371,50 +371,29 @@ export default function CharacterDetail({ char }: { char: CharacterCard }) {
                   </div>
                 )}
 
-                {/* ── 生理周期条 ── */}
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      uterusPhase === '排卵期' ? 'bg-amber-400/80' :
-                      uterusPhase === '经期' ? 'bg-red-400/70' :
-                      'bg-sky-400/50'
-                    }`} />
-                    <span className="text-[10px] font-mono tracking-wider text-white/25 uppercase">周期</span>
-                  </div>
-                  <span className={`text-[13px] font-display font-bold ${
-                    uterusPhase === '排卵期' ? 'text-amber-200/85' :
-                    uterusPhase === '经期' ? 'text-red-300/80' :
-                    'text-sky-200/75'
-                  }`}>{uterusPhase}</span>
-                  {!uterusPregActive && (
-                    <>
-                      <span className="text-white/10">·</span>
-                      <span className="text-[10px] font-mono text-white/20 italic">
-                        {uterusPhase === '排卵期' ? '受孕窗口期' : uterusPhase === '经期' ? '排出期' : '安全期'}
-                      </span>
-                    </>
-                  )}
-                </div>
-
                 {/* ── 宫内精液卡片 ── */}
                 {uterusHasSemen && (
-                  <div className="border border-amber-400/10 bg-amber-400/[0.02] p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[9px] font-mono tracking-[0.12em] text-amber-300/40 uppercase">宫内精液</span>
-                      <span className="text-[10px] font-mono text-amber-200/60 tabular-nums">{uterusSemen!['总量']} ml</span>
-                    </div>
-                    <div className="space-y-2">
-                      {uterusSemen!['来源列表']?.map((src, i) => (
-                        <div key={i} className="flex items-center justify-between text-[10px] font-mono text-white/30">
-                          <span>{src.来源}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-amber-200/40">{src.容量} ml</span>
-                            {src.注入时间 && (
-                              <span className="text-white/12">{src.注入时间}</span>
+                  <div className="border border-rose-400/10 bg-rose-400/[0.02] p-4">
+                    <span className="text-[9px] font-mono tracking-[0.12em] text-rose-300/40 uppercase">宫内精液</span>
+                    <div className="mt-2 space-y-1.5">
+                      {uterusSemen!['来源列表']?.map((src, i) => {
+                        const shortDate = src.注入时间
+                          ? src.注入时间.replace(/^\d{4}年/, '').replace(/日-.*$/, '日').replace(/日$/, '').replace(/月/, '/').replace(/日/, '')
+                          : '';
+                        return (
+                          <div key={i} className="flex items-center gap-2 text-[10px] font-mono text-white/30">
+                            <span className="text-white/45">{src.来源}</span>
+                            <span className="text-white/10">·</span>
+                            <span className="text-rose-200/50 tabular-nums">{src.容量} ml</span>
+                            {shortDate && (
+                              <>
+                                <span className="text-white/10">·</span>
+                                <span className="text-white/15" title={src.注入时间}>{shortDate}</span>
+                              </>
                             )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -428,34 +407,45 @@ export default function CharacterDetail({ char }: { char: CharacterCard }) {
       {hasSkills && (
         <section className="space-y-6">
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 border border-aether-purple/50 flex items-center justify-center shrink-0">
-              <Zap size={16} className="text-aether-purple/70" />
+            <div className="w-8 h-8 border border-aether-cyan/40 flex items-center justify-center shrink-0">
+              <Database size={16} className="text-aether-cyan" />
             </div>
             <h2 className="font-display text-xl tracking-widest uppercase text-white/90">技能</h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-aether-purple/30 to-transparent" />
+            <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-1">
             {Object.entries(p.技能 as Record<string, any>).map(([skillName, skillData]) => {
               const skillRank = skillData.等级 ? RATING_STYLES[skillData.等级] : null;
+              const prof = skillData?.熟练度 ?? 0;
+              const profStage = getStage(prof);
+              const ps = PROFICIENCY_STYLES[profStage] || PROFICIENCY_STYLES['初窥'];
               return (
                 <motion.button
                   key={skillName}
                   onClick={() => setSelectedSkill({ name: skillName, ...skillData })}
                   whileHover={{ y: -4 }}
                   transition={{ type: 'spring', damping: 15, stiffness: 250 }}
-                  className="relative p-4 bg-purple-950/55 border border-purple-400/25 hover:border-purple-400/50 hover:scale-[1.02] hover:z-10 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] text-left group transition-all duration-200 overflow-hidden clickable shadow-[0_0_20px_rgba(168,85,247,0.06)]"
+                  className="relative p-4 bg-cyan-950/55 border border-cyan-400/25 hover:border-cyan-400/50 hover:scale-[1.02] hover:z-10 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] text-left group transition-all duration-200 overflow-hidden clickable shadow-[0_0_20px_rgba(6,182,212,0.06)]"
                 >
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <h3 className="text-base font-display font-bold text-white group-hover:text-aether-purple transition-colors truncate">
-                      {skillName}
-                    </h3>
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    <div className="relative group/prof inline-flex" title={`${prof} / 999`}>
+                      <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${ps.border} ${ps.bg} ${ps.text} ${ps.glow}`}>
+                        {profStage}
+                      </span>
+                      <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] text-aether-cyan/70 font-mono tracking-wider whitespace-nowrap opacity-0 group-hover/prof:opacity-100 transition-opacity pointer-events-none">
+                        {prof} / 999
+                      </span>
+                    </div>
                     {skillRank && (
-                      <span className={`inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-bold font-display border ${skillRank.border} ${skillRank.bg} ${skillRank.text} ${skillRank.glow}`}>
+                      <span className={`inline-flex items-center justify-center h-6 px-2 text-[11px] font-bold font-display border leading-none ${skillRank.border} ${skillRank.bg} ${skillRank.text} ${skillRank.glow}`}>
                         {skillData.等级}
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-white/40 leading-relaxed line-clamp-2 group-hover:text-white/60 transition-colors">
+                  <h3 className="font-display font-bold text-lg text-white group-hover:text-aether-cyan transition-colors pr-28">
+                    {skillName}
+                  </h3>
+                  <p className="mt-3 text-xs text-white/50 leading-relaxed line-clamp-2 group-hover:text-white/70 transition-colors">
                     {skillData.描述 || ''}
                   </p>
                 </motion.button>
@@ -530,9 +520,6 @@ export default function CharacterDetail({ char }: { char: CharacterCard }) {
               <div className="flex items-start justify-between border-b border-white/10 pb-4">
                 <div>
                   <h3 className="text-2xl font-display font-bold text-aether-cyan">{selectedSkill.name}</h3>
-                  <p className="text-[11px] font-mono text-aether-cyan/50 tracking-wider mt-1">
-                    消耗 {selectedSkill?.消耗能量 ?? 0} 能量
-                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="relative group inline-flex" title={`${prof} / 999`}>
