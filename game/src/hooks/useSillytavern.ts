@@ -745,9 +745,10 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     const userText = chat.messages[targetIdx].content;
     // 保留最后一条 user 消息，仅删除其后的 assistant 回复
     const truncated = chat.messages.slice(0, targetIdx + 1);
+    const lastUser = truncated[truncated.length - 1]; // 保留的最后一个 user 消息
     const lastAssistant = [...truncated].reverse().find(m => m.role === 'assistant');
     const restoredPlotHistory = lastAssistant?.plotHistoryAfter ?? chat.plotHistory;
-    const restoredVars = lastAssistant?.variablesAfter ?? chat.variables ?? {};
+    const restoredVars = lastAssistant?.variablesAfter ?? lastUser?.variablesAfter ?? chat.variables ?? {};
     const restoredAnchor = lastAssistant?.dreamAnchorAfter ?? chat.dreamAnchor ?? {};
     const next: ChatSession = { ...chat, messages: truncated, variables: restoredVars, dreamAnchor: restoredAnchor, plotHistory: restoredPlotHistory, updatedAt: Date.now() };
     await db.chats.put(next);
