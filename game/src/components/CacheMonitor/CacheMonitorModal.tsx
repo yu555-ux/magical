@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Trash2, Zap, GitCompare } from 'lucide-react';
+import { X, Trash2, Zap, GitCompare, Copy, Check } from 'lucide-react';
 import AetherModal from '../shared/AetherModal';
 import type { CacheUsageRecord } from '../../sillytavern/types';
 import { getUsageHistory, clearUsageHistory, getFullPrompt } from '../../sillytavern/cache-monitor';
@@ -120,6 +120,18 @@ function DiffTab() {
   const [diffResult, setDiffResult] = useState<Array<{ role: string; oldContent: string; newContent: string; changed: boolean }>>([]);
   const [loading, setLoading] = useState(false);
   const [lastIds, setLastIds] = useState<[string, string] | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  /** 复制本次完整提示词 */
+  const copyLatestPrompt = async () => {
+    if (history.length < 1) return;
+    const msgs = getFullPrompt(history[0].requestId);
+    if (!msgs || msgs.length === 0) return;
+    const text = msgs.map((m) => `[${m.role}]\n${m.content}`).join('\n\n');
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
 
   // 订阅新数据，保持最新 2 条
   useEffect(() => {
@@ -186,6 +198,18 @@ function DiffTab() {
           <span className={history[0].hitRate >= 60 ? 'text-aether-green/60' : 'text-aether-gold/60'}>{history[0].hitRate}%</span>
         </span>
         <span className="text-white/25">{history[1].totalChars?.toLocaleString()} → {history[0].totalChars?.toLocaleString()} 字</span>
+        <button
+          onClick={copyLatestPrompt}
+          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] transition-all ${
+            copied
+              ? 'text-aether-green bg-aether-green/10'
+              : 'text-white/25 hover:text-aether-cyan hover:bg-aether-cyan/10'
+          }`}
+          title="复制本次完整提示词"
+        >
+          {copied ? <Check size={10} /> : <Copy size={10} />}
+          {copied ? '已复制' : '复制'}
+        </button>
       </div>
 
       {loading && <div className="text-center py-10 text-white/30 text-xs font-mono">对比中...</div>}
