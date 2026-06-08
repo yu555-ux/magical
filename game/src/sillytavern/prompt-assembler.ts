@@ -124,38 +124,136 @@ interface MacroContext {
   fullVars?: Record<string, any>;
 }
 
-function resolveContent(content: string, presetVars: Record<string, string>, macroCtx: MacroContext): string {
-  let result = content;
-  result = result.replace(/\{\{\s*\/\/[^}]*\}\}/g, '');
-  result = result.replace(/\{\{setvar::([^:}]+)::([^}]*)\}\}/g, (_, name: string, value: string) => {
-    presetVars[name.trim()] = value; return '';
-  });
-  result = result.replace(/\{\{addvar::([^:}]+)::([^}]*)\}\}/g, (_, name: string, value: string) => {
-    const key = name.trim(); presetVars[key] = (presetVars[key] || '') + value; return '';
-  });
-  result = result.replace(/\{\{getvar::([^}]+)\}\}/g, (_, name: string) => presetVars[name.trim()] ?? '');
-  result = result
-    .replace(/\{\{user\}\}/g, macroCtx.userName)
-    .replace(/<user>/g, macroCtx.userName)
-    .replace(/\{\{char\}\}/g, macroCtx.characterName)
-    .replace(/\{\{original\}\}/g, macroCtx.userInput)
-    .replace(/\{\{lastUserMessage\}\}/g, macroCtx.userInput)
-    .replace(/\{\{player_description\}\}/g, macroCtx.playerDescription ?? '')
-    .replace(/\{\{char_description\}\}/g, macroCtx.characterDescription ?? '')
-    .replace(/\{\{MAP\}\}/g, macroCtx.mapText ?? '')
-    .replace(/\{\{FEMALE_STRANGER\}\}/g, macroCtx.femaleStrangerText ?? '')
-    .replace(/\{\{FEMALE_NORMAL\}\}/g, macroCtx.femaleNormalText ?? '')
-    .replace(/\{\{MALE_STRANGER\}\}/g, macroCtx.maleStrangerText ?? '')
-    .replace(/\{\{MALE_NORMAL\}\}/g, macroCtx.maleNormalText ?? '')
-    .replace(/\{\{VARS_LIST\}\}/g, macroCtx.varsListText ?? '')
-    .replace(/\{\{LAST_MAINTEXT\}\}/g, macroCtx.lastMaintext ?? '')
-    .replace(/\{\{GET_VAR::([^}]+)\}\}/g, (_, path: string) => {
-      const trimmedPath = path.trim();
+// ── 平衡花括号解析 ──
+// 用深度计数替代 [^}]* 正则，处理 {{setvar::x::...{{user}}...}} 嵌套场景
+
+function resolveBracedMacros(
+  content: string,
+  presetVars: Record<string, string>,
+  macroCtx: MacroContext,
+): string {
+  let out = '';
+  let i = 0;
+
+  while (i < content.length) {
+    if (content[i] === '{' && content[i + 1] === '{') {
+      const start = i;
+      i += 2;
+
+      let macroName = '';
+      while (i < content.length) {
+        if (content[i] === '}' && content[i + 1] === '}') break;
+        if (content[i] === ':' && content[i + 1] === ':') break;
+        macroName += content[i];
+        i++;
+      }
+      macroName = macroName.trim();
+
+      // 无参数宏: {{user}} {{char}} {{trim}} 等
+      if (content[i] === '}' && content[i + 1] === '}') {
+        i += 2;
+        const full = content.slice(start, i);
+        out += resolveSimpleMacro(full, macroName, macroCtx);
+        continue;
+      }
+
+      // 带参数宏: {{name::...}}
+      if (content[i] === ':' && content[i + 1] === ':') {
+        i += 2;
+        let value = '';
+        let depth = 1;
+        while (i < content.length && depth > 0) {
+          if (content[i] === '{' && content[i + 1] === '{') {
+            depth++;
+            value += '{{';
+            i += 2;
+          } else if (content[i] === '}' && content[i + 1] === '}') {
+            depth--;
+            if (depth === 0) { i += 2; break; }
+            value += '}}';
+            i += 2;
+          } else {
+            value += content[i];
+            i++;
+          }
+        }
+        out += resolveParamMacro(macroName, value, presetVars, macroCtx);
+        continue;
+      }
+
+      out += '{{';
+      continue;
+    }
+
+    out += content[i];
+    i++;
+  }
+
+  return out;
+}
+
+function resolveSimpleMacro(
+  fullMatch: string,
+  macroName: string,
+  macroCtx: MacroContext,
+): string {
+  switch (macroName) {
+    case 'user': return macroCtx.userName;
+    case 'char': return macroCtx.characterName;
+    case 'original':
+    case 'lastUserMessage': return macroCtx.userInput;
+    case 'player_description': return macroCtx.playerDescription ?? '';
+    case 'char_description': return macroCtx.characterDescription ?? '';
+    case 'MAP': return macroCtx.mapText ?? '';
+    case 'FEMALE_STRANGER': return macroCtx.femaleStrangerText ?? '';
+    case 'FEMALE_NORMAL': return macroCtx.femaleNormalText ?? '';
+    case 'MALE_STRANGER': return macroCtx.maleStrangerText ?? '';
+    case 'MALE_NORMAL': return macroCtx.maleNormalText ?? '';
+    case 'VARS_LIST': return macroCtx.varsListText ?? '';
+    case 'LAST_MAINTEXT': return macroCtx.lastMaintext ?? '';
+    case 'trim': return '';
+    case 'LOREBY': return '';
+    default:
+      if (macroName.startsWith('//')) return '';
+      return fullMatch;
+  }
+}
+
+function resolveParamMacro(
+  macroName: string,
+  rawValue: string,
+  presetVars: Record<string, string>,
+  macroCtx: MacroContext,
+): string {
+  switch (macroName) {
+    case 'setvar': {
+      const sepIdx = rawValue.indexOf('::');
+      if (sepIdx < 0) return '';
+      presetVars[rawValue.slice(0, sepIdx).trim()] = rawValue.slice(sepIdx + 2);
+      return '';
+    }
+    case 'addvar': {
+      const sepIdx = rawValue.indexOf('::');
+      if (sepIdx < 0) return '';
+      const key = rawValue.slice(0, sepIdx).trim();
+      presetVars[key] = (presetVars[key] || '') + rawValue.slice(sepIdx + 2);
+      return '';
+    }
+    case 'getvar':
+      return presetVars[rawValue.trim()] ?? '';
+    case 'GET_VAR': {
+      const path = rawValue.trim();
       if (!macroCtx.fullVars) return '';
-      return getVariablePath(macroCtx.fullVars, trimmedPath);
-    })
-    .replace(/\{\{LOREBY::([^}]+)\}\}/g, '')
-    .replace(/\{\{trim\}\}/gi, '');
+      return getVariablePath(macroCtx.fullVars, path);
+    }
+    default:
+      return '';
+  }
+}
+
+function resolveContent(content: string, presetVars: Record<string, string>, macroCtx: MacroContext): string {
+  let result = resolveBracedMacros(content, presetVars, macroCtx);
+  result = result.replace(/<user>/g, macroCtx.userName);
   return result;
 }
 
