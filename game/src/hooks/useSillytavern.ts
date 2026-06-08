@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
-import { applyParsedToChat, autoTagDreamItems, enrichHistory, validateEquipment, formatVariablesForPrompt, buildVarChanges } from '../sillytavern/variables';
+import { applyParsedToChat, autoTagDreamItems, enrichHistory, formatVariablesForPrompt, buildVarChanges } from '../sillytavern/variables';
 import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 import { showTopCenter } from '../components/shared/TopCenterToast';
-import { tickAllFemales, tickAges, type FertilizationResult } from '../sillytavern/physiology';
+import { type FertilizationResult } from '../sillytavern/physiology';
 import { resolveLorebyMacro } from '../sillytavern/lorebook-resolver';
 import { buildSecondaryPrompt } from '../sillytavern/secondary-prompt-builder';
 import { useRegenerateVars } from './useRegenerateVars';
+import { gameBus } from '../sillytavern/event-bus';
+import { initPhysiologySubscriber, getLastFertilizationEvents } from '../sillytavern/subscribers/physiology';
+import { initDreamAnchorSubscriber, getUpdatedDreamAnchor } from '../sillytavern/subscribers/dream-anchor';
+import { initPlotHistorySubscriber, applyPlotHistory } from '../sillytavern/subscribers/plot-history';
 
 const DEFAULT_OPENING = `餐桌上方的吊灯洒下暖白色的光。张云夹了一块排骨，没放进自己碗里，而是越过半个桌子，稳稳地落在了<user>的米饭上。排骨上的糖醋汁洇进白白的米粒里。
 
@@ -121,6 +125,13 @@ export function useSillytavern() {
       setLastSecondaryPrompt(prompt);
     }
   }, [settings, activeChat, initialized]);
+
+  // 注册事件总线订阅者（一次性，全应用生命周期）
+  useEffect(() => {
+    initPhysiologySubscriber();
+    initDreamAnchorSubscriber();
+    initPlotHistorySubscriber();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -419,6 +430,15 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     }
 
     const preVars = updatedChat.variables ?? {};
+    // 通知订阅者：AI 回复已收到（剧情历史等模块自行处理）
+    gameBus.emit('message_received', {
+      rawContent,
+      parsed,
+      preVars: JSON.parse(JSON.stringify(preVars)),
+      chat: updatedChat,
+      userName: effectiveSettings.userName,
+    });
+
     const oldRealTime = (preVars['世界']?.['现实']?.['时间'] ?? null) as string | null;
     const oldDreamTime = (preVars['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
     // 双API模式: 第一API不处理变量  [SillyTavern] 第一API完成
@@ -559,6 +579,13 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     dualAbortRef.current = null;
     setDualRunning(false);
 
+    // 通知订阅者：变量已更新（梦境锚点等模块自行处理）
+    gameBus.emit('vars_applied', {
+      preVars: JSON.parse(JSON.stringify(preVars)),
+      postVars: JSON.parse(JSON.stringify(nextVariables)),
+      varChanges,
+    });
+
     // 第二API输出追加到正文（确保查看原文能显示完整的XML标签结构）
     // 第一API输出：若不含 <maintext 标签则包裹
     let displayContent = rawContent;
@@ -580,23 +607,11 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     setLastRawContent(finalContent);
     const msgId = crypto.randomUUID();
 
-    // Auto-unequip items that don't match current plane
-    const oldInDream = preVars?.世界?.梦境定位?.位于梦境 === true;
-    const newInDream = nextVariables?.世界?.梦境定位?.位于梦境 === true;
-
-    // 检测梦境状态转移，更新锚点（用于倒计时计算）
-    let updatedDreamAnchor = { ...(updatedChat.dreamAnchor ?? {}) };
-    if (oldInDream !== newInDream) {
-      validateEquipment(nextVariables);
+    // 梦境锚点 — 由 dream-anchor subscriber 处理
+    let updatedDreamAnchor = getUpdatedDreamAnchor(updatedChat.dreamAnchor ?? {}) ?? { ...(updatedChat.dreamAnchor ?? {}) };
+    // 梦境状态切换时重拍快照（锚点变化意味着装备验证可能修改了变量）
+    if (getUpdatedDreamAnchor(updatedChat.dreamAnchor ?? {})) {
       snapshot = JSON.parse(JSON.stringify(nextVariables));
-
-      if (oldInDream && !newInDream) {
-        // 从梦境苏醒 → 记录现实时间作为锚点
-        updatedDreamAnchor.lastWokeAt = nextVariables?.['世界']?.['现实']?.['时间'] ?? '';
-      } else if (!oldInDream && newInDream) {
-        // 进入梦境 → 记录梦境时间作为锚点
-        updatedDreamAnchor.lastEnteredAt = nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? '';
-      }
     }
 
     // AI 修改了宫内精液 → 同步总量（注入时间由 AI 负责）
@@ -617,38 +632,28 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       }
     }
 
-    // 只有世界时间实际变化时才跑生理 tick
+    // 生理 tick — 由 physiology subscriber 处理
     const newRealTime = (nextVariables?.['世界']?.['现实']?.['时间'] ?? null) as string | null;
     const newDreamTime = (nextVariables?.['世界']?.['梦境存档']?.['时间'] ?? null) as string | null;
 
-    if (newRealTime && newRealTime !== oldRealTime) {
-      tickAges(nextVariables, oldRealTime, newRealTime);
-      fertilizationEvents.push(...tickAllFemales(nextVariables, oldRealTime, newRealTime, { dreamOnly: false, prevVariables: preVars }));
-    }
-    if (newDreamTime && newDreamTime !== oldDreamTime) {
-      fertilizationEvents.push(...tickAllFemales(nextVariables, oldDreamTime, newDreamTime, { dreamOnly: true, prevVariables: preVars }));
-    }
     if (newRealTime !== oldRealTime || newDreamTime !== oldDreamTime) {
+      gameBus.emit('time_changed', {
+        oldRealTime, newRealTime, oldDreamTime, newDreamTime,
+        vars: nextVariables,
+        preVars: JSON.parse(JSON.stringify(preVars)),
+      });
+      fertilizationEvents.push(...getLastFertilizationEvents());
       snapshot = JSON.parse(JSON.stringify(nextVariables));
     }
 
-    // enrichHistory 使用 postVars（变量更新后的最新状态）
-    let plotHistory: HistoryTimeline = updatedChat.plotHistory ?? { reality: [], dream: [] };
-    if (parsed.history) {
-      parsed.history = enrichHistory(parsed.history, nextVariables, effectiveSettings.userName);
-      // 增量追加到本轮的 plotHistory
-      const sp = parsed.history;
-      plotHistory = {
-        reality: [...plotHistory.reality],
-        dream: [...plotHistory.dream],
-      };
-      if (sp.world === '现实') {
-        plotHistory.reality.push({ ...sp, sequence: plotHistory.reality.length + 1 });
-      } else if (sp.world === '梦境') {
-        plotHistory.dream.push({ ...sp, sequence: plotHistory.dream.length + 1 });
-      }
+    // 剧情历史 — 由 plot-history subscriber 处理
+    const basePlotHistory: HistoryTimeline = updatedChat.plotHistory ?? { reality: [], dream: [] };
+    const { timeline: plotHistory } = applyPlotHistory(basePlotHistory);
+    if (parsed.history && plotHistory !== basePlotHistory) {
+      // subscriber 已追加了新节点，同步更新 parsed.history 供存储
+      const enriched = enrichHistory(parsed.history, nextVariables, effectiveSettings.userName);
+      parsed.history = enriched;
     }
-    // 无论是否有 <history>，都保存快照（回档时恢复用）
     const plotHistorySnapshot = JSON.parse(JSON.stringify(plotHistory));
 
     const assistantMsg: ChatMessage = {
