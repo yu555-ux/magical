@@ -416,3 +416,24 @@ export interface VarsPatch {
 
 export type Task = 'story' | 'summary' | 'vars';
 export type ApiTarget = 'primary' | 'secondary' | 'dual';
+
+// ========== Cache Monitor Types ==========
+
+export interface CacheUsageRecord {
+  requestId: string;
+  timestamp: number;
+  model: string;
+  chatId: string;
+  /** 缓存命中 tokens */
+  hit: number;
+  /** 缓存未命中 tokens */
+  miss: number;
+  /** 总 prompt tokens */
+  total: number;
+  /** 命中率 0-100 */
+  hitRate: number;
+  /** 估算费用（元） */
+  cost: number;
+  /** 生成 tokens */
+  generated: number;
+}

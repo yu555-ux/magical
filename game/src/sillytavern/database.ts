@@ -1,19 +1,21 @@
 import Dexie, { Table } from 'dexie';
-import type { AppSettings, ChatSession } from './types';
+import type { AppSettings, ChatSession, CacheUsageRecord } from './types';
 import { DEFAULT_SETTINGS } from './types';
 
 const DB_NAME = 'SillyTavernWebDB';
-const DB_VERSION = 9;
+const DB_VERSION = 10;
 
 class AppDatabase extends Dexie {
   settings!: Table<AppSettings>;
   chats!: Table<ChatSession>;
+  cacheUsage!: Table<CacheUsageRecord>;
 
   constructor() {
     super(DB_NAME);
     this.version(DB_VERSION).stores({
       settings: 'key',
       chats: 'id, name, updatedAt',
+      cacheUsage: 'requestId, timestamp',
     });
   }
 }

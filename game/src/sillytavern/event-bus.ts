@@ -12,7 +12,7 @@
 
 // ── 事件类型定义 ──
 
-import type { ChatSession, ChatMessage, VarChange, HistoryTimeline, ParsedTags } from './types';
+import type { ChatSession, ChatMessage, VarChange, HistoryTimeline, ParsedTags, CacheUsageRecord } from './types';
 import type { FertilizationResult } from './physiology';
 
 export interface MessageReceivedEvent {
@@ -47,11 +47,16 @@ export interface TurnCompleteEvent {
   fertilizationEvents: FertilizationResult[];
 }
 
+export interface ApiUsageEvent {
+  record: CacheUsageRecord;
+}
+
 export interface GameEvents {
   message_received: MessageReceivedEvent;
   vars_applied: VarsAppliedEvent;
   time_changed: TimeChangedEvent;
   turn_complete: TurnCompleteEvent;
+  api_usage: ApiUsageEvent;
 }
 
 // ── 事件总线实现 ──

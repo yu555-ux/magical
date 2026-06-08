@@ -15,6 +15,7 @@ import { gameBus } from '../sillytavern/event-bus';
 import { initPhysiologySubscriber, getLastFertilizationEvents } from '../sillytavern/subscribers/physiology';
 import { initDreamAnchorSubscriber, getUpdatedDreamAnchor } from '../sillytavern/subscribers/dream-anchor';
 import { initPlotHistorySubscriber, applyPlotHistory } from '../sillytavern/subscribers/plot-history';
+import { extractUsageFromSSE, buildUsageRecord, initCacheMonitor } from '../sillytavern/cache-monitor';
 
 const DEFAULT_OPENING = `餐桌上方的吊灯洒下暖白色的光。张云夹了一块排骨，没放进自己碗里，而是越过半个桌子，稳稳地落在了<user>的米饭上。排骨上的糖醋汁洇进白白的米粒里。
 
@@ -131,6 +132,7 @@ export function useSillytavern() {
     initPhysiologySubscriber();
     initDreamAnchorSubscriber();
     initPlotHistorySubscriber();
+    initCacheMonitor();
   }, []);
 
   useEffect(() => {
@@ -373,6 +375,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       if (!reader) throw new Error('No body');
       const decoder = new TextDecoder();
       let buf = '';
+      let lastUsage: any = null;  // 缓存监控：捕获最后一条 chunk 的 usage
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -383,9 +386,22 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
           for (const line of part.split('\n').filter(l => l.startsWith('data: '))) {
             const data = line.slice(6).trim();
             if (data === '[DONE]') continue;
-            try { const json = JSON.parse(data); const delta = json?.choices?.[0]?.delta?.content ?? ''; if (delta) { rawContent += delta; parser.feed(delta); } } catch { /* ignore */ }
+            try {
+              const json = JSON.parse(data);
+              const delta = json?.choices?.[0]?.delta?.content ?? '';
+              if (delta) { rawContent += delta; parser.feed(delta); }
+              // DeepSeek 在流末尾返回 usage
+              if (json?.choices?.[0]?.usage ?? json?.usage) {
+                lastUsage = json?.choices?.[0]?.usage ?? json?.usage;
+              }
+            } catch { /* ignore */ }
           }
         }
+      }
+      // 缓存监控：流式结束后采集 usage
+      if (lastUsage) {
+        const record = buildUsageRecord(lastUsage, effectiveApi.model, effectiveChat.id);
+        gameBus.emit('api_usage', { record });
       }
     } catch (e) {
       console.error('[SillyTavern] 第一API调用失败:', e);
