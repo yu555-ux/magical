@@ -15,7 +15,7 @@ import { gameBus } from '../sillytavern/event-bus';
 import { initPhysiologySubscriber, getLastFertilizationEvents } from '../sillytavern/subscribers/physiology';
 import { initDreamAnchorSubscriber, getUpdatedDreamAnchor } from '../sillytavern/subscribers/dream-anchor';
 import { initPlotHistorySubscriber, applyPlotHistory } from '../sillytavern/subscribers/plot-history';
-import { extractUsageFromSSE, buildUsageRecord, initCacheMonitor } from '../sillytavern/cache-monitor';
+import { extractUsageFromSSE, buildUsageRecord, storeFullPrompt, initCacheMonitor } from '../sillytavern/cache-monitor';
 
 const DEFAULT_OPENING = `餐桌上方的吊灯洒下暖白色的光。张云夹了一块排骨，没放进自己碗里，而是越过半个桌子，稳稳地落在了<user>的米饭上。排骨上的糖醋汁洇进白白的米粒里。
 
@@ -400,7 +400,14 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       }
       // 缓存监控：流式结束后采集 usage
       if (lastUsage) {
-        const record = buildUsageRecord(lastUsage, effectiveApi.model, effectiveChat.id);
+        const record = buildUsageRecord(
+          lastUsage,
+          effectiveApi.model,
+          effectiveChat.id,
+          messages.map((m: any) => ({ role: m.role, content: m.content })),
+          userText,
+        );
+        storeFullPrompt(record.requestId, messages.map((m: any) => ({ role: m.role, content: m.content })));
         gameBus.emit('api_usage', { record });
       }
     } catch (e) {

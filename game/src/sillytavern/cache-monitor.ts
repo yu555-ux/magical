@@ -7,7 +7,7 @@
 
 import { getDatabase } from './database';
 import { gameBus } from './event-bus';
-import type { CacheUsageRecord } from './types';
+import type { CacheUsageRecord, PromptMessage } from './types';
 
 // ── 计费模型 ──
 
@@ -85,12 +85,30 @@ export function extractUsageFromSSE(rawText: string): DSUsage | null {
 }
 
 /** 从 usage 对象构建 CacheUsageRecord */
-export function buildUsageRecord(usage: DSUsage, model: string, chatId: string): CacheUsageRecord {
+export function buildUsageRecord(
+  usage: DSUsage,
+  model: string,
+  chatId: string,
+  promptMessages?: Array<{ role: string; content: string }>,
+  userInput?: string,
+): CacheUsageRecord {
   const hit = usage.prompt_cache_hit_tokens ?? 0;
   const miss = usage.prompt_cache_miss_tokens ?? 0;
   const total = hit + miss;
   const hitRate = total > 0 ? Math.round((hit / total) * 1000) / 10 : 0;
   const cost = calculateCost(model, hit, miss);
+
+  // 构建消息摘要（仅存预览，完整内容通过 fullPromptMessages 单独存取）
+  const messages: PromptMessage[] | undefined = promptMessages?.map((m) => ({
+    role: m.role,
+    preview: m.content.slice(0, 200),
+    charCount: m.content.length,
+  }));
+
+  let totalChars = 0;
+  if (promptMessages) {
+    for (const m of promptMessages) totalChars += m.content.length;
+  }
 
   return {
     requestId: `req_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -103,7 +121,27 @@ export function buildUsageRecord(usage: DSUsage, model: string, chatId: string):
     hitRate,
     cost,
     generated: usage.completion_tokens ?? 0,
+    messages,
+    totalChars,
+    userInput: userInput?.slice(0, 100),
   };
+}
+
+// ── 完整提示词存储（用于 diff，单独存避免 CacheUsageRecord 过大）──
+
+const fullPromptStore = new Map<string, Array<{ role: string; content: string }>>();
+
+export function storeFullPrompt(requestId: string, messages: Array<{ role: string; content: string }>) {
+  // 限制缓存数量，避免内存溢出
+  if (fullPromptStore.size > 100) {
+    const firstKey = fullPromptStore.keys().next().value;
+    if (firstKey) fullPromptStore.delete(firstKey);
+  }
+  fullPromptStore.set(requestId, messages);
+}
+
+export function getFullPrompt(requestId: string): Array<{ role: string; content: string }> | null {
+  return fullPromptStore.get(requestId) ?? null;
 }
 
 // ── 持久化 ──

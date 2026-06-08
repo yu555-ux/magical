@@ -419,6 +419,13 @@ export type ApiTarget = 'primary' | 'secondary' | 'dual';
 
 // ========== Cache Monitor Types ==========
 
+export interface PromptMessage {
+  role: string;
+  /** 仅存储前 200 字用于列表预览，完整内容通过 requestId 查询 */
+  preview: string;
+  charCount: number;
+}
+
 export interface CacheUsageRecord {
   requestId: string;
   timestamp: number;
@@ -436,4 +443,10 @@ export interface CacheUsageRecord {
   cost: number;
   /** 生成 tokens */
   generated: number;
+  /** 请求消息摘要列表（用于 diff 选择） */
+  messages?: PromptMessage[];
+  /** 总字符数 */
+  totalChars?: number;
+  /** 本轮玩家输入（用于快速识别请求） */
+  userInput?: string;
 }
