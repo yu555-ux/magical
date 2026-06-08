@@ -18,9 +18,8 @@ interface PricingModel {
 }
 
 const PRICING: Record<string, PricingModel> = {
-  'deepseek-chat':        { name: 'V4 Flash', hit: 0.02, miss: 1.00 },
-  'deepseek-reasoner':    { name: 'V4 Pro',   hit: 0.025, miss: 3.00 },
-  'deepseek-v4-pro':      { name: 'V4 Pro',   hit: 0.025, miss: 3.00 },
+  'deepseek-v4-flash':    { name: 'V4 Flash', hit: 0.0028, miss: 0.14 },
+  'deepseek-v4-pro':      { name: 'V4 Pro',   hit: 0.003625, miss: 0.435 },
   'gemini-3.1':           { name: 'Gemini',   hit: 0.02, miss: 1.00 },
 };
 

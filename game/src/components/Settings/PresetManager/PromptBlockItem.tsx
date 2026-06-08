@@ -35,23 +35,22 @@ export default function PromptBlockItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-2.5 py-2 rounded border transition-all ${
+      {...attributes}
+      {...listeners}
+      className={`flex items-center gap-2 px-2.5 py-2 rounded border transition-all cursor-grab active:cursor-grabbing touch-none ${
         isEditing
           ? 'border-aether-purple/30 bg-aether-purple/[0.04]'
           : block.enabled
-            ? 'border-aether-border/12 bg-aether-dark/30'
+            ? 'border-aether-border/12 bg-aether-dark/30 hover:border-aether-border/25'
             : 'border-aether-border/6 bg-aether-dark/15'
       }`}
     >
-      {/* Drag handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="shrink-0 text-white/10 hover:text-white/30 cursor-grab active:cursor-grabbing touch-none"
-        title="拖拽排序"
+      {/* Drag handle (visual indicator) */}
+      <span
+        className="shrink-0 text-white/20 group-hover:text-white/40 pointer-events-none"
       >
         <GripVertical size={14} />
-      </button>
+      </span>
 
       {/* Type icon */}
       {icon && <span className="text-[10px] shrink-0">{icon}</span>}

@@ -10,7 +10,7 @@ export interface ApiCallTarget {
 }
 
 const COMMON_MODELS_BY_HOST: { match: string; models: string[] }[] = [
-  { match: 'deepseek', models: ['deepseek-chat', 'deepseek-reasoner'] },
+  { match: 'deepseek', models: ['deepseek-v4-flash', 'deepseek-v4-pro'] },
   { match: 'moonshot', models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'] },
   { match: 'kimi', models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'] },
   { match: 'dashscope', models: ['qwen-turbo', 'qwen-plus', 'qwen-max'] },
@@ -21,7 +21,7 @@ const COMMON_MODELS_BY_HOST: { match: string; models: string[] }[] = [
   { match: 'gemini', models: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'] },
 ];
 
-const FALLBACK_MODELS = ['gpt-3.5-turbo', 'gpt-4', 'deepseek-chat', 'qwen-turbo'];
+const FALLBACK_MODELS = ['gpt-3.5-turbo', 'gpt-4', 'deepseek-v4-flash', 'qwen-turbo'];
 
 export function getFallbackModels(baseUrl: string): string[] {
   const url = baseUrl.toLowerCase();
