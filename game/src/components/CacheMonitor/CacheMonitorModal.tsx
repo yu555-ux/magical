@@ -20,8 +20,6 @@ interface Props {
 export default function CacheMonitorModal({ isOpen, onClose }: Props) {
   const [tab, setTab] = useState<TabId>('overview');
   const [history, setHistory] = useState<CacheUsageRecord[]>([]);
-  const [diffA, setDiffA] = useState<string | null>(null);
-  const [diffB, setDiffB] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setHistory(await getUsageHistory(100));
@@ -30,7 +28,6 @@ export default function CacheMonitorModal({ isOpen, onClose }: Props) {
   useEffect(() => {
     if (isOpen) {
       refresh();
-      // 打开弹窗时订阅新数据
       return gameBus.on('api_usage', async ({ record }) => {
         setHistory(prev => [record, ...prev].slice(0, 100));
       });
@@ -40,8 +37,6 @@ export default function CacheMonitorModal({ isOpen, onClose }: Props) {
   const handleClear = async () => {
     await clearUsageHistory();
     setHistory([]);
-    setDiffA(null);
-    setDiffB(null);
   };
 
   const totalCost = history.reduce((s, r) => s + r.cost, 0);
@@ -83,9 +78,9 @@ export default function CacheMonitorModal({ isOpen, onClose }: Props) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {tab === 'overview' ? (
-            <OverviewTab history={history} onSelectDiff={(id) => { diffA ? setDiffB(id) : setDiffA(id); }} selectedA={diffA} selectedB={diffB} />
+            <OverviewTab history={history} />
           ) : (
-            <DiffTab history={history} diffA={diffA} diffB={diffB} setDiffA={setDiffA} setDiffB={setDiffB} />
+            <DiffTab />
           )}
         </div>
 
@@ -104,14 +99,7 @@ export default function CacheMonitorModal({ isOpen, onClose }: Props) {
 
 // ── 概览标签页 ──
 
-function OverviewTab({
-  history, onSelectDiff, selectedA, selectedB,
-}: {
-  history: CacheUsageRecord[];
-  onSelectDiff: (id: string) => void;
-  selectedA: string | null;
-  selectedB: string | null;
-}) {
+function OverviewTab({ history }: { history: CacheUsageRecord[] }) {
   if (history.length === 0) {
     return <div className="text-center py-16 text-white/25 text-xs font-mono">发送消息后开始采集</div>;
   }
@@ -119,10 +107,7 @@ function OverviewTab({
   return (
     <div>
       {history.map((r, i) => (
-        <CacheEntry key={r.requestId} record={r} isLatest={i === 0}
-          onDiff={() => onSelectDiff(r.requestId)}
-          isSelected={selectedA === r.requestId || selectedB === r.requestId}
-        />
+        <CacheEntry key={r.requestId} record={r} isLatest={i === 0} />
       ))}
     </div>
   );
@@ -130,26 +115,34 @@ function OverviewTab({
 
 // ── 提示词对比标签页 ──
 
-function DiffTab({
-  history, diffA, diffB, setDiffA, setDiffB,
-}: {
-  history: CacheUsageRecord[];
-  diffA: string | null;
-  diffB: string | null;
-  setDiffA: (id: string | null) => void;
-  setDiffB: (id: string | null) => void;
-}) {
+function DiffTab() {
+  const [history, setHistory] = useState<CacheUsageRecord[]>([]);
   const [diffResult, setDiffResult] = useState<Array<{ role: string; oldContent: string; newContent: string; changed: boolean }>>([]);
   const [loading, setLoading] = useState(false);
+  const [lastIds, setLastIds] = useState<[string, string] | null>(null);
 
+  // 订阅新数据，保持最新 2 条
   useEffect(() => {
-    if (!diffA || !diffB) { setDiffResult([]); return; }
+    getUsageHistory(2).then(setHistory);
+    return gameBus.on('api_usage', async () => {
+      setHistory(await getUsageHistory(2));
+    });
+  }, []);
+
+  // 自动对比最新 2 条
+  useEffect(() => {
+    if (history.length < 2) return;
+    const [latest, prev] = history;
+    const pair: [string, string] = [prev.requestId, latest.requestId];
+
+    // 相同则跳过
+    if (lastIds && lastIds[0] === pair[0] && lastIds[1] === pair[1]) return;
+    setLastIds(pair);
 
     setLoading(true);
-    // 异步加载完整提示词并对比
     setTimeout(() => {
-      const msgsA = getFullPrompt(diffA);
-      const msgsB = getFullPrompt(diffB);
+      const msgsA = getFullPrompt(pair[0]); // 上次
+      const msgsB = getFullPrompt(pair[1]); // 本次
       if (!msgsA || !msgsB) { setDiffResult([]); setLoading(false); return; }
 
       const maxLen = Math.max(msgsA.length, msgsB.length);
@@ -167,58 +160,46 @@ function DiffTab({
       setDiffResult(result);
       setLoading(false);
     }, 0);
-  }, [diffA, diffB]);
+  }, [history]);
 
-  const recordA = history.find(r => r.requestId === diffA) ?? null;
-  const recordB = history.find(r => r.requestId === diffB) ?? null;
+  if (history.length < 2) {
+    return (
+      <div className="text-center py-16 text-white/25 text-xs font-mono">
+        需要至少 2 次请求才能对比。<br />发送 2 条消息后再查看。
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 space-y-4">
-      {/* 选择器 */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-[10px] text-white/30 font-display tracking-wider mb-1.5">对比 A（旧请求）</label>
-          <select value={diffA ?? ''} onChange={e => setDiffA(e.target.value || null)}
-            className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60 transition-all">
-            <option value="">-- 选择请求 --</option>
-            {history.map(r => (
-              <option key={r.requestId} value={r.requestId}>
-                {new Date(r.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · {r.hitRate}% · {r.userInput?.slice(0, 30) ?? ''}
-              </option>
-            ))}
-          </select>
-          {recordA && <div className="text-[9px] text-white/20 mt-1 font-mono">中:{recordA.hit} 未:{recordA.miss} · {recordA.totalChars?.toLocaleString()}字</div>}
-        </div>
-        <div>
-          <label className="block text-[10px] text-white/30 font-display tracking-wider mb-1.5">对比 B（新请求）</label>
-          <select value={diffB ?? ''} onChange={e => setDiffB(e.target.value || null)}
-            className="w-full bg-aether-dark/60 border border-aether-border/30 rounded px-3 py-2 text-xs text-white/70 font-mono focus:outline-none focus:border-aether-cyan/60 transition-all">
-            <option value="">-- 选择请求 --</option>
-            {history.map(r => (
-              <option key={r.requestId} value={r.requestId}>
-                {new Date(r.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · {r.hitRate}% · {r.userInput?.slice(0, 30) ?? ''}
-              </option>
-            ))}
-          </select>
-          {recordB && <div className="text-[9px] text-white/20 mt-1 font-mono">中:{recordB.hit} 未:{recordB.miss} · {recordB.totalChars?.toLocaleString()}字</div>}
-        </div>
+    <div className="p-4 space-y-3">
+      {/* 对比摘要 */}
+      <div className="flex items-center justify-between text-[10px] font-mono px-3 py-2 bg-aether-dark/40 rounded-lg border border-aether-border/10">
+        <span className="text-white/40">
+          上次 <span className="text-white/60">{new Date(history[1].timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+          {' · '}
+          <span className={history[1].hitRate >= 60 ? 'text-aether-green/60' : 'text-aether-gold/60'}>{history[1].hitRate}%</span>
+        </span>
+        <span className="text-aether-cyan/40">→</span>
+        <span className="text-white/40">
+          本次 <span className="text-white/60">{new Date(history[0].timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+          {' · '}
+          <span className={history[0].hitRate >= 60 ? 'text-aether-green/60' : 'text-aether-gold/60'}>{history[0].hitRate}%</span>
+        </span>
+        <span className="text-white/25">{history[1].totalChars?.toLocaleString()} → {history[0].totalChars?.toLocaleString()} 字</span>
       </div>
 
-      {/* Diff 结果 */}
-      {loading && (
-        <div className="text-center py-10 text-white/30 text-xs font-mono">加载中...</div>
-      )}
+      {loading && <div className="text-center py-10 text-white/30 text-xs font-mono">对比中...</div>}
 
-      {!loading && diffA && diffB && diffResult.length === 0 && (
+      {!loading && diffResult.length === 0 && lastIds && (
         <div className="text-center py-10 text-white/25 text-xs font-mono">
-          未能加载完整提示词数据。完整提示词仅保留最近 100 次请求，可能已被清除。
+          完整提示词数据已过期（仅保留最近 100 次）。发送新消息后重试。
         </div>
       )}
 
       {!loading && diffResult.length > 0 && (
-        <div className="space-y-1 max-h-[45vh] overflow-y-auto">
-          <div className="text-[10px] text-white/25 font-mono mb-2">
-            {diffResult.filter(d => d.changed).length} / {diffResult.length} 条消息有差异
+        <div className="space-y-1 max-h-[50vh] overflow-y-auto">
+          <div className="text-[10px] text-white/25 font-mono mb-2 px-1">
+            {diffResult.filter(d => d.changed).length} / {diffResult.length} 条消息有变动
           </div>
           {diffResult.map((d, i) => (
             <DiffMessage key={i} index={i} {...d} />
@@ -288,11 +269,9 @@ function DiffMessage({ index, role, oldContent, newContent, changed }: {
 
 // ── 单条缓存记录 ──
 
-function CacheEntry({ record, isLatest, onDiff, isSelected }: {
+function CacheEntry({ record, isLatest }: {
   record: CacheUsageRecord;
   isLatest: boolean;
-  onDiff: () => void;
-  isSelected: boolean;
 }) {
   const { hit, miss, total, hitRate, cost, timestamp, userInput } = record;
   const timeStr = new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -304,8 +283,8 @@ function CacheEntry({ record, isLatest, onDiff, isSelected }: {
       : 'from-aether-red to-aether-gold';
 
   return (
-    <div className={`px-4 py-2.5 border-b border-aether-border/10 hover:bg-white/[0.02] transition-colors ${isLatest ? 'bg-aether-cyan/[0.015]' : ''} ${isSelected ? 'ring-1 ring-aether-cyan/30' : ''}`}>
-      {/* Hit rate bar + actions */}
+    <div className={`px-4 py-2.5 border-b border-aether-border/10 hover:bg-white/[0.02] transition-colors ${isLatest ? 'bg-aether-cyan/[0.015]' : ''}`}>
+      {/* Hit rate bar */}
       <div className="flex items-center gap-2 mb-1.5">
         <div className="flex-1 h-1 rounded-full bg-white/[0.06] overflow-hidden">
           <motion.div
@@ -318,12 +297,6 @@ function CacheEntry({ record, isLatest, onDiff, isSelected }: {
         <span className={`text-[11px] font-mono font-bold w-8 text-right ${
           hitRate >= 60 ? 'text-aether-green' : hitRate >= 30 ? 'text-aether-gold' : 'text-aether-red'
         }`}>{hitRate}%</span>
-        {/* Diff select button */}
-        <button onClick={(e) => { e.stopPropagation(); onDiff(); }}
-          className="text-[9px] text-white/20 hover:text-aether-cyan/70 transition-colors font-mono px-1"
-          title="选择用于提示词对比">
-          <GitCompare size={11} />
-        </button>
       </div>
 
       {/* Token details */}
