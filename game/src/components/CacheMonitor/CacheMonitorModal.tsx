@@ -104,10 +104,51 @@ function OverviewTab({ history }: { history: CacheUsageRecord[] }) {
     return <div className="text-center py-16 text-white/25 text-xs font-mono">发送消息后开始采集</div>;
   }
 
+  // 按 replyGroupId 分组：有 groupId 的优先分组，无 groupId 的各自独立
+  const groups: { key: string; records: CacheUsageRecord[]; label: string }[] = [];
+  const seen = new Set<string>();
+  for (const r of history) {
+    const key = r.replyGroupId || r.requestId;
+    if (seen.has(key)) {
+      const group = groups.find(g => g.key === key);
+      if (group) group.records.push(r);
+    } else {
+      seen.add(key);
+      const input = r.userInput ? (r.userInput.length > 20 ? r.userInput.slice(0, 20) + '…' : r.userInput) : '无输入';
+      groups.push({ key, records: [r], label: r.replyGroupId ? `回复「${input}」` : input });
+    }
+  }
+
   return (
     <div>
-      {history.map((r, i) => (
-        <CacheEntry key={r.requestId} record={r} isLatest={i === 0} />
+      {groups.map(g => (
+        <ReplyGroup key={g.key} label={g.label} records={g.records} />
+      ))}
+    </div>
+  );
+}
+
+function ReplyGroup({ label, records }: { label: string; records: CacheUsageRecord[] }) {
+  const totalHit = records.reduce((s, r) => s + r.hit, 0);
+  const totalMiss = records.reduce((s, r) => s + r.miss, 0);
+  const avgRate = (totalHit + totalMiss) > 0 ? Math.round((totalHit / (totalHit + totalMiss)) * 1000) / 10 : 0;
+  const totalCost = records.reduce((s, r) => s + r.cost, 0);
+  const isMultiTurn = records.length > 1;
+
+  return (
+    <div className="border-b border-aether-border/10 last:border-b-0">
+      {/* Group header */}
+      <div className="flex items-center gap-2 px-4 py-2 bg-white/[0.02]">
+        <span className="text-[11px] text-white/60 font-mono truncate flex-1">{label}</span>
+        {isMultiTurn && <span className="text-[9px] text-white/30 bg-white/[0.05] px-1.5 py-0.5 rounded">{records.length} 次调用</span>}
+        <span className={avgRate >= 60 ? 'text-aether-green text-[11px]' : avgRate >= 30 ? 'text-aether-gold text-[11px]' : 'text-aether-red text-[11px]'}>
+          {avgRate}%
+        </span>
+        <span className="text-[10px] text-aether-cyan/60">¥{totalCost.toFixed(5)}</span>
+      </div>
+      {/* Individual calls */}
+      {records.map((r, i) => (
+        <CacheEntry key={r.requestId} record={r} isLatest={false} turnLabel={isMultiTurn ? `Turn ${i + 1}` : undefined} />
       ))}
     </div>
   );
@@ -293,12 +334,14 @@ function DiffMessage({ index, role, oldContent, newContent, changed }: {
 
 // ── 单条缓存记录 ──
 
-function CacheEntry({ record, isLatest }: {
+function CacheEntry({ record, isLatest, turnLabel }: {
   record: CacheUsageRecord;
   isLatest: boolean;
+  turnLabel?: string;
 }) {
   const { hit, miss, total, hitRate, cost, timestamp, userInput } = record;
   const timeStr = new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const displayLabel = turnLabel || userInput || timeStr;
 
   const barColor = hitRate >= 60
     ? 'from-aether-green to-aether-cyan'
@@ -338,8 +381,8 @@ function CacheEntry({ record, isLatest }: {
       </div>
 
       {/* User input preview */}
-      {userInput && (
-        <div className="text-[8px] text-white/15 font-mono mt-0.5 truncate">{userInput}</div>
+      {displayLabel && (
+        <div className="text-[8px] text-white/15 font-mono mt-0.5 truncate">{displayLabel}</div>
       )}
     </div>
   );

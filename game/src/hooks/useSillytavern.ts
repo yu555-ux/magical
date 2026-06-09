@@ -426,7 +426,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       let rawContent = '';
       let thinkingContent = '';
       const agentRecords: ToolExecutionRecord[] = [];
-      let agentUsage: { hit: number; miss: number; generated: number } | null = null;
+      const replyGroupId = crypto.randomUUID();  // 同一次用户回复的所有 turn 共享
 
       try {
         const params = effectiveSettings.presetParams ?? DEFAULT_PRESET_PARAMS;
@@ -454,6 +454,15 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
             case 'thinking_delta':
               thinkingContent += event.chunk;
               break;
+            case 'turn_usage': {
+              const dsUsage = { prompt_cache_hit_tokens: event.hit, prompt_cache_miss_tokens: event.miss, completion_tokens: event.generated };
+              const record = buildUsageRecord(dsUsage, effectiveApi.model, effectiveChat.id,
+                agentCtx.messages.map((m: any) => ({ role: m.role, content: m.content })), userText);
+              record.replyGroupId = replyGroupId;
+              storeFullPrompt(record.requestId, agentCtx.messages.map((m: any) => ({ role: m.role, content: m.content })));
+              gameBus.emit('api_usage', { record });
+              break;
+            }
             case 'toolcall_start': {
               const tool = agentTools.find(t => t.name === event.name);
               flushSync(() => {
@@ -491,25 +500,6 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         if (loopResult && typeof loopResult === 'object' && 'text' in loopResult) {
           rawContent = (loopResult as any).text || rawContent;
           thinkingContent = (loopResult as any).thinking || thinkingContent;
-          agentUsage = (loopResult as any).usage || null;
-
-          // 发出缓存监控事件（映射到 DSUsage 格式）
-          if (agentUsage) {
-            const dsUsage = {
-              prompt_cache_hit_tokens: agentUsage.hit,
-              prompt_cache_miss_tokens: agentUsage.miss,
-              completion_tokens: agentUsage.generated,
-            };
-            const record = buildUsageRecord(
-              dsUsage,
-              effectiveApi.model,
-              effectiveChat.id,
-              agentCtx.messages.map((m: any) => ({ role: m.role, content: m.content })),
-              userText,
-            );
-            storeFullPrompt(record.requestId, agentCtx.messages.map((m: any) => ({ role: m.role, content: m.content })));
-            gameBus.emit('api_usage', { record });
-          }
         }
       } catch (e) {
         console.error('[Agent] Agent loop error:', e);
@@ -555,9 +545,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       await db.chats.put(finalChat);
       setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
-      const resultUsage = agentUsage as { hit: number; miss: number; generated: number } | null;
       console.log(`📊 Agent 最终: ${rawContent.length} 字文本, ${thinkingContent.length} 字思考, ${agentRecords.length} 个工具调用`);
-      if (resultUsage) console.log(`💰 缓存: hit=${resultUsage.hit} miss=${resultUsage.miss} generated=${resultUsage.generated}`);
       console.groupEnd();
 
       abortRef.current = null;

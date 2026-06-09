@@ -308,11 +308,11 @@ export const DEFAULT_OPAQUE_TAGS = ['thinking', 'think', 'Analysis'] as const;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   api: {
-    baseUrl: 'https://gcli.ggchan.dev',
+    baseUrl: 'https://api.deepseek.com',
     apiKey: '',
-    model: '假流式-gemini-3.1-pro-preview',
+    model: 'deepseek-v4-flash',
     timeout: 60000,
-    secondary: { enabled: true, baseUrl: 'https://gcli.ggchan.dev', apiKey: '', model: '假流式-gemini-3.0-flash-preview', temperature: 0.7, maxTokens: 8000 },
+    secondary: { enabled: true, baseUrl: 'https://api.deepseek.com', apiKey: '', model: 'deepseek-v4-flash', temperature: 0.7, maxTokens: 8000 },
     agentMode: false,
     enabledTools: ['lookup_world'],
     maxTurnsPerMessage: 10,
@@ -324,7 +324,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   activePresetId: null,
   activeVarsPresetId: null,
   lorebooks: [],
-  userName: '',
+  userName: '周清玉',
   characterName: 'AI',
   theme: 'dark',
   language: 'zh',
@@ -464,6 +464,8 @@ export interface CacheUsageRecord {
   totalChars?: number;
   /** 本轮玩家输入（用于快速识别请求） */
   userInput?: string;
+  /** Agent 模式：同一次用户回复的所有 turn 共享同一个 groupId */
+  replyGroupId?: string;
 }
 
 // ========== Agent Types ==========
@@ -498,6 +500,7 @@ export type AgentStreamEvent =
   | { type: 'toolcall_delta'; id: string; argumentsChunk: string }
   | { type: 'toolcall_end'; id: string; name: string; arguments: string }
   | { type: 'tool_result'; record: ToolExecutionRecord }
+  | { type: 'turn_usage'; hit: number; miss: number; generated: number; turnIndex: number }
   | { type: 'done'; text: string; thinking: string }
   | { type: 'error'; message: string };
 

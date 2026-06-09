@@ -210,9 +210,8 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
       if (hasTextStarted) yield { type: 'text_end' };
       if (hasThinkingStarted) yield { type: 'thinking_end' };
 
-      // 文本结束
-      if (hasTextStarted) yield { type: 'text_end' };
-      if (hasThinkingStarted) yield { type: 'thinking_end' };
+      // 每轮缓存数据
+      if (turnUsage) yield { type: 'turn_usage', hit: turnUsage.hit, miss: turnUsage.miss, generated: turnUsage.generated, turnIndex: turnCount };
 
       const elapsed = Date.now() - t0;
       console.log(`⏱️ 流式耗时: ${elapsed}ms`);
