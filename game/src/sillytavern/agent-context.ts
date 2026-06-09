@@ -15,7 +15,6 @@
  */
 
 import type { ChatMessage, Lorebook, HistoryTimeline, DreamAnchor } from './types';
-import { formatVariablesForPrompt } from './variables';
 import { replaceMacros } from './prompt-assembler';
 import type { AgentToolDef } from './tools/registry';
 import { toOpenAITool } from './tools/registry';
@@ -158,44 +157,30 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     }
   }
 
-  // ── Reference 层：工具速查 + 玩家/角色身份（user role, 紧贴用户输入上方）──
+  // ── Reference 层：仅工具速查 + 身份（user role, 紧贴用户输入上方）──
+  // 世界观、时间、地点、角色等游戏状态通过工具调用获取，不预注入 prompt
   const refParts: string[] = [];
-  refParts.push('[以下为参考信息]\n');
 
-  // 玩家/角色身份
+  // 玩家/角色身份（仅当用户在设置中填写了）
   const macroCtx = {
     userName,
     characterName,
     userInput: userInputMsg?.content ?? '',
     playerDescription,
     characterDescription,
-    varsListText: formatVariablesForPrompt(variables),
+    varsListText: '',
     lastMaintext: '',
     fullVars: variables,
   };
-  const identityParts: string[] = [];
-  if (playerDescription) identityParts.push(`## 玩家设定\n${replaceMacros(playerDescription, macroCtx)}`);
-  if (characterDescription) identityParts.push(`## AI 角色设定\n${replaceMacros(characterDescription, macroCtx)}`);
-  if (identityParts.length > 0) refParts.push(identityParts.join('\n\n'));
+  if (playerDescription) refParts.push(`## 玩家设定\n${replaceMacros(playerDescription, macroCtx)}`);
+  if (characterDescription) refParts.push(`## AI 角色设定\n${replaceMacros(characterDescription, macroCtx)}`);
 
-  // 当前时间地点（从变量树中提取，轻量）
-  const currentLocation = variables['世界']?.['现实']?.['地点'] ?? '';
-  const currentTime = variables['世界']?.['现实']?.['时间'] ?? '';
-  const inDream = variables['世界']?.['梦境定位']?.['位于梦境'] ?? false;
-  if (currentLocation || currentTime) {
-    const locationLines: string[] = [];
-    if (currentLocation) locationLines.push(`当前位置: ${currentLocation}`);
-    if (currentTime) locationLines.push(`当前时间: ${currentTime}`);
-    locationLines.push(`是否梦境: ${inDream ? '是' : '否'}`);
-    refParts.push(`## 当前状态\n${locationLines.join('\n')}`);
-  }
-
-  // 工具速查
+  // 工具速查（核心：让 AI 知道有哪些工具可用）
   const toolIndex = buildToolIndex(tools);
   if (toolIndex) refParts.push(toolIndex);
 
-  const refContent = refParts.join('\n\n---\n\n');
-  if (refContent) {
+  if (refParts.length > 0) {
+    const refContent = `[以下为参考信息 — 游戏状态请通过工具查询]\n\n${refParts.join('\n\n---\n\n')}`;
     stageMessages['reference'] = [{ role: 'user', content: refContent }];
     stageOrder.push('reference');
     finalMessages.push({ role: 'user', content: refContent });
