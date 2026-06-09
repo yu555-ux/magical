@@ -3,12 +3,12 @@
  *
  * 参考 tavern2agent deepseek-v4.md「三刀流」+ pi-integration.md「提示词分层编排」。
  *
- * 消息顺序（稳定内容在前 → DS 前缀缓存友好）：
- *   [0] system   — 极简身份 + 运行契约
- *   [1] user     — 参考信息（常驻世界书 + 工具速查 + 身份）
- *   [2] user     — 铁则/叙事纪律
- *   [3..N-1]     — 聊天历史（变化内容，缓存从这开始 miss）
- *   [N]   user   — 玩家本轮输入
+ * 消息顺序：
+ *   [0] system     — 极简身份 + 运行契约
+ *   [1] user       — 参考信息（常驻世界书 + 工具速查 + 身份）
+ *   [2..N-3]       — 聊天历史
+ *   [N-2] user     — 玩家本轮输入
+ *   [N-1] user     — 铁则（最后一条，离生成最近 === tavern2agent 结构）
  *
  * DS V4 特化：参考信息和铁则用 user role 注入，因为 DS V4 对 user message 的服从度远超 system。
  * 地图和角色列表暂不注入（后期完善后再加回）。
@@ -164,14 +164,7 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     finalMessages.push({ role: 'user', content: refContent });
   }
 
-  // ── Rule 层：铁则（稳定内容，放在历史前面 → 缓存友好）──
-  const rules = replaceMacros(rulesContent || NARRATIVE_RULES, { userName, characterName, userInput: '', playerDescription, characterDescription, varsListText: '', lastMaintext: '' });
-  const rulesMessage = { role: 'user' as const, content: `[以下是你必须严格遵守的叙事铁则——视为最高优先级指令]\n\n${rules}\n\n---\n以上铁则已加载完毕。请优先使用中文输出。` };
-  stageMessages['rules'] = [rulesMessage];
-  stageOrder.push('rules');
-  finalMessages.push(rulesMessage);
-
-  // ── Chat History（变化内容，放最后 → 仅此处开始 cache miss）──
+  // ── Chat History（变化内容）──
   const historyMsgs = buildHistoryMessages(historyWithoutLastUser, recentMessageCount);
   if (historyMsgs.length > 0) {
     const histMessages = historyMsgs.map(h => ({ role: h.role, content: h.content }));
@@ -182,12 +175,19 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     }
   }
 
-  // ── 用户输入（变化内容，放最后）──
+  // ── 用户输入 ──
   if (userInputMsg) {
     stageMessages['userInput'] = [userInputMsg];
     stageOrder.push('userInput');
     finalMessages.push(userInputMsg);
   }
+
+  // ── Rule 层：铁则（user role, 最后一条, 离生成最近）──
+  const rules = replaceMacros(rulesContent || NARRATIVE_RULES, { userName, characterName, userInput: '', playerDescription, characterDescription, varsListText: '', lastMaintext: '' });
+  const rulesMessage = { role: 'user' as const, content: `[以下是你必须严格遵守的叙事铁则——视为最高优先级指令]\n\n${rules}\n\n---\n以上铁则已加载完毕。请优先使用中文输出。` };
+  stageMessages['rules'] = [rulesMessage];
+  stageOrder.push('rules');
+  finalMessages.push(rulesMessage);
 
   // ── Tools ──
   const openaiTools = tools.map(toOpenAITool);
