@@ -242,7 +242,7 @@ export default function SavePointModal({ isOpen, onClose, messages, onJumpToFloo
                                     {/* ── Description ── */}
                                     {sp.description && (
                                       <p className="text-[14px] text-white/45 leading-relaxed mb-4
-                                                    line-clamp-3 font-sans tracking-[0.02em]">
+                                                    font-sans tracking-[0.02em]">
                                         {sp.description}
                                       </p>
                                     )}
