@@ -133,9 +133,11 @@ export default function ApiTab({ draft, setDraft, busy, primaryModels, secondary
                   {ALL_TOOLS.map((tool) => {
                     const checked = (api?.enabledTools ?? []).includes(tool.name);
                     return (
-                      <motion.label key={tool.name}
+                      <motion.div key={tool.name}
                         whileTap={{ scale: 0.96 }}
-                        onClick={() => toggleTool(tool.name)}
+                        onClick={(e) => { e.preventDefault(); toggleTool(tool.name); }}
+                        role="checkbox"
+                        aria-checked={checked}
                         className={`relative flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer select-none overflow-hidden ${
                           checked
                             ? 'bg-purple-400/15 text-purple-300 border border-purple-400/30'
@@ -156,8 +158,6 @@ export default function ApiTab({ draft, setDraft, busy, primaryModels, secondary
                             />
                           )}
                         </AnimatePresence>
-
-                        <input type="checkbox" checked={checked} onChange={() => {}} className="sr-only" />
 
                         {/* Animated checkbox */}
                         <motion.div
@@ -187,7 +187,7 @@ export default function ApiTab({ draft, setDraft, busy, primaryModels, secondary
                           <div className="font-mono text-[11px]">{tool.name}</div>
                           <div className="text-[10px] opacity-50 truncate">{tool.label}</div>
                         </motion.div>
-                      </motion.label>
+                      </motion.div>
                     );
                   })}
                 </div>
