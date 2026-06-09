@@ -413,7 +413,7 @@ export default function CharacterDetail({ char }: { char: CharacterCard }) {
             <h2 className="font-display text-xl tracking-widest uppercase text-white/90">技能</h2>
             <div className="flex-1 h-px bg-gradient-to-r from-aether-cyan/30 to-transparent" />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-1">
             {Object.entries(p.技能 as Record<string, any>).map(([skillName, skillData]) => {
               const skillRank = skillData.等级 ? RATING_STYLES[skillData.等级] : null;
               const prof = skillData?.熟练度 ?? 0;
