@@ -335,6 +335,11 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
 
     // ─── Agent 模式 ───
     if (isAgentMode) {
+      console.group('🚀 Agent Mode');
+      console.log(`📩 用户输入: "${userText}"`);
+      console.log(`🤖 模型: ${effectiveApi.model}`);
+      console.log(`🔧 启用工具: ${(effectiveApi.enabledTools ?? []).join(', ') || '无'}`);
+
       const agentTools = getEnabledTools(effectiveApi.enabledTools ?? []);
       const agentCtx = buildAgentContext({
         userName: effectiveSettings.userName ?? DEFAULT_SETTINGS.userName,
@@ -421,6 +426,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       let rawContent = '';
       let thinkingContent = '';
       const agentRecords: ToolExecutionRecord[] = [];
+      let agentUsage: { hit: number; miss: number; generated: number } | null = null;
 
       try {
         const params = effectiveSettings.presetParams ?? DEFAULT_PRESET_PARAMS;
@@ -485,12 +491,17 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         if (loopResult && typeof loopResult === 'object' && 'text' in loopResult) {
           rawContent = (loopResult as any).text || rawContent;
           thinkingContent = (loopResult as any).thinking || thinkingContent;
+          agentUsage = (loopResult as any).usage || null;
 
-          // 发出缓存监控事件
-          if ((loopResult as any).usage) {
-            const u = (loopResult as any).usage;
+          // 发出缓存监控事件（映射到 DSUsage 格式）
+          if (agentUsage) {
+            const dsUsage = {
+              prompt_cache_hit_tokens: agentUsage.hit,
+              prompt_cache_miss_tokens: agentUsage.miss,
+              completion_tokens: agentUsage.generated,
+            };
             const record = buildUsageRecord(
-              u,
+              dsUsage,
               effectiveApi.model,
               effectiveChat.id,
               agentCtx.messages.map((m: any) => ({ role: m.role, content: m.content })),
@@ -543,6 +554,11 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedChat.dreamAnchor, plotHistory: toolCtx.plotHistory, updatedAt: Date.now() };
       await db.chats.put(finalChat);
       setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
+
+      const resultUsage = agentUsage as { hit: number; miss: number; generated: number } | null;
+      console.log(`📊 Agent 最终: ${rawContent.length} 字文本, ${thinkingContent.length} 字思考, ${agentRecords.length} 个工具调用`);
+      if (resultUsage) console.log(`💰 缓存: hit=${resultUsage.hit} miss=${resultUsage.miss} generated=${resultUsage.generated}`);
+      console.groupEnd();
 
       abortRef.current = null;
       setPendingToolCalls(new Map());

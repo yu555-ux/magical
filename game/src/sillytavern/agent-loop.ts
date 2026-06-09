@@ -85,7 +85,28 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
 
       turnCount++;
 
-      // ── 1. 调用 LLM ──
+  // ── 1. 调用 LLM ──
+      const requestPayload = {
+        messages: [
+          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+          ...contextMessages,
+        ],
+        tools: openaiTools,
+        temperature, top_p, max_tokens,
+      };
+
+      console.group(`🤖 Agent Turn #${turnCount}/${maxTurns}`);
+      console.log(`📤 请求消息 (${requestPayload.messages.length} 条):`);
+      requestPayload.messages.forEach((m, i) => {
+        const preview = typeof m.content === 'string'
+          ? m.content.slice(0, 120) + (m.content.length > 120 ? '...' : '')
+          : JSON.stringify(m.content).slice(0, 120);
+        console.log(`  [${i}] ${m.role}: ${preview}`);
+      });
+      console.log(`🔧 可用工具: ${openaiTools.map(t => t.function.name).join(', ')}`);
+      console.log(`🌡️ 参数: temperature=${temperature}, max_tokens=${max_tokens}`);
+
+      const t0 = Date.now();
       const response = await router.callAgent(
         {
           messages: [
@@ -181,8 +202,19 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
       if (hasTextStarted) yield { type: 'text_end' };
       if (hasThinkingStarted) yield { type: 'thinking_end' };
 
+      // 文本结束
+      if (hasTextStarted) yield { type: 'text_end' };
+      if (hasThinkingStarted) yield { type: 'thinking_end' };
+
+      const elapsed = Date.now() - t0;
+      console.log(`⏱️ 流式耗时: ${elapsed}ms`);
+      console.log(`📝 文本: ${turnText.slice(0, 200)}${turnText.length > 200 ? '...' : ''}`);
+      if (turnThinking) console.log(`💭 思考: ${turnThinking.slice(0, 200)}${turnThinking.length > 200 ? '...' : ''}`);
+
       // ── 3. 处理 tool calls ──
       if (toolAccumulators.size > 0 && areToolCallsComplete(toolAccumulators)) {
+        console.log(`🔧 检测到 ${toolAccumulators.size} 个工具调用`);
+
         // 将 assistant 消息（含 tool_calls）加入 context
         const assistantContent = turnText || undefined;
         const toolCallBlocks: Array<{
@@ -223,13 +255,16 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
 
           let toolResult: ToolResult;
           if (!toolDef) {
+            console.warn(`  ⚠️ 未知工具: ${toolName}`);
             toolResult = { content: [{ type: 'text', text: `工具 "${toolName}" 未注册` }] };
           } else {
             try {
               let args: unknown;
               try { args = JSON.parse(tcBlock.function.arguments); } catch { args = {}; }
+              console.log(`  🔨 ${toolName}(${JSON.stringify(args).slice(0, 200)})`);
               toolResult = await toolDef.execute(toolContext, args);
             } catch (err) {
+              console.error(`  ❌ ${toolName} 执行异常:`, err);
               toolResult = {
                 content: [{ type: 'text', text: `工具执行出错: ${err instanceof Error ? err.message : String(err)}` }],
               };
@@ -259,13 +294,20 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
             tool_call_id: tcBlock.id,
             content: toolResult.content[0]?.text ?? '',
           } as any);
+
+          console.log(`  ✅ ${toolName} (${duration}ms) → ${toolResult.content[0]?.text?.slice(0, 100)}`);
         }
+
+        console.log(`🔧 工具执行完成 (${turnRecords.length} 项)，继续生成...`);
+        console.groupEnd();
 
         // 继续循环——AI 看到工具结果后接着生成
         continue;
       }
 
       // ── 4. 无 tool call → 退出循环 ──
+      console.log(`✅ Turn #${turnCount} 无工具调用，叙事完成`);
+      console.groupEnd();
       break;
     }
   } catch (err) {

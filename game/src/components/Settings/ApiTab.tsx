@@ -123,28 +123,71 @@ export default function ApiTab({ draft, setDraft, busy, primaryModels, secondary
 
               {/* Tools */}
               <div>
-                <span className="block text-xs text-white/50 mb-2">启用的工具</span>
+                <span className="block text-xs text-white/50 mb-2">
+                  启用的工具
+                  <span className="text-white/20 ml-1">
+                    ({api?.enabledTools?.length ?? 0}/{ALL_TOOLS.length})
+                  </span>
+                </span>
                 <div className="grid grid-cols-2 gap-1.5">
                   {ALL_TOOLS.map((tool) => {
                     const checked = (api?.enabledTools ?? []).includes(tool.name);
                     return (
-                      <label key={tool.name}
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer transition-all ${
-                          checked ? 'bg-purple-400/10 text-purple-300' : 'bg-white/[0.02] text-white/40 hover:text-white/60'
-                        }`}
+                      <motion.label key={tool.name}
+                        whileTap={{ scale: 0.96 }}
                         onClick={() => toggleTool(tool.name)}
+                        className={`relative flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer select-none overflow-hidden ${
+                          checked
+                            ? 'bg-purple-400/15 text-purple-300 border border-purple-400/30'
+                            : 'bg-white/[0.02] text-white/40 border border-transparent hover:border-white/10 hover:bg-white/[0.04] hover:text-white/60'
+                        }`}
                       >
+                        {/* Background flash on toggle */}
+                        <AnimatePresence>
+                          {checked && (
+                            <motion.div
+                              key="glow"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              className="absolute inset-0 rounded bg-purple-400/10 pointer-events-none"
+                              layoutId={`tool-glow-${tool.name}`}
+                              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                            />
+                          )}
+                        </AnimatePresence>
+
                         <input type="checkbox" checked={checked} onChange={() => {}} className="sr-only" />
-                        <div className={`w-3 h-3 rounded border flex items-center justify-center transition-all ${
-                          checked ? 'border-purple-400 bg-purple-400' : 'border-white/20'
-                        }`}>
-                          {checked && <div className="w-1.5 h-1.5 rounded-sm bg-white" />}
-                        </div>
-                        <div className="flex-1 truncate">
+
+                        {/* Animated checkbox */}
+                        <motion.div
+                          animate={{
+                            scale: checked ? 1 : 0.9,
+                            borderColor: checked ? 'rgba(168, 85, 247, 1)' : 'rgba(255,255,255,0.15)',
+                            backgroundColor: checked ? 'rgba(168, 85, 247, 1)' : 'transparent',
+                          }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                          className="w-3.5 h-3.5 rounded flex items-center justify-center border shrink-0"
+                        >
+                          <motion.div
+                            animate={{ scale: checked ? 1 : 0, opacity: checked ? 1 : 0 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 15, delay: checked ? 0.05 : 0 }}
+                          >
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                              <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </motion.div>
+                        </motion.div>
+
+                        <motion.div
+                          className="flex-1 truncate"
+                          animate={{ x: checked ? 1 : 0 }}
+                          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                        >
                           <div className="font-mono text-[11px]">{tool.name}</div>
                           <div className="text-[10px] opacity-50 truncate">{tool.label}</div>
-                        </div>
-                      </label>
+                        </motion.div>
+                      </motion.label>
                     );
                   })}
                 </div>
