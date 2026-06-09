@@ -84,6 +84,7 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
       }
 
       turnCount++;
+      let turnUsage: { hit: number; miss: number; generated: number } | null = null;
 
   // ── 1. 调用 LLM ──
       const requestPayload = {
@@ -96,22 +97,22 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
       };
 
       console.group(`🤖 Agent Turn #${turnCount}/${maxTurns}`);
-      console.log(`📤 请求消息 (${requestPayload.messages.length} 条):`);
-      requestPayload.messages.forEach((m, i) => {
-        let preview = '';
-        try {
-          if (m.content === undefined || m.content === null) {
-            preview = '(tool_calls 无文本)';
-          } else if (typeof m.content === 'string') {
-            preview = m.content.slice(0, 120) + (m.content.length > 120 ? '...' : '');
-          } else {
-            preview = JSON.stringify(m.content).slice(0, 120);
-          }
-        } catch { preview = '(无法显示)'; }
-        console.log(`  [${i}] ${m.role}: ${preview}`);
-      });
       console.log(`🔧 可用工具: ${openaiTools.map(t => t.function.name).join(', ')}`);
       console.log(`🌡️ 参数: temperature=${temperature}, max_tokens=${max_tokens}`);
+      console.log(`📤 请求消息 (${requestPayload.messages.length} 条):`);
+      requestPayload.messages.forEach((m, i) => {
+        let text = '';
+        try {
+          if (m.content === undefined || m.content === null) {
+            text = '(无内容 — 仅 tool_calls)';
+          } else if (typeof m.content === 'string') {
+            text = m.content;
+          } else {
+            text = JSON.stringify(m.content, null, 2);
+          }
+        } catch { text = '(无法显示)'; }
+        console.log(`\n── [${i}] ${m.role} ──\n${text}`);
+      });
 
       const t0 = Date.now();
       const response = await router.callAgent(
@@ -187,7 +188,7 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
 
             // 提取 usage
             const usage = parseUsage(parsed);
-            if (usage) finalUsage = usage;
+            if (usage) { turnUsage = usage; finalUsage = usage; }
 
             // 提取 tool_call deltas
             parseToolCallDeltas(parsed, toolAccumulators);
@@ -215,11 +216,16 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
 
       const elapsed = Date.now() - t0;
       console.log(`⏱️ 流式耗时: ${elapsed}ms`);
-      console.log(`📝 文本: ${(turnText || '(无)').slice(0, 200)}${(turnText || '').length > 200 ? '...' : ''}`);
-      if (turnThinking) {
-        const t = turnThinking || '';
-        console.log(`💭 思考: ${t.slice(0, 200)}${t.length > 200 ? '...' : ''}`);
+      if (turnUsage) {
+        const hitRate = (turnUsage.hit + turnUsage.miss) > 0
+          ? Math.round((turnUsage.hit / (turnUsage.hit + turnUsage.miss)) * 1000) / 10
+          : 0;
+        console.log(`💰 缓存: hit=${turnUsage.hit} miss=${turnUsage.miss} generated=${turnUsage.generated} | 命中率 ${hitRate}%`);
+      } else {
+        console.log(`💰 缓存: 无 usage 数据 (模型可能不支持返回)`)
       }
+      if (turnText) console.log(`\n📝 AI 回复全文:\n${turnText}`);
+      if (turnThinking) console.log(`\n💭 思考过程全文:\n${turnThinking}`);
 
       // ── 3. 处理 tool calls ──
       if (toolAccumulators.size > 0 && areToolCallsComplete(toolAccumulators)) {
@@ -271,7 +277,7 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
             try {
               let args: unknown;
               try { args = JSON.parse(tcBlock.function.arguments); } catch { args = {}; }
-              console.log(`  🔨 ${toolName}(${JSON.stringify(args).slice(0, 200)})`);
+              console.log(`  🔨 ${toolName} 参数:`, args);
               toolResult = await toolDef.execute(toolContext, args);
             } catch (err) {
               console.error(`  ❌ ${toolName} 执行异常:`, err);
@@ -305,8 +311,8 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
             content: toolResult.content[0]?.text ?? '',
           } as any);
 
-          const resultPreview = toolResult.content?.[0]?.text ?? '(无返回)';
-          console.log(`  ✅ ${toolName} (${duration}ms) → ${resultPreview.slice(0, 100)}`);
+          const resultText = toolResult.content?.[0]?.text ?? '(无返回)';
+          console.log(`  ✅ ${toolName} (${duration}ms) →`, resultText);
         }
 
         console.log(`🔧 工具执行完成 (${turnRecords.length} 项)，继续生成...`);
