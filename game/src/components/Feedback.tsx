@@ -59,7 +59,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
                 </button>
               </div>
             )}
-            <div className="p-3 md:p-6 max-h-[calc(100vh-8rem-env(safe-area-inset-top,0px))] md:max-h-[70vh] overflow-y-auto overflow-x-auto">
+            <div className="p-3 md:p-6 max-h-[calc(100vh-10rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] md:max-h-[70vh] overflow-y-auto overflow-x-auto">
               {children}
             </div>
           </motion.div>

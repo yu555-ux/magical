@@ -177,6 +177,60 @@ export function createDefaultUterus(
   };
 }
 
+// ── 子宫结构修复 ──
+
+/**
+ * 修复 AI JSON Patch 可能破坏的子宫子结构。
+ * 确保宫内精液、生理周期、怀孕状态、生育记录四个字段始终存在且结构正确，
+ * 防止 tickFemalePhysiology 访问 .状态 等嵌套属性时因 undefined 报错。
+ */
+function repairUterusStructure(
+  uterus: Record<string, any>,
+  defaultPeriod: string,
+  defaultCycle: number,
+  defaultPeriodLen: number,
+): void {
+  if (!uterus || typeof uterus !== 'object') return;
+
+  // 宫内精液
+  const semen = uterus['宫内精液'];
+  if (!semen || typeof semen !== 'object' || !Array.isArray(semen['来源列表'])) {
+    uterus['宫内精液'] = { 总量: 0, 来源列表: [] };
+  } else if (typeof semen['总量'] !== 'number') {
+    // 总量缺失则从来源列表重新计算
+    semen['总量'] = semen['来源列表'].reduce((sum: number, e: any) => sum + (e['容量'] || 0), 0);
+  }
+
+  // 生理周期
+  const cycle = uterus['生理周期'];
+  if (!cycle || typeof cycle !== 'object') {
+    uterus['生理周期'] = {
+      上次经期日: defaultPeriod,
+      周期天数: defaultCycle,
+      经期长度: defaultPeriodLen,
+      当前阶段: '安全期',
+    };
+  }
+
+  // 怀孕状态 — 这是 "cannot read properties of undefined (reading '状态')" 的直接原因
+  const preg = uterus['怀孕状态'];
+  if (!preg || typeof preg !== 'object') {
+    uterus['怀孕状态'] = { 状态: '未孕', 受孕日期: null, 父方: null };
+  } else {
+    if (typeof preg['状态'] !== 'string' || !['未孕', '受精', '早孕', '中孕', '晚孕', '产褥期'].includes(preg['状态'])) {
+      preg['状态'] = '未孕';
+    }
+    if (!('受孕日期' in preg)) preg['受孕日期'] = null;
+    if (!('父方' in preg)) preg['父方'] = null;
+  }
+
+  // 生育记录
+  if (!Array.isArray(uterus['生育记录'])) {
+    uterus['生育记录'] = [];
+  }
+}
+
+
 // ── 小时级 tick ──
 
 export interface FertilizationResult {
@@ -432,6 +486,8 @@ function runTickPass(
       if (!data['子宫'] || typeof data['子宫'] !== 'object') {
         data['子宫'] = createDefaultUterus('2026年03月28日', 28, 5);
       }
+      // 修复 AI JSON Patch 可能破坏的子宫子结构，防止后续访问 .状态 等属性时报错
+      repairUterusStructure(data['子宫'], '2026年03月28日', 28, 5);
 
       // 从 AI 合并前的快照读取旧来源列表，用于指纹比对检测新鲜注入
       const prevData = prevChars?.[charName];
