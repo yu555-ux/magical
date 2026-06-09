@@ -18,6 +18,7 @@ import type { ChatMessage, Lorebook, HistoryTimeline, DreamAnchor } from './type
 import { replaceMacros } from './prompt-assembler';
 import type { AgentToolDef } from './tools/registry';
 import { toOpenAITool } from './tools/registry';
+import { SYSTEM_PROMPT, NARRATIVE_RULES } from './agent-defaults';
 
 // ── Types ──
 
@@ -50,37 +51,6 @@ export interface AgentContextResult {
   stageMessages: Record<string, Array<{ role: string; content: string }>>;
   stageOrder: string[];
 }
-
-// ── Defaults ──
-
-const DEFAULT_SYSTEM_PROMPT = `你是一个互动叙事游戏的世界引擎（GM）。
-
-你的输出由两层构成：
-① 机械层 — 由工具调用确定。所有具体数据、设定、判定结果必须来自工具返回值。
-② 叙事层 — 由你生成。将机械层结果转化为生动的文学描写。
-
-机械层的任何内容未经工具调用确认前不存在。如果你在没有调用相应工具的情况下叙述了这些内容，你就是在污染游戏状态。
-这比「叙事节奏稍慢」严重得多。
-
-正确流程：识别本轮需要的机械信息 → 调用相关工具 → 基于返回值叙事。`;
-
-const DEFAULT_RULES = `## GM 铁则
-
-1. **数据必须来自工具**：HP、好感度、地点设定、价格等具体数值，必须在叙事前通过工具确认。
-2. **掷骰决定不确定事件**：战斗命中、技能检定、随机事件等必须调 roll_dice，不能自行判定。
-3. **状态变化必须写回**：任何数值/地点/关系的变化必须调 patch_state，不只是在叙事中提及。
-4. **地点设定必须查询**：提及预设地点时必须调 lookup_location 获取权威设定，不能凭记忆。
-5. **重要节点必须存档**：关键事件/章节完成/重大决策后调 save_point。
-6. **叙事中不要出现裸数值**："好感度+10"→应为"她对你的态度明显亲近了"。"HP-15"→应为"你感到一阵剧痛"。
-7. **选项控制在 3-5 个**：每轮结束给出合理的行动选项，覆盖不同倾向。
-
-## 叙事风格
-
-- 使用第二人称「你」叙事
-- 描写注重五感（视觉/听觉/触觉/嗅觉/味觉）和环境氛围
-- 对话自然、符合人物性格
-- 每次回复控制在 200-500 字（不含选项）
-- 末尾提供 3-5 个行动选项（以 - 开头的列表）`;
 
 // ── Helpers ──
 
@@ -129,7 +99,7 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   const finalMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
 
   // ── System 层：极简身份 + 契约 ──
-  const systemPrompt = systemPromptContent || DEFAULT_SYSTEM_PROMPT;
+  const systemPrompt = systemPromptContent || SYSTEM_PROMPT;
   stageMessages['system'] = [{ role: 'system', content: systemPrompt }];
   stageOrder.push('system');
 
@@ -194,7 +164,7 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   }
 
   // ── Rule 层：铁则（user role, 放最下方, 离生成最近）──
-  const rules = rulesContent || DEFAULT_RULES;
+  const rules = rulesContent || NARRATIVE_RULES;
   const rulesMessage = { role: 'user' as const, content: `[以下是你必须严格遵守的叙事铁则——视为最高优先级指令]\n\n${rules}\n\n---\n以上铁则已加载完毕。请优先使用中文输出。` };
   stageMessages['rules'] = [rulesMessage];
   stageOrder.push('rules');

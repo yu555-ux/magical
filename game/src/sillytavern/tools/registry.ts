@@ -296,23 +296,72 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
     },
   },
 
-  // ── lookup_location ──
+  // ── lookup_world ──
+  lookup_world: {
+    name: 'lookup_world',
+    label: '查询世界书',
+    description:
+      '在世界书（Lorebook）中搜索任意关键词对应的设定条目。这是获取所有预设世界观设定的唯一权威来源。\n\n' +
+      '你的内部记忆里没有任何预设世界的细节——夏城一中长什么样、顾昀的性格背景、' +
+      '魔法少女的能力体系、世界的地理结构——这些只有世界书知道。你必须查询，编造=污染游戏状态。\n\n' +
+      '【必须调用的场景】\n' +
+      '- 玩家提及任何你尚未在本轮对话中查询过的预设地点/角色/势力/规则\n' +
+      '- 需要确认某个世界设定是否存在（如"这个世界有没有魔法公会？"）\n' +
+      '- 叙事中第一次出现某个预设概念\n\n' +
+      '【严禁的行为】\n' +
+      '- 凭记忆或常识即兴编造设定细节\n' +
+      '- 认为"我好像记得"就可以不查——你的记忆不是权威来源',
+    parameters: {
+      type: 'object',
+      properties: {
+        keyword: { type: 'string', description: '搜索关键词，如"夏城一中"、"魔法少女"、"深渊"、"张云"等' },
+      },
+      required: ['keyword'],
+    },
+    async execute(ctx, params) {
+      const keyword = params?.keyword as string;
+      if (!keyword) return { content: [{ type: 'text', text: '请提供搜索关键词' }] };
+
+      const scanResult: ScanResult = scanLorebooks(ctx.lorebooks, keyword, ctx.historyText);
+      const allEntries = Object.values(scanResult.groups).flat();
+
+      if (allEntries.length === 0) {
+        return { content: [{ type: 'text', text: `未找到与「${keyword}」相关的世界书条目。该概念可能尚未在设定中定义，请如实告知玩家。` }] };
+      }
+
+      const lowerName = keyword.toLowerCase();
+      const matched = allEntries
+        .filter(e => {
+          const keys = e.entry.keys.map(k => k.toLowerCase());
+          return keys.some(k => k.includes(lowerName) || lowerName.includes(k));
+        })
+        .slice(0, 5);
+
+      if (matched.length === 0) {
+        return { content: [{ type: 'text', text: `未找到与「${keyword}」精确匹配的条目，但世界书中有 ${allEntries.length} 个可能相关的条目。请缩小搜索范围或如实告知玩家信息不足。` }] };
+      }
+
+      const text = formatMatchedEntries(matched);
+      return { content: [{ type: 'text', text }], details: { keyword, entries: matched } };
+    },
+  },
+
+  // ── lookup_location（保留，作为 lookup_world 的便捷别名）──
   lookup_location: {
     name: 'lookup_location',
     label: '查地点设定',
     description:
-      '在世界书（Lorebook）中搜索地点相关的设定条目。这是获取地点权威信息的唯一方式。\n\n' +
+      '在世界书中搜索地点设定。等同于 lookup_world 但专用于地点查询。\n\n' +
       '【必须调用的场景】\n' +
-      '- 玩家进入或提及任何城镇/区域/地标\n' +
-      '- 需要描述地点环境、氛围、NPC 分布时\n' +
-      '- 叙事中第一次出现的新地点\n\n' +
+      '- 玩家进入或提及任何地点（城镇/区域/建筑/房间）\n' +
+      '- 需要描述地点环境、氛围时\n\n' +
       '【严禁的行为】\n' +
-      '- 凭记忆描述地点——你的内部记忆对预设地点的细节不可靠\n' +
-      '- 即兴编造地点名——先查索引确认是否存在',
+      '- 凭记忆描述地点细节——你的内部记忆没有这些信息\n' +
+      '- 即兴编造地点名和特征',
     parameters: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: '地点名称关键词' },
+        name: { type: 'string', description: '地点名称，如"夏城一中"、"11号楼"、"深渊第三层"' },
       },
       required: ['name'],
     },
@@ -320,15 +369,13 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
       const name = params?.name as string;
       if (!name) return { content: [{ type: 'text', text: '请提供地点名称' }] };
 
-      // 扫描世界书（结合用户输入和历史上下文）
       const scanResult: ScanResult = scanLorebooks(ctx.lorebooks, name, ctx.historyText);
       const allEntries = Object.values(scanResult.groups).flat();
 
       if (allEntries.length === 0) {
-        return { content: [{ type: 'text', text: `未找到与「${name}」相关的世界书条目。该地点可能尚未定义。` }] };
+        return { content: [{ type: 'text', text: `未找到与「${name}」相关的世界书条目。该地点可能尚未在设定中定义。` }] };
       }
 
-      // 过滤最匹配的条目（按标题匹配优先）
       const lowerName = name.toLowerCase();
       const matched = allEntries
         .filter(e => {

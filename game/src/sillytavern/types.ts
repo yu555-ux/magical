@@ -314,7 +314,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     timeout: 60000,
     secondary: { enabled: true, baseUrl: 'https://gcli.ggchan.dev', apiKey: '', model: '假流式-gemini-3.0-flash-preview', temperature: 0.7, maxTokens: 8000 },
     agentMode: false,
-    enabledTools: ['patch_state', 'get_status', 'save_point', 'roll_dice', 'lookup_location'],
+    enabledTools: ['patch_state', 'get_status', 'save_point', 'roll_dice', 'lookup_world', 'lookup_location'],
     maxTurnsPerMessage: 10,
     cacheControl: 'auto',
   },
