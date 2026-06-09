@@ -145,6 +145,21 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   if (playerDescription) refParts.push(`## 玩家设定\n${replaceMacros(playerDescription, macroCtx)}`);
   if (characterDescription) refParts.push(`## AI 角色设定\n${replaceMacros(characterDescription, macroCtx)}`);
 
+  // 常驻世界书（constant=true 条目，始终注入，参考 tavern2agent data/world.json）
+  const constantEntries: string[] = [];
+  for (const lb of lorebooks) {
+    for (const entry of lb.entries) {
+      if (!entry.enabled || !entry.constant) continue;
+      const c = entry.content.trim();
+      if (!c) continue;
+      constantEntries.push(c);
+    }
+  }
+  if (constantEntries.length > 0) {
+    const totalChars = constantEntries.reduce((s, c) => s + c.length, 0);
+    refParts.push(`## 常驻世界知识 (${constantEntries.length} 条, ${(totalChars/1000).toFixed(1)}k 字)\n${constantEntries.join('\n\n---\n')}`);
+  }
+
   // 工具速查（核心：让 AI 知道有哪些工具可用）
   const toolIndex = buildToolIndex(tools);
   if (toolIndex) refParts.push(toolIndex);
