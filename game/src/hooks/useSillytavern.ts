@@ -20,6 +20,35 @@ import { initPhysiologySubscriber, getLastFertilizationEvents } from '../sillyta
 import { initDreamAnchorSubscriber, getUpdatedDreamAnchor } from '../sillytavern/subscribers/dream-anchor';
 import { initPlotHistorySubscriber, applyPlotHistory } from '../sillytavern/subscribers/plot-history';
 import { extractUsageFromSSE, buildUsageRecord, storeFullPrompt, initCacheMonitor } from '../sillytavern/cache-monitor';
+import { parseHistoryBlock } from '../sillytavern/variables';
+import type { ParsedTags, SavePoint } from '../sillytavern/types';
+
+/** 解析 Agent 模式输出的 XML 标签 */
+function parseAgentTags(raw: string): Omit<ParsedTags, 'thinking' | 'varsRaw' | 'varsCommands' | 'unknown'> {
+  const extract = (tag: string): string => {
+    const re = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'i');
+    return (raw.match(re)?.[1] ?? '').trim();
+  };
+
+  const maintext = extract('maintext');
+
+  // 解析 option 标签
+  const optionRaw = extract('option');
+  const options = optionRaw
+    ? optionRaw.split('\n')
+        .map(l => l.replace(/^选项\d+:\s*/, '').trim())
+        .filter(l => l && !l.startsWith('选项'))
+    : [];
+
+  // 解析 history 标签
+  const historyRaw = extract('history');
+  let history: SavePoint | null = null;
+  if (historyRaw) {
+    history = parseHistoryBlock(historyRaw);
+  }
+
+  return { maintext, options, history };
+}
 
 const DEFAULT_OPENING = `餐桌上方的吊灯洒下暖白色的光。张云夹了一块排骨，没放进自己碗里，而是越过半个桌子，稳稳地落在了<user>的米饭上。排骨上的糖醋汁洇进白白的米粒里。
 
@@ -517,12 +546,30 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         return { aborted: true, retractedText: userText, formatError: true };
       }
 
+      // 解析 Agent 输出标签
+      const parsedTags = parseAgentTags(rawContent);
+
       // 应用 Agent 修改后的变量
       const nextVariables = agentVars;
       const varChanges = buildVarChanges(preVars, nextVariables);
       const snapshot = JSON.parse(JSON.stringify(nextVariables));
 
-      // 通知订阅者
+      // 处理 <history> 标签 — 通过 subscriber 追加到 plotHistory
+      let finalPlotHistory = toolCtx.plotHistory;
+      if (parsedTags.history) {
+        const fullParsed: ParsedTags = { ...parsedTags, thinking: thinkingContent, varsRaw: '', varsCommands: { merge: {} }, unknown: {} };
+        gameBus.emit('message_received', {
+          rawContent,
+          parsed: fullParsed,
+          preVars: JSON.parse(JSON.stringify(preVars)),
+          chat: updatedChat,
+          userName: effectiveSettings.userName ?? DEFAULT_SETTINGS.userName,
+        });
+        const { timeline } = applyPlotHistory(toolCtx.plotHistory);
+        finalPlotHistory = timeline;
+      }
+
+      // 通知订阅者：变量已更新
       gameBus.emit('vars_applied', {
         preVars: JSON.parse(JSON.stringify(preVars)),
         postVars: JSON.parse(JSON.stringify(nextVariables)),
@@ -535,15 +582,15 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         id: msgId, role: 'assistant',
         content: rawContent,
         timestamp: Date.now(),
-        parsed: { thinking: thinkingContent, maintext: rawContent, options: [], history: null, varsRaw: '', varsCommands: { merge: {} }, unknown: {} },
+        parsed: { thinking: thinkingContent, varsRaw: '', varsCommands: { merge: {} }, unknown: {}, ...parsedTags },
         variablesAfter: snapshot,
         dreamAnchorAfter: { ...updatedChat.dreamAnchor },
-        plotHistoryAfter: JSON.parse(JSON.stringify(toolCtx.plotHistory)),
+        plotHistoryAfter: JSON.parse(JSON.stringify(finalPlotHistory)),
         apiUsed: 'primary',
         varChanges,
       };
       const updatedMessages = [...updatedChat.messages, assistantMsg];
-      const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedChat.dreamAnchor, plotHistory: toolCtx.plotHistory, updatedAt: Date.now() };
+      const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedChat.dreamAnchor, plotHistory: finalPlotHistory, updatedAt: Date.now() };
       await db.chats.put(finalChat);
       setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
 
