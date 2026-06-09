@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, autoTagDreamItems, enrichHistory, formatVariablesForPrompt, buildVarChanges } from '../sillytavern/variables';
@@ -449,23 +450,27 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
               break;
             case 'toolcall_start': {
               const tool = agentTools.find(t => t.name === event.name);
-              setPendingToolCalls(prev => {
-                const next = new Map(prev);
-                next.set(event.id, { name: event.name, label: tool?.label ?? event.name, startTime: Date.now() });
-                return next;
+              flushSync(() => {
+                setPendingToolCalls(prev => {
+                  const next = new Map(prev);
+                  next.set(event.id, { name: event.name, label: tool?.label ?? event.name, startTime: Date.now() });
+                  return next;
+                });
               });
               break;
             }
             case 'toolcall_end':
               break;
             case 'tool_result': {
-              setPendingToolCalls(prev => {
-                const next = new Map(prev);
-                next.delete(event.record.id);
-                return next;
-              });
               agentRecords.push(event.record);
-              setCompletedToolCalls(prev => [...prev, event.record]);
+              flushSync(() => {
+                setPendingToolCalls(prev => {
+                  const next = new Map(prev);
+                  next.delete(event.record.id);
+                  return next;
+                });
+                setCompletedToolCalls(prev => [...prev, event.record]);
+              });
               break;
             }
             case 'error':

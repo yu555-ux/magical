@@ -240,12 +240,14 @@ export default function ChatPage({
         )}
 
         {/* ── Tool call progress (Agent mode) ── */}
-        <div className="px-3 md:px-5">
-          <ToolCallBubble
-            pendingCalls={ss.pendingToolCalls ?? new Map()}
-            completedCalls={isStreaming ? ss.completedToolCalls ?? [] : []}
-          />
-        </div>
+        {(ss.pendingToolCalls.size > 0 || ss.completedToolCalls.length > 0) && (
+          <div className="px-3 md:px-5">
+            <ToolCallBubble
+              pendingCalls={ss.pendingToolCalls ?? new Map()}
+              completedCalls={ss.completedToolCalls ?? []}
+            />
+          </div>
+        )}
 
         {/* ── Thinking fold ── */}
         {thinking && (
