@@ -301,20 +301,18 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
     name: 'lookup_world',
     label: '查询世界书',
     description:
-      '在世界书（Lorebook）中搜索任意关键词对应的设定条目。这是获取所有预设世界观设定的唯一权威来源。\n\n' +
-      '你的内部记忆里没有任何预设世界的细节——夏城一中长什么样、顾昀的性格背景、' +
-      '魔法少女的能力体系、世界的地理结构——这些只有世界书知道。你必须查询，编造=污染游戏状态。\n\n' +
-      '【必须调用的场景】\n' +
-      '- 玩家提及任何你尚未在本轮对话中查询过的预设地点/角色/势力/规则\n' +
-      '- 需要确认某个世界设定是否存在（如"这个世界有没有魔法公会？"）\n' +
-      '- 叙事中第一次出现某个预设概念\n\n' +
-      '【严禁的行为】\n' +
-      '- 凭记忆或常识即兴编造设定细节\n' +
-      '- 认为"我好像记得"就可以不查——你的记忆不是权威来源',
+      '在世界书中搜索设定条目。一次查询一个角色名或一个核心概念即可。\n\n' +
+      '【工作节奏】\n' +
+      '- 每轮最多调用 1-2 次此工具，然后直接开始叙事\n' +
+      '- 如果返回了条目内容，直接使用，不要换关键词重新搜索\n' +
+      '- 如果返回"未找到"，说明设定中确实没有，自由创作即可\n\n' +
+      '【禁止】\n' +
+      '- 反复换关键词查询同一个目标（如查了"周汝"又查"周汝 性格"又查"周汝 背景"）\n' +
+      '- 一次查询多个无关概念（如 keyword="血月 周汝 夏城"）',
     parameters: {
       type: 'object',
       properties: {
-        keyword: { type: 'string', description: '搜索关键词，如"夏城一中"、"魔法少女"、"深渊"、"张云"等' },
+        keyword: { type: 'string', description: '角色名或核心概念。如"周汝"、"魔法少女"、"深渊"。一次只查一个。' },
       },
       required: ['keyword'],
     },
@@ -326,7 +324,7 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
       const allEntries = Object.values(scanResult.groups).flat();
 
       if (allEntries.length === 0) {
-        return { content: [{ type: 'text', text: `未找到与「${keyword}」相关的世界书条目。该概念可能尚未在设定中定义，请如实告知玩家。` }] };
+        return { content: [{ type: 'text', text: `世界书中没有与「${keyword}」相关的条目。这很正常——你可以根据自己的判断自然地描写，不需要再次查询。` }] };
       }
 
       const lowerName = keyword.toLowerCase();
@@ -335,10 +333,13 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
           const keys = e.entry.keys.map(k => k.toLowerCase());
           return keys.some(k => k.includes(lowerName) || lowerName.includes(k));
         })
-        .slice(0, 5);
+        .slice(0, 3);
 
       if (matched.length === 0) {
-        return { content: [{ type: 'text', text: `未找到与「${keyword}」精确匹配的条目，但世界书中有 ${allEntries.length} 个可能相关的条目。请缩小搜索范围或如实告知玩家信息不足。` }] };
+        // 有关联条目但没精确匹配 → 直接返回最相关的，不让 AI 再查
+        const closest = allEntries.slice(0, 3);
+        const text = formatMatchedEntries(closest);
+        return { content: [{ type: 'text', text: `未找到与「${keyword}」精确匹配的条目，以下是最相关的条目（直接使用，无需再次查询）：\n\n${text}` }], details: { keyword, entries: closest } };
       }
 
       const text = formatMatchedEntries(matched);
