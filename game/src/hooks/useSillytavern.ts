@@ -167,8 +167,10 @@ export function useSillytavern() {
 
   const createChat = useCallback(async (name: string) => {
     const userName = settings?.userName || DEFAULT_SETTINGS.userName;
-    // 不烘焙用户名——保留<user>/{{user}}宏，显示层根据当前settings实时解析
-    const openingText = DEFAULT_OPENING;
+    // 玩家填了名字 → 烘焙进开场白；没填 → 保留宏，显示层实时解析
+    const openingText = userName?.trim()
+      ? DEFAULT_OPENING.replace(/\{\{user\}\}/g, userName).replace(/<user>/g, userName)
+      : DEFAULT_OPENING;
 
     const openingOptions: string[] = [
       '把事情敷衍过去，说自己只是没睡好有点头疼',
