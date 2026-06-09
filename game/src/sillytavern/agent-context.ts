@@ -3,12 +3,12 @@
  *
  * 参考 tavern2agent deepseek-v4.md「三刀流」+ pi-integration.md「提示词分层编排」。
  *
- * 消息顺序（按离生成距离从远到近）：
+ * 消息顺序（稳定内容在前 → DS 前缀缓存友好）：
  *   [0] system   — 极简身份 + 运行契约
- *   [1..N-3]     — 聊天历史（不含本轮用户输入）
- *   [N-2] user   — 参考信息（当前时间地点 + 工具速查 + 玩家/AI身份）
- *   [N-1] user   — 玩家本轮输入（独立一条，不混在历史里）
- *   [N]   user   — 铁则/叙事纪律（离生成最近，最高注意力）
+ *   [1] user     — 参考信息（常驻世界书 + 工具速查 + 身份）
+ *   [2] user     — 铁则/叙事纪律
+ *   [3..N-1]     — 聊天历史（变化内容，缓存从这开始 miss）
+ *   [N]   user   — 玩家本轮输入
  *
  * DS V4 特化：参考信息和铁则用 user role 注入，因为 DS V4 对 user message 的服从度远超 system。
  * 地图和角色列表暂不注入（后期完善后再加回）。
@@ -103,31 +103,24 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   stageMessages['system'] = [{ role: 'system', content: systemPrompt }];
   stageOrder.push('system');
 
-  // ── Chat History（不含最后一条用户消息）──
-  // 把最后一条 user 消息剥离出来，放到 Reference 层后面作为独立输入
+  // ── 分离最后一条用户消息 ──
   let userInputMsg: { role: 'user'; content: string } | null = null;
   const historyWithoutLastUser = [...history];
-  // 从末尾找到最后一条 user 消息，提取出来
   for (let i = historyWithoutLastUser.length - 1; i >= 0; i--) {
     if (historyWithoutLastUser[i].role === 'user') {
       const lastUser = historyWithoutLastUser[i];
       userInputMsg = { role: 'user' as const, content: lastUser.content };
-      historyWithoutLastUser.splice(i, 1); // 从历史中移除
+      historyWithoutLastUser.splice(i, 1);
       break;
     }
   }
 
-  const historyMsgs = buildHistoryMessages(historyWithoutLastUser, recentMessageCount);
-  if (historyMsgs.length > 0) {
-    const histMessages = historyMsgs.map(h => ({ role: h.role, content: h.content }));
-    stageMessages['chatHistory'] = histMessages;
-    stageOrder.push('chatHistory');
-    for (const hm of histMessages) {
-      finalMessages.push(hm as { role: 'system' | 'user' | 'assistant'; content: string });
-    }
-  }
+  // ── 消息顺序：稳定内容在前（缓存友好），变化内容在后 ──
+  // [system] [reference(稳)] [rules(稳)] [history(变)] [userInput]
+  // system + reference + rules 不变 → DS 前缀缓存全命中
+  // 只有 history + userInput 随每轮变化
 
-  // ── Reference 层：仅工具速查 + 身份（user role, 紧贴用户输入上方）──
+  // ── Reference 层：常驻世界书 + 工具速查 + 身份（稳定，放历史前面）──
   // 世界观、时间、地点、角色等游戏状态通过工具调用获取，不预注入 prompt
   const refParts: string[] = [];
 
@@ -171,19 +164,30 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     finalMessages.push({ role: 'user', content: refContent });
   }
 
-  // ── 用户输入（独立一条，和参考信息、铁则区分开）──
-  if (userInputMsg) {
-    stageMessages['userInput'] = [userInputMsg];
-    stageOrder.push('userInput');
-    finalMessages.push(userInputMsg);
-  }
-
-  // ── Rule 层：铁则（user role, 放最下方, 离生成最近）──
+  // ── Rule 层：铁则（稳定内容，放在历史前面 → 缓存友好）──
   const rules = replaceMacros(rulesContent || NARRATIVE_RULES, { userName, characterName, userInput: '', playerDescription, characterDescription, varsListText: '', lastMaintext: '' });
   const rulesMessage = { role: 'user' as const, content: `[以下是你必须严格遵守的叙事铁则——视为最高优先级指令]\n\n${rules}\n\n---\n以上铁则已加载完毕。请优先使用中文输出。` };
   stageMessages['rules'] = [rulesMessage];
   stageOrder.push('rules');
   finalMessages.push(rulesMessage);
+
+  // ── Chat History（变化内容，放最后 → 仅此处开始 cache miss）──
+  const historyMsgs = buildHistoryMessages(historyWithoutLastUser, recentMessageCount);
+  if (historyMsgs.length > 0) {
+    const histMessages = historyMsgs.map(h => ({ role: h.role, content: h.content }));
+    stageMessages['chatHistory'] = histMessages;
+    stageOrder.push('chatHistory');
+    for (const hm of histMessages) {
+      finalMessages.push(hm as { role: 'system' | 'user' | 'assistant'; content: string });
+    }
+  }
+
+  // ── 用户输入（变化内容，放最后）──
+  if (userInputMsg) {
+    stageMessages['userInput'] = [userInputMsg];
+    stageOrder.push('userInput');
+    finalMessages.push(userInputMsg);
+  }
 
   // ── Tools ──
   const openaiTools = tools.map(toOpenAITool);
