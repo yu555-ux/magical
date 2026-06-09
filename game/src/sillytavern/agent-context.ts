@@ -1,18 +1,21 @@
 /**
  * Agent 分层上下文构建器
  *
- * 参考 tavern2agent deepseek-v4.md「三刀流」+ pi-integration.md「提示词分层编排」：
- *   System 层：  极简身份 + 运行契约（不变，缓存友好）
- *   Reference 层：世界观/角色/工具速查（user role, 放在用户消息上方, 低注意力区）
- *   Rule 层：    铁则/叙事纪律（user role, 放在用户消息下方, 最高注意力区）
+ * 参考 tavern2agent deepseek-v4.md「三刀流」+ pi-integration.md「提示词分层编排」。
  *
- * DS V4 特化：规则用 user role 注入而非 system role，因为 DS V4 对 user message 的服从度远超 system。
+ * 消息顺序（按离生成距离从远到近）：
+ *   [0] system   — 极简身份 + 运行契约
+ *   [1..N-3]     — 聊天历史（不含本轮用户输入）
+ *   [N-2] user   — 参考信息（当前时间地点 + 工具速查 + 玩家/AI身份）
+ *   [N-1] user   — 玩家本轮输入（独立一条，不混在历史里）
+ *   [N]   user   — 铁则/叙事纪律（离生成最近，最高注意力）
+ *
+ * DS V4 特化：参考信息和铁则用 user role 注入，因为 DS V4 对 user message 的服从度远超 system。
+ * 地图和角色列表暂不注入（后期完善后再加回）。
  */
 
 import type { ChatMessage, Lorebook, HistoryTimeline, DreamAnchor } from './types';
-import { formatVariablesForPrompt, resolvePath } from './variables';
-import { processMapForPrompt } from './map-filter';
-import { filterCharacterGroup, formatCharacterGroup } from './character-filter';
+import { formatVariablesForPrompt } from './variables';
 import { replaceMacros } from './prompt-assembler';
 import type { AgentToolDef } from './tools/registry';
 import { toOpenAITool } from './tools/registry';
@@ -131,53 +134,60 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   stageMessages['system'] = [{ role: 'system', content: systemPrompt }];
   stageOrder.push('system');
 
-  // ── 宏上下文 ──
+  // ── Chat History（不含最后一条用户消息）──
+  // 把最后一条 user 消息剥离出来，放到 Reference 层后面作为独立输入
+  let userInputMsg: { role: 'user'; content: string } | null = null;
+  const historyWithoutLastUser = [...history];
+  // 从末尾找到最后一条 user 消息，提取出来
+  for (let i = historyWithoutLastUser.length - 1; i >= 0; i--) {
+    if (historyWithoutLastUser[i].role === 'user') {
+      const lastUser = historyWithoutLastUser[i];
+      userInputMsg = { role: 'user' as const, content: lastUser.content };
+      historyWithoutLastUser.splice(i, 1); // 从历史中移除
+      break;
+    }
+  }
+
+  const historyMsgs = buildHistoryMessages(historyWithoutLastUser, recentMessageCount);
+  if (historyMsgs.length > 0) {
+    const histMessages = historyMsgs.map(h => ({ role: h.role, content: h.content }));
+    stageMessages['chatHistory'] = histMessages;
+    stageOrder.push('chatHistory');
+    for (const hm of histMessages) {
+      finalMessages.push(hm as { role: 'system' | 'user' | 'assistant'; content: string });
+    }
+  }
+
+  // ── Reference 层：工具速查 + 玩家/角色身份（user role, 紧贴用户输入上方）──
+  const refParts: string[] = [];
+  refParts.push('[以下为参考信息]\n');
+
+  // 玩家/角色身份
   const macroCtx = {
     userName,
     characterName,
-    userInput: '',
+    userInput: userInputMsg?.content ?? '',
     playerDescription,
     characterDescription,
     varsListText: formatVariablesForPrompt(variables),
     lastMaintext: '',
     fullVars: variables,
   };
-
-  // ── Reference 层：世界观 + 角色 + 工具速查（user role, 放上方） ──
-  const refParts: string[] = [];
-  refParts.push('[以下为世界观与参考信息]\n');
-
-  // 玩家/角色身份
   const identityParts: string[] = [];
   if (playerDescription) identityParts.push(`## 玩家设定\n${replaceMacros(playerDescription, macroCtx)}`);
   if (characterDescription) identityParts.push(`## AI 角色设定\n${replaceMacros(characterDescription, macroCtx)}`);
   if (identityParts.length > 0) refParts.push(identityParts.join('\n\n'));
 
-  // 地图信息
-  const mapTree = variables['地图'];
+  // 当前时间地点（从变量树中提取，轻量）
   const currentLocation = variables['世界']?.['现实']?.['地点'] ?? '';
-  const isDream = variables['世界']?.['梦境定位']?.['位于梦境'] ?? false;
-  if (mapTree) {
-    const historyText = history.slice(-5).map(m => m.content).join('\n');
-    const mapText = processMapForPrompt(mapTree, currentLocation, isDream, historyText);
-    if (mapText) refParts.push(`## 当前位置与地图\n${mapText}`);
-  }
-
-  // 角色信息
-  const characters = variables['主要人物'];
-  if (characters && mapTree) {
-    const pp = currentLocation ? resolvePath(currentLocation, mapTree) : null;
-    const historyText = history.slice(-5).map(m => m.content).join('\n');
-    const charParts: string[] = [];
-    const femaleStranger = formatCharacterGroup(filterCharacterGroup(characters['女性']?.['异人'], pp, isDream, mapTree, 'female', 'stranger', historyText));
-    const maleStranger = formatCharacterGroup(filterCharacterGroup(characters['男性']?.['异人'], pp, isDream, mapTree, 'male', 'stranger', historyText));
-    const femaleNormal = formatCharacterGroup(filterCharacterGroup(characters['女性']?.['普通人'], pp, isDream, mapTree, 'female', 'normal', historyText));
-    const maleNormal = formatCharacterGroup(filterCharacterGroup(characters['男性']?.['普通人'], pp, isDream, mapTree, 'male', 'normal', historyText));
-    if (femaleStranger) charParts.push(`### 女性异人\n${femaleStranger}`);
-    if (maleStranger) charParts.push(`### 男性异人\n${maleStranger}`);
-    if (femaleNormal) charParts.push(`### 女性普通人\n${femaleNormal}`);
-    if (maleNormal) charParts.push(`### 男性普通人\n${maleNormal}`);
-    if (charParts.length > 0) refParts.push(`## 主要人物\n${charParts.join('\n\n')}`);
+  const currentTime = variables['世界']?.['现实']?.['时间'] ?? '';
+  const inDream = variables['世界']?.['梦境定位']?.['位于梦境'] ?? false;
+  if (currentLocation || currentTime) {
+    const locationLines: string[] = [];
+    if (currentLocation) locationLines.push(`当前位置: ${currentLocation}`);
+    if (currentTime) locationLines.push(`当前时间: ${currentTime}`);
+    locationLines.push(`是否梦境: ${inDream ? '是' : '否'}`);
+    refParts.push(`## 当前状态\n${locationLines.join('\n')}`);
   }
 
   // 工具速查
@@ -191,18 +201,14 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     finalMessages.push({ role: 'user', content: refContent });
   }
 
-  // ── Chat History ──
-  const historyMsgs = buildHistoryMessages(history, recentMessageCount);
-  if (historyMsgs.length > 0) {
-    const histMessages = historyMsgs.map(h => ({ role: h.role, content: h.content }));
-    stageMessages['chatHistory'] = histMessages;
-    stageOrder.push('chatHistory');
-    for (const hm of histMessages) {
-      finalMessages.push(hm as { role: 'system' | 'user' | 'assistant'; content: string });
-    }
+  // ── 用户输入（独立一条，和参考信息、铁则区分开）──
+  if (userInputMsg) {
+    stageMessages['userInput'] = [userInputMsg];
+    stageOrder.push('userInput');
+    finalMessages.push(userInputMsg);
   }
 
-  // ── Rule 层：铁则（user role, 放最下方, 离生成最近） ──
+  // ── Rule 层：铁则（user role, 放最下方, 离生成最近）──
   const rules = rulesContent || DEFAULT_RULES;
   const rulesMessage = { role: 'user' as const, content: `[以下是你必须严格遵守的叙事铁则——视为最高优先级指令]\n\n${rules}\n\n---\n以上铁则已加载完毕。请优先使用中文输出。` };
   stageMessages['rules'] = [rulesMessage];
