@@ -47,7 +47,8 @@ function pathGet(obj: any, path: string): any {
   return path.split('.').reduce((o, k) => o?.[k], obj);
 }
 
-function formatVariablesForPrompt(vars: Record<string, any>, prefix = ''): string {
+function formatVariablesForPrompt(vars: Record<string, any>, maxDepth = 5, prefix = '', depth = 0): string {
+  if (depth >= maxDepth) return '{...}';
   const lines: string[] = [];
   const keys = Object.keys(vars).filter(k => !k.startsWith('_'));
   for (const key of keys) {
@@ -55,7 +56,7 @@ function formatVariablesForPrompt(vars: Record<string, any>, prefix = ''): strin
     const fullPath = prefix ? `${prefix}.${key}` : key;
     if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
       lines.push(`${key}:`);
-      lines.push(formatVariablesForPrompt(val, fullPath).split('\n').map(l => `  ${l}`).join('\n'));
+      lines.push(formatVariablesForPrompt(val, maxDepth, fullPath, depth + 1).split('\n').map(l => `  ${l}`).join('\n'));
     } else if (Array.isArray(val)) {
       lines.push(`${key}: [${val.length} 项]`);
     } else {
@@ -74,7 +75,7 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
     name: 'get_status',
     label: '查看状态',
     description:
-      '获取当前游戏状态，包括玩家属性、位置、时间、NPC好感度等。这是了解游戏状态的唯一权威方式。\n\n' +
+      '按路径查询游戏状态。这是了解游戏状态的唯一权威方式。\n\n' +
       '【必须调用的场景】\n' +
       '- 需要知道玩家/NPC当前数值时（HP、好感度、金钱等）\n' +
       '- 需要确认当前地点和时间时\n' +
@@ -82,25 +83,57 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
       '- 决定下一步行动前，需要确认当前数据时\n\n' +
       '【严禁的行为】\n' +
       '- 凭记忆推测数值——你的内部记忆不可靠\n' +
-      '- 在叙事中说"你的HP还剩XX点"但并未调此工具确认',
+      '- 不指定 path 就调用——必须至少指定一个查询路径\n' +
+      '- 不要一次性查询全部状态（这会污染系统上下文，导致缓存失效）\n' +
+      '- 每次只查询本轮叙事真正需要的字段\n\n' +
+      '【常用 path 示例】\n' +
+      '- 时间地点: "/世界/现实" 或 "/世界/梦境存档"\n' +
+      '- 玩家状态: "/主角/身体属性" 或 "/主角/资源"\n' +
+      '- NPC信息: "/主要人物/女性/异人/顾昀" （查单个NPC）\n' +
+      '- 精简快照: "/世界/现实 /主角/身体属性 /主角/社交" （多个路径用空格分隔）',
     parameters: {
       type: 'object',
       properties: {
         path: {
           type: 'string',
-          description: '可选：JSON Pointer 路径，限定查询范围。如 "/主角/资源" 只返回主角资源。不填返回全部状态。',
+          description: '必填：查询路径。多个路径用空格分隔，如 "/主角/身体属性 /世界/现实"。你不知道哪些字段存在时，先用 "/主角 /世界/现实" 看顶层结构，再精确查询。',
         },
       },
-      required: [],
+      required: ['path'],
     },
     async execute(ctx, params) {
-      const path = params?.path as string | undefined;
-      const target = path ? pathGet(ctx.variables, path) : ctx.variables;
-      if (target === undefined) return { content: [{ type: 'text', text: `路径 ${path} 不存在` }] };
-      const text = typeof target === 'object' && !Array.isArray(target)
-        ? formatVariablesForPrompt(target as Record<string, any>)
-        : JSON.stringify(target, null, 2);
-      return { content: [{ type: 'text', text }], details: { path, data: target } };
+      const rawPath = params?.path as string | undefined;
+      if (!rawPath) {
+        // 无 path 时只返回顶层结构摘要（而非全量 54KB 数据）
+        const topKeys = Object.keys(ctx.variables).filter(k => !k.startsWith('_'));
+        const summary = topKeys.map(k => {
+          const v = ctx.variables[k];
+          if (v && typeof v === 'object' && !Array.isArray(v)) {
+            return `${k}: {${Object.keys(v).join(', ')}}`;
+          }
+          return `${k}: ${typeof v}`;
+        }).join('\n');
+        return {
+          content: [{ type: 'text', text: `状态顶层结构:\n${summary}\n\n请指定 path 参数查询具体路径。例如 path="/主角/身体属性"` }],
+          details: { topKeys },
+        };
+      }
+
+      // 支持空格分隔的多个路径
+      const paths = rawPath.split(/\s+/).filter(Boolean);
+      const results: string[] = [];
+      for (const p of paths) {
+        const target = pathGet(ctx.variables, p);
+        if (target === undefined) {
+          results.push(`路径 ${p}: 不存在`);
+        } else {
+          const text = typeof target === 'object' && !Array.isArray(target)
+            ? formatVariablesForPrompt(target as Record<string, any>, 2)  // depth limit = 2
+            : String(target);
+          results.push(`## ${p}\n${text}`);
+        }
+      }
+      return { content: [{ type: 'text', text: results.join('\n\n') }], details: { paths, rawPath } };
     },
   },
 

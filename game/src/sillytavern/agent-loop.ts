@@ -67,6 +67,9 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
     },
   }));
 
+  /** 工具结果在后续请求中保留的最大字符数（防止缓存污染） */
+  const MAX_TOOL_RESULT_CHARS = 3000;
+
   // 初始化 context messages（deep copy，不污染原始）
   const contextMessages: Array<{ role: string; content: string }> = initialMessages.map(m => ({ ...m }));
 
@@ -304,11 +307,15 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
 
           yield { type: 'tool_result', record };
 
-          // 工具结果作为 tool 消息加入 context
+          // 工具结果作为 tool 消息加入 context（截断过长内容防缓存污染）
+          const rawToolContent = toolResult.content[0]?.text ?? '';
+          const toolContent = rawToolContent.length > MAX_TOOL_RESULT_CHARS
+            ? rawToolContent.slice(0, MAX_TOOL_RESULT_CHARS) + `\n... (已截断 ${rawToolContent.length - MAX_TOOL_RESULT_CHARS} 字符，完整结果仅在当轮有效)`
+            : rawToolContent;
           contextMessages.push({
             role: 'tool',
             tool_call_id: tcBlock.id,
-            content: toolResult.content[0]?.text ?? '',
+            content: toolContent,
           } as any);
 
           const resultText = toolResult.content?.[0]?.text ?? '(无返回)';
