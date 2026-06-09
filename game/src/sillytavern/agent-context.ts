@@ -99,7 +99,7 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   const finalMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
 
   // ── System 层：极简身份 + 契约 ──
-  const systemPrompt = systemPromptContent || SYSTEM_PROMPT;
+  const systemPrompt = replaceMacros(systemPromptContent || SYSTEM_PROMPT, { userName, characterName, userInput: '', playerDescription, characterDescription, varsListText: '', lastMaintext: '' });
   stageMessages['system'] = [{ role: 'system', content: systemPrompt }];
   stageOrder.push('system');
 
@@ -164,7 +164,7 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   }
 
   // ── Rule 层：铁则（user role, 放最下方, 离生成最近）──
-  const rules = rulesContent || NARRATIVE_RULES;
+  const rules = replaceMacros(rulesContent || NARRATIVE_RULES, { userName, characterName, userInput: '', playerDescription, characterDescription, varsListText: '', lastMaintext: '' });
   const rulesMessage = { role: 'user' as const, content: `[以下是你必须严格遵守的叙事铁则——视为最高优先级指令]\n\n${rules}\n\n---\n以上铁则已加载完毕。请优先使用中文输出。` };
   stageMessages['rules'] = [rulesMessage];
   stageOrder.push('rules');
