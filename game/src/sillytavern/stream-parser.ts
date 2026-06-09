@@ -236,3 +236,93 @@ export class StreamTagParser {
     this.state = this.opaqueTags.includes(name) ? 'OPAQUE' : 'TAGGED';
   }
 }
+
+// ── Tool Call Delta Buffer ──
+
+/** 流式 tool_call 累积缓冲区 */
+export interface ToolCallAccumulator {
+  id: string;
+  name: string;
+  arguments: string;
+  complete: boolean;
+}
+
+/**
+ * 解析 SSE chunk 中的 tool_call delta。
+ * 返回当前累积中的所有工具调用（含未完成的）。
+ *
+ * OpenAI 流式格式：
+ *   delta.tool_calls: [{ index, id?, type?, function?: { name?, arguments? } }]
+ */
+export function parseToolCallDeltas(
+  data: unknown,
+  accumulators: Map<number, ToolCallAccumulator>,
+): Map<number, ToolCallAccumulator> {
+  const parsed = data as any;
+  const toolCalls = parsed?.choices?.[0]?.delta?.tool_calls;
+  if (!Array.isArray(toolCalls)) return accumulators;
+
+  for (const tc of toolCalls) {
+    const index: number = tc.index ?? 0;
+
+    let acc = accumulators.get(index);
+    if (!acc) {
+      acc = { id: '', name: '', arguments: '', complete: false };
+      accumulators.set(index, acc);
+    }
+
+    if (tc.id) acc.id = tc.id;
+    if (tc.type === 'function' || tc.function) {
+      const func = tc.function ?? {};
+      if (func.name) acc.name = func.name;
+      if (func.arguments) acc.arguments += func.arguments;
+    }
+    // 也支持简化的 delta 格式
+    if (tc.name && !acc.name) acc.name = tc.name;
+    if (typeof tc.arguments === 'string') acc.arguments += tc.arguments;
+  }
+
+  return accumulators;
+}
+
+/** 从 SSE chunk 提取文本 delta */
+export function parseTextDelta(data: unknown): string {
+  const parsed = data as any;
+  return parsed?.choices?.[0]?.delta?.content ?? '';
+}
+
+/** 从 SSE chunk 提取 thinking delta（DeepSeek reasoning_content） */
+export function parseThinkingDelta(data: unknown): string {
+  const parsed = data as any;
+  // DeepSeek / XAI 格式
+  const reasoningContent = parsed?.choices?.[0]?.delta?.reasoning_content ?? '';
+  if (reasoningContent) return reasoningContent;
+  // OpenRouter 格式
+  const reasoning = parsed?.choices?.[0]?.delta?.reasoning ?? '';
+  return reasoning;
+}
+
+/** 从 SSE chunk 提取 usage */
+export function parseUsage(data: unknown): { hit: number; miss: number; generated: number } | null {
+  const parsed = data as any;
+  const usage = parsed?.choices?.[0]?.usage ?? parsed?.usage;
+  if (!usage) return null;
+  return {
+    hit: usage.prompt_cache_hit_tokens ?? 0,
+    miss: usage.prompt_cache_miss_tokens ?? 0,
+    generated: usage.completion_tokens ?? 0,
+  };
+}
+
+/** 检查 accumulator 中的所有工具调用是否参数接收完整（以 "}" 结尾的 JSON 字符串或空参数） */
+export function areToolCallsComplete(accumulators: Map<number, ToolCallAccumulator>): boolean {
+  for (const acc of accumulators.values()) {
+    if (!acc.name) continue; // 还未收到 name，不算完整
+    const trimmed = acc.arguments.trim();
+    // 空参数也视为完成（如无参数工具）
+    if (trimmed === '') { acc.complete = true; continue; }
+    // 尝试 parse JSON，成功则完成
+    try { JSON.parse(trimmed); acc.complete = true; } catch { acc.complete = false; return false; }
+  }
+  return true;
+}

@@ -1,8 +1,9 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Server, Zap, AlertTriangle } from 'lucide-react';
+import { Server, Zap, AlertTriangle, Bot, Wrench } from 'lucide-react';
 import { SectionHeader, InputRow, ActionButton } from './SettingsFields';
 import type { ApiSettings, AppSettings } from '../../sillytavern/types';
 import { DEFAULT_SETTINGS } from '../../sillytavern/types';
+import { ALL_TOOLS } from '../../sillytavern/tools/registry';
 
 interface Props {
   draft: AppSettings;
@@ -18,10 +19,19 @@ export default function ApiTab({ draft, setDraft, busy, primaryModels, secondary
   const isDual = draft.apiMode === 'dual';
   const api = draft.api ?? DEFAULT_SETTINGS.api;
   const secondary = api.secondary ?? { enabled: false, baseUrl: '', apiKey: '', model: '', temperature: 0.7, maxTokens: 8000 };
+  const isAgent = api?.agentMode === true;
 
   const patchApi = (patch: Partial<ApiSettings>) => setDraft({ ...draft, api: { ...draft.api, ...patch } });
   const patchSecondary = (patch: Partial<NonNullable<ApiSettings['secondary']>>) =>
     setDraft({ ...draft, api: { ...draft.api, secondary: { ...secondary, ...patch } } });
+
+  const toggleTool = (toolName: string) => {
+    const current = api?.enabledTools ?? [];
+    const next = current.includes(toolName)
+      ? current.filter(n => n !== toolName)
+      : [...current, toolName];
+    patchApi({ enabledTools: next });
+  };
 
   return (
     <div className="p-5 space-y-6">
@@ -51,6 +61,103 @@ export default function ApiTab({ draft, setDraft, busy, primaryModels, secondary
         ))}
       </div>
 
+      {/* Agent Mode Toggle */}
+      <section>
+        <div
+          onClick={() => patchApi({ agentMode: !isAgent })}
+          className={`relative p-4 rounded-lg border cursor-pointer transition-all ${
+            isAgent
+              ? 'border-purple-400/50 bg-purple-400/[0.06] shadow-[0_0_20px_rgba(168,85,247,0.1)]'
+              : 'border-aether-border/20 bg-white/[0.02] hover:border-aether-border/40'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-5 rounded-full transition-colors relative ${isAgent ? 'bg-purple-400' : 'bg-white/10'}`}>
+              <motion.div
+                className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow"
+                animate={{ left: isAgent ? 16 : 2 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              />
+            </div>
+            <Bot size={20} className={isAgent ? 'text-purple-400' : 'text-white/30'} />
+            <div>
+              <div className={`text-sm font-display font-semibold tracking-wide ${isAgent ? 'text-purple-400' : 'text-white/50'}`}>
+                Agent 模式
+              </div>
+              <div className="text-[11px] text-white/30 leading-relaxed">
+                AI 通过工具调用管理状态，不需要预设和双 API
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Agent Mode Settings */}
+      <AnimatePresence>
+        {isAgent && (
+          <motion.section
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden"
+          >
+            <SectionHeader icon={Wrench} label="Agent 配置" accent="bg-purple-400" />
+            <div className="bg-aether-dark/30 rounded-lg border border-aether-border/20 p-4 space-y-4">
+              {/* Max turns */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-white/50">最大轮数</span>
+                <input type="number" min={1} max={30} value={api?.maxTurnsPerMessage ?? 10}
+                  onChange={(e) => patchApi({ maxTurnsPerMessage: Math.max(1, Math.min(30, Number(e.target.value) || 10)) })}
+                  className="w-16 bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-xs text-white/70 text-center focus:outline-none focus:border-purple-400/60" />
+              </div>
+
+              {/* Cache control */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-white/50">缓存控制</span>
+                <select value={api?.cacheControl ?? 'auto'}
+                  onChange={(e) => patchApi({ cacheControl: e.target.value as 'auto' | 'enabled' | 'disabled' })}
+                  className="bg-aether-dark/60 border border-aether-border/30 rounded px-2 py-1 text-xs text-white/70 focus:outline-none focus:border-purple-400/60">
+                  <option value="auto">自动</option>
+                  <option value="enabled">启用</option>
+                  <option value="disabled">禁用</option>
+                </select>
+              </div>
+
+              {/* Tools */}
+              <div>
+                <span className="block text-xs text-white/50 mb-2">启用的工具</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {ALL_TOOLS.map((tool) => {
+                    const checked = (api?.enabledTools ?? []).includes(tool.name);
+                    return (
+                      <label key={tool.name}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer transition-all ${
+                          checked ? 'bg-purple-400/10 text-purple-300' : 'bg-white/[0.02] text-white/40 hover:text-white/60'
+                        }`}
+                        onClick={() => toggleTool(tool.name)}
+                      >
+                        <input type="checkbox" checked={checked} onChange={() => {}} className="sr-only" />
+                        <div className={`w-3 h-3 rounded border flex items-center justify-center transition-all ${
+                          checked ? 'border-purple-400 bg-purple-400' : 'border-white/20'
+                        }`}>
+                          {checked && <div className="w-1.5 h-1.5 rounded-sm bg-white" />}
+                        </div>
+                        <div className="flex-1 truncate">
+                          <div className="font-mono text-[11px]">{tool.name}</div>
+                          <div className="text-[10px] opacity-50 truncate">{tool.label}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <p className="text-[10px] text-white/20 flex items-center gap-1">
+                <AlertTriangle size={10} /> Agent 模式开启后，预设和双 API 将被忽略
+              </p>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
       {/* Primary API */}
       <section>
         <SectionHeader icon={Server} label="主 API" accent="bg-aether-cyan" />
@@ -75,9 +182,9 @@ export default function ApiTab({ draft, setDraft, busy, primaryModels, secondary
         </div>
       </section>
 
-      {/* Secondary API */}
+      {/* Secondary API — hidden in Agent mode */}
       <AnimatePresence>
-        {isDual && (
+        {isDual && !isAgent && (
           <motion.section initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden">
             <SectionHeader icon={Zap} label="次 API" accent="bg-aether-blue" />

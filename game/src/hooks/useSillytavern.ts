@@ -3,11 +3,14 @@ import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, autoTagDreamItems, enrichHistory, formatVariablesForPrompt, buildVarChanges } from '../sillytavern/variables';
 import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
-import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline } from '../sillytavern/types';
+import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline, type ToolExecutionRecord } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
 import { DEFAULT_WORLD_VARS } from '../sillytavern/default-world-vars';
 import { showTopCenter } from '../components/shared/TopCenterToast';
 import { type FertilizationResult } from '../sillytavern/physiology';
+import { buildAgentContext } from '../sillytavern/agent-context';
+import { runAgentLoop } from '../sillytavern/agent-loop';
+import { getEnabledTools, type ToolExecutionContext } from '../sillytavern/tools/registry';
 import { resolveLorebyMacro } from '../sillytavern/lorebook-resolver';
 import { buildSecondaryPrompt } from '../sillytavern/secondary-prompt-builder';
 import { useRegenerateVars } from './useRegenerateVars';
@@ -115,6 +118,10 @@ export function useSillytavern() {
   const [jumpVersion, setJumpVersion] = useState(0); // 每次回档+1，强制ChatPage刷新
   const abortRef = useRef<AbortController | null>(null);
   const dualAbortRef = useRef<AbortController | null>(null);
+
+  // Agent mode state
+  const [pendingToolCalls, setPendingToolCalls] = useState<Map<string, { name: string; label: string; startTime: number }>>(new Map());
+  const [completedToolCalls, setCompletedToolCalls] = useState<ToolExecutionRecord[]>([]);
 
   const activeChat = useMemo(() => chats.find(c => c.id === activeChatId) ?? null, [chats, activeChatId]);
 
@@ -281,9 +288,12 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       presetParams: latestSettings?.presetParams ?? settings?.presetParams,
     };
 
-    // 没有导入预设 → 阻止游戏，提示错误
-    if (!effectiveSettings.presetBlocks || effectiveSettings.presetBlocks.length === 0) {
-      throw new Error('请先在设置中导入提示词预设');
+    // Agent 模式：不需要预设
+    const isAgentMode = effectiveSettings.api?.agentMode === true && (effectiveSettings.api?.enabledTools?.length ?? 0) > 0;
+
+    // 非 Agent 模式且无预设 → 阻止
+    if (!isAgentMode && (!effectiveSettings.presetBlocks || effectiveSettings.presetBlocks.length === 0)) {
+      throw new Error('请先在设置中导入提示词预设，或开启 Agent 模式');
     }
 
     const skipUser = opts?.skipUserMessage === true;
@@ -320,7 +330,226 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     };
 
     const chatVars = updatedChat.variables ?? {};
+    const preVars = updatedChat.variables ?? {};
 
+    // ─── Agent 模式 ───
+    if (isAgentMode) {
+      const agentTools = getEnabledTools(effectiveApi.enabledTools ?? []);
+      const agentCtx = buildAgentContext({
+        userName: effectiveSettings.userName ?? DEFAULT_SETTINGS.userName,
+        characterName: effectiveSettings.characterName ?? DEFAULT_SETTINGS.characterName,
+        playerDescription: effectiveSettings.playerDescription,
+        characterDescription: effectiveSettings.characterDescription,
+        history: updatedChat.messages,
+        recentMessageCount: effectiveSettings.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount,
+        variables: JSON.parse(JSON.stringify(chatVars)), // deep copy for mutable context
+        lorebooks: effectiveSettings.lorebooks ?? [],
+        plotHistory: updatedChat.plotHistory,
+        dreamAnchor: updatedChat.dreamAnchor,
+        tools: agentTools,
+      });
+
+      setLastPrompt({
+        messages: agentCtx.messages.map(m => ({ role: m.role, content: m.content })),
+        estimatedTokens: Math.round(agentCtx.messages.reduce((s, m) => s + m.content.length / 4, 0)),
+        stageTokens: {},
+        stageMessages: agentCtx.stageMessages,
+        stageOrder: agentCtx.stageOrder,
+        stageNames: {},
+      });
+
+      // 工具执行上下文
+      const agentVars = JSON.parse(JSON.stringify(chatVars)); // mutable during agent loop
+      const historyText = updatedChat.messages.slice(-6).map((m: any) => m.content).join(' ');
+
+      const toolCtx: ToolExecutionContext = {
+        variables: agentVars,
+        lorebooks: effectiveSettings.lorebooks ?? [],
+        plotHistory: updatedChat.plotHistory ?? { reality: [], dream: [] },
+        userInput: userText,
+        historyText,
+        patchVariables: (ops) => {
+          // 直接修改 agentVars（deep copy）
+          const changes: Array<{ path: string; oldValue?: any; newValue?: any }> = [];
+          for (const op of ops) {
+            const parts = (op.path || '').split('/').filter(Boolean);
+            if (parts.length === 0) return { ok: false, error: '空路径' };
+            // 找到父对象
+            let current: any = agentVars;
+            for (let i = 0; i < parts.length - 1; i++) {
+              if (current && typeof current === 'object') {
+                current = current[parts[i]];
+              } else {
+                // 创建中间路径
+                const next: any = current && typeof current === 'object' ? current : {};
+                if (typeof next === 'object') next[parts[i]] = next[parts[i]] || {};
+                current = next[parts[i]];
+              }
+            }
+            if (!current || typeof current !== 'object') return { ok: false, error: `路径 ${op.path} 无效` };
+            const key = parts[parts.length - 1];
+            const oldValue = current[key];
+            if (op.op === 'remove') {
+              delete current[key];
+              changes.push({ path: op.path, oldValue, newValue: undefined });
+            } else if (op.op === 'replace' || op.op === 'insert') {
+              current[key] = op.value;
+              changes.push({ path: op.path, oldValue, newValue: op.value });
+            }
+          }
+          return { ok: true, changes };
+        },
+        appendHistory: (sp) => {
+          const timeline = toolCtx.plotHistory;
+          if (sp.world === '梦境') {
+            timeline.dream = [...timeline.dream, { ...sp, sequence: timeline.dream.length + 1 }];
+          } else {
+            timeline.reality = [...timeline.reality, { ...sp, sequence: timeline.reality.length + 1 }];
+          }
+        },
+      };
+
+      const freshRouter = createApiRouter(effectiveApi);
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      // Reset agent tool call state
+      setPendingToolCalls(new Map());
+      setCompletedToolCalls([]);
+
+      let rawContent = '';
+      let thinkingContent = '';
+      const agentRecords: ToolExecutionRecord[] = [];
+
+      try {
+        const params = effectiveSettings.presetParams ?? DEFAULT_PRESET_PARAMS;
+        const loop = runAgentLoop({
+          router: freshRouter,
+          systemPrompt: agentCtx.systemPrompt,
+          messages: agentCtx.messages,
+          tools: agentTools,
+          toolContext: toolCtx,
+          signal: controller.signal,
+          maxTurns: effectiveApi.maxTurnsPerMessage ?? 10,
+          temperature: params.temperature,
+          top_p: params.top_p,
+          top_k: params.top_k,
+          frequency_penalty: params.frequency_penalty,
+          presence_penalty: params.presence_penalty,
+          max_tokens: params.openai_max_tokens,
+        });
+
+        for await (const event of loop) {
+          switch (event.type) {
+            case 'text_delta':
+              rawContent += event.chunk;
+              break;
+            case 'thinking_delta':
+              thinkingContent += event.chunk;
+              break;
+            case 'toolcall_start': {
+              const tool = agentTools.find(t => t.name === event.name);
+              setPendingToolCalls(prev => {
+                const next = new Map(prev);
+                next.set(event.id, { name: event.name, label: tool?.label ?? event.name, startTime: Date.now() });
+                return next;
+              });
+              break;
+            }
+            case 'toolcall_end':
+              break;
+            case 'tool_result': {
+              setPendingToolCalls(prev => {
+                const next = new Map(prev);
+                next.delete(event.record.id);
+                return next;
+              });
+              agentRecords.push(event.record);
+              setCompletedToolCalls(prev => [...prev, event.record]);
+              break;
+            }
+            case 'error':
+              console.error('[Agent] Agent loop error:', event.message);
+              break;
+          }
+        }
+
+        // 获取最终结果
+        const result = await loop.next();
+        const loopResult = result.value;
+        if (loopResult && typeof loopResult === 'object' && 'text' in loopResult) {
+          rawContent = (loopResult as any).text || rawContent;
+          thinkingContent = (loopResult as any).thinking || thinkingContent;
+
+          // 发出缓存监控事件
+          if ((loopResult as any).usage) {
+            const u = (loopResult as any).usage;
+            const record = buildUsageRecord(
+              u,
+              effectiveApi.model,
+              effectiveChat.id,
+              agentCtx.messages.map((m: any) => ({ role: m.role, content: m.content })),
+              userText,
+            );
+            storeFullPrompt(record.requestId, agentCtx.messages.map((m: any) => ({ role: m.role, content: m.content })));
+            gameBus.emit('api_usage', { record });
+          }
+        }
+      } catch (e) {
+        console.error('[Agent] Agent loop error:', e);
+        const isAbort = e instanceof DOMException && e.name === 'AbortError';
+        if (!skipUser) await doRetract();
+        if (isAbort) return { aborted: true, retractedText: userText };
+        throw e;
+      }
+
+      if (!rawContent.trim()) {
+        console.warn('[Agent] AI 返回空内容');
+        if (!skipUser) await doRetract();
+        return { aborted: true, retractedText: userText, formatError: true };
+      }
+
+      // 应用 Agent 修改后的变量
+      const nextVariables = agentVars;
+      const varChanges = buildVarChanges(preVars, nextVariables);
+      const snapshot = JSON.parse(JSON.stringify(nextVariables));
+
+      // 通知订阅者
+      gameBus.emit('vars_applied', {
+        preVars: JSON.parse(JSON.stringify(preVars)),
+        postVars: JSON.parse(JSON.stringify(nextVariables)),
+        varChanges,
+      });
+
+      // 保存到 DB
+      const msgId = crypto.randomUUID();
+      const assistantMsg: ChatMessage = {
+        id: msgId, role: 'assistant',
+        content: rawContent,
+        timestamp: Date.now(),
+        parsed: { thinking: thinkingContent, maintext: rawContent, options: [], history: null, varsRaw: '', varsCommands: { merge: {} }, unknown: {} },
+        variablesAfter: snapshot,
+        dreamAnchorAfter: { ...updatedChat.dreamAnchor },
+        plotHistoryAfter: JSON.parse(JSON.stringify(toolCtx.plotHistory)),
+        apiUsed: 'primary',
+        varChanges,
+      };
+      const updatedMessages = [...updatedChat.messages, assistantMsg];
+      const finalChat: ChatSession = { ...updatedChat, messages: updatedMessages, variables: nextVariables, dreamAnchor: updatedChat.dreamAnchor, plotHistory: toolCtx.plotHistory, updatedAt: Date.now() };
+      await db.chats.put(finalChat);
+      setChats(prev => prev.map(c => c.id === finalChat.id ? finalChat : c));
+
+      abortRef.current = null;
+      setPendingToolCalls(new Map());
+      return {
+        aborted: false,
+        varsUpdated: varChanges.length > 0,
+        patchCount: agentRecords.length,
+        varChanges,
+      };
+    }
+
+    // ─── 非 Agent 模式（原有逻辑）───
     const { messages, totalTokens, stageTokens, stageMessages, stageOrder, stageNames } = assemblePrompt({
       userInput: userText,
       history: updatedChat.messages,
@@ -452,7 +681,6 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       return { aborted: true, retractedText: userText, formatError: true };
     }
 
-    const preVars = updatedChat.variables ?? {};
     // 通知订阅者：AI 回复已收到（剧情历史等模块自行处理）
     gameBus.emit('message_received', {
       rawContent,
@@ -868,6 +1096,8 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
     streamState: parser.state, abortStream: () => { abortRef.current?.abort(); parser.reset(); },
     abortDual: () => { dualAbortRef.current?.abort(); dualAbortRef.current = null; setDualRunning(false); },
     dualRunning, lastRawContent, jumpVersion,
+    // Agent mode
+    pendingToolCalls, completedToolCalls,
   };
 }
 

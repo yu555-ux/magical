@@ -63,7 +63,56 @@ export function createApiRouter(settings: ApiSettings, deps: RouterDeps = {}) {
     return { targetUsed: 'primary', response: res };
   }
 
-  return { targetFor, call };
+  /**
+   * Agent 模式：发送带工具定义的流式请求。
+   * 使用主 API，通过 fetch + ReadableStream 返回流式响应。
+   */
+  async function callAgent(
+    payload: {
+      messages: Array<{ role: string; content: string }>;
+      tools?: Record<string, unknown>[];
+      temperature?: number;
+      top_p?: number;
+      top_k?: number;
+      frequency_penalty?: number;
+      presence_penalty?: number;
+      max_tokens?: number;
+    },
+    signal?: AbortSignal,
+  ): Promise<Response> {
+    const ep = endpointFor('primary');
+    const body: Record<string, unknown> = {
+      model: ep.model,
+      messages: payload.messages,
+      stream: true,
+    };
+
+    // 添加工具
+    if (payload.tools && payload.tools.length > 0) {
+      body.tools = payload.tools;
+      body.tool_choice = 'auto';
+    }
+
+    // 添加采样参数
+    if (payload.temperature !== undefined) body.temperature = payload.temperature;
+    if (payload.top_p !== undefined) body.top_p = payload.top_p;
+    if (payload.top_k !== undefined) body.top_k = payload.top_k;
+    if (payload.frequency_penalty !== undefined) body.frequency_penalty = payload.frequency_penalty;
+    if (payload.presence_penalty !== undefined) body.presence_penalty = payload.presence_penalty;
+    if (payload.max_tokens !== undefined) body.max_tokens = payload.max_tokens;
+
+    return await fetchImpl(`${ep.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${ep.apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+  }
+
+  return { targetFor, call, callAgent };
 }
 
 export type ApiRouter = ReturnType<typeof createApiRouter>;

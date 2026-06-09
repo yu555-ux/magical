@@ -1,0 +1,290 @@
+/**
+ * Agent Tool Loop — 核心循环
+ *
+ * 参考 piagent agent-loop.ts:155-268 的内层 while 循环设计：
+ *   用户消息 → LLM 调用(带 tools) → 解析回复
+ *     ├─ 有 tool_call → 执行工具 → 工具结果回注 context → 继续循环
+ *     └─ 无 tool_call → 退出循环，返回最终文本
+ *
+ * 使用 async generator 模式：每收到一个 SSE chunk 就 yield 事件，UI 实时更新。
+ */
+
+import type { ApiRouter } from './api-router';
+import {
+  parseToolCallDeltas,
+  parseTextDelta,
+  parseThinkingDelta,
+  parseUsage,
+  areToolCallsComplete,
+  type ToolCallAccumulator,
+} from './stream-parser';
+import type { AgentStreamEvent, ToolExecutionRecord } from './types';
+import type { AgentToolDef, ToolExecutionContext, ToolResult } from './tools/registry';
+
+// ── Types ──
+
+export interface AgentLoopOptions {
+  router: ApiRouter;
+  systemPrompt: string;
+  messages: Array<{ role: string; content: string }>;
+  tools: AgentToolDef[];
+  toolContext: ToolExecutionContext;
+  signal?: AbortSignal;
+  maxTurns: number;
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
+  max_tokens?: number;
+}
+
+export interface AgentLoopResult {
+  text: string;
+  thinking: string;
+  toolCalls: ToolExecutionRecord[];
+  turnCount: number;
+  usage: { hit: number; miss: number; generated: number } | null;
+  allMessages: Array<{ role: string; content: string }>;
+}
+
+// ── Main loop ──
+
+export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<AgentStreamEvent, AgentLoopResult> {
+  const {
+    router, systemPrompt, messages: initialMessages, tools, toolContext,
+    signal, maxTurns, temperature, top_p, top_k,
+    frequency_penalty, presence_penalty, max_tokens,
+  } = options;
+
+  // 转换为 OpenAI API 格式的工具
+  const openaiTools = tools.map(t => ({
+    type: 'function' as const,
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.parameters,
+    },
+  }));
+
+  // 初始化 context messages（deep copy，不污染原始）
+  const contextMessages: Array<{ role: string; content: string }> = initialMessages.map(m => ({ ...m }));
+
+  let allText = '';
+  let allThinking = '';
+  const allToolCalls: ToolExecutionRecord[] = [];
+  let turnCount = 0;
+  let finalUsage: { hit: number; miss: number; generated: number } | null = null;
+
+  try {
+    while (turnCount < maxTurns) {
+      if (signal?.aborted) {
+        yield { type: 'error', message: '已中止' };
+        break;
+      }
+
+      turnCount++;
+
+      // ── 1. 调用 LLM ──
+      const response = await router.callAgent(
+        {
+          messages: [
+            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+            ...contextMessages,
+          ],
+          tools: openaiTools,
+          temperature,
+          top_p,
+          top_k,
+          frequency_penalty,
+          presence_penalty,
+          max_tokens,
+        },
+        signal,
+      );
+
+      if (!response.ok) {
+        yield { type: 'error', message: `API 错误 HTTP ${response.status}` };
+        break;
+      }
+
+      // ── 2. 流式解析 ──
+      const reader = response.body?.getReader();
+      if (!reader) {
+        yield { type: 'error', message: '无法读取响应流' };
+        break;
+      }
+
+      const decoder = new TextDecoder();
+      let buf = '';
+      let turnText = '';
+      let turnThinking = '';
+      const toolAccumulators = new Map<number, ToolCallAccumulator>();
+      let hasTextStarted = false;
+      let hasThinkingStarted = false;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split('\n\n');
+        buf = parts.pop() ?? '';
+
+        for (const part of parts) {
+          for (const line of part.split('\n').filter(l => l.startsWith('data: '))) {
+            const raw = line.slice(6).trim();
+            if (raw === '[DONE]') continue;
+
+            let parsed: unknown;
+            try { parsed = JSON.parse(raw); } catch { continue; }
+
+            // 提取文本
+            const textDelta = parseTextDelta(parsed);
+            if (textDelta) {
+              if (!hasTextStarted) { yield { type: 'text_start' }; hasTextStarted = true; }
+              turnText += textDelta;
+              allText += textDelta;
+              yield { type: 'text_delta', chunk: textDelta };
+            }
+
+            // 提取 thinking
+            const thinkingDelta = parseThinkingDelta(parsed);
+            if (thinkingDelta) {
+              if (!hasThinkingStarted) { yield { type: 'thinking_start' }; hasThinkingStarted = true; }
+              turnThinking += thinkingDelta;
+              allThinking += thinkingDelta;
+              yield { type: 'thinking_delta', chunk: thinkingDelta };
+            }
+
+            // 提取 usage
+            const usage = parseUsage(parsed);
+            if (usage) finalUsage = usage;
+
+            // 提取 tool_call deltas
+            parseToolCallDeltas(parsed, toolAccumulators);
+
+            // 对新出现的 tool_call 发事件
+            for (const [index, acc] of toolAccumulators) {
+              if (acc.name && !acc.id) {
+                // 仍在等待 id（第一帧）
+              } else if (acc.name && acc.id) {
+                // 已收到 id，可以通知 UI
+                yield { type: 'toolcall_delta', id: acc.id, argumentsChunk: '' };
+              }
+            }
+          }
+        }
+      }
+
+      // 文本结束
+      if (hasTextStarted) yield { type: 'text_end' };
+      if (hasThinkingStarted) yield { type: 'thinking_end' };
+
+      // ── 3. 处理 tool calls ──
+      if (toolAccumulators.size > 0 && areToolCallsComplete(toolAccumulators)) {
+        // 将 assistant 消息（含 tool_calls）加入 context
+        const assistantContent = turnText || undefined;
+        const toolCallBlocks: Array<{
+          id: string;
+          type: 'function';
+          function: { name: string; arguments: string };
+        }> = [];
+        for (const acc of toolAccumulators.values()) {
+          if (acc.name) {
+            toolCallBlocks.push({
+              id: acc.id || `call_${Math.random().toString(36).slice(2, 11)}`,
+              type: 'function',
+              function: { name: acc.name, arguments: acc.arguments || '{}' },
+            });
+          }
+        }
+
+        // 添加 assistant 消息
+        const assistantMsg: Record<string, unknown> = { role: 'assistant' };
+        if (assistantContent) assistantMsg.content = assistantContent;
+        if (toolCallBlocks.length > 0) {
+          assistantMsg.tool_calls = toolCallBlocks;
+        }
+        contextMessages.push(assistantMsg as any);
+
+        // 执行工具
+        const turnRecords: ToolExecutionRecord[] = [];
+        for (const tcBlock of toolCallBlocks) {
+          const toolName = tcBlock.function.name;
+          const toolDef = tools.find(t => t.name === toolName);
+          const t0 = Date.now();
+
+          yield {
+            type: 'toolcall_start',
+            id: tcBlock.id,
+            name: toolName,
+          };
+
+          let toolResult: ToolResult;
+          if (!toolDef) {
+            toolResult = { content: [{ type: 'text', text: `工具 "${toolName}" 未注册` }] };
+          } else {
+            try {
+              let args: unknown;
+              try { args = JSON.parse(tcBlock.function.arguments); } catch { args = {}; }
+              toolResult = await toolDef.execute(toolContext, args);
+            } catch (err) {
+              toolResult = {
+                content: [{ type: 'text', text: `工具执行出错: ${err instanceof Error ? err.message : String(err)}` }],
+              };
+            }
+          }
+
+          const duration = Date.now() - t0;
+          const isError = toolResult.content.length === 1 && toolResult.content[0].text.startsWith('工具');
+
+          const record: ToolExecutionRecord = {
+            id: tcBlock.id,
+            name: toolName,
+            label: toolDef?.label ?? toolName,
+            arguments: tcBlock.function.arguments,
+            result: toolResult.content[0]?.text ?? '',
+            isError,
+            duration,
+          };
+          turnRecords.push(record);
+          allToolCalls.push(record);
+
+          yield { type: 'tool_result', record };
+
+          // 工具结果作为 tool 消息加入 context
+          contextMessages.push({
+            role: 'tool',
+            tool_call_id: tcBlock.id,
+            content: toolResult.content[0]?.text ?? '',
+          } as any);
+        }
+
+        // 继续循环——AI 看到工具结果后接着生成
+        continue;
+      }
+
+      // ── 4. 无 tool call → 退出循环 ──
+      break;
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      yield { type: 'error', message: '已中止' };
+    } else {
+      yield { type: 'error', message: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  // ── 返回结果 ──
+  yield { type: 'done', text: allText, thinking: allThinking };
+
+  return {
+    text: allText,
+    thinking: allThinking,
+    toolCalls: allToolCalls,
+    turnCount,
+    usage: finalUsage,
+    allMessages: contextMessages,
+  };
+}

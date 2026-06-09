@@ -17,6 +17,7 @@ import { showTopCenter } from '../../shared/TopCenterToast';
 import ContextMenu from './ContextMenu';
 import ShopBanner from './ShopBanner';
 import ShopModal from './ShopModal';
+import ToolCallBubble from './ToolCallBubble';
 import { checkShopAvailability, getLiuSanniangFavorability } from '../../../sillytavern/shop-engine';
 import { useKeyboardAware, scrollToBottomSmooth } from '../../../hooks/useKeyboardAware';
 
@@ -237,6 +238,14 @@ export default function ChatPage({
             </motion.span>
           </div>
         )}
+
+        {/* ── Tool call progress (Agent mode) ── */}
+        <div className="px-3 md:px-5">
+          <ToolCallBubble
+            pendingCalls={ss.pendingToolCalls ?? new Map()}
+            completedCalls={isStreaming ? ss.completedToolCalls ?? [] : []}
+          />
+        </div>
 
         {/* ── Thinking fold ── */}
         {thinking && (

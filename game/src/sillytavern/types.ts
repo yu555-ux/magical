@@ -17,6 +17,14 @@ export interface ApiSettings {
     temperature?: number;
     maxTokens?: number;
   };
+  /** Agent 模式配置 */
+  agentMode?: boolean;
+  /** Agent 模式启用的工具名称列表。空数组 = 不启用 Agent 模式 */
+  enabledTools?: string[];
+  /** Agent 模式每轮最大 tool loop 次数 */
+  maxTurnsPerMessage?: number;
+  /** Agent 模式缓存控制策略 */
+  cacheControl?: 'auto' | 'enabled' | 'disabled';
 }
 
 // ========== Lorebook (World Book) Types ==========
@@ -291,6 +299,8 @@ export interface AppSettings {
   useProcessedMap: boolean;
   /** Frontend: process character groups with location filter for character macros */
   useProcessedCharacters: boolean;
+  /** Agent 模式开关（默认 false） */
+  agentMode: boolean;
 }
 
 export const DEFAULT_TAGS = ['maintext', 'option', 'history', 'vars', 'thinking', 'think', 'Analysis', 'JSONPatch'] as const;
@@ -303,6 +313,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     model: '假流式-gemini-3.1-pro-preview',
     timeout: 60000,
     secondary: { enabled: true, baseUrl: 'https://gcli.ggchan.dev', apiKey: '', model: '假流式-gemini-3.0-flash-preview', temperature: 0.7, maxTokens: 8000 },
+    agentMode: false,
+    enabledTools: ['patch_state', 'get_status', 'save_point', 'roll_dice', 'lookup_location'],
+    maxTurnsPerMessage: 10,
+    cacheControl: 'auto',
   },
   apiMode: 'dual',
   presetBlocks: DEFAULT_PRESET_BLOCKS,
@@ -325,6 +339,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   recentMessageCount: 6,
   useProcessedMap: true,
   useProcessedCharacters: true,
+  agentMode: false,
 };
 
 // ========== Chat Types ==========
@@ -449,4 +464,51 @@ export interface CacheUsageRecord {
   totalChars?: number;
   /** 本轮玩家输入（用于快速识别请求） */
   userInput?: string;
+}
+
+// ========== Agent Types ==========
+
+/** 工具执行记录 */
+export interface ToolExecutionRecord {
+  /** 工具调用唯一 ID（来自 LLM tool_call.id） */
+  id: string;
+  /** 工具名称 */
+  name: string;
+  /** 工具显示名（中文） */
+  label: string;
+  /** LLM 传入的参数 JSON */
+  arguments: string;
+  /** 执行结果文本 */
+  result: string;
+  /** 是否执行出错 */
+  isError: boolean;
+  /** 执行耗时 ms */
+  duration: number;
+}
+
+/** Agent tool loop 事件 */
+export type AgentStreamEvent =
+  | { type: 'text_start' }
+  | { type: 'text_delta'; chunk: string }
+  | { type: 'text_end' }
+  | { type: 'thinking_start' }
+  | { type: 'thinking_delta'; chunk: string }
+  | { type: 'thinking_end' }
+  | { type: 'toolcall_start'; id: string; name: string }
+  | { type: 'toolcall_delta'; id: string; argumentsChunk: string }
+  | { type: 'toolcall_end'; id: string; name: string; arguments: string }
+  | { type: 'tool_result'; record: ToolExecutionRecord }
+  | { type: 'done'; text: string; thinking: string }
+  | { type: 'error'; message: string };
+
+/** Agent 单轮 turn 结果 */
+export interface AgentTurnResult {
+  /** 累积的叙事文本 */
+  text: string;
+  /** thinking 内容 */
+  thinking: string;
+  /** 本轮执行的工具调用 */
+  toolCalls: ToolExecutionRecord[];
+  /** Turn 编号（从 1 开始） */
+  turnIndex: number;
 }
