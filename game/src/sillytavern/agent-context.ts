@@ -74,17 +74,6 @@ function buildHistoryMessages(
   return recent;
 }
 
-function buildToolIndex(tools: AgentToolDef[]): string {
-  if (tools.length === 0) return '';
-  const lines = ['## 可用工具速查'];
-  for (const t of tools) {
-    const firstLine = t.description.split('\n')[0] || t.label;
-    lines.push(`- **${t.name}**：${firstLine}`);
-  }
-  lines.push('', '调用工具不会打断叙事节奏——工具返回后你可以继续写。先确定需要什么信息，再一起调用相关工具。');
-  return lines.join('\n');
-}
-
 // ── Main builder ──
 
 export function buildAgentContext(config: AgentContextConfig): AgentContextResult {
@@ -167,10 +156,6 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     const totalChars = constantEntries.reduce((s, c) => s + c.length, 0);
     refParts.push(`## 常驻世界知识 (${constantEntries.length} 条, ${(totalChars / 1000).toFixed(1)}k 字)\n${constantEntries.join('\n\n---\n')}`);
   }
-
-  // 工具速查
-  const toolIndex = buildToolIndex(tools);
-  if (toolIndex) refParts.push(toolIndex);
 
   if (refParts.length > 0) {
     const refContent = `[以下为参考信息 — 游戏状态请通过工具查询]\n\n${refParts.join('\n\n---\n\n')}`;

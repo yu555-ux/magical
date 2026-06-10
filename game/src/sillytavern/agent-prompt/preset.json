@@ -66,20 +66,20 @@
       "source": "agent-prompt/gm-render-protocol.md"
     },
     {
-      "id": "story-driver",
-      "enabled": true,
-      "slot": "pre-response",
-      "priority": 10,
-      "header": "story_driver",
-      "source": "agent-prompt/gm-story-driver.md"
-    },
-    {
       "id": "mechanical-state",
       "enabled": true,
       "slot": "pre-response",
-      "priority": 15,
+      "priority": 10,
       "header": "mechanical_state",
       "source": "runtime:state-brief"
+    },
+    {
+      "id": "story-driver",
+      "enabled": true,
+      "slot": "pre-response",
+      "priority": 15,
+      "header": "story_driver",
+      "source": "agent-prompt/gm-story-driver.md"
     },
     {
       "id": "tool-policy",
