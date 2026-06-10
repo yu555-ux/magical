@@ -301,7 +301,7 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
     name: 'lookup_world',
     label: '查询世界书',
     description:
-      '在世界书中搜索设定条目。一次查询一个角色名或一个核心概念即可。\n\n' +
+      '在世界书中搜索设定条目。注意：标记为"常驻"的条目已随每轮提示词自动注入，无需查询；本工具只搜索非常驻条目。\n\n' +
       '【工作节奏】\n' +
       '- 每轮最多调用 1-2 次此工具，然后直接开始叙事\n' +
       '- 如果返回了条目内容，直接使用，不要换关键词重新搜索\n' +
@@ -325,7 +325,10 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
       if (!keyword) return { content: [{ type: 'text', text: '请提供搜索关键词' }] };
 
       const scanResult: ScanResult = scanLorebooks(ctx.lorebooks, keyword, ctx.historyText);
-      const allEntries = Object.values(scanResult.groups).flat();
+      // 排除 constant=true 的条目（已随 prompt 注入，无需重复查询）
+      const allEntries = Object.values(scanResult.groups)
+        .flat()
+        .filter(e => !e.entry.constant);
 
       if (allEntries.length === 0) {
         return { content: [{ type: 'text', text: `世界书中没有与「${keyword}」相关的条目。这很正常——你可以根据自己的判断自然地描写，不需要再次查询。` }] };
@@ -375,7 +378,10 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
       if (!name) return { content: [{ type: 'text', text: '请提供地点名称' }] };
 
       const scanResult: ScanResult = scanLorebooks(ctx.lorebooks, name, ctx.historyText);
-      const allEntries = Object.values(scanResult.groups).flat();
+      // 排除 constant=true 的条目（已随 prompt 注入，无需重复查询）
+      const allEntries = Object.values(scanResult.groups)
+        .flat()
+        .filter(e => !e.entry.constant);
 
       if (allEntries.length === 0) {
         return { content: [{ type: 'text', text: `未找到与「${name}」相关的世界书条目。该地点可能尚未在设定中定义。` }] };
