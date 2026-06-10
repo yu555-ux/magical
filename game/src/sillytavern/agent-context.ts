@@ -1,17 +1,16 @@
 /**
  * Agent 分层上下文构建器
  *
- * 参考 tavern2agent deepseek-v4.md「三刀流」+ pi-integration.md「提示词分层编排」。
- *
- * 消息顺序：
- *   [0] system     — 极简身份 + 运行契约
- *   [1] user       — 参考信息（常驻世界书 + 工具速查 + 身份）
- *   [2..N-3]       — 聊天历史
- *   [N-2] user     — 玩家本轮输入
- *   [N-1] user     — 铁则（最后一条，离生成最近 === tavern2agent 结构）
+ * 消息顺序（fate-sandbox 三层 slot 模型）：
+ *   [0] system      — gm-system.md（极简身份 + 契约）
+ *   [1..N] user     — pre-history slot 模块（背景参考：世界逻辑、文风、渲染协议）
+ *   [N+1] user      — 动态参考（常驻世界书 + 工具速查 + 身份）
+ *   [N+2..M]        — 聊天历史
+ *   [M+1] user      — 玩家本轮输入
+ *   [M+2..K] user   — pre-response slot 模块（最高注意力：自检清单、GM Brief、工具策略、硬规则）
+ *   [K+1..L] user   — final-contract slot 模块（输出格式 + 输出前验证）
  *
  * DS V4 特化：参考信息和铁则用 user role 注入，因为 DS V4 对 user message 的服从度远超 system。
- * 地图和角色列表暂不注入（后期完善后再加回）。
  */
 
 import type { ChatMessage, Lorebook, HistoryTimeline, DreamAnchor } from './types';
@@ -19,6 +18,8 @@ import { replaceMacros } from './prompt-assembler';
 import type { AgentToolDef } from './tools/registry';
 import { toOpenAITool } from './tools/registry';
 import { SYSTEM_PROMPT, NARRATIVE_RULES } from './agent-defaults';
+import { buildInjectionContext } from './agent-prompt/injection';
+import type { InjectionResult } from './agent-prompt/injection';
 
 // ── Types ──
 
@@ -34,9 +35,9 @@ export interface AgentContextConfig {
   plotHistory?: HistoryTimeline;
   dreamAnchor?: DreamAnchor;
   tools: AgentToolDef[];
-  /** 主系统提示词内容（player-facing identity + contract） */
+  /** @deprecated 不再使用——system prompt 由 gm-system.md 提供 */
   systemPromptContent?: string;
-  /** 铁则内容 */
+  /** @deprecated 不再使用——铁则由 preset.json 的 pre-response 模块提供 */
   rulesContent?: string;
 }
 
@@ -77,7 +78,6 @@ function buildToolIndex(tools: AgentToolDef[]): string {
   if (tools.length === 0) return '';
   const lines = ['## 可用工具速查'];
   for (const t of tools) {
-    // 提取 description 的第一行（简要功能）
     const firstLine = t.description.split('\n')[0] || t.label;
     lines.push(`- **${t.name}**：${firstLine}`);
   }
@@ -98,11 +98,6 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   const stageOrder: string[] = [];
   const finalMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
 
-  // ── System 层：极简身份 + 契约 ──
-  const systemPrompt = replaceMacros(systemPromptContent || SYSTEM_PROMPT, { userName, characterName, userInput: '', playerDescription, characterDescription, varsListText: '', lastMaintext: '' });
-  stageMessages['system'] = [{ role: 'system', content: systemPrompt }];
-  stageOrder.push('system');
-
   // ── 分离最后一条用户消息 ──
   let userInputMsg: { role: 'user'; content: string } | null = null;
   const historyWithoutLastUser = [...history];
@@ -115,16 +110,15 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     }
   }
 
-  // ── 消息顺序：稳定内容在前（缓存友好），变化内容在后 ──
-  // [system] [reference(稳)] [rules(稳)] [history(变)] [userInput]
-  // system + reference + rules 不变 → DS 前缀缓存全命中
-  // 只有 history + userInput 随每轮变化
+  // ── 运行注入引擎 ──
+  const injection: InjectionResult = buildInjectionContext({
+    userName,
+    characterName,
+    userInput: userInputMsg?.content ?? '',
+    variables,
+  });
 
-  // ── Reference 层：常驻世界书 + 工具速查 + 身份（稳定，放历史前面）──
-  // 世界观、时间、地点、角色等游戏状态通过工具调用获取，不预注入 prompt
-  const refParts: string[] = [];
-
-  // 玩家/角色身份（仅当用户在设置中填写了）
+  // ── 宏上下文 ──
   const macroCtx = {
     userName,
     characterName,
@@ -135,10 +129,31 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     lastMaintext: '',
     fullVars: variables,
   };
+
+  // ── [0] System 层：极简身份 + 契约 ──
+  // systemPromptContent 参数可覆盖 gm-system.md（向后兼容）
+  const systemPrompt = systemPromptContent
+    ? replaceMacros(systemPromptContent, macroCtx)
+    : replaceMacros(injection.systemPromptContent, macroCtx);
+  stageMessages['system'] = [{ role: 'system', content: systemPrompt }];
+  stageOrder.push('system');
+
+  // ── [1..N] pre-history slot 模块（背景参考，低注意力）──
+  if (injection.preHistoryMessages.length > 0) {
+    for (const msg of injection.preHistoryMessages) {
+      finalMessages.push(msg);
+    }
+    stageMessages['pre-history'] = injection.preHistoryMessages.map(m => ({ role: m.role, content: m.content }));
+    stageOrder.push('pre-history');
+  }
+
+  // ── [N+1] 动态参考：世界书 + 工具速查 + 身份 ──
+  const refParts: string[] = [];
+
   if (playerDescription) refParts.push(`## 玩家设定\n${replaceMacros(playerDescription, macroCtx)}`);
   if (characterDescription) refParts.push(`## AI 角色设定\n${replaceMacros(characterDescription, macroCtx)}`);
 
-  // 常驻世界书（constant=true 条目，始终注入，参考 tavern2agent data/world.json）
+  // 常驻世界书
   const constantEntries: string[] = [];
   for (const lb of lorebooks) {
     for (const entry of lb.entries) {
@@ -150,10 +165,10 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   }
   if (constantEntries.length > 0) {
     const totalChars = constantEntries.reduce((s, c) => s + c.length, 0);
-    refParts.push(`## 常驻世界知识 (${constantEntries.length} 条, ${(totalChars/1000).toFixed(1)}k 字)\n${constantEntries.join('\n\n---\n')}`);
+    refParts.push(`## 常驻世界知识 (${constantEntries.length} 条, ${(totalChars / 1000).toFixed(1)}k 字)\n${constantEntries.join('\n\n---\n')}`);
   }
 
-  // 工具速查（核心：让 AI 知道有哪些工具可用）
+  // 工具速查
   const toolIndex = buildToolIndex(tools);
   if (toolIndex) refParts.push(toolIndex);
 
@@ -164,7 +179,7 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     finalMessages.push({ role: 'user', content: refContent });
   }
 
-  // ── Chat History（变化内容）──
+  // ── 聊天历史 ──
   const historyMsgs = buildHistoryMessages(historyWithoutLastUser, recentMessageCount);
   if (historyMsgs.length > 0) {
     const histMessages = historyMsgs.map(h => ({ role: h.role, content: h.content }));
@@ -182,15 +197,40 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     finalMessages.push(userInputMsg);
   }
 
-  // ── Rule 层：铁则（user role, 最后一条, 离生成最近）──
-  const rules = replaceMacros(rulesContent || NARRATIVE_RULES, { userName, characterName, userInput: '', playerDescription, characterDescription, varsListText: '', lastMaintext: '' });
-  const rulesMessage = { role: 'user' as const, content: `[以下是你必须严格遵守的叙事铁则——视为最高优先级指令]\n\n${rules}\n\n---\n以上铁则已加载完毕。请优先使用中文输出。` };
-  stageMessages['rules'] = [rulesMessage];
-  stageOrder.push('rules');
-  finalMessages.push(rulesMessage);
+  // ── [M+2..K] pre-response slot 模块（最高注意力）──
+  // 如果用户提供了旧的 rulesContent，仍作为 fallback 注入
+  if (rulesContent) {
+    const rules = replaceMacros(rulesContent, macroCtx);
+    const rulesMessage = { role: 'user' as const, content: `[以下是你必须严格遵守的叙事铁则——视为最高优先级指令]\n\n${rules}\n\n---\n以上铁则已加载完毕。请优先使用中文输出。` };
+    stageMessages['rules'] = [rulesMessage];
+    stageOrder.push('rules');
+    finalMessages.push(rulesMessage);
+  } else {
+    if (injection.preResponseMessages.length > 0) {
+      for (const msg of injection.preResponseMessages) {
+        finalMessages.push(msg);
+      }
+      stageMessages['pre-response'] = injection.preResponseMessages.map(m => ({ role: m.role, content: m.content }));
+      stageOrder.push('pre-response');
+    }
+  }
+
+  // ── [K+1..L] final-contract slot 模块 ──
+  if (injection.finalContractMessages.length > 0) {
+    for (const msg of injection.finalContractMessages) {
+      finalMessages.push(msg);
+    }
+    stageMessages['final-contract'] = injection.finalContractMessages.map(m => ({ role: m.role, content: m.content }));
+    stageOrder.push('final-contract');
+  }
 
   // ── Tools ──
   const openaiTools = tools.map(toOpenAITool);
+
+  // ── 调试日志 ──
+  if (injection.loadedModules.length > 0) {
+    console.log(`[agent-context] 加载模块 (${injection.loadedModules.length}): ${injection.loadedModules.join(', ')}`);
+  }
 
   return {
     messages: finalMessages,

@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "modules": [
+    {
+      "id": "world-logic",
+      "enabled": true,
+      "slot": "pre-history",
+      "priority": 10,
+      "header": "world_logic",
+      "source": "agent-prompt/gm-world-logic.md"
+    },
+    {
+      "id": "character-engine",
+      "enabled": true,
+      "slot": "pre-history",
+      "priority": 15,
+      "header": "character_engine",
+      "source": "agent-prompt/gm-character-engine.md"
+    },
+    {
+      "id": "narrative-voice",
+      "enabled": true,
+      "slot": "pre-history",
+      "priority": 20,
+      "header": "narrative_voice",
+      "source": "agent-prompt/gm-narrative-voice.md"
+    },
+    {
+      "id": "neutral",
+      "enabled": true,
+      "slot": "pre-history",
+      "priority": 25,
+      "header": "neutral",
+      "source": "agent-prompt/gm-neutral.md"
+    },
+    {
+      "id": "anti-literary",
+      "enabled": true,
+      "slot": "pre-history",
+      "priority": 30,
+      "header": "anti_literary",
+      "source": "agent-prompt/gm-anti-literary.md"
+    },
+    {
+      "id": "writing-style",
+      "enabled": true,
+      "slot": "pre-history",
+      "priority": 35,
+      "header": "writing_style",
+      "source": "agent-prompt/gm-writing-style.md"
+    },
+    {
+      "id": "style-blacklist",
+      "enabled": true,
+      "slot": "pre-history",
+      "priority": 40,
+      "header": "style_blacklist",
+      "source": "agent-prompt/gm-style-blacklist.md"
+    },
+    {
+      "id": "render-protocol",
+      "enabled": true,
+      "slot": "pre-history",
+      "priority": 45,
+      "header": "render_protocol",
+      "source": "agent-prompt/gm-render-protocol.md"
+    },
+    {
+      "id": "story-driver",
+      "enabled": true,
+      "slot": "pre-response",
+      "priority": 10,
+      "header": "story_driver",
+      "source": "agent-prompt/gm-story-driver.md"
+    },
+    {
+      "id": "mechanical-state",
+      "enabled": true,
+      "slot": "pre-response",
+      "priority": 15,
+      "header": "mechanical_state",
+      "source": "runtime:state-brief"
+    },
+    {
+      "id": "tool-policy",
+      "enabled": true,
+      "slot": "pre-response",
+      "priority": 20,
+      "header": "tool_policy",
+      "source": "agent-prompt/gm-tool-policy.md"
+    },
+    {
+      "id": "hard-rules",
+      "enabled": true,
+      "slot": "pre-response",
+      "priority": 25,
+      "header": "hard_rules",
+      "source": "agent-prompt/gm-rules.md"
+    },
+    {
+      "id": "output-contract",
+      "enabled": true,
+      "slot": "final-contract",
+      "priority": 10,
+      "header": "output_contract",
+      "source": "agent-prompt/gm-output-contract.md"
+    },
+    {
+      "id": "think-check",
+      "enabled": true,
+      "slot": "final-contract",
+      "priority": 20,
+      "header": "think_check",
+      "source": "agent-prompt/gm-think.md"
+    }
+  ]
+}
