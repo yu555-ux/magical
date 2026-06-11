@@ -779,9 +779,10 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
         sideEffects.push(`${label}: ${op.value}`);
       }
       const sideNote = sideEffects.length > 0 ? `\n  🌤 天气同步更新: ${sideEffects.join(', ')}` : '';
+      const paceWarning = minutes > 30 ? '\n\n⚠️ Pacing: 时间跨度较大（>30分钟），请勿继续玩下一个行动窗口，直接进入叙事。' : '';
 
       return {
-        content: [{ type: 'text', text: `⏰ ${world === 'reality' ? '现实' : '梦境'}时间已推进 ${minutes} 分钟\n  ${oldDisplay} → ${newTime}\n  原因：${reason}${sideNote}` }],
+        content: [{ type: 'text', text: `⏰ ${world === 'reality' ? '现实' : '梦境'}时间已推进 ${minutes} 分钟\n  ${oldDisplay} → ${newTime}\n  原因：${reason}${sideNote}${paceWarning}` }],
         details: { world, minutes, oldTime: currentTime, newTime, reason, weatherChanges: weatherOps },
       };
     },
@@ -1183,10 +1184,19 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
         }
       }
 
-      const resultText = `📋 回合已提交：${summary}\n${changeLog.join('\n')}`;
+      // ── 3. Pacing 警告 ──
+      const warnings: string[] = [];
+      if (events.length >= 3) {
+        warnings.push('⚠️ Pacing: 本轮已有多个领域事件，请停止推进，将已执行的变更渲染为场景叙事。');
+      }
+      if (time && time.kind === 'elapsed' && (time.minutes ?? 0) > 30) {
+        warnings.push('⚠️ Pacing: 时间跨度较大（>30分钟），请勿继续玩下一个行动窗口，直接进入叙事。');
+      }
+
+      const resultText = `📋 回合已提交：${summary}\n${changeLog.join('\n')}${warnings.length > 0 ? '\n\n' + warnings.join('\n') : ''}`;
       return {
         content: [{ type: 'text', text: resultText || `📋 回合已提交：${summary}（无状态变更）` }],
-        details: { summary, time, events, changes: changeLog },
+        details: { summary, time, events, changes: changeLog, warnings },
       };
     },
   },

@@ -62,7 +62,7 @@
 | ✅ | — | **工具分类 + patch_state 隐藏** | 4 分类(lookup/variable/mechanics/deprecated)，前端分组展示 |
 | ☐ | 🟡 | **`add_condition` / `remove_condition`** | 异常状态写入工具，替代 patch_state 的最后用途，完成后可彻底删除 patch_state |
 | 3 | 🟡 | **回合级事务保护** | 将事务边界从"单工具"提升到"整个 tool_call 批次"，跨工具原子性 |
-| 4 | 🟡 | **循环退出引导** | 从纯 maxTurns 硬限制 → 增加场景节拍完成信号 / pacing 警告 |
+| ✅ | 🟡 | **循环退出引导** | gm-tool-policy.md 补完 + commit_turn/advance_time 加 pacing 警告(≥3 events 或 >30min) |
 | 5 | 🔵 | **工具结果 → GM Brief 摘要** | 每轮工具执行完毕后自动归纳摘要，注入 pre-response slot |
 
 ### 二线：支撑系统
