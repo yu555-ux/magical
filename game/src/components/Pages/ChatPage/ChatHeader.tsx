@@ -14,7 +14,7 @@ interface ChatHeaderProps {
 
 function getDisplayData(vars: Record<string, any> | undefined, anchor?: DreamAnchor) {
   const world = vars?.世界 ?? {};
-  const inDream = world?.梦境定位?.位于梦境 === true;
+  const inDream = world?.位于梦境 === true;
 
   const source = inDream ? (world?.梦境存档 ?? {}) : (world?.现实 ?? {});
   const time = source?.时间 || '--';

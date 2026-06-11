@@ -49,7 +49,7 @@ export default function WarehousePage() {
         const chats = await db.chats.toArray();
         const vars = chats[chats.length - 1]?.variables ?? {};
         const warehouse = vars.仓库 ?? {};
-        setInDream(vars?.世界?.梦境定位?.位于梦境 === true);
+        setInDream(vars?.世界?.位于梦境 === true);
         const all: WarehouseItem[] = [];
         for (const cat of ['灵宝', '诡物', '物品'] as const) {
           const catItems = warehouse[cat] ?? {};

@@ -12,8 +12,8 @@ let lastUpdatedAnchor: DreamAnchor | null = null;
 /** 注册梦境锚点订阅者 */
 export function initDreamAnchorSubscriber() {
   gameBus.on('vars_applied', ({ preVars, postVars }) => {
-    const wasInDream = preVars?.['世界']?.['梦境定位']?.['位于梦境'] === true;
-    const nowInDream = postVars?.['世界']?.['梦境定位']?.['位于梦境'] === true;
+    const wasInDream = preVars?.['世界']?.['位于梦境'] === true;
+    const nowInDream = postVars?.['世界']?.['位于梦境'] === true;
 
     if (wasInDream === nowInDream) {
       lastUpdatedAnchor = null;

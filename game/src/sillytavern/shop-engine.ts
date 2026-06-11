@@ -44,7 +44,7 @@ export function checkShopAvailability(vars: Record<string, any>): boolean {
   if (!vars) return false;
 
   // 1. 位于梦境
-  const inDream = pathGet(vars, '世界.梦境定位.位于梦境');
+  const inDream = pathGet(vars, '世界.位于梦境');
   if (inDream !== true) return false;
 
   // 2. 玩家在 11 号楼（梦境存档中的位置）

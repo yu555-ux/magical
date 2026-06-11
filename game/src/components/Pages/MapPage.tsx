@@ -42,7 +42,7 @@ export default function MapPage() {
           setMapData(JSON.parse(raw));
         }
         // Read current location
-        const inDream = vars?.['世界']?.['梦境定位']?.['位于梦境'] === true;
+        const inDream = vars?.['世界']?.['位于梦境'] === true;
         setIsDream(inDream);
         const loc = inDream
           ? (vars?.['世界']?.['梦境存档']?.['地点'] ?? '')

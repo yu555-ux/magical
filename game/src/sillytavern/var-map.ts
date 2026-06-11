@@ -31,7 +31,7 @@ export async function moveItem(
 
     // Plane check: only allow equipping items matching current plane
     if (direction === 'equip') {
-      const inDream = vars?.世界?.梦境定位?.位于梦境 === true;
+      const inDream = vars?.世界?.位于梦境 === true;
       const isDreamItem = src[itemName]?.梦境物品 === true;
       if ((inDream && !isDreamItem) || (!inDream && isDreamItem)) {
         return false;

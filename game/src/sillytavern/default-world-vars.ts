@@ -9,10 +9,7 @@
 
 export const DEFAULT_WORLD_VARS: Record<string, any> = {
   世界: {
-    梦境定位: {
-      即将入睡: false,
-      位于梦境: false,
-    },
+    位于梦境: false,
     现实: {
       时间: '2026年04月06日-星期一-20:00',
       地点: '{{user}}家',

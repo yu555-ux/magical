@@ -44,7 +44,7 @@ export function applyParsedToChat(
  * Uses old vars' plane state (context at narration time).
  */
 export function autoTagDreamItems(oldVars: Record<string, any>, newVars: Record<string, any>): void {
-  const inDream = oldVars?.世界?.梦境定位?.位于梦境 === true;
+  const inDream = oldVars?.世界?.位于梦境 === true;
   tagCategory(oldVars?.主角?.持有物品, newVars?.主角?.持有物品, inDream);
   tagCategory(oldVars?.仓库, newVars?.仓库, inDream);
 }

@@ -90,7 +90,7 @@ export function injectCountdown(
   const world = vars['世界'];
   if (!world || typeof world !== 'object') return;
 
-  const inDream = world['梦境定位']?.['位于梦境'] === true;
+  const inDream = world['位于梦境'] === true;
   const realityTime = (world['现实']?.['时间'] ?? null) as string | null;
   const dreamTime = (world['梦境存档']?.['时间'] ?? null) as string | null;
 

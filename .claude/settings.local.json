@@ -109,7 +109,14 @@
       "Bash(sed -i '/^ *,$/d' resource.ts)",
       "Bash(awk '{print $5, $NF}')",
       "Bash(sed -i '/\\\\.\\\\.\\\\.mechanicTools,/d' resource.ts)",
-      "Bash(sed -i '1s/^/import type { JsonPatchOp } from \"..\\\\/types\";\\\\n/' world.ts)"
+      "Bash(sed -i '1s/^/import type { JsonPatchOp } from \"..\\\\/types\";\\\\n/' world.ts)",
+      "Bash(sed -i 's/\\\\.梦境定位\\\\.位于梦境/.位于梦境/g' components/Pages/ChatPage/ChatHeader.tsx)",
+      "Bash(sed -i 's/\\\\.梦境定位\\\\.位于梦境/.位于梦境/g' components/Pages/WarehousePage.tsx)",
+      "Bash(sed -i 's/\\\\.梦境定位\\\\.位于梦境/.位于梦境/g' sillytavern/var-apply.ts)",
+      "Bash(sed -i 's/\\\\.梦境定位\\\\.位于梦境/.位于梦境/g' sillytavern/var-clamp.ts)",
+      "Bash(sed -i 's/\\\\.梦境定位\\\\.位于梦境/.位于梦境/g' sillytavern/var-map.ts)",
+      "Bash(sed -i 's|/世界/梦境定位/位于梦境|/世界/位于梦境|g' src/sillytavern/tools/lookup.ts)",
+      "Bash(sed -i 's|梦境变量在 /世界/梦境定位/ 下|梦境变量在 /世界/ 下|g' src/sillytavern/tools/lookup.ts)"
     ]
   },
   "hooks": {

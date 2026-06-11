@@ -94,7 +94,7 @@ export function parseHistoryBlock(raw: string): SavePoint | null {
 
 /** Fill 世界/日期/地点 from current game variables, and resolve macros */
 export function enrichHistory(sp: SavePoint, variables: Record<string, any>, userName?: string): SavePoint {
-  const inDream = variables?.世界?.梦境定位?.位于梦境 === true;
+  const inDream = variables?.世界?.位于梦境 === true;
   const source = inDream ? (variables?.世界?.梦境存档 ?? {}) : (variables?.世界?.现实 ?? {});
   const resolve = (s: string) => userName
     ? s.replace(/\{\{user\}\}/g, userName).replace(/<user>/g, userName)

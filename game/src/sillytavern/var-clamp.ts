@@ -7,7 +7,7 @@
  * Call after variables change to ensure equipment consistency.
  */
 export function validateEquipment(vars: Record<string, any>): void {
-  const inDream = vars?.世界?.梦境定位?.位于梦境 === true;
+  const inDream = vars?.世界?.位于梦境 === true;
   const held = vars?.主角?.持有物品;
   const warehouse = vars?.仓库;
   if (!held || !warehouse) return;
