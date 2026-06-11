@@ -198,10 +198,9 @@ change_location: {
 
     if (mapTree) {
       const path = resolvePath(rawLocation, mapTree);
-      if (path && path.length >= 2) {
-        resolved = path.slice(-3).join('-');
-      } else if (path && path.length === 1) {
-        resolved = path[0];
+      if (path && path.length >= 1) {
+        // 只取最后一级地点（秋青规则：每次只更新最后一级）
+        resolved = path[path.length - 1];
       } else {
         return { content: [{ type: 'text', text: `「${rawLocation}」未在地图树中找到。请先用 update_map add_child 创建该地点（可填 wDesc/dDesc/winfo 详细描述），再移动到这里。` }] };
       }
