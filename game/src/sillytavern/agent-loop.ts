@@ -347,10 +347,14 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         continue;
       }
 
-      // ── 4. 无 tool call → 直接退出（submit_reply 已在上面捕获）──
-      console.log(`✅ Turn #${turnCount} 退出循环`);
-      console.groupEnd();
-      break;
+      // ── 4. 无 tool call → 注入提示，要求调用 submit_reply ──
+      if (turnText.trim()) {
+        // LLM 输出了文本但没调工具 → 保留文本，提示再调 submit_reply
+        contextMessages.push({ role: 'assistant', content: turnText } as any);
+      }
+      contextMessages.push({ role: 'user', content: '请调用 submit_reply 提交以上内容。需要提供 maintext（正文）、options（4个选项）和 history（可选）。' } as any);
+      console.log(`⚠️ Turn #${turnCount} 无工具调用，注入 submit_reply 提示`);
+      continue;
     }
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
