@@ -149,7 +149,7 @@ export function useSillytavern() {
   const [jumpVersion, setJumpVersion] = useState(0); // 每次回档+1，强制ChatPage刷新
   const abortRef = useRef<AbortController | null>(null);
   const dualAbortRef = useRef<AbortController | null>(null);
-  const currentSceneRef = useRef<SceneType>('exploration');
+  const currentSceneRef = useRef<SceneType | null>(null);
 
   // Agent mode state
   const [pendingToolCalls, setPendingToolCalls] = useState<Map<string, { name: string; label: string; startTime: number }>>(new Map());
@@ -374,13 +374,15 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       console.log(`🔧 启用工具: ${(effectiveApi.enabledTools ?? []).join(', ') || '无'}`);
 
       const allTools = getEnabledTools(effectiveApi.enabledTools ?? []);
-      // 场景过滤：变量工具根据 currentScene 白名单筛选，查询/机制工具始终通过
+      // 场景过滤：仅在 LLM 显式调用 switch_scene 后才启用，否则全部工具可见
       const scene = currentSceneRef.current;
-      const sceneWhitelist = SCENE_VARIABLE_TOOLS[scene] ?? [];
-      const agentTools = allTools.filter(t => {
-        if (t.category !== 'variable') return true;  // lookup + mechanics 始终可见
-        return sceneWhitelist.includes(t.name);
-      });
+      const agentTools = scene
+        ? allTools.filter(t => {
+            if (t.category !== 'variable') return true;
+            const whitelist = SCENE_VARIABLE_TOOLS[scene] ?? [];
+            return whitelist.includes(t.name);
+          })
+        : allTools;
       if (scene) {
         console.log(`🎬 当前场景: ${scene}, 变量工具: ${agentTools.filter(t => t.category === 'variable').map(t => t.name).join(', ')}`);
       }
