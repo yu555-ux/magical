@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "oxc", "typescript", "import", "unicorn"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "typescript/no-unsafe-type-assertion": "error",
+    "typescript/no-unnecessary-type-parameters": "error",
+    "import/no-duplicates": "error",
+    "no-console": "off",
+    "no-unused-expressions": "warn",
+    "no-underscore-dangle": [
+      "error",
+      {
+        "allow": [
+          "__dirname",
+          "__fsn_state_store__",
+          "_characters",
+          "_world",
+          "_timelines",
+          "_userProfile",
+          "_pi",
+          "_event",
+          "_toolCallId"
+        ]
+      }
+    ],
+    "unicorn/consistent-function-scoping": "error",
+    "unicorn/require-module-specifiers": "off"
+  },
+  "ignorePatterns": ["node_modules", "dist", "sessions", "state", ".pi/agent", ".pi/npm"],
+  "options": {
+    "typeAware": true
+  }
+}

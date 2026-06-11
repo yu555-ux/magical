@@ -1,0 +1,1156 @@
+{
+  "servants": [
+    {
+      "id": "artoria-pendragon-saber",
+      "name": "阿尔托莉雅·潘德拉贡",
+      "aliases": ["Saber", "骑士王", "亚瑟王", "Artoria Pendragon"],
+      "className": "Saber",
+      "trueName": "阿尔托莉雅·潘德拉贡",
+      "parameters": {
+        "strength": "B",
+        "endurance": "C",
+        "agility": "C",
+        "mana": "B",
+        "luck": "B",
+        "noblePhantasm": "C"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Excalibur",
+          "rank": "A++",
+          "kind": "对城宝具",
+          "summary": "星之圣剑。全力解放需要真名、魔力和明确战斗窗口。"
+        },
+        {
+          "name": "Avalon",
+          "rank": "EX",
+          "kind": "结界宝具",
+          "summary": "遥远的理想乡。是否可用必须由持有状态与剧情确认。"
+        }
+      ],
+      "notes": [
+        "参数会随御主与供魔状态变化。",
+        "真名暴露会带来传说弱点与战术针对。",
+        "不要把 Avalon 当作默认装备。"
+      ]
+    },
+    {
+      "id": "emiya-archer",
+      "name": "卫宫",
+      "aliases": ["Archer", "红衣弓兵", "EMIYA"],
+      "className": "Archer",
+      "trueName": "卫宫",
+      "parameters": {
+        "strength": "D",
+        "endurance": "C",
+        "agility": "C",
+        "mana": "B",
+        "luck": "E",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Unlimited Blade Works",
+          "rank": "E-~A++",
+          "kind": "固有结界",
+          "summary": "无限剑制。展开需要精神世界、魔力与战术条件，不是普通技能。"
+        }
+      ],
+      "notes": ["真实身份属于重大隐藏事实。", "投影、战术经验和相性常比参数更关键。"]
+    },
+    {
+      "id": "cu-chulainn-lancer",
+      "name": "库丘林",
+      "aliases": ["Lancer", "蓝色枪兵", "Cu Chulainn"],
+      "className": "Lancer",
+      "trueName": "库丘林",
+      "parameters": {
+        "strength": "B",
+        "endurance": "C",
+        "agility": "A",
+        "mana": "C",
+        "luck": "E",
+        "noblePhantasm": "B"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Gae Bolg",
+          "rank": "B",
+          "kind": "对人宝具",
+          "summary": "刺穿死棘之枪。发动条件、距离、幸运与防御手段共同决定结果。"
+        }
+      ],
+      "notes": ["敏捷、战斗经验和生存能力极高。", "御主命令常限制发挥。"]
+    },
+    {
+      "id": "medusa-rider",
+      "name": "美杜莎",
+      "aliases": ["Rider", "Medusa"],
+      "className": "Rider",
+      "trueName": "美杜莎",
+      "parameters": {
+        "strength": "B",
+        "endurance": "D",
+        "agility": "A",
+        "mana": "B",
+        "luck": "E",
+        "noblePhantasm": "A+"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Bellerophon",
+          "rank": "A+",
+          "kind": "对军宝具",
+          "summary": "骑英之缰绳。高速突击威力巨大，但需要坐骑、展开空间与魔力。"
+        }
+      ],
+      "notes": ["魔眼、机动与突袭强。", "供魔不足会显著压低表现。"]
+    },
+    {
+      "id": "heracles-berserker",
+      "name": "赫拉克勒斯",
+      "aliases": ["Berserker", "Heracles"],
+      "className": "Berserker",
+      "trueName": "赫拉克勒斯",
+      "parameters": {
+        "strength": "A+",
+        "endurance": "A",
+        "agility": "A",
+        "mana": "A",
+        "luck": "B",
+        "noblePhantasm": "A"
+      },
+      "noblePhantasms": [
+        {
+          "name": "God Hand",
+          "rank": "B",
+          "kind": "对人宝具",
+          "summary": "十二试炼。低等级攻击无效并具备多重生命，必须按神秘与等级处理。"
+        }
+      ],
+      "notes": ["参数压制极强。", "狂化限制交流与技巧表达。"]
+    },
+    {
+      "id": "medea-caster",
+      "name": "美狄亚",
+      "aliases": ["Caster", "Medea"],
+      "className": "Caster",
+      "trueName": "美狄亚",
+      "parameters": {
+        "strength": "E",
+        "endurance": "D",
+        "agility": "C",
+        "mana": "A+",
+        "luck": "B",
+        "noblePhantasm": "C"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Rule Breaker",
+          "rank": "C",
+          "kind": "对魔术宝具",
+          "summary": "破戒应为全てを。能切断契约与魔术效果，但需要接触和明确对象。"
+        }
+      ],
+      "notes": ["阵地作成与高速神言是核心优势。", "近战脆弱但准备充分时极危险。"]
+    },
+    {
+      "id": "hassan-cursed-arm-assassin",
+      "name": "咒腕哈桑",
+      "aliases": ["Assassin", "Cursed Arm Hassan", "真Assassin"],
+      "className": "Assassin",
+      "trueName": "哈桑·萨巴赫",
+      "parameters": {
+        "strength": "B",
+        "endurance": "C",
+        "agility": "A",
+        "mana": "C",
+        "luck": "E",
+        "noblePhantasm": "C"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Zabaniya",
+          "rank": "C",
+          "kind": "对人宝具",
+          "summary": "妄想心音。对心脏的诅咒性暗杀，需满足距离与目标条件。"
+        }
+      ],
+      "notes": ["气息遮断与御主暗杀威胁高。", "正面对从者战不是优势。"]
+    },
+    {
+      "id": "sasaki-kojiro-assassin",
+      "name": "佐佐木小次郎",
+      "aliases": ["Assassin", "小次郎"],
+      "className": "Assassin",
+      "trueName": "佐佐木小次郎",
+      "parameters": {
+        "strength": "C",
+        "endurance": "E",
+        "agility": "A+",
+        "mana": "E",
+        "luck": "A",
+        "noblePhantasm": "-"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Tsubame Gaeshi",
+          "rank": "-",
+          "kind": "对人魔剑",
+          "summary": "燕返。以纯剑技抵达近似第二魔法的多重斩击，不是宝具真名解放。"
+        }
+      ],
+      "notes": ["被柳洞寺山门等召唤条件限制。", "剑技极端强但机动与现界条件受限。"]
+    },
+    {
+      "id": "gilgamesh-archer",
+      "name": "吉尔伽美什",
+      "aliases": ["Archer", "英雄王", "Gilgamesh"],
+      "className": "Archer",
+      "trueName": "吉尔伽美什",
+      "parameters": {
+        "strength": "B",
+        "endurance": "C",
+        "agility": "C",
+        "mana": "B",
+        "luck": "A",
+        "noblePhantasm": "EX"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Gate of Babylon",
+          "rank": "E~A++",
+          "kind": "对人宝具",
+          "summary": "王之财宝。库存优势极强，但傲慢、相性和应对速度会影响结果。"
+        },
+        {
+          "name": "Ea",
+          "rank": "EX",
+          "kind": "对界宝具",
+          "summary": "乖离剑。对界级别，不能作为普通攻击轻率使用。"
+        }
+      ],
+      "notes": [
+        "神秘与宝具层级极高。",
+        "性格缺陷是重要战术因素。",
+        "FSF 中与蒂妮、恩奇都和斯诺菲尔德局势强相关。"
+      ]
+    },
+    {
+      "id": "iskandar-rider",
+      "name": "伊斯坎达尔",
+      "aliases": ["Rider", "征服王", "Iskandar"],
+      "className": "Rider",
+      "trueName": "伊斯坎达尔",
+      "parameters": {
+        "strength": "B",
+        "endurance": "A",
+        "agility": "D",
+        "mana": "C",
+        "luck": "A+",
+        "noblePhantasm": "A++"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Gordius Wheel",
+          "rank": "A+",
+          "kind": "对军宝具",
+          "summary": "神威车轮。战车突击适合突破与乱入。"
+        },
+        {
+          "name": "Ionioi Hetairoi",
+          "rank": "EX",
+          "kind": "固有结界",
+          "summary": "王之军势。展开消耗巨大，需要明确高潮窗口。"
+        }
+      ],
+      "notes": ["气魄、机动和军势压迫强。", "常把战斗转化为王道与选择的对话。"]
+    },
+    {
+      "id": "diarmuid-lancer",
+      "name": "迪尔姆德·奥迪那",
+      "aliases": ["Lancer", "Diarmuid"],
+      "className": "Lancer",
+      "trueName": "迪尔姆德·奥迪那",
+      "parameters": {
+        "strength": "B",
+        "endurance": "C",
+        "agility": "A+",
+        "mana": "D",
+        "luck": "E",
+        "noblePhantasm": "B"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Gae Dearg",
+          "rank": "B",
+          "kind": "对人宝具",
+          "summary": "破魔的红蔷薇。能破除魔力防御。"
+        },
+        {
+          "name": "Gae Buidhe",
+          "rank": "B",
+          "kind": "对人宝具",
+          "summary": "必灭的黄蔷薇。造成难以治愈的伤口。"
+        }
+      ],
+      "notes": ["骑士道强，但御主关系会严重影响战术。"]
+    },
+    {
+      "id": "gilles-caster",
+      "name": "吉尔·德·雷",
+      "aliases": ["Caster", "Gilles de Rais", "蓝胡子"],
+      "className": "Caster",
+      "trueName": "吉尔·德·雷",
+      "parameters": {
+        "strength": "D",
+        "endurance": "E",
+        "agility": "D",
+        "mana": "C",
+        "luck": "E",
+        "noblePhantasm": "A+"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Prelati's Spellbook",
+          "rank": "A+",
+          "kind": "对军宝具",
+          "summary": "螺湮城教本。召唤海魔与异端魔术，极易造成公共灾害。"
+        }
+      ],
+      "notes": ["FZ 中普通社会暴露风险极高。", "不应美化其暴行。"]
+    },
+    {
+      "id": "hundred-face-hassan-assassin",
+      "name": "百貌哈桑",
+      "aliases": ["Assassin", "Hundred Personas"],
+      "className": "Assassin",
+      "trueName": "哈桑·萨巴赫",
+      "parameters": {
+        "strength": "C",
+        "endurance": "D",
+        "agility": "A",
+        "mana": "C",
+        "luck": "E",
+        "noblePhantasm": "B"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Zabaniya",
+          "rank": "B",
+          "kind": "对人宝具",
+          "summary": "妄想幻像。多重人格分割成多个个体，适合侦察、扰乱和暗杀。"
+        }
+      ],
+      "notes": ["数量优势不等于正面战强。", "适合情报战和诱敌。"]
+    },
+    {
+      "id": "lancelot-berserker",
+      "name": "兰斯洛特",
+      "aliases": ["Berserker", "湖上骑士", "Lancelot"],
+      "className": "Berserker",
+      "trueName": "兰斯洛特",
+      "parameters": {
+        "strength": "A",
+        "endurance": "A",
+        "agility": "A+",
+        "mana": "C",
+        "luck": "B",
+        "noblePhantasm": "A"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Knight of Owner",
+          "rank": "A++",
+          "kind": "对人宝具",
+          "summary": "骑士不死于徒手。夺取并宝具化手中武器。"
+        },
+        {
+          "name": "For Someone's Glory",
+          "rank": "B",
+          "kind": "对人宝具",
+          "summary": "不为一己之荣光。隐藏身份与能力。"
+        }
+      ],
+      "notes": ["与阿尔托莉雅的因缘是核心压力。", "狂化供魔代价极高。"]
+    },
+    {
+      "id": "richard-i-saber-fsf",
+      "name": "理查一世",
+      "aliases": ["Richard I", "Richard the Lionheart", "狮心王", "FSF Saber", "真实Saber"],
+      "className": "Saber",
+      "trueName": "理查一世",
+      "parameters": {
+        "strength": "B",
+        "endurance": "B",
+        "agility": "A",
+        "mana": "C",
+        "luck": "EX",
+        "noblePhantasm": "A"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Excalibur",
+          "rank": "A",
+          "kind": "特殊/对军级表现",
+          "summary": "将圣剑传说投影到各种武器上的表现。具体威力与使用方式须以当前剧情确认。"
+        }
+      ],
+      "notes": [
+        "FSF 原作中 Ayaka 的 Saber；沙盒可被玩家从者替代。",
+        "原作关系只提供结构参考，不自动套给玩家从者。"
+      ]
+    },
+    {
+      "id": "enkidu-false-lancer-fsf",
+      "name": "恩奇都",
+      "aliases": ["False Lancer", "Enkidu", "银狼从者"],
+      "className": "Lancer",
+      "trueName": "恩奇都",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "A++"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Enuma Elish",
+          "rank": "A++",
+          "kind": "对肃正宝具",
+          "summary": "人子啊，紧系神明。与吉尔伽美什的乖离剑形成神话级对照。"
+        }
+      ],
+      "notes": ["FSF 中由合成兽银狼召唤。", "与吉尔伽美什重逢会迅速提升战场规模。"]
+    },
+    {
+      "id": "jack-the-ripper-false-berserker-fsf",
+      "name": "杰克开膛手",
+      "aliases": ["False Berserker", "Jack the Ripper", "杰克"],
+      "className": "Berserker",
+      "trueName": "杰克开膛手",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "From Hell",
+          "rank": "?",
+          "kind": "特殊宝具",
+          "summary": "与“杰克开膛手”传说的不定形身份相关，具体表现需按 FSF 情境处理。"
+        }
+      ],
+      "notes": ["FSF 中由弗拉特召唤。", "身份不定性和现代都市传说感是核心，不要写成单一固定怪物。"]
+    },
+    {
+      "id": "pale-rider-false-rider-fsf",
+      "name": "苍白骑手",
+      "aliases": ["False Rider", "Pale Rider"],
+      "className": "Rider",
+      "trueName": "苍白骑手",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "传染/梦境系表现",
+          "rank": "?",
+          "kind": "灾害型",
+          "summary": "以疾病、梦境和城市规模异常体现存在；不适合用普通单挑参数处理。"
+        }
+      ],
+      "notes": ["FSF 中与病童椿相关。", "压力应体现公共卫生、梦境和不可见传播，而非普通骑乘战。"]
+    },
+    {
+      "id": "alcides-true-archer-fsf",
+      "name": "阿尔喀德斯",
+      "aliases": ["True Archer", "Alcides", "被污染的赫拉克勒斯"],
+      "className": "Archer",
+      "trueName": "阿尔喀德斯",
+      "parameters": {
+        "strength": "A",
+        "endurance": "B",
+        "agility": "A",
+        "mana": "A",
+        "luck": "E",
+        "noblePhantasm": "A++"
+      },
+      "noblePhantasms": [
+        {
+          "name": "King's Order",
+          "rank": "A",
+          "kind": "复合宝具",
+          "summary": "十二荣光。与赫拉克勒斯十二功业相关的复合能力，需逐项确认表现。"
+        }
+      ],
+      "notes": ["由巴兹迪洛特污染后的真实 Archer。", "不要提前让玩家知道全部能力清单。"]
+    },
+    {
+      "id": "dumas-false-caster-fsf",
+      "name": "大仲马",
+      "aliases": ["False Caster", "Alexandre Dumas", "亚历山大·仲马"],
+      "className": "Caster",
+      "trueName": "亚历山大·仲马",
+      "parameters": {
+        "strength": "E",
+        "endurance": "E",
+        "agility": "D",
+        "mana": "C",
+        "luck": "A",
+        "noblePhantasm": "B"
+      },
+      "noblePhantasms": [
+        {
+          "name": "不朽名作",
+          "rank": "B",
+          "kind": "支援/改造型",
+          "summary": "通过故事与创作强化他人装备、传说或文件叙事；适合支援而非正面炮击。"
+        }
+      ],
+      "notes": [
+        "FSF 中奥兰多阵营支援核心。",
+        "可用于伪造文件、装备强化和黑色幽默，但不能无代价改写现实。"
+      ]
+    },
+    {
+      "id": "prelati-true-caster-fsf",
+      "name": "弗朗索瓦·普雷拉蒂",
+      "aliases": ["True Caster", "Francesca Prelati", "弗兰切斯卡·普雷拉蒂"],
+      "className": "Caster",
+      "trueName": "弗朗索瓦·普雷拉蒂",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "A",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "螺湮城教本相关魔术",
+          "rank": "?",
+          "kind": "召唤/异端魔术",
+          "summary": "与吉尔·德·雷、异端魔术和观察娱乐相关；具体表现按剧情证据推进。"
+        }
+      ],
+      "notes": ["FSF 中更偏旁观、搅局和制造戏剧性。", "不要让她过早抢占主线。"]
+    },
+    {
+      "id": "watcher-fsf",
+      "name": "Watcher",
+      "aliases": ["特殊职阶Watcher", "观察者"],
+      "className": "Watcher",
+      "trueName": "未公开",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "影法师群像",
+          "rank": "?",
+          "kind": "特殊职阶能力",
+          "summary": "通过多个影子引导西格玛走向真 Lancer 路径；不按常规七职阶处理。"
+        }
+      ],
+      "notes": ["FSF 特殊职阶。", "必须保留信息缺口，不要把全部影子和目的一次性讲明。"]
+    },
+    {
+      "id": "nero-claudius-saber-extra",
+      "name": "尼禄·克劳狄乌斯",
+      "aliases": [
+        "Saber (EXTRA)",
+        "赤Saber",
+        "Nero Claudius",
+        "ネロ・クラウディウス",
+        "セイバー(EXTRA)",
+        "Saber Bride",
+        "セイバー・ブライド"
+      ],
+      "className": "Saber",
+      "trueName": "尼禄·克劳狄乌斯",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Aestus Domus Aurea",
+          "rank": "?",
+          "kind": "剧场型宝具",
+          "summary": "黄金剧场。具体展开条件、效果和限制需外部检索确认。"
+        }
+      ],
+      "notes": [
+        "Fate/EXTRA 主角可选三骑之一。",
+        "不要和阿尔托莉雅 Saber 混同；“赤 Saber”只是辨识称呼。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。",
+        "Fate/EXTRA CCC 中可继续作为主人公候选从者；新衣装、个人结局和 CCC route 表现需按 CCC 资料检索。"
+      ]
+    },
+    {
+      "id": "nameless-archer-extra",
+      "name": "无铭",
+      "aliases": ["Archer (EXTRA)", "Nameless", "No Name", "無銘", "红衣Archer"],
+      "className": "Archer",
+      "trueName": "无铭",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Unlimited Blade Works",
+          "rank": "?",
+          "kind": "固有结界",
+          "summary": "与投影/剑制相关；EXTRA 版本身份和表现不要直接等同 FSN Archer。"
+        }
+      ],
+      "notes": [
+        "Fate/EXTRA 主角可选三骑之一。",
+        "和 FSN 的 Archer 高度相似但作品语境不同；具体身份边界需查源。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。",
+        "Fate/EXTRA CCC 中可继续作为主人公候选从者；新衣装、个人结局和 CCC route 表现需按 CCC 资料检索。"
+      ]
+    },
+    {
+      "id": "tamamo-no-mae-caster-extra",
+      "name": "玉藻前",
+      "aliases": ["Caster (EXTRA)", "Tamamo-no-Mae", "玉藻の前", "キャス狐", "Casko"],
+      "className": "Caster",
+      "trueName": "玉藻前",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "水天日光天照八野镇石",
+          "rank": "?",
+          "kind": "支援/咒术宝具",
+          "summary": "具体效果随作品和场景差异很大，使用前查源。"
+        }
+      ],
+      "notes": [
+        "Fate/EXTRA 主角可选三骑之一。",
+        "咒术、变化和献身/毒舌并存是角色核心。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。",
+        "Fate/EXTRA CCC 中可继续作为主人公候选从者；新衣装、个人结局和 CCC route 表现需按 CCC 资料检索。"
+      ]
+    },
+    {
+      "id": "francis-drake-rider-extra",
+      "name": "弗朗西斯·德雷克",
+      "aliases": ["Rider (EXTRA)", "Francis Drake", "フランシス・ドレイク", "德雷克船长"],
+      "className": "Rider",
+      "trueName": "弗朗西斯·德雷克",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Golden Wild Hunt",
+          "rank": "?",
+          "kind": "舰队/炮击系宝具",
+          "summary": "与航海、舰队、黄金鹿号/野猎形象相关；细节需查源。"
+        }
+      ],
+      "notes": [
+        "EXTRA 中间桐慎二（EXTRA）的 Rider。",
+        "不要和普通海盗 NPC 模板混同；她是从者级航海/火力压力。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "robin-hood-archer-extra",
+      "name": "罗宾汉",
+      "aliases": ["Archer (EXTRA)", "Robin Hood", "ロビンフッド", "绿衣Archer"],
+      "className": "Archer",
+      "trueName": "罗宾汉",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Yew Bow",
+          "rank": "?",
+          "kind": "毒/伏击宝具",
+          "summary": "以毒、陷阱、潜伏和条件杀伤为核心；具体机制需查源。"
+        }
+      ],
+      "notes": [
+        "EXTRA 中丹·布莱克莫尔的 Archer。",
+        "优势不是堂堂正面对决，而是侦察、暗杀、毒和 Arena 条件。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "nursery-rhyme-caster-extra",
+      "name": "童谣",
+      "aliases": ["Caster (EXTRA)", "Nursery Rhyme", "ナーサリー・ライム", "アリス", "黑い少女"],
+      "className": "Caster",
+      "trueName": "童谣",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Nursery Rhyme",
+          "rank": "?",
+          "kind": "固有结界/童话具现",
+          "summary": "童话与读者内心相关的异常表现；不要写成普通魔术少女。"
+        }
+      ],
+      "notes": [
+        "EXTRA 中与ありす紧密相关。",
+        "其外观和能力与 Master/童话世界关系强，具体边界需查源。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "vlad-iii-lancer-extra",
+      "name": "弗拉德三世（EXTRA）",
+      "aliases": ["Lancer (EXTRA)", "Vlad III (EXTRA)", "ヴラド三世 (EXTRA)", "黑铠Lancer"],
+      "className": "Lancer",
+      "trueName": "弗拉德三世",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Kazikli Bey",
+          "rank": "?",
+          "kind": "穿刺/刑罚系宝具",
+          "summary": "EXTRA 版本表现和信仰/吸血鬼形象边界需查源。"
+        }
+      ],
+      "notes": [
+        "EXTRA 中兰路君的 Lancer。",
+        "不要自动套用 Apocrypha/FGO 的其它 Vlad 版本。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "arcueid-berserker-extra",
+      "name": "阿尔奎德·布伦史塔德（Berserker）",
+      "aliases": [
+        "Berserker (EXTRA)",
+        "Arcueid Brunestud",
+        "アルクェイド・ブリュンスタッド",
+        "アルクェイド(EXTRA)"
+      ],
+      "className": "Berserker",
+      "trueName": "阿尔奎德·布伦史塔德",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "空想具现化相关表现",
+          "rank": "?",
+          "kind": "真祖能力/职阶限制",
+          "summary": "EXTRA 中被 Berserker 容器和 Master 误认显著限制，不能按月姬本体全开。"
+        }
+      ],
+      "notes": [
+        "EXTRA 中卧藤门司的 Berserker。",
+        "这是高危跨作品条目；必须防止把月姬本体强度直接搬进 Extra 战斗。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "lu-bu-berserker-extra",
+      "name": "吕布奉先",
+      "aliases": ["Berserker (EXTRA)", "Lu Bu", "吕布", "呂布奉先"],
+      "className": "Berserker",
+      "trueName": "吕布奉先",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "God Force",
+          "rank": "?",
+          "kind": "方天画戟/军神五兵",
+          "summary": "具体形态、火力和限制需查源。"
+        }
+      ],
+      "notes": [
+        "EXTRA 中拉妮＝Ⅷ的 Berserker。",
+        "核心是高武力、狂化沟通限制与拉妮的解析/控制。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "li-shuwen-assassin-extra",
+      "name": "李书文",
+      "aliases": ["Assassin (EXTRA)", "Li Shuwen", "李書文", "无二打"],
+      "className": "Assassin",
+      "trueName": "李书文",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "无二打",
+          "rank": "?",
+          "kind": "武术/对人奥义",
+          "summary": "以中国武术、气息遮断和近身必杀为核心；数值和条件需查源。"
+        }
+      ],
+      "notes": [
+        "EXTRA 中尤里乌斯的 Assassin。",
+        "常时不可见/暗杀压力需要按场景规则处理。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "gawain-saber-extra",
+      "name": "高文",
+      "aliases": ["Saber (EXTRA)", "Gawain", "ガウェイン", "太阳骑士"],
+      "className": "Saber",
+      "trueName": "高文",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Excalibur Galatine",
+          "rank": "?",
+          "kind": "对军/太阳圣剑",
+          "summary": "太阳、圣者数字和圣剑火力相关；具体条件必须查源。"
+        }
+      ],
+      "notes": [
+        "EXTRA 中雷欧的 Saber。",
+        "雷欧/高文组合是月之圣杯战争强力候补；不要提前公开全部弱点。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "cu-chulainn-lancer-extra",
+      "name": "库丘林（EXTRA）",
+      "aliases": ["Lancer (EXTRA)", "Cu Chulainn (EXTRA)", "クー・フーリン", "凛的Lancer"],
+      "className": "Lancer",
+      "trueName": "库丘林",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Gae Bolg",
+          "rank": "?",
+          "kind": "对人宝具",
+          "summary": "Extra 中与凛阵营相关；具体参数和场景表现需查源。"
+        }
+      ],
+      "notes": [
+        "EXTRA 中远坂凛（EXTRA）的 Lancer。",
+        "不要直接复用 FSN Lancer 的御主限制、经历和状态。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "saver-buddha-extra",
+      "name": "觉者",
+      "aliases": ["Saver", "セイヴァー", "Buddha", "救世者", "トワイスのサーヴァント"],
+      "className": "Saver",
+      "trueName": "觉者",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "一に還る転生",
+          "rank": "?",
+          "kind": "救世/轮回系宝具",
+          "summary": "极高危后期资料；具体能力、限制和揭示条件必须查源。"
+        }
+      ],
+      "notes": [
+        "EXTRA 中特维斯·H·皮斯曼相关的特殊从者。",
+        "Saver 不是常规七职阶；不得在前期随意揭示或当普通 Boss 工具。",
+        "本地条目只作 Extra 索引；精确参数、技能、宝具效果和回合表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "gilgamesh-servant-ccc",
+      "name": "吉尔伽美什（CCC）",
+      "aliases": [
+        "Gilgamesh (CCC)",
+        "ギルガメッシュ",
+        "英雄王",
+        "主人公候选从者",
+        "classless servant"
+      ],
+      "className": "Custom",
+      "trueName": "吉尔伽美什",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Gate of Babylon / Enuma Elish",
+          "rank": "?",
+          "kind": "王之财宝/乖离剑相关",
+          "summary": "CCC 主人公新增候选从者；宝具解禁、弱体和剧情限制必须按 CCC 资料确认。"
+        }
+      ],
+      "notes": [
+        "CCC 中新增的主人公候选从者之一，自称没有职阶。",
+        "不要直接套用 FSN/FZ 吉尔伽美什的御主关系、慢心状态或冬木经历。",
+        "本地条目只作 CCC 索引；精确参数、技能、宝具效果、职阶细节和路线表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "karna-servant-ccc",
+      "name": "迦尔纳（CCC）",
+      "aliases": ["Karna (CCC)", "カルナ", "ジナコのサーヴァント", "金色铠甲的白发青年"],
+      "className": "Custom",
+      "trueName": "迦尔纳",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Vasavi Shakti",
+          "rank": "?",
+          "kind": "神枪/对神宝具",
+          "summary": "迦尔纳代表性宝具之一；CCC 中职阶和释放条件需外部检索确认。"
+        }
+      ],
+      "notes": [
+        "CCC 中吉娜可＝加里吉利的 Servant。",
+        "Wiki/官方页面称其职阶不明，不要默认按 FGO/Apocrypha 的 Lancer 状态处理。",
+        "本地条目只作 CCC 索引；精确参数、技能、宝具效果、职阶细节和路线表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "hans-andersen-caster-ccc",
+      "name": "汉斯·克里斯蒂安·安徒生",
+      "aliases": [
+        "Caster (CCC)",
+        "Hans Christian Andersen",
+        "ハンス・クリスチャン・アンデルセン",
+        "安徒生",
+        "キアラのサーヴァント"
+      ],
+      "className": "Caster",
+      "trueName": "汉斯·克里斯蒂安·安徒生",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Märchen Meines Lebens",
+          "rank": "?",
+          "kind": "创作/人生改稿系宝具",
+          "summary": "与书写、评价、改稿和人物完成相关；具体条件需查源。"
+        }
+      ],
+      "notes": [
+        "CCC 中杀生院祈荒的 Caster。",
+        "外表是小柄美少年，言行和声音不符，毒舌且带绝望感。",
+        "本地条目只作 CCC 索引；精确参数、技能、宝具效果、职阶细节和路线表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "elizabeth-bathory-lancer-ccc",
+      "name": "伊丽莎白·巴托里",
+      "aliases": [
+        "Lancer (CCC)",
+        "Elizabeth Bathory",
+        "エリザベート＝バートリー",
+        "赤Lancer",
+        "龙娘"
+      ],
+      "className": "Lancer",
+      "trueName": "伊丽莎白·巴托里",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Báthory Erzsébet",
+          "rank": "?",
+          "kind": "音波/城塞/拷问系表现",
+          "summary": "CCC/FGO 等版本表现差异大，使用前查源确认。"
+        }
+      ],
+      "notes": [
+        "CCC 中协助 BB 的谜之 Servant。",
+        "外观有角和尾巴，恶魔感强；不要自动套后续偶像梗或 FGO 成长状态。",
+        "本地条目只作 CCC 索引；精确参数、技能、宝具效果、职阶细节和路线表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "passionlip-alter-ego-ccc",
+      "name": "帕ッションリップ",
+      "aliases": [
+        "Passionlip",
+        "Passion Lip",
+        "パッションリップ",
+        "Alter Ego M",
+        "アルターエゴM",
+        "BB的眷属"
+      ],
+      "className": "AlterEgo",
+      "trueName": "帕ッションリップ",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Brynhildr Romantia / Trash & Crush",
+          "rank": "?",
+          "kind": "Alter Ego 能力/压缩系表现",
+          "summary": "CCC 与后续作品表现差异大；具体能力、女神复合来源和限制必须查源。"
+        }
+      ],
+      "notes": [
+        "CCC 中 BB 的眷属，拥有巨大カギ爪化的手臂，对主人公抱有好意。",
+        "不要把 FGO 的数值、羁绊和事件状态自动套回 CCC 本篇。",
+        "本地条目只作 CCC 索引；精确参数、技能、宝具效果、职阶细节和路线表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    },
+    {
+      "id": "meltryllis-alter-ego-ccc",
+      "name": "梅尔特莉莉丝",
+      "aliases": [
+        "Meltryllis",
+        "Meltlilith",
+        "メルトリリス",
+        "Alter Ego S",
+        "アルターエゴS",
+        "BB的眷属"
+      ],
+      "className": "AlterEgo",
+      "trueName": "梅尔特莉莉丝",
+      "parameters": {
+        "strength": "?",
+        "endurance": "?",
+        "agility": "?",
+        "mana": "?",
+        "luck": "?",
+        "noblePhantasm": "?"
+      },
+      "noblePhantasms": [
+        {
+          "name": "Sarasvati Meltout",
+          "rank": "?",
+          "kind": "Alter Ego 能力/溶解吸收系表现",
+          "summary": "CCC 与后续作品表现差异大；具体能力、女神复合来源和限制必须查源。"
+        }
+      ],
+      "notes": [
+        "CCC 中 BB 的眷属，拥有针状双腿，好战且有嗜虐倾向。",
+        "不要把 FGO SE.RA.PH 的经历、恋爱线或能力状态自动套回 CCC 本篇。",
+        "本地条目只作 CCC 索引；精确参数、技能、宝具效果、职阶细节和路线表现需要外部检索 TYPE-MOON Wiki JP / TMdict / 官方资料。"
+      ]
+    }
+  ]
+}
