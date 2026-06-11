@@ -361,6 +361,9 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
   }
 
   // ── 返回结果 ──
+  console.log(`🔍 [agent-loop] 循环结束 — allText长度: ${allText.length}, allThinking长度: ${allThinking.length}, toolCalls: ${allToolCalls.length}, turnCount: ${turnCount}`);
+  if (allText.trim()) console.log(`🔍 [agent-loop] allText前100字: "${allText.slice(0, 100)}"`);
+  else console.warn(`⚠️ [agent-loop] allText为空! 但turnCount=${turnCount}`);
   yield { type: 'done', text: allText, thinking: allThinking };
 
   return {

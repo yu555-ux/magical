@@ -536,6 +536,11 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
               });
               break;
             }
+            case 'done':
+              rawContent = event.text || rawContent;
+              thinkingContent = event.thinking || thinkingContent;
+              console.log(`🔍 [前端] done事件 — rawContent长度: ${rawContent.length}, thinkingContent长度: ${thinkingContent.length}`);
+              break;
             case 'error':
               console.error('[Agent] Agent loop error:', event.message);
               break;
