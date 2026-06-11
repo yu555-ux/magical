@@ -117,8 +117,8 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         console.log(`\n── [${i}] ${m.role} ──\n${text}`);
       });
 
-      // 最后一轮：强制只调用 submit_reply
-      const isLastTurn = turnCount >= maxTurns - 1;
+      // 最后两轮：强制只调用 submit_reply（LLM 无法绕过）
+      const isLastTurn = turnCount >= maxTurns - 2;
       const toolChoice: any = isLastTurn
         ? { type: 'function', function: { name: 'submit_reply' } }
         : undefined;
@@ -347,14 +347,10 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         continue;
       }
 
-      // ── 4. 无 tool call → 注入提示，要求调用 submit_reply ──
-      if (turnText.trim()) {
-        // LLM 输出了文本但没调工具 → 保留文本，提示再调 submit_reply
-        contextMessages.push({ role: 'assistant', content: turnText } as any);
-      }
-      contextMessages.push({ role: 'user', content: '请调用 submit_reply 提交以上内容。需要提供 maintext（正文）、options（4个选项）和 history（可选）。' } as any);
-      console.log(`⚠️ Turn #${turnCount} 无工具调用，注入 submit_reply 提示`);
-      continue;
+      // ── 4. 无 tool call → 退出（最后两轮有 tool_choice 强制 submit_reply）──
+      console.log(`✅ Turn #${turnCount} 退出循环`);
+      console.groupEnd();
+      break;
     }
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
