@@ -17,6 +17,7 @@ import { isValidRealityWeather, isValidDreamWeather, updateWeatherOnTimeTick } f
 import { resolvePath, formatLocation } from '../var-map';
 import { validateEquipment } from '../var-clamp';
 import { injectCountdown } from '../countdown';
+import { textResult, findNpc, getNpcPath, clamp, findMapNode, getNodePath, pathGet, resolveResourcePath, requireReason } from './helpers';
 
 // ── Types ──
 
@@ -56,32 +57,8 @@ export interface AgentToolDef {
 }
 
 // ── Helpers ──
-
-function pathGet(obj: any, path: string): any {
-  return path.split('.').reduce((o, k) => o?.[k], obj);
-}
-
-/** 在地图树中递归查找节点，返回从 root 到该节点的 JSON Pointer 路径 */
-function _getNodePath(root: any, target: any): string {
-  const keyMap = ['检索词', '方位', '现实', '梦境', '子地图'];
-  function search(node: any, path: string): string | null {
-    if (!node || typeof node !== 'object') return null;
-    if (node === target) return path;
-    for (const key of Object.keys(node)) {
-      if (keyMap.includes(key)) continue;
-      const child = node[key];
-      if (child === target) return path + '/' + key;
-      if (child && typeof child === 'object') {
-        const found = search(child, path + '/' + key);
-        if (found) return found;
-        const sub = child['子地图'];
-        if (sub) { const f2 = search(sub, path + '/' + key + '/子地图'); if (f2) return f2; }
-      }
-    }
-    return null;
-  }
-  return search(root, '/地图') ?? '/地图';
-}
+// 共享工具函数已提取到 ./helpers.ts (pathGet, findNpc, getNpcPath, clamp, findMapNode, getNodePath, textResult, resolveResourcePath 等)
+// 通过 import 引用，避免代码重复
 
 /** 从 ParsedTime 计算中文星期 */
 function computeWeekday(t: ParsedTime): string {
@@ -1229,33 +1206,6 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
       required: ['action', 'location', 'reason'],
     },
     async execute(ctx, params) {
-      // 递归搜索地图树，支持检索词匹配
-      function findMapNode(node: any, target: string): any | null {
-        if (!node || typeof node !== 'object') return null;
-        // 直接键名匹配
-        if (node[target]) return node[target];
-        // 检索词匹配
-        for (const key of Object.keys(node)) {
-          if (['检索词', '方位', '现实', '梦境', '子地图'].includes(key)) continue;
-          const child = node[key];
-          if (!child || typeof child !== 'object') continue;
-          const terms = child['检索词'];
-          if (Array.isArray(terms) && terms.some((t: string) => t === target)) return child;
-          if (key === target) return child;
-        }
-        // 递归子地图
-        for (const key of Object.keys(node)) {
-          if (['检索词', '方位', '现实', '梦境'].includes(key)) continue;
-          const child = node[key];
-          if (!child || typeof child !== 'object') continue;
-          const sub = child['子地图'];
-          if (sub) { const found = findMapNode(sub, target); if (found) return found; }
-          const found = findMapNode(child, target);
-          if (found) return found;
-        }
-        return null;
-      }
-
       const action = params?.action as string;
       const location = params?.location as string;
       const world = params?.world as string;
@@ -1291,7 +1241,7 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
           child['子地图'] = {};
           const sub = node['子地图'] ?? {};
           sub[name] = child;
-          ctx.patchVariables([{ op: 'replace', path: _getNodePath(mapTree, node) + '/子地图', value: sub }]);
+          ctx.patchVariables([{ op: 'replace', path: getNodePath(mapTree, node) + '/子地图', value: sub }]);
           return { content: [{ type: 'text', text: `🗺️ 在 ${location} 下新增子地点: ${name}\n  原因：${reason}` }] };
         }
         case 'update_desc': {
@@ -1299,8 +1249,8 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
           const dDesc = params?.dDesc as string | undefined;
           if (!wDesc && !dDesc) return { content: [{ type: 'text', text: 'action=update_desc 时至少提供 wDesc 或 dDesc 中的一个' }] };
           const ops: JsonPatchOp[] = [];
-          if (wDesc) ops.push({ op: 'replace', path: _getNodePath(mapTree, node) + '/现实/描述', value: wDesc });
-          if (dDesc) ops.push({ op: 'replace', path: _getNodePath(mapTree, node) + '/梦境/描述', value: dDesc });
+          if (wDesc) ops.push({ op: 'replace', path: getNodePath(mapTree, node) + '/现实/描述', value: wDesc });
+          if (dDesc) ops.push({ op: 'replace', path: getNodePath(mapTree, node) + '/梦境/描述', value: dDesc });
           ctx.patchVariables(ops);
           return { content: [{ type: 'text', text: `🗺️ 已更新 ${location} 的描述\n  原因：${reason}` }] };
         }
@@ -1310,7 +1260,7 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
           const w = world === '梦境' ? '梦境' : '现实';
           const infoArr = node[w]?.['地点细节']?.['信息'] ?? [];
           infoArr.push(info);
-          const infoPath = _getNodePath(mapTree, node) + `/${w}/地点细节/信息`;
+          const infoPath = getNodePath(mapTree, node) + `/${w}/地点细节/信息`;
           ctx.patchVariables([{ op: 'replace', path: infoPath, value: infoArr }]);
           return { content: [{ type: 'text', text: `📝 ${location}(${w}) 新增信息: ${info}\n  原因：${reason}` }] };
         }
@@ -1324,7 +1274,7 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
           if (w === '梦境') entry['具现进度'] = 0;
           const traits = params?.traits;
           if (traits) entry['特性'] = traits;
-          const aPath = _getNodePath(mapTree, node) + `/${w}/地点细节/异常/${aName}`;
+          const aPath = getNodePath(mapTree, node) + `/${w}/地点细节/异常/${aName}`;
           ctx.patchVariables([{ op: 'insert', path: aPath, value: entry }]);
           return { content: [{ type: 'text', text: `⚠️ ${location}(${w}) 新增异常: ${aName} (${rating})\n  原因：${reason}` }] };
         }
@@ -1332,7 +1282,7 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
           const aName = params?.anomalyName as string;
           if (!aName) return { content: [{ type: 'text', text: 'action=update_anomaly 时 anomalyName 必填' }] };
           const w = world === '梦境' ? '梦境' : '现实';
-          const aPath = _getNodePath(mapTree, node) + `/${w}/地点细节/异常/${aName}`;
+          const aPath = getNodePath(mapTree, node) + `/${w}/地点细节/异常/${aName}`;
           const existing = aPath.split('/').filter(Boolean).reduce((o: any, k) => o?.[k], ctx.variables);
           if (!existing) return { content: [{ type: 'text', text: `${location}(${w}) 中不存在异常 "${aName}"` }] };
           const ops: JsonPatchOp[] = [];
@@ -1346,7 +1296,7 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
           const aName = params?.anomalyName as string;
           if (!aName) return { content: [{ type: 'text', text: 'action=remove_anomaly 时 anomalyName 必填' }] };
           const w = world === '梦境' ? '梦境' : '现实';
-          const aPath = _getNodePath(mapTree, node) + `/${w}/地点细节/异常/${aName}`;
+          const aPath = getNodePath(mapTree, node) + `/${w}/地点细节/异常/${aName}`;
           ctx.patchVariables([{ op: 'remove', path: aPath }]);
           return { content: [{ type: 'text', text: `✅ 已从 ${location}(${w}) 移除异常 "${aName}"\n  原因：${reason}` }] };
         }
