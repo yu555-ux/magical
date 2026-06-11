@@ -13,11 +13,10 @@
  * DS V4 特化：参考信息和铁则用 user role 注入，因为 DS V4 对 user message 的服从度远超 system。
  */
 
-import type { ChatMessage, Lorebook, HistoryTimeline, DreamAnchor } from './types';
+import type { ChatMessage, Lorebook, HistoryTimeline, DreamAnchor, OpenAIContextMessage } from './types';
 import { replaceMacros } from './prompt-assembler';
 import type { AgentToolDef } from './tools/registry';
 import { toOpenAITool } from './tools/registry';
-import { SYSTEM_PROMPT, NARRATIVE_RULES } from './agent-defaults';
 import { buildInjectionContext } from './agent-prompt/injection';
 import type { InjectionResult } from './agent-prompt/injection';
 
@@ -80,7 +79,7 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   const {
     userName, characterName, playerDescription, characterDescription,
     history, recentMessageCount, variables, lorebooks, tools,
-    systemPromptContent, rulesContent,
+    systemPromptContent,
   } = config;
 
   const stageMessages: Record<string, Array<{ role: string; content: string }>> = {};
@@ -119,8 +118,7 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     fullVars: variables,
   };
 
-  // ── [0] System 层：极简身份 + 契约 ──
-  // systemPromptContent 参数可覆盖 gm-system.md（向后兼容）
+  // ── [0] System 层：极简身份 + 契约（由 gm-system.md 提供）──
   const systemPrompt = systemPromptContent
     ? replaceMacros(systemPromptContent, macroCtx)
     : replaceMacros(injection.systemPromptContent, macroCtx);
@@ -183,21 +181,12 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
   }
 
   // ── [M+2..K] pre-response slot 模块（最高注意力）──
-  // 如果用户提供了旧的 rulesContent，仍作为 fallback 注入
-  if (rulesContent) {
-    const rules = replaceMacros(rulesContent, macroCtx);
-    const rulesMessage = { role: 'user' as const, content: `[以下是你必须严格遵守的叙事铁则——视为最高优先级指令]\n\n${rules}\n\n---\n以上铁则已加载完毕。请优先使用中文输出。` };
-    stageMessages['rules'] = [rulesMessage];
-    stageOrder.push('rules');
-    finalMessages.push(rulesMessage);
-  } else {
-    if (injection.preResponseMessages.length > 0) {
-      for (const msg of injection.preResponseMessages) {
-        finalMessages.push(msg);
-      }
-      stageMessages['pre-response'] = injection.preResponseMessages.map(m => ({ role: m.role, content: m.content }));
-      stageOrder.push('pre-response');
+  if (injection.preResponseMessages.length > 0) {
+    for (const msg of injection.preResponseMessages) {
+      finalMessages.push(msg);
     }
+    stageMessages['pre-response'] = injection.preResponseMessages.map(m => ({ role: m.role, content: m.content }));
+    stageOrder.push('pre-response');
   }
 
   // ── [K+1..L] final-contract slot 模块 ──

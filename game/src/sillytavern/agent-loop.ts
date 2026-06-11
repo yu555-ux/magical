@@ -18,7 +18,7 @@ import {
   areToolCallsComplete,
   type ToolCallAccumulator,
 } from './stream-parser';
-import type { AgentStreamEvent, ToolExecutionRecord } from './types';
+import type { AgentStreamEvent, ToolExecutionRecord, OpenAIContextMessage, OpenAIAssistantMessage, OpenAIToolMessage } from './types';
 import type { AgentToolDef, ToolExecutionContext, ToolResult } from './tools/registry';
 
 // ── Types ──
@@ -26,7 +26,7 @@ import type { AgentToolDef, ToolExecutionContext, ToolResult } from './tools/reg
 export interface AgentLoopOptions {
   router: ApiRouter;
   systemPrompt: string;
-  messages: Array<{ role: string; content: string }>;
+  messages: OpenAIContextMessage[];
   tools: AgentToolDef[];
   toolContext: ToolExecutionContext;
   signal?: AbortSignal;
@@ -45,7 +45,7 @@ export interface AgentLoopResult {
   toolCalls: ToolExecutionRecord[];
   turnCount: number;
   usage: { hit: number; miss: number; generated: number } | null;
-  allMessages: Array<{ role: string; content: string }>;
+  allMessages: OpenAIContextMessage[];
 }
 
 // ── Main loop ──
@@ -68,7 +68,7 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
   }));
 
   // 初始化 context messages（deep copy，不污染原始）
-  const contextMessages: Array<{ role: string; content: string }> = initialMessages.map(m => ({ ...m }));
+  const contextMessages: OpenAIContextMessage[] = initialMessages.map(m => ({ ...m } as OpenAIContextMessage));
 
   let allText = '';
   let allThinking = '';
@@ -87,20 +87,17 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
       let turnUsage: { hit: number; miss: number; generated: number } | null = null;
 
   // ── 1. 调用 LLM ──
-      const requestPayload = {
-        messages: [
-          ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-          ...contextMessages,
-        ],
-        tools: openaiTools,
-        temperature, top_p, max_tokens,
-      };
+      // 构建请求消息（一次构建，调试和实际调用复用）
+      const requestMessages = [
+        ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
+        ...contextMessages,
+      ];
 
       console.group(`🤖 Agent Turn #${turnCount}/${maxTurns}`);
       console.log(`🔧 可用工具: ${openaiTools.map(t => t.function.name).join(', ')}`);
-      console.log(`🌡️ 参数: temperature=${temperature}, max_tokens=${max_tokens}`);
-      console.log(`📤 请求消息 (${requestPayload.messages.length} 条):`);
-      requestPayload.messages.forEach((m, i) => {
+      console.log(`🌡️ 参数: temperature=${temperature}, top_p=${top_p}, top_k=${top_k}, max_tokens=${max_tokens}`);
+      console.log(`📤 请求消息 (${requestMessages.length} 条):`);
+      requestMessages.forEach((m, i) => {
         let text = '';
         try {
           if (m.content === undefined || m.content === null) {
@@ -117,10 +114,7 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
       const t0 = Date.now();
       const response = await router.callAgent(
         {
-          messages: [
-            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-            ...contextMessages,
-          ],
+          messages: requestMessages,
           tools: openaiTools,
           temperature,
           top_p,
@@ -248,14 +242,14 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         }
 
         // 添加 assistant 消息
-        const assistantMsg: Record<string, unknown> = { role: 'assistant' };
+        const assistantMsg: OpenAIAssistantMessage = { role: 'assistant' };
         if (assistantContent) assistantMsg.content = assistantContent;
         if (toolCallBlocks.length > 0) {
           assistantMsg.tool_calls = toolCallBlocks;
         }
-        contextMessages.push(assistantMsg as any);
+        contextMessages.push(assistantMsg);
 
-        // 执行工具
+        // 执行工具（带事务保护：失败时回滚全部可变状态）
         const turnRecords: ToolExecutionRecord[] = [];
         for (const tcBlock of toolCallBlocks) {
           const toolName = tcBlock.function.name;
@@ -268,6 +262,11 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
             name: toolName,
           };
 
+          // 事务保护：执行前快照全部三个可变引用，失败时回滚
+          const beforeVars = structuredClone(toolContext.variables);
+          const beforeDreamAnchor = { ...toolContext.dreamAnchor };
+          const beforePlotHistory = structuredClone(toolContext.plotHistory);
+
           let toolResult: ToolResult;
           if (!toolDef) {
             console.warn(`  ⚠️ 未知工具: ${toolName}`);
@@ -279,9 +278,12 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
               console.log(`  🔨 ${toolName} 参数:`, args);
               toolResult = await toolDef.execute(toolContext, args);
             } catch (err) {
-              console.error(`  ❌ ${toolName} 执行异常:`, err);
+              console.error(`  ❌ ${toolName} 执行异常，回滚全部状态:`, err);
+              toolContext.variables = beforeVars;
+              Object.assign(toolContext.dreamAnchor, beforeDreamAnchor);
+              Object.assign(toolContext.plotHistory, beforePlotHistory);
               toolResult = {
-                content: [{ type: 'text', text: `工具执行出错: ${err instanceof Error ? err.message : String(err)}` }],
+                content: [{ type: 'text', text: `工具执行出错（状态已回滚）: ${err instanceof Error ? err.message : String(err)}` }],
               };
             }
           }
@@ -304,11 +306,12 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
           yield { type: 'tool_result', record };
 
           // 工具结果完整加入 context（不截断，tavern2agent 无此限制）
-          contextMessages.push({
+          const toolMsg: OpenAIToolMessage = {
             role: 'tool',
             tool_call_id: tcBlock.id,
             content: toolResult.content[0]?.text ?? '',
-          } as any);
+          };
+          contextMessages.push(toolMsg);
 
           const resultText = toolResult.content?.[0]?.text ?? '(无返回)';
           console.log(`  ✅ ${toolName} (${duration}ms) →`, resultText);

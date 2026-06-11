@@ -515,3 +515,33 @@ export interface AgentTurnResult {
   /** Turn 编号（从 1 开始） */
   turnIndex: number;
 }
+
+// ── OpenAI-compatible message types for agent loop ──
+
+/** Tool call block within an assistant message */
+export interface OpenAIToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+/** Assistant message that may contain tool_calls */
+export interface OpenAIAssistantMessage {
+  role: 'assistant';
+  content?: string;
+  tool_calls?: OpenAIToolCall[];
+}
+
+/** Tool result message */
+export interface OpenAIToolMessage {
+  role: 'tool';
+  tool_call_id: string;
+  content: string;
+}
+
+/** Union of all message types that can appear in the agent loop context */
+export type OpenAIContextMessage =
+  | { role: 'system'; content: string }
+  | { role: 'user'; content: string }
+  | OpenAIAssistantMessage
+  | OpenAIToolMessage;

@@ -1,8 +1,19 @@
-import type { ApiSettings, ApiTarget, Task } from './types';
+import type { ApiSettings, ApiTarget, Task, OpenAIContextMessage } from './types';
 
 interface ChatRequest {
   messages: Array<{ role: string; content: string }>;
   [key: string]: any;
+}
+
+interface AgentChatRequest {
+  messages: OpenAIContextMessage[];
+  tools?: Record<string, unknown>[];
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
+  max_tokens?: number;
 }
 
 interface CallResult {
@@ -68,16 +79,7 @@ export function createApiRouter(settings: ApiSettings, deps: RouterDeps = {}) {
    * 使用主 API，通过 fetch + ReadableStream 返回流式响应。
    */
   async function callAgent(
-    payload: {
-      messages: Array<{ role: string; content: string }>;
-      tools?: Record<string, unknown>[];
-      temperature?: number;
-      top_p?: number;
-      top_k?: number;
-      frequency_penalty?: number;
-      presence_penalty?: number;
-      max_tokens?: number;
-    },
+    payload: AgentChatRequest,
     signal?: AbortSignal,
   ): Promise<Response> {
     const ep = endpointFor('primary');

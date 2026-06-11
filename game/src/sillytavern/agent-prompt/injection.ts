@@ -5,6 +5,20 @@
  * → 包裹 XML 标签 → 返回分 slot 的消息数组
  *
  * 参考 fate-sandbox 的 engine/gm-prompt/injection.ts
+ *
+ * ## preset.json 版本规则
+ *
+ * `version` 字段用于追踪模块声明的结构变化。语义：
+ *   - 增删模块、改 slot/priority/header 或改 source 路径 → bump version
+ *   - 仅修改 .md 文件内容（不改 preset.json）→ version 不变
+ *
+ * 安全修改流程：
+ *   1. 修改 preset.json → bump version
+ *   2. 如果需要新增 .md 文件：
+ *      a. 在 module-content.ts 中 import 并注册到 MODULE_CONTENT
+ *      b. 在 preset.json 中添加模块声明
+ *   3. 如果删除模块，确保 preset.json 和 module-content.ts 同步更新
+ *   4. 检查 injection.ts 的 InjectionResult 接口是否需要扩展
  */
 
 import presetData from './preset.json';
@@ -55,12 +69,11 @@ function loadPromptModules(): PromptModule[] {
 
     let body: string;
     if (m.source === 'runtime:state-brief') {
-      // 运行时动态生成，这里放占位，buildSlotMessages 时替换
       body = '__RUNTIME_STATE_BRIEF__';
     } else {
       body = MODULE_CONTENT[m.source] ?? '';
       if (!body) {
-        console.warn(`[injection] 模块 "${m.id}" 的源文件 "${m.source}" 未找到`);
+        console.warn(`[injection] 模块 "${m.id}" 的源文件 "${m.source}" 未在 MODULE_CONTENT 中注册。请在 module-content.ts 中添加对应的 import。`);
         continue;
       }
     }
@@ -91,27 +104,23 @@ function buildGmBrief(variables: Record<string, any>): string {
   if (place) lines.push(`地点：${place}`);
 
   // 梦境/现实
-  const isDream = variables['世界']?.['现实']?.['是否梦境'];
+  const isDream = variables['世界']?.['位于梦境'];
   if (isDream === true) lines.push(`⚠️ 当前处于梦境中`);
 
   lines.push('');
 
   // 玩家资源
-  const res = variables['主角']?.['资源'];
   const body = variables['主角']?.['身体属性'];
-  if (res || body) {
+  const money = variables['主角']?.['资源']?.['金钱']?.['数值'];
+  if (body || money !== undefined) {
     const parts: string[] = [];
-    if (res?.['HP'] !== undefined) {
-      const max = res['HP上限'] ?? '?';
-      parts.push(`HP ${res['HP']}/${max}`);
-    }
-    if (res?.['MP'] !== undefined) {
-      const max = res['MP上限'] ?? '?';
-      parts.push(`MP ${res['MP']}/${max}`);
-    }
     if (body?.['生命']?.['当前'] !== undefined) {
       const max = body['生命']?.['上限'] ?? '?';
       parts.push(`生命 ${body['生命']['当前']}/${max}`);
+    }
+    if (body?.['体力']?.['当前'] !== undefined) {
+      const max = body['体力']?.['上限'] ?? '?';
+      parts.push(`体力 ${body['体力']['当前']}/${max}`);
     }
     if (body?.['能量']?.['当前'] !== undefined) {
       const max = body['能量']?.['上限'] ?? '?';
@@ -121,8 +130,8 @@ function buildGmBrief(variables: Record<string, any>): string {
       const max = body['SAN']?.['上限'] ?? '?';
       parts.push(`SAN ${body['SAN']['当前']}/${max}`);
     }
-    if (res?.['金钱'] !== undefined) {
-      parts.push(`金钱 ${res['金钱']}`);
+    if (money !== undefined) {
+      parts.push(`金钱 ${money}`);
     }
     if (parts.length > 0) lines.push(`资源：${parts.join('  |  ')}`);
   }
@@ -130,12 +139,6 @@ function buildGmBrief(variables: Record<string, any>): string {
   // 评级
   const rating = variables['主角']?.['评级'];
   if (rating) lines.push(`评级：${rating}`);
-
-  // 同行者
-  const companions = variables['主角']?.['同行者'];
-  if (Array.isArray(companions) && companions.length > 0) {
-    lines.push(`同行者：${companions.join('、')}`);
-  }
 
   // 状态异常
   const conditions = variables['主角']?.['状态'];
