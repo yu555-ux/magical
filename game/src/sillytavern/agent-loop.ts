@@ -347,10 +347,10 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         continue;
       }
 
-      // ── 4. 无 tool call → 退出（最后两轮有 tool_choice 强制 submit_reply）──
-      console.log(`✅ Turn #${turnCount} 退出循环`);
-      console.groupEnd();
-      break;
+      // ── 4. 无 tool call → 不退出，提示调 submit_reply 继续循环 ──
+      contextMessages.push({ role: 'user', content: '请调用 submit_reply 提交最终回复。' } as any);
+      console.log(`🔁 Turn #${turnCount} 无工具，注入提示继续`);
+      continue;
     }
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
