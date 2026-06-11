@@ -116,6 +116,7 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         {
           messages: requestMessages,
           tools: openaiTools,
+          tool_choice: 'required',
           temperature,
           top_p,
           top_k,
@@ -331,13 +332,8 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         continue;
       }
 
-      // ── 4. 无 tool call → 要求调用 submit_reply ──
-      if (!turnRecords.some(r => r.name === 'submit_reply')) {
-        console.log(`⚠️ Turn #${turnCount} 无 tool call，注入 submit_reply 提示`);
-        contextMessages.push({ role: 'user', content: '请调用 submit_reply 工具提交最终回复。包括正文(maintext)、选项(options)和历史记录(history)。' } as any);
-        continue;
-      }
-      console.log(`✅ Turn #${turnCount} submit_reply 已执行`);
+      // ── 4. submit_reply 已执行或 API 强制要求工具 → 退出 ──
+      console.log(`✅ Turn #${turnCount} 无更多工具调用，退出循环`);
       console.groupEnd();
       break;
     }
