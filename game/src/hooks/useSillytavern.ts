@@ -477,6 +477,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       const replyGroupId = crypto.randomUUID();  // 同一次用户回复的所有 turn 共享
 
       try {
+        parser.start();  // agent 模式也开始流式状态，输入框显示停止按钮
         const params = effectiveSettings.presetParams ?? DEFAULT_PRESET_PARAMS;
         const loop = runAgentLoop({
           router: freshRouter,
@@ -559,6 +560,8 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         if (!skipUser) await doRetract();
         if (isAbort) return { aborted: true, retractedText: userText };
         throw e;
+      } finally {
+        parser.finish();
       }
 
       if (!rawContent.trim()) {
