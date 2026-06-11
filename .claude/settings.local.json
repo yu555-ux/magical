@@ -101,7 +101,15 @@
       "Bash(./node_modules/.bin/tsc --noEmit --pretty)",
       "Bash(/e/game4/game/node_modules/.bin/tsc --noEmit --pretty)",
       "Bash(/e/game4/game/node_modules/.bin/tsc -p /e/game4/game/tsconfig.json --noEmit --pretty)",
-      "Bash(xxd)"
+      "Bash(xxd)",
+      "Bash(grep *)",
+      "Bash(sed -i 's/^\\\\s*,$//' lookup.ts)",
+      "Bash(sed -i '/^$/N;/^\\\\n$/D' lookup.ts)",
+      "Bash(sed -i 's/^  ,$/  /g' resource.ts)",
+      "Bash(sed -i '/^ *,$/d' resource.ts)",
+      "Bash(awk '{print $5, $NF}')",
+      "Bash(sed -i '/\\\\.\\\\.\\\\.mechanicTools,/d' resource.ts)",
+      "Bash(sed -i '1s/^/import type { JsonPatchOp } from \"..\\\\/types\";\\\\n/' world.ts)"
     ]
   },
   "hooks": {
