@@ -317,6 +317,13 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
           console.log(`  ✅ ${toolName} (${duration}ms) →`, resultText);
         }
 
+        // submit_reply → 直接退出，返回格式化文本
+        if (turnRecords.some(r => r.name === 'submit_reply')) {
+          console.log(`✅ submit_reply 已执行，退出循环`);
+          console.groupEnd();
+          break;
+        }
+
         console.log(`🔧 工具执行完成 (${turnRecords.length} 项)，继续生成...`);
         console.groupEnd();
 

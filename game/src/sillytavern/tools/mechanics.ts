@@ -154,4 +154,72 @@ export const mechanicTools: Record<string, AgentToolDef> = {
     },
   },
 
+  // ══════════════════════════════════════════════
+  // submit_reply — 提交最终回复
+  // ══════════════════════════════════════════════
+
+  submit_reply: {
+    name: 'submit_reply',
+    label: '提交回复',
+    category: 'mechanics',
+    description:
+      '提交本轮最终回复。所有工具调用完成后、准备输出叙事时使用。\n' +
+      '【格式要求】\n' +
+      '- maintext: 正文 1000-1500 字，第二人称沉浸式中文叙事，禁止 GM 解说/推理/JSON/骰点\n' +
+      '- options: 4 个选项，格式 "(动作/交流/观察/色色) 内容"\n' +
+      '- history.title: 2-5 字，模仿网文章节标题风格\n' +
+      '- history.characters: 所有在场角色，分号分隔\n' +
+      '- history.description: 约 100 字客观叙述，禁止升华/比喻/主观揣测，只记事实\n' +
+      '- history.keyInfo: 一行一条，只记录有重要意义的关键细节\n' +
+      '- history.foreshadowing: 一行一条，可继承上轮伏笔\n' +
+      '- thinking: 思考过程，不会显示给玩家',
+    parameters: {
+      type: 'object',
+      properties: {
+        maintext: { type: 'string', description: '正文 1000-1500 字' },
+        options: { type: 'array', items: { type: 'string' }, description: '4 个选项' },
+        history: { type: 'object', properties: {
+          title: { type: 'string', description: '2-5 字标题' },
+          characters: { type: 'string', description: '所有在场角色，分号分隔' },
+          description: { type: 'string', description: '约 100 字客观叙述' },
+          keyInfo: { type: 'array', items: { type: 'string' }, description: '关键信息列表' },
+          foreshadowing: { type: 'array', items: { type: 'string' }, description: '伏笔列表' },
+        }, required: ['title', 'characters', 'description'] },
+        thinking: { type: 'string', description: '思考过程（不显示给玩家）' },
+      },
+      required: ['maintext', 'options'],
+    },
+    async execute(_ctx, params) {
+      const maintext = (params?.maintext as string)?.trim() ?? '';
+      const options = (params?.options as string[]) ?? [];
+      const history = params?.history as Record<string, any> | undefined;
+      const thinking = (params?.thinking as string)?.trim();
+
+      const lines: string[] = [];
+      if (thinking) lines.push(`<thinking>\n${thinking}\n</thinking>`);
+      lines.push(`<maintext>\n${maintext}\n</maintext>`);
+      if (options.length > 0) {
+        lines.push('<option>');
+        for (let i = 0; i < options.length; i++) {
+          const opt = options[i].trim();
+          const label = opt.match(/^（[^）]+）/) ? opt : `选项${i + 1}: ${opt}`;
+          lines.push(label);
+        }
+        lines.push('</option>');
+      }
+      if (history) {
+        const h = history;
+        lines.push('<history>');
+        lines.push(`标题: ${h.title ?? ''}`);
+        lines.push(`相关人物: ${h.characters ?? ''}`);
+        lines.push(`描述: ${h.description ?? ''}`);
+        if (Array.isArray(h.keyInfo)) lines.push('关键信息:', ...h.keyInfo.map((s: string) => `- ${s}`));
+        if (Array.isArray(h.foreshadowing)) lines.push('伏笔:', ...h.foreshadowing.map((s: string) => `- ${s}`));
+        lines.push('</history>');
+      }
+      const text = lines.join('\n');
+      return { content: [{ type: 'text', text }], details: { maintext, options, history, thinking } };
+    },
+  },
+
 };
