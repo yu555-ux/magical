@@ -195,12 +195,15 @@ change_location: {
     const timeField = world === 'reality' ? '现实' : '梦境存档';
     const mapTree = ctx.variables?.['地图'];
     let resolved = rawLocation;
+
     if (mapTree) {
       const path = resolvePath(rawLocation, mapTree);
       if (path && path.length >= 2) {
         resolved = path.slice(-3).join('-');
       } else if (path && path.length === 1) {
         resolved = path[0];
+      } else {
+        return { content: [{ type: 'text', text: `「${rawLocation}」未在地图树中找到。请先用 update_map add_child 创建该地点（可填 wDesc/dDesc/winfo 详细描述），再移动到这里。` }] };
       }
     }
 

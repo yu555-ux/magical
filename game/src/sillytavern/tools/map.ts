@@ -35,6 +35,7 @@ update_map: {
       xMin: { type: 'number' }, xMax: { type: 'number' }, yMin: { type: 'number' }, yMax: { type: 'number' }, zMin: { type: 'number' }, zMax: { type: 'number' },
       wDesc: { type: 'string', description: '（add_child/update_desc 时）现实世界描述' },
       dDesc: { type: 'string', description: '（add_child/update_desc 时）梦境世界描述' },
+      winfo: { type: 'array', items: { type: 'string' }, description: '（add_child 时）现实地点探索信息' },
       info: { type: 'string', description: '（add_info 时）要追加的信息条目' },
       anomalyName: { type: 'string', description: '（add_anomaly/update_anomaly/remove_anomaly 时）异常名称' },
       rating: { type: 'string', description: '（add_anomaly 时）异常评级' },
@@ -76,7 +77,8 @@ update_map: {
         const child: Record<string, any> = { 检索词: keywords ?? [name] };
         const xMin = params?.xMin, xMax = params?.xMax, yMin = params?.yMin, yMax = params?.yMax, zMin = params?.zMin, zMax = params?.zMax;
         if (xMin !== undefined) child['方位'] = { X: [xMin, xMax ?? xMin], Y: [yMin ?? xMin, yMax ?? xMin], Z: [zMin ?? 0, zMax ?? 0] };
-        child['现实'] = { 描述: params?.wDesc ?? '', 地点细节: { 信息: [], 异常: {} } };
+        const winfo = params?.winfo as string[] | undefined;
+        child['现实'] = { 描述: params?.wDesc ?? '', 地点细节: { 信息: winfo ?? [], 异常: {} } };
         child['梦境'] = { 描述: params?.dDesc ?? '', 地点细节: { 信息: [], 异常: {} } };
         child['子地图'] = {};
         const sub = node['子地图'] ?? {};

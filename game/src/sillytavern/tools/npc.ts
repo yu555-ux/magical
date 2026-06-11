@@ -3,7 +3,163 @@ import type { AgentToolDef, ToolExecutionContext } from './registry';
 import { textResult, findNpc, clamp } from './helpers';
 
 export const npcTools: Record<string, AgentToolDef> = {
-// update_skill — 管理技能
+
+  // ══════════════════════════════════════════════
+  // upsert_actor — 创建/更新 NPC
+  // ══════════════════════════════════════════════
+
+  upsert_actor: {
+    name: 'upsert_actor',
+    label: '创建/更新NPC',
+    category: 'variable',
+    description:
+      '创建新 NPC 或更新已有 NPC 的身份信息。LLM 自由创作人物内容，工具负责写入正确路径。\n\n' +
+      '【必填】name gender group reason\n' +
+      '【身份】age identity tags rating(仅异人) dreamNpc\n' +
+      '【位置】location action thought\n' +
+      '【身体】lifeMax energyMax(仅异人) sanMax — 上限值，当前自动=上限\n' +
+      '【属性】str con spi agi luck charm\n' +
+      '【关系】好感值/堕落值/性欲值(仅女性) 友善值(仅男性)\n' +
+      '【外观】outfit(仅女性) bodyDev(仅女性) — {部位:{名称,描述}}\n' +
+      '【异能】skills(仅异人) items(仅异人)\n' +
+      '【社交】socialCircle — {角色名:关系标签}，双向对称\n' +
+      '【状态】conditions — {状态名:{描述,持续时间}}\n' +
+      '【生理】lastPeriod cycleDays periodLen semen(仅女性) — 子宫初始值\n' +
+      '已存在时只更新传入的字段，不覆盖未传字段。',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'NPC 名字' },
+        gender: { type: 'string', enum: ['女性', '男性'] },
+        group: { type: 'string', enum: ['异人', '普通人'], description: '异人=有超自然能力/魔法/异能' },
+        age: { type: 'number' },
+        identity: { type: 'string', description: '完整身份描述' },
+        tags: { type: 'array', items: { type: 'string' }, description: '检索词/别名' },
+        rating: { type: 'string', description: '（仅异人）微尘/聚砂/凝石/磐岩/撼山/摧城/覆国/夷地/灭世' },
+        dreamNpc: { type: 'boolean' },
+        location: { type: 'string' },
+        action: { type: 'string', description: '当前正在做什么' },
+        thought: { type: 'string', description: '第一人称，约15字' },
+        lifeMax: { type: 'number', description: '生命上限' },
+        energyMax: { type: 'number', description: '（仅异人）能量上限' },
+        sanMax: { type: 'number', description: 'SAN上限' },
+        str: { type: 'number' }, con: { type: 'number' }, spi: { type: 'number' }, agi: { type: 'number' },
+        luck: { type: 'number' }, charm: { type: 'number' },
+        好感值: { type: 'number', description: '（仅女性）-200~200' },
+        堕落值: { type: 'number', description: '（仅女性）0~500' },
+        性欲值: { type: 'number', description: '（仅女性）0~100' },
+        友善值: { type: 'number', description: '（仅男性）-200~200' },
+        outfit: { type: 'object', description: '（仅女性）{上衣/下衣/内衣/袜子/鞋子: {名称,描述}}' },
+        bodyDev: { type: 'object', description: '（仅女性）{嘴巴/胸部/小穴/屁穴: {描述,使用次数}}' },
+        skills: { type: 'object', description: '（仅异人）{技能名: {等级,描述,使用要求,消耗能量,副作用:{},熟练度,分支:{}}}' },
+        items: { type: 'object', description: '（仅异人）{灵宝:{},诡物:{},物品:{}}' },
+        socialCircle: { type: 'object', description: '{角色名: 关系标签}，双向对称' },
+        conditions: { type: 'object', description: '{状态名: {描述,持续时间}}' },
+        lastPeriod: { type: 'string', description: '（仅女性）上次经期日 YYYY年MM月DD日' },
+        cycleDays: { type: 'number', description: '（仅女性）周期天数，默认28' },
+        periodLen: { type: 'number', description: '（仅女性）经期天数，默认5' },
+        semen: { type: 'array', items: { type: 'object' }, description: '（仅女性）[{来源,容量,注入时间}]' },
+        reason: { type: 'string' },
+      },
+      required: ['name', 'gender', 'group', 'reason'],
+    },
+    async execute(ctx, params) {
+      const name = params?.name as string;
+      const gender = params?.gender as string;
+      const group = params?.group as string;
+      const reason = params?.reason as string;
+      if (!name || !gender || !group || !['女性', '男性'].includes(gender) || !['异人', '普通人'].includes(group)) {
+        return { content: [{ type: 'text', text: '参数错误：name, gender(女性/男性), group(异人/普通人) 为必填' }] };
+      }
+      if (!reason || !reason.trim()) return { content: [{ type: 'text', text: '参数错误：reason 不能为空' }] };
+
+      const basePath = `/主要人物/${gender}/${group}/${name}`;
+      const existing = basePath.split('/').filter(Boolean).reduce((o: any, k) => o?.[k], ctx.variables);
+      const isNew = !existing || typeof existing !== 'object' || Object.keys(existing).length < 3;
+
+      // 拼装新 NPC 数据
+      const defStat = (v: any, d: number) => typeof v === 'number' ? v : d;
+
+      if (isNew) {
+        const data: Record<string, any> = {
+          检索词: params?.tags ?? [name],
+          梦境NPC: params?.dreamNpc ?? false,
+          年龄: params?.age ?? 0,
+          身份: params?.identity ?? '',
+          社交圈: params?.socialCircle ?? {},
+          当前位置: params?.location ?? '',
+          当前行动: params?.action ?? '',
+          当前想法: params?.thought ?? '',
+          状态: params?.conditions ?? {},
+        };
+        const set = (k: string, v: any) => { if (v !== undefined) data[k] = v; };
+        if (group === '异人') set('评级', params?.rating);
+
+        // 身体属性
+        const lifeMax = params?.lifeMax ?? 100;
+        const sanMax = params?.sanMax ?? 100;
+        const body: Record<string, any> = { 生命: { 当前: lifeMax, 上限: lifeMax }, SAN: { 当前: sanMax, 上限: sanMax } };
+        if (group === '异人') {
+          const eMax = params?.energyMax ?? 100;
+          body['能量'] = { 当前: eMax, 上限: eMax };
+        }
+        data['身体属性'] = body;
+
+        // 基础属性 + 特殊属性
+        data['基础属性'] = { 力量: defStat(params?.str, 10), 体质: defStat(params?.con, 10), 精神: defStat(params?.spi, 10), 敏捷: defStat(params?.agi, 10) };
+        data['特殊属性'] = { 幸运: defStat(params?.luck, 50), 魅力: defStat(params?.charm, 50) };
+
+        // 关系值
+        if (gender === '女性') {
+          set('好感值', params?.['好感值'] ?? 0);
+          set('堕落值', params?.['堕落值'] ?? 0);
+          set('性欲值', params?.['性欲值'] ?? 0);
+        } else {
+          set('友善值', params?.['友善值'] ?? 0);
+        }
+
+        // 外观
+        if (gender === '女性') {
+          set('着装', params?.outfit ?? { 上衣: {名称:'',描述:''}, 下衣: {名称:'',描述:''}, 内衣: {名称:'',描述:''}, 袜子: {名称:'',描述:''}, 鞋子: {名称:'',描述:''} });
+          set('身体开发', params?.bodyDev ?? { 嘴巴: {描述:'',使用次数:0}, 胸部: {描述:'',使用次数:0}, 小穴: {描述:'',使用次数:0}, 屁穴: {描述:'',使用次数:0} });
+          // 子宫
+          const uterus: Record<string, any> = {
+            宫内精液: { 总量: params?.semen ? params.semen.reduce((s: number, e: any) => s + (e.容量||0), 0) : 0, 来源列表: params?.semen ?? [] },
+            生理周期: { 上次经期日: params?.lastPeriod ?? '2026年04月01日', 周期天数: params?.cycleDays ?? 28, 经期长度: params?.periodLen ?? 5, 当前阶段: '安全期' },
+            怀孕状态: { 状态: '未孕', 受孕日期: null, 父方: null },
+            生育记录: [],
+          };
+          data['子宫'] = uterus;
+        }
+
+        // 异能
+        if (group === '异人') {
+          set('技能', params?.skills ?? {});
+          set('所持物品', params?.items ?? { 灵宝:{}, 诡物:{}, 物品:{} });
+        }
+
+        ctx.patchVariables([{ op: 'insert', path: basePath, value: data }]);
+        return { content: [{ type: 'text', text: `👤 新建 NPC: ${name}（${gender}/${group}）\n  身份: ${data['身份'] || '未填写'}\n  原因：${reason}` }], details: { name, gender, group, reason } };
+      }
+
+      // 更新已有 NPC
+      const ops: JsonPatchOp[] = [];
+      const changed: string[] = [];
+      const setField = (key: string, val: any) => { if (val !== undefined) { ops.push({ op: 'replace', path: `${basePath}/${key}`, value: val }); changed.push(key); } };
+      setField('身份', params?.identity);
+      setField('当前位置', params?.location);
+      setField('当前行动', params?.action);
+      setField('当前想法', params?.thought);
+      if (params?.tags) setField('检索词', params.tags);
+      if (ops.length > 0) {
+        ctx.patchVariables(ops);
+        return { content: [{ type: 'text', text: `👤 更新 NPC: ${name} — ${changed.join('、')}\n  原因：${reason}` }] };
+      }
+      return { content: [{ type: 'text', text: `${name} 已存在，无需更新（未提供新值）` }] };
+    },
+  },
+
+  // update_skill — 管理技能
 // ══════════════════════════════════════════════
 
 update_skill: {
