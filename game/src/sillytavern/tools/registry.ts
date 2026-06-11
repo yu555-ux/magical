@@ -57,49 +57,6 @@ export interface AgentToolDef {
 
 // ── Helpers ──
 
-/** patch_state 路径白名单 — 只允许修改这些前缀下的字段。
- *  基于 default-world-vars.ts 的实际变量树结构生成，新增变量时需同步更新。 */
-const ALLOWED_PATH_PREFIXES = [
-  '/主角/资源/',
-  '/主角/身体属性/',
-  '/主角/基础属性/',
-  '/主角/特殊属性/',
-  '/主角/评级',
-  '/主角/社交/',
-  '/主角/性器/',
-  '/主角/技能/',
-  '/主角/状态/',
-  '/主角/持有物品/',
-  '/仓库/',
-  '/世界/现实/',
-  '/世界/梦境存档/',
-  '/世界/位于梦境',
-  '/主要人物/',
-  '/特殊玩法/',
-];
-
-/** 代码管理字段（由 subscriber/engine 自动维护，禁止 patch_state 修改） */
-const PROTECTED_PATH_SUBSTRINGS = [
-  '倒计时',
-  '年龄',
-  '子宫',
-  '生理',
-];
-
-function isPathAllowed(path: string): boolean {
-  // 禁止修改元数据
-  if (path.startsWith('/_')) return false;
-  // 禁止修改代码管理字段
-  for (const sub of PROTECTED_PATH_SUBSTRINGS) {
-    if (path.includes(sub)) return false;
-  }
-  // 必须在白名单前缀内
-  for (const prefix of ALLOWED_PATH_PREFIXES) {
-    if (path.startsWith(prefix)) return true;
-  }
-  return false;
-}
-
 function pathGet(obj: any, path: string): any {
   return path.split('.').reduce((o, k) => o?.[k], obj);
 }
@@ -215,68 +172,6 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
     },
   },
 
-  // ── patch_state（已降级，默认隐藏）──
-  patch_state: {
-    name: 'patch_state',
-    label: '修改状态（已降级）',
-    category: 'deprecated',
-    hidden: true,
-    description:
-      '【已降级】直接 JSON Patch 修改变量树。应优先使用领域事件工具（advance_time / change_location / change_weather / toggle_dream）。\n\n' +
-      '本工具仅在领域工具无法覆盖的罕见场景下使用。\n\n' +
-      '【严禁的行为】\n' +
-      '- 能用领域工具替代的场景使用本工具\n' +
-      '- 修改代码管理字段（倒计时、子宫、年龄）\n' +
-      '- 自行修改不存在的路径——必须先 get_status 确认路径结构',
-    parameters: {
-      type: 'object',
-      properties: {
-        ops: {
-          type: 'array',
-          description: 'JSON Patch 操作数组',
-          items: {
-            type: 'object',
-            properties: {
-              op: { type: 'string', enum: ['replace', 'add', 'remove'], description: '操作类型' },
-              path: { type: 'string', description: 'JSON Pointer 路径，如 /主角/资源/HP' },
-              value: { description: '（replace/add 时必填）要设置的值' },
-            },
-            required: ['op', 'path'],
-          },
-        },
-      },
-      required: ['ops'],
-    },
-    async execute(ctx, params) {
-      const ops = params?.ops as JsonPatchOp[] | undefined;
-      if (!ops || !Array.isArray(ops) || ops.length === 0) {
-        return { content: [{ type: 'text', text: '参数错误：ops 必须是非空数组' }] };
-      }
-      // 白名单校验：拒绝修改代码管理字段
-      const blocked: string[] = [];
-      for (const op of ops) {
-        if (!isPathAllowed(op.path)) {
-          blocked.push(op.path);
-        }
-      }
-      if (blocked.length > 0) {
-        return {
-          content: [{ type: 'text', text: `路径白名单拦截：以下路径由代码管理，不允许通过 patch_state 修改。请使用领域事件工具（如 advance_time / change_location / update_resource）替代。\n被拦截路径: ${blocked.join(', ')}` }],
-        };
-      }
-      const result = ctx.patchVariables(ops);
-      if (!result.ok) {
-        return { content: [{ type: 'text', text: `状态更新失败：${result.error}` }] };
-      }
-      const lines = result.changes?.map(c =>
-        `  ${c.path}: ${JSON.stringify(c.oldValue)} → ${JSON.stringify(c.newValue)}`
-      ) ?? [];
-      return {
-        content: [{ type: 'text', text: `已更新 ${ops.length} 项变量:\n${lines.join('\n')}` }],
-        details: { ops, changes: result.changes },
-      };
-    },
-  },
 
   // ══════════════════════════════════════════════
   // update_resource — 资源增减（替代 patch_state）
@@ -671,6 +566,463 @@ const TOOL_DEFS: Record<string, AgentToolDef> = {
       const action = moveTo === '仓库' ? '移至仓库' : '移除';
       return {
         content: [{ type: 'text', text: `📦 ${target} ${itemName} ×${Math.min(quantity, currentQty)} ${action}\n  原因：${reason}` }],
+      };
+    },
+  },
+
+  // ══════════════════════════════════════════════
+  // add_condition — 添加异常状态
+  // ══════════════════════════════════════════════
+
+  add_condition: {
+    name: 'add_condition',
+    label: '添加状态',
+    category: 'variable',
+    description:
+      '向主角或 NPC 添加异常状态条目。状态会在状态面板中显示。\n\n' +
+      '【duration 格式】\n' +
+      '- "永久": 长期状态（如"奇迹枯竭"）\n' +
+      '- "3小时": 指定持续时间\n' +
+      '- "直到治疗为止": 条件持续类型\n\n' +
+      '【必须调用的场景】\n' +
+      '- 战斗受伤后添加伤势状态\n' +
+      '- 受到诅咒/中毒/精神污染\n' +
+      '- 获得临时 buff/debuff\n\n' +
+      '【严禁的行为】\n' +
+      '- 在叙事中说"你中毒了"但不调用此工具\n' +
+      '- 持续时间用模糊表述（"一会儿"→"30分钟"）',
+    parameters: {
+      type: 'object',
+      properties: {
+        target: { type: 'string', description: '目标角色名。"主角" 或 NPC 名字' },
+        name: { type: 'string', description: '状态名称，如"轻微擦伤""中毒""魅惑"' },
+        description: { type: 'string', description: '状态描述' },
+        duration: { type: 'string', description: '持续时间："永久" / "3小时" / "直到治疗为止" 等' },
+        reason: { type: 'string', description: '添加原因' },
+      },
+      required: ['target', 'name', 'description', 'reason'],
+    },
+    async execute(ctx, params) {
+      const target = params?.target as string;
+      const name = params?.name as string;
+      const desc = params?.description as string;
+      const duration = params?.duration as string | undefined;
+      const reason = params?.reason as string;
+
+      if (!target || !name || !desc) {
+        return { content: [{ type: 'text', text: '参数错误：target、name、description 均为必填' }] };
+      }
+      if (!reason || !reason.trim()) {
+        return { content: [{ type: 'text', text: '参数错误：reason 不能为空' }] };
+      }
+
+      let basePath: string;
+      if (target === '主角') {
+        basePath = '/主角/状态';
+      } else {
+        const chars = ctx.variables?.['主要人物'];
+        let found = false;
+        basePath = '';
+        if (chars) {
+          for (const gender of ['女性', '男性']) {
+            for (const group of ['异人', '普通人']) {
+              const g = chars[gender]?.[group];
+              if (g?.[target]) {
+                basePath = `/主要人物/${gender}/${group}/${target}/状态`;
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+        }
+        if (!found) {
+          return { content: [{ type: 'text', text: `未找到 NPC: ${target}` }] };
+        }
+      }
+
+      const entry: Record<string, unknown> = { 描述: desc };
+      if (duration) entry['持续时间'] = duration;
+
+      const condPath = `${basePath}/${name}`;
+      ctx.patchVariables([{ op: 'insert', path: condPath, value: entry }]);
+
+      const durText = duration ? ` (${duration})` : '';
+      return {
+        content: [{ type: 'text', text: `⚠️ ${target} 获得状态: ${name}${durText}\n  描述: ${desc}\n  原因：${reason}` }],
+        details: { target, name, description: desc, duration, reason },
+      };
+    },
+  },
+
+  // ══════════════════════════════════════════════
+  // remove_condition — 移除异常状态
+  // ══════════════════════════════════════════════
+
+  remove_condition: {
+    name: 'remove_condition',
+    label: '移除状态',
+    category: 'variable',
+    description:
+      '从主角或 NPC 移除异常状态条目。\n\n' +
+      '【必须调用的场景】\n' +
+      '- 状态持续时间到期\n' +
+      '- 治疗/净化/解咒\n' +
+      '- 剧情中状态消失\n\n' +
+      '【严禁的行为】\n' +
+      '- 在叙事中说"伤好了"但不调用此工具',
+    parameters: {
+      type: 'object',
+      properties: {
+        target: { type: 'string', description: '目标角色名' },
+        name: { type: 'string', description: '要移除的状态名称' },
+        reason: { type: 'string', description: '移除原因' },
+      },
+      required: ['target', 'name', 'reason'],
+    },
+    async execute(ctx, params) {
+      const target = params?.target as string;
+      const name = params?.name as string;
+      const reason = params?.reason as string;
+
+      if (!target || !name) {
+        return { content: [{ type: 'text', text: '参数错误：target、name 均为必填' }] };
+      }
+      if (!reason || !reason.trim()) {
+        return { content: [{ type: 'text', text: '参数错误：reason 不能为空' }] };
+      }
+
+      let basePath: string;
+      if (target === '主角') {
+        basePath = '/主角/状态';
+      } else {
+        const chars = ctx.variables?.['主要人物'];
+        let found = false;
+        basePath = '';
+        if (chars) {
+          for (const gender of ['女性', '男性']) {
+            for (const group of ['异人', '普通人']) {
+              const g = chars[gender]?.[group];
+              if (g?.[target]) {
+                basePath = `/主要人物/${gender}/${group}/${target}/状态`;
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+        }
+        if (!found) {
+          return { content: [{ type: 'text', text: `未找到 NPC: ${target}` }] };
+        }
+      }
+
+      const condPath = `${basePath}/${name}`;
+      const existing = condPath.split('/').filter(Boolean).reduce((o: any, k) => o?.[k], ctx.variables);
+      if (!existing) {
+        return { content: [{ type: 'text', text: `${target} 没有状态 "${name}"` }] };
+      }
+
+      ctx.patchVariables([{ op: 'remove', path: condPath }]);
+      return {
+        content: [{ type: 'text', text: `✅ ${target} 状态已移除: ${name}\n  原因：${reason}` }],
+        details: { target, name, reason },
+      };
+    },
+  },
+
+  // ══════════════════════════════════════════════
+  // update_social — 更新社交关系
+  // ══════════════════════════════════════════════
+
+  update_social: {
+    name: 'update_social',
+    label: '更新社交',
+    category: 'variable',
+    description:
+      '管理主角社交关系。当与 NPC 建立/改变/解除明确关系时使用。\n\n' +
+      '【关系措辞】简洁明确：朋友、恋人、队友、上司、母子、姐弟 等\n\n' +
+      '【双向对称】更新 A→B 时请同时更新 B→A。策略提示词会要求 LLM 手动双向调用。\n\n' +
+      '【必须调用的场景】\n' +
+      '- 与 NPC 关系发生质变（陌生人→朋友、朋友→恋人）\n' +
+      '- 明确约定或承认某种关系\n\n' +
+      '【严禁的行为】\n' +
+      '- 为路人/陌生人添加社交\n' +
+      '- 单向认识就添加条目（需双方有明确互动）',
+    parameters: {
+      type: 'object',
+      properties: {
+        target: { type: 'string', description: 'NPC 名字' },
+        relationship: { type: 'string', description: '新的关系描述，如"朋友""队友"' },
+        action: { type: 'string', enum: ['set', 'remove'], description: 'set=设置关系, remove=删除该社交条目' },
+        reason: { type: 'string', description: '为什么关系发生变化' },
+      },
+      required: ['target', 'action', 'reason'],
+    },
+    async execute(ctx, params) {
+      const target = params?.target as string;
+      const relationship = params?.relationship as string;
+      const action = params?.action as string;
+      const reason = params?.reason as string;
+
+      if (!target || !action || !['set', 'remove'].includes(action)) {
+        return { content: [{ type: 'text', text: '参数错误：target、action（set/remove）均为必填' }] };
+      }
+      if (action === 'set' && (!relationship || !relationship.trim())) {
+        return { content: [{ type: 'text', text: '参数错误：action=set 时 relationship 不能为空' }] };
+      }
+      if (!reason || !reason.trim()) {
+        return { content: [{ type: 'text', text: '参数错误：reason 不能为空' }] };
+      }
+
+      const socialPath = `/主角/社交/${target}`;
+
+      if (action === 'remove') {
+        const existing = socialPath.split('/').filter(Boolean).reduce((o: any, k) => o?.[k], ctx.variables);
+        if (!existing) {
+          return { content: [{ type: 'text', text: `社交中不存在 ${target}` }] };
+        }
+        ctx.patchVariables([{ op: 'remove', path: socialPath }]);
+        return {
+          content: [{ type: 'text', text: `🔗 已从社交中移除 ${target}\n  原因：${reason}` }],
+        };
+      }
+
+      // action === 'set'
+      const entry = { 关系: relationship };
+      const existing = socialPath.split('/').filter(Boolean).reduce((o: any, k) => o?.[k], ctx.variables);
+      ctx.patchVariables([{ op: existing ? 'replace' : 'insert', path: socialPath, value: entry }]);
+      const oldRel = existing?.['关系'] ? ` (原: ${existing['关系']})` : '';
+      return {
+        content: [{ type: 'text', text: `🔗 主角 ↔ ${target}: ${relationship}${oldRel}\n  原因：${reason}` }],
+        details: { target, relationship, action, reason },
+      };
+    },
+  },
+
+  // ══════════════════════════════════════════════
+  // update_outfit — 更新 NPC 着装
+  // ══════════════════════════════════════════════
+
+  update_outfit: {
+    name: 'update_outfit',
+    label: '更新着装',
+    category: 'variable',
+    description:
+      '更新 NPC 的着装。更换衣物、战斗破损、亲密行为脱下时使用。\n\n' +
+      '【slot 可选值】上衣 / 下衣 / 内衣 / 袜子 / 鞋子\n\n' +
+      '【必须调用的场景】\n' +
+      '- NPC 主动更换衣物\n' +
+      '- 战斗导致衣物破损\n' +
+      '- 亲密行为中脱下衣物\n\n' +
+      '【严禁的行为】\n' +
+      '- 每轮都更新着装——只在发生实际变化时使用',
+    parameters: {
+      type: 'object',
+      properties: {
+        target: { type: 'string', description: 'NPC 名字' },
+        slot: { type: 'string', enum: ['上衣', '下衣', '内衣', '袜子', '鞋子'], description: '着装部位' },
+        name: { type: 'string', description: '衣物名称' },
+        description: { type: 'string', description: '衣物描述（颜色/材质/状态）' },
+        reason: { type: 'string', description: '为什么更换/破损' },
+      },
+      required: ['target', 'slot', 'name', 'description', 'reason'],
+    },
+    async execute(ctx, params) {
+      const target = params?.target as string;
+      const slot = params?.slot as string;
+      const name = params?.name as string;
+      const desc = params?.description as string;
+      const reason = params?.reason as string;
+
+      if (!target || !slot || !name || !desc) {
+        return { content: [{ type: 'text', text: '参数错误：target、slot、name、description 均为必填' }] };
+      }
+      if (!reason || !reason.trim()) {
+        return { content: [{ type: 'text', text: '参数错误：reason 不能为空' }] };
+      }
+
+      const chars = ctx.variables?.['主要人物'];
+      let outfitPath = '';
+      if (chars) {
+        for (const gender of ['女性', '男性']) {
+          for (const group of ['异人', '普通人']) {
+            const g = chars[gender]?.[group];
+            if (g?.[target]) {
+              outfitPath = `/主要人物/${gender}/${group}/${target}/着装/${slot}`;
+              break;
+            }
+          }
+          if (outfitPath) break;
+        }
+      }
+      if (!outfitPath) {
+        return { content: [{ type: 'text', text: `未找到 NPC: ${target}` }] };
+      }
+
+      const entry = { 名称: name, 描述: desc };
+      ctx.patchVariables([{ op: 'replace', path: outfitPath, value: entry }]);
+      return {
+        content: [{ type: 'text', text: `👗 ${target} ${slot}: ${name}\n  描述: ${desc}\n  原因：${reason}` }],
+        details: { target, slot, name, description: desc, reason },
+      };
+    },
+  },
+
+  // ══════════════════════════════════════════════
+  // update_body_development — 更新身体开发
+  // ══════════════════════════════════════════════
+
+  update_body_development: {
+    name: 'update_body_development',
+    label: '身体开发',
+    category: 'variable',
+    description:
+      '记录 NPC 身体开发状态。亲密接触或性行为后使用。\n\n' +
+      '【part 可选值】嘴巴 / 胸部 / 小穴 / 屁穴\n\n' +
+      '【必须调用的场景】\n' +
+      '- 亲密行为后对应部位使用次数+1\n' +
+      '- 身体开发描述需要更新时\n\n' +
+      '【严禁的行为】\n' +
+      '- 未经亲密行为就增加使用次数',
+    parameters: {
+      type: 'object',
+      properties: {
+        target: { type: 'string', description: 'NPC 名字' },
+        part: { type: 'string', enum: ['嘴巴', '胸部', '小穴', '屁穴'], description: '开发部位' },
+        increment: { type: 'boolean', description: '是否使用次数+1（默认 true）' },
+        newDescription: { type: 'string', description: '（可选）更新后的描述文字' },
+        reason: { type: 'string', description: '触发原因' },
+      },
+      required: ['target', 'part', 'reason'],
+    },
+    async execute(ctx, params) {
+      const target = params?.target as string;
+      const part = params?.part as string;
+      const increment = params?.increment !== false;
+      const newDescription = params?.newDescription as string | undefined;
+      const reason = params?.reason as string;
+
+      if (!target || !part) {
+        return { content: [{ type: 'text', text: '参数错误：target、part 均为必填' }] };
+      }
+      if (!reason || !reason.trim()) {
+        return { content: [{ type: 'text', text: '参数错误：reason 不能为空' }] };
+      }
+
+      const chars = ctx.variables?.['主要人物'];
+      let devPath = '';
+      if (chars) {
+        for (const gender of ['女性', '男性']) {
+          for (const group of ['异人', '普通人']) {
+            const g = chars[gender]?.[group];
+            if (g?.[target]) {
+              devPath = `/主要人物/${gender}/${group}/${target}/身体开发/${part}`;
+              break;
+            }
+          }
+          if (devPath) break;
+        }
+      }
+      if (!devPath) {
+        return { content: [{ type: 'text', text: `未找到 NPC: ${target}` }] };
+      }
+
+      const current = devPath.split('/').filter(Boolean).reduce((o: any, k) => o?.[k], ctx.variables);
+      if (!current || typeof current !== 'object') {
+        return { content: [{ type: 'text', text: `${target} 没有 ${part} 的身体开发数据` }] };
+      }
+
+      const ops: JsonPatchOp[] = [];
+      if (increment) {
+        const newCount = (current['使用次数'] ?? 0) + 1;
+        ops.push({ op: 'replace', path: `${devPath}/使用次数`, value: newCount });
+      }
+      if (newDescription) {
+        ops.push({ op: 'replace', path: `${devPath}/描述`, value: newDescription });
+      }
+      if (ops.length === 0) {
+        return { content: [{ type: 'text', text: '没有需要更新的内容' }] };
+      }
+
+      const result = ctx.patchVariables(ops);
+      const changes: string[] = [];
+      if (increment) changes.push(`使用次数: ${current['使用次数']} → ${(current['使用次数'] ?? 0) + 1}`);
+      if (newDescription) changes.push(`描述已更新`);
+
+      return {
+        content: [{ type: 'text', text: `🔞 ${target} ${part} ${changes.join(', ')}\n  原因：${reason}` }],
+        details: { target, part, increment, newDescription, reason },
+      };
+    },
+  },
+
+  // ══════════════════════════════════════════════
+  // update_npc_info — 更新 NPC 跟踪信息
+  // ══════════════════════════════════════════════
+
+  update_npc_info: {
+    name: 'update_npc_info',
+    label: 'NPC信息',
+    category: 'variable',
+    description:
+      '更新 NPC 的位置、当前行动或当前想法。\n\n' +
+      '【field 可选值】\n' +
+      '- 当前位置: NPC 物理位置变化时更新\n' +
+      '- 当前行动: NPC 正在做什么\n' +
+      '- 当前想法: 15字左右第一人称心理活动\n\n' +
+      '【必须调用的场景】\n' +
+      '- NPC 移动到新地点\n' +
+      '- NPC 开始/结束某个行动\n' +
+      '- NPC 的心态发生明显变化\n\n' +
+      '【严禁的行为】\n' +
+      '- 每轮都更新——只在发生实质性变化时使用\n' +
+      '- 当前想法超过30字',
+    parameters: {
+      type: 'object',
+      properties: {
+        target: { type: 'string', description: 'NPC 名字' },
+        field: { type: 'string', enum: ['当前位置', '当前行动', '当前想法'], description: '要更新的字段' },
+        value: { type: 'string', description: '新的值' },
+        reason: { type: 'string', description: '为什么变化' },
+      },
+      required: ['target', 'field', 'value', 'reason'],
+    },
+    async execute(ctx, params) {
+      const target = params?.target as string;
+      const field = params?.field as string;
+      const value = params?.value as string;
+      const reason = params?.reason as string;
+
+      if (!target || !field || !value) {
+        return { content: [{ type: 'text', text: '参数错误：target、field、value 均为必填' }] };
+      }
+      if (!reason || !reason.trim()) {
+        return { content: [{ type: 'text', text: '参数错误：reason 不能为空' }] };
+      }
+
+      const chars = ctx.variables?.['主要人物'];
+      let npcPath = '';
+      if (chars) {
+        for (const gender of ['女性', '男性']) {
+          for (const group of ['异人', '普通人']) {
+            const g = chars[gender]?.[group];
+            if (g?.[target]) {
+              npcPath = `/主要人物/${gender}/${group}/${target}/${field}`;
+              break;
+            }
+          }
+          if (npcPath) break;
+        }
+      }
+      if (!npcPath) {
+        return { content: [{ type: 'text', text: `未找到 NPC: ${target}` }] };
+      }
+
+      ctx.patchVariables([{ op: 'replace', path: npcPath, value }]);
+      return {
+        content: [{ type: 'text', text: `📍 ${target} ${field}: ${value}\n  原因：${reason}` }],
+        details: { target, field, value, reason },
       };
     },
   },
