@@ -317,8 +317,11 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
           console.log(`  ✅ ${toolName} (${duration}ms) →`, resultText);
         }
 
-        // submit_reply → 直接退出，返回格式化文本
-        if (turnRecords.some(r => r.name === 'submit_reply')) {
+        // submit_reply → 捕获格式化 XML 到 allText，退出循环
+        const submitReply = turnRecords.find(r => r.name === 'submit_reply');
+        if (submitReply) {
+          allText = submitReply.result;
+          if (allThinking) allText = `<thinking>\n${allThinking}\n</thinking>\n` + allText;
           console.log(`✅ submit_reply 已执行，退出循环`);
           console.groupEnd();
           break;
@@ -331,8 +334,8 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         continue;
       }
 
-      // ── 4. submit_reply 已执行或 API 强制要求工具 → 退出 ──
-      console.log(`✅ Turn #${turnCount} 无更多工具调用，退出循环`);
+      // ── 4. 无 tool call → 直接退出（submit_reply 已在上面捕获）──
+      console.log(`✅ Turn #${turnCount} 退出循环`);
       console.groupEnd();
       break;
     }
