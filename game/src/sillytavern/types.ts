@@ -336,7 +336,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   squashSystemMessages: false,
   messageWidthPercent: 90,
   richTextConfig: DEFAULT_RICH_TEXT_CONFIG,
-  recentMessageCount: 6,
+  recentMessageCount: 0,
   useProcessedMap: true,
   useProcessedCharacters: true,
   agentMode: false,
