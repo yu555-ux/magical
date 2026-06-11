@@ -60,7 +60,26 @@
 | ✅ | 🔴 | **`commit_turn` 工具** | 回合级原子提交：time + events[] 批量执行 |
 | ✅ | 🔴 | **`update_resource` 工具** | HP/MP/金钱/好感/超凡资源增减 |
 | ✅ | — | **工具分类 + patch_state 隐藏** | 4 分类(lookup/variable/mechanics/deprecated)，前端分组展示 |
-| ☐ | 🟡 | **`add_condition` / `remove_condition`** | 异常状态写入工具，替代 patch_state 的最后用途，完成后可彻底删除 patch_state |
+| ✅ | 🟡 | **循环退出引导** | gm-tool-policy.md 补完 + pacing 警告 |
+| ☐ | 🔴 | **变量工具补全（P0）** | 扩展 update_resource + add_item/remove_item — 详见表下 |
+| ☐ | 🟡 | **变量工具补全（P1）** | add_condition/remove_condition + update_social |
+| ☐ | 🔵 | **变量工具补全（P2）** | update_outfit + update_body_development + update_npc_info |
+
+#### 🔴 P0 变量工具 — 扩展 update_resource
+
+需新增路径映射（详情见 `docs/agent实现/变量工具完整设计.md`）：
+
+| target | resource | 路径 | range |
+|--------|---------|------|-------|
+| 主角 | 力量/体质/精神/敏捷 | `/主角/基础属性/{res}` | 1-100 |
+| 主角 | 幸运/魅力 | `/主角/特殊属性/{res}` | 1-100 |
+| 主角 | 评级 | `/主角/评级` | 枚举 |
+| NPC | 力量/体质/精神/敏捷 | `/主要人物/.../基础属性/{res}` | 1-100 |
+| NPC | 幸运/魅力 | `/主要人物/.../特殊属性/{res}` | 1-100 |
+
+#### 🔴 P0 变量工具 — add_item / remove_item
+
+管理主角+NPC的持有物品+仓库。`add_item(target, category, itemName, location, quantity, properties, reason)` / `remove_item(target, category, itemName, quantity, moveTo, reason)`
 | 3 | 🟡 | **回合级事务保护** | 将事务边界从"单工具"提升到"整个 tool_call 批次"，跨工具原子性 |
 | ✅ | 🟡 | **循环退出引导** | gm-tool-policy.md 补完 + commit_turn/advance_time 加 pacing 警告(≥3 events 或 >30min) |
 | 5 | 🔵 | **工具结果 → GM Brief 摘要** | 每轮工具执行完毕后自动归纳摘要，注入 pre-response slot |
@@ -104,19 +123,23 @@
 ## 建议执行顺序
 
 ```
-第 1 步：commit_turn + update_resource     🔴 一线 #1 #2  核心工具
-         ↓
-第 2 步：回合级事务 + 循环退出引导        🟡 一线 #3 #4  循环加固
-         ↓
-第 3 步：switch_scene + Skills 技能系统    🟡 二线 #6 #7  场景管理
-         ↓
-第 4 步：上下文压缩                        🟡 二线 #10    缓存追平 pi（调前）
-         ↓
-第 5 步：每轮状态快照 + Schema 版本化      🟡 二线 #8 #9  状态持久化
-         ↓
-第 6 步：Public/Secret 分离 + 子代理       🔵 三线 #11 #14 #15
-         ↓
-第 7 步：Player Panel + 输入协议            🔵 三线 #12 #13
+第 1 步：commit_turn + update_resource     ✅ 已完成
+第 2 步：循环退出引导                      ✅ 已完成
+第 3 步：变量工具补全 P0                    ← 当前
+         ├─ 扩展 update_resource（基础属性/特殊属性/评级）
+         └─ add_item / remove_item
+第 4 步：变量工具补全 P1
+         ├─ add_condition / remove_condition
+         └─ update_social
+第 5 步：变量工具补全 P2 → 删除 patch_state
+         ├─ update_outfit
+         ├─ update_body_development
+         └─ update_npc_info
+第 6 步：switch_scene + Skills 技能系统
+第 7 步：上下文压缩
+第 8 步：每轮状态快照 + Schema 版本化
+第 9 步：Public/Secret 分离 + 子代理
+第 10 步：Player Panel + 输入协议
 ```
 
 ### 缓存专项路线（穿插进行，低成本高收益）
