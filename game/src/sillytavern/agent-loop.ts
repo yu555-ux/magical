@@ -116,7 +116,6 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         {
           messages: requestMessages,
           tools: openaiTools,
-          tool_choice: 'required',
           temperature,
           top_p,
           top_k,
