@@ -117,11 +117,18 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         console.log(`\n── [${i}] ${m.role} ──\n${text}`);
       });
 
+      // 最后一轮：强制只调用 submit_reply
+      const isLastTurn = turnCount >= maxTurns - 1;
+      const toolChoice: any = isLastTurn
+        ? { type: 'function', function: { name: 'submit_reply' } }
+        : undefined;
+
       const t0 = Date.now();
       const response = await router.callAgent(
         {
           messages: requestMessages,
           tools: openaiTools,
+          tool_choice: toolChoice,
           temperature,
           top_p,
           top_k,

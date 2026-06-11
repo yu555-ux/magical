@@ -93,7 +93,7 @@ export function createApiRouter(settings: ApiSettings, deps: RouterDeps = {}) {
     // 添加工具
     if (payload.tools && payload.tools.length > 0) {
       body.tools = payload.tools;
-      body.tool_choice = 'auto';
+      body.tool_choice = payload.tool_choice ?? 'auto';
     }
 
     // 添加采样参数
