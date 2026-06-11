@@ -69,8 +69,8 @@
     {
       "id": "mechanical-state",
       "enabled": true,
-      "slot": "pre-response",
-      "priority": 10,
+      "slot": "final-contract",
+      "priority": 5,
       "header": "mechanical_state",
       "source": "runtime:state-brief"
     },
