@@ -3,7 +3,7 @@
  *
  * 工具定义分布在各分类文件中：
  *   helpers.ts      — 共享工具函数
- *   lookup.ts       — get_status, lookup_world, lookup_location
+ *   lookup.ts       — get_status, lookup_world
  *   world.ts        — advance_time, change_location, change_weather, toggle_dream
  *   resource.ts     — update_resource, commit_turn, update_skill
  *   item.ts         — add_item, remove_item

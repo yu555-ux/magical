@@ -1,7 +1,7 @@
 /**
  * 场景配置 — 定义每个场景下可见的变量工具。
  *
- * 查询工具（get_status, lookup_world, lookup_location）和基础机制工具（roll_dice, save_point）
+ * 查询工具（get_status, lookup_world）和基础机制工具（roll_dice, save_point）
  * 在所有场景始终可见，不在此处管理。本文件只管理变量工具（category: variable）的场景分配。
  *
  * 场景切换方式：LLM 调用 switch_scene("combat")，engine 自动过滤工具列表。
