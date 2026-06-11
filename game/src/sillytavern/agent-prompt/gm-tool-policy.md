@@ -3,16 +3,36 @@
 ## 工具选择纪律
 
 - 每轮最多调用 1-2 次查询工具（get_status / lookup_world / lookup_location），然后必须开始叙事。
-- 状态变更优先走领域工具：update_resource（资源增减）、advance_time（时间）、change_location（地点）、change_weather（天气）、toggle_dream（入梦/苏醒）。
+- 状态变更优先走专用领域工具，不要手动拼路径。
 - 多个状态变更应合并为一次 commit_turn 调用，不要逐个调用领域工具。
 - 查询工具返回"未找到"时，不要换关键词重试。直接叙事。
 - 不需要查询已经通过 GM Brief 获取的信息（当前时间、地点、资源值）。
 - 不确定的结果通过 roll_dice 判定，不能自行脑补结果。
 
+## 领域事件路由
+
+| 场景 | 使用工具 |
+|------|---------|
+| 资源变化（HP/MP/金钱/好感/属性） | `update_resource` 或 `commit_turn` 的 resource 事件 |
+| 时间推进 | `advance_time` 或 `commit_turn` 的 time 字段 |
+| 地点切换（玩家） | `change_location` |
+| 天气变化 | `change_weather`（仅在氛围有实质影响时使用） |
+| 入梦/苏醒 | `toggle_dream` |
+| 物品增减（获赠/购买/丢弃） | `add_item` / `remove_item` |
+| 异常状态（受伤/中毒/诅咒/buff） | `add_condition` / `remove_condition` |
+| 社交关系变化 | `update_social` |
+| 技能变化（习得/升级/解锁分支） | `update_skill` |
+| NPC 着装变化 | `update_outfit`（仅女性角色） |
+| 身体开发记录 | `update_body_development`（仅女性角色） |
+| NPC 位置/行动/想法 | `update_npc_info` |
+| 地图更新（新地点/异常/信息） | `update_map` |
+| 骰子判定 | `roll_dice` |
+| 剧情节点存档 | `save_point`（仅重要事件时使用） |
+
 ## 回合边界
 
 - 一次回复只处理一个玩家行动窗口及其直接后果。不要在同一个回复中玩第二个前景行动窗口。
-- 以下情况出现后，停止调用前进类工具（advance_time / commit_turn / change_location），直接进入叙事：
+- 以下情况出现后，停止调用前进类工具，直接进入叙事：
   - commit_turn 已经执行（状态已落定）
   - 时间推进超过 30 分钟
   - 同一个回复中已经执行了 3 个以上状态变更事件
@@ -20,17 +40,6 @@
   - 遇到了需要玩家回应的选择点
 - 叙事必须停在玩家可以回应的地方。如果继续调用工具会跳过玩家的回应窗口，立即停止。
 - 如遇到 pacing 警告，必须停止调用前进类工具，将已执行的状态变更渲染为场景叙事。
-
-## 领域事件路由
-
-- 资源变化（HP/MP/金钱/好感）→ update_resource 或 commit_turn 的 resource 事件
-- 时间推进 → advance_time 或 commit_turn 的 time 字段
-- 地点切换 → change_location
-- 天气变化 → change_weather（仅在氛围有实质影响时使用）
-- 入梦/苏醒 → toggle_dream
-- 骰子判定 → roll_dice
-- 剧情节点存档 → save_point（仅重要事件时使用）
-- 直接修改变量树 → patch_state（仅在领域工具无法覆盖时使用，通常不需要）
 
 ## 工具错误处理
 
