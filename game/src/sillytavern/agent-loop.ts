@@ -83,6 +83,12 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         break;
       }
 
+      // 接近上限时注入强制 submit_reply 提示
+      if (turnCount >= maxTurns - 2) {
+        console.warn(`⚠️ 接近 maxTurns (${turnCount}/${maxTurns})，注入 submit_reply 提示`);
+        contextMessages.push({ role: 'user', content: '剩余轮次不足！请立即调用 submit_reply 提交最终回复，不要再查询或修改状态。' } as any);
+      }
+
       turnCount++;
       let turnUsage: { hit: number; miss: number; generated: number } | null = null;
 

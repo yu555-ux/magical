@@ -315,7 +315,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     secondary: { enabled: true, baseUrl: 'https://api.deepseek.com', apiKey: '', model: 'deepseek-v4-flash', temperature: 0.7, maxTokens: 8000 },
     agentMode: false,
     enabledTools: ['lookup_world'],
-    maxTurnsPerMessage: 10,
+    maxTurnsPerMessage: 20,
     cacheControl: 'auto',
   },
   apiMode: 'dual',
