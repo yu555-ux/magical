@@ -548,6 +548,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         if (loopResult && typeof loopResult === 'object' && 'text' in loopResult) {
           rawContent = (loopResult as any).text || rawContent;
           thinkingContent = (loopResult as any).thinking || thinkingContent;
+          console.log(`📦 Agent 最终文本: ${rawContent.length} 字, 思考: ${thinkingContent.length} 字, 内容前100字: "${rawContent.slice(0, 100)}"`);
         }
       } catch (e) {
         console.error('[Agent] Agent loop error:', e);
