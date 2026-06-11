@@ -3,6 +3,7 @@
  */
 import type { SavePoint } from '../types';
 import type { AgentToolDef } from './registry';
+import { SCENE_VARIABLE_TOOLS, type SceneType } from './scene-profiles';
 
 export const mechanicTools: Record<string, AgentToolDef> = {
 
@@ -108,6 +109,48 @@ export const mechanicTools: Record<string, AgentToolDef> = {
       }
 
       return { content: [{ type: 'text', text }], details: { rolls, total, dc, modifier } };
+    },
+  },
+
+  switch_scene: {
+    name: 'switch_scene',
+    label: '切换场景',
+    category: 'mechanics',
+    description:
+      '根据当前情节发展切换场景类型，引擎会自动过滤变量工具列表。\n' +
+      '【可选场景】\n' +
+      '- combat: 战斗 — 资源/状态/技能/物品\n' +
+      '- exploration: 探索 — 地点/地图/NPC跟踪/物品/状态\n' +
+      '- social: 社交 — 社交关系/NPC跟踪/着装/资源\n' +
+      '- intimate: 亲密 — 身体开发/着装/社交/资源/状态\n' +
+      '- dream: 梦境 — 梦境切换/地点/地图/状态/资源\n\n' +
+      '【使用时机】\n' +
+      '- 场景发生明显变化时调用（如从日常进入战斗）\n' +
+      '- 不确定当前场景时可以调用此工具确认\n' +
+      '- 不调用时默认使用上一次设置的场景',
+    parameters: {
+      type: 'object',
+      properties: {
+        scene: { type: 'string', enum: ['combat', 'exploration', 'social', 'intimate', 'dream'], description: '新场景类型' },
+        reason: { type: 'string', description: '为什么切换场景' },
+      },
+      required: ['scene', 'reason'],
+    },
+    async execute(ctx, params) {
+      const scene = params?.scene as SceneType;
+      const reason = params?.reason as string;
+      if (!scene || !SCENE_VARIABLE_TOOLS[scene]) {
+        return { content: [{ type: 'text', text: `参数错误：scene 必须是 combat/exploration/social/intimate/dream 之一` }] };
+      }
+      if (!reason || !reason.trim()) {
+        return { content: [{ type: 'text', text: '参数错误：reason 不能为空' }] };
+      }
+      if (ctx.setCurrentScene) ctx.setCurrentScene(scene);
+      const toolNames = SCENE_VARIABLE_TOOLS[scene];
+      return {
+        content: [{ type: 'text', text: `🎬 场景切换至: ${scene}\n  可用变量工具: ${toolNames.join(', ')}\n  原因：${reason}` }],
+        details: { scene, reason },
+      };
     },
   },
 

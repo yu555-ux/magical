@@ -63,7 +63,7 @@ get_status: {
         results.push(`路径 ${p}: 不存在`);
       } else {
         const text = typeof target === 'object' && !Array.isArray(target)
-          ? formatVariablesForPrompt(target as Record<string, any>, 2)  // depth limit = 2
+          ? formatVariablesForPrompt(target as Record<string, any>)  // depth limit = 2
           : String(target);
         results.push(`## ${p}\n${text}`);
       }

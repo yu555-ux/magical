@@ -12,6 +12,7 @@ import { type FertilizationResult } from '../sillytavern/physiology';
 import { buildAgentContext } from '../sillytavern/agent-context';
 import { runAgentLoop } from '../sillytavern/agent-loop';
 import { getEnabledTools, type ToolExecutionContext } from '../sillytavern/tools/registry';
+import { SCENE_VARIABLE_TOOLS, type SceneType } from '../sillytavern/tools/scene-profiles';
 import { resolveLorebyMacro } from '../sillytavern/lorebook-resolver';
 import { buildSecondaryPrompt } from '../sillytavern/secondary-prompt-builder';
 import { useRegenerateVars } from './useRegenerateVars';
@@ -148,6 +149,7 @@ export function useSillytavern() {
   const [jumpVersion, setJumpVersion] = useState(0); // 每次回档+1，强制ChatPage刷新
   const abortRef = useRef<AbortController | null>(null);
   const dualAbortRef = useRef<AbortController | null>(null);
+  const currentSceneRef = useRef<SceneType>('exploration');
 
   // Agent mode state
   const [pendingToolCalls, setPendingToolCalls] = useState<Map<string, { name: string; label: string; startTime: number }>>(new Map());
@@ -371,7 +373,18 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       console.log(`🤖 模型: ${effectiveApi.model}`);
       console.log(`🔧 启用工具: ${(effectiveApi.enabledTools ?? []).join(', ') || '无'}`);
 
-      const agentTools = getEnabledTools(effectiveApi.enabledTools ?? []);
+      const allTools = getEnabledTools(effectiveApi.enabledTools ?? []);
+      // 场景过滤：变量工具根据 currentScene 白名单筛选，查询/机制工具始终通过
+      const scene = currentSceneRef.current;
+      const sceneWhitelist = SCENE_VARIABLE_TOOLS[scene] ?? [];
+      const agentTools = allTools.filter(t => {
+        if (t.category !== 'variable') return true;  // lookup + mechanics 始终可见
+        return sceneWhitelist.includes(t.name);
+      });
+      if (scene) {
+        console.log(`🎬 当前场景: ${scene}, 变量工具: ${agentTools.filter(t => t.category === 'variable').map(t => t.name).join(', ')}`);
+      }
+
       const agentCtx = buildAgentContext({
         userName: effectiveSettings.userName ?? DEFAULT_SETTINGS.userName,
         characterName: effectiveSettings.characterName ?? DEFAULT_SETTINGS.characterName,
@@ -403,6 +416,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         variables: agentVars,
         lorebooks: effectiveSettings.lorebooks ?? [],
         plotHistory: updatedChat.plotHistory ?? { reality: [], dream: [] },
+        dreamAnchor: updatedChat.dreamAnchor ?? {},
         userInput: userText,
         historyText,
         patchVariables: (ops) => {
@@ -444,6 +458,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
             timeline.reality = [...timeline.reality, { ...sp, sequence: timeline.reality.length + 1 }];
           }
         },
+        setCurrentScene: (s) => { currentSceneRef.current = s; },
       };
 
       const freshRouter = createApiRouter(effectiveApi);

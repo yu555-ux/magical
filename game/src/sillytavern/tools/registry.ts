@@ -41,7 +41,10 @@ export interface ToolExecutionContext {
   dreamAnchor: DreamAnchor;
   patchVariables: (ops: JsonPatchOp[]) => { ok: boolean; error?: string; changes?: Array<{ path: string; oldValue?: any; newValue?: any }> };
   appendHistory: (sp: SavePoint) => void;
+  setCurrentScene?: (scene: SceneType) => void;
 }
+
+import type { SceneType } from './scene-profiles';
 
 export type ToolCategory = 'lookup' | 'world' | 'variable' | 'mechanics' | 'deprecated';
 

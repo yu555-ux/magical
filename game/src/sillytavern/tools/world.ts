@@ -1,3 +1,4 @@
+import type { JsonPatchOp } from "../types";
 import { parseWorldTime, formatDateTime, getDatePart, tickAges, tickAllFemales, type ParsedTime } from '../physiology';
 import { isValidRealityWeather, isValidDreamWeather, updateWeatherOnTimeTick } from '../weather';
 import { resolvePath } from '../var-map';
