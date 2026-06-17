@@ -1,59 +1,9 @@
 /**
- * 机制工具 — roll_dice, save_point
+ * 机制工具 — roll_dice, submit_reply
  */
-import type { SavePoint } from '../types';
 import type { AgentToolDef } from './registry';
-import { SCENE_VARIABLE_TOOLS, type SceneType } from './scene-profiles';
 
 export const mechanicTools: Record<string, AgentToolDef> = {
-
-  save_point: {
-    name: 'save_point',
-    label: '记录剧情节点',
-    category: 'mechanics',
-    description:
-      '在剧情历史中记录一个重要的剧情节点（存档点）。用于标记关键事件、章节完成、重大转折。\n\n' +
-      '【必须调用的场景】\n' +
-      '- 完成一个重要事件或章节时\n' +
-      '- 揭示关键信息时\n' +
-      '- 玩家做出重大决策时\n' +
-      '- NPC 关键对话或转折时\n\n' +
-      '【严禁的行为】\n' +
-      '- 每轮对话都记录——只在真正重要的节点使用\n' +
-      '- 记录与当前剧情无关的推测信息',
-    parameters: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: '剧情节点标题（简短）' },
-        world: { type: 'string', enum: ['现实', '梦境'], description: '发生在现实还是梦境' },
-        date: { type: 'string', description: '游戏内日期' },
-        location: { type: 'string', description: '发生地点' },
-        characters: { type: 'string', description: '相关人物（逗号分隔）' },
-        description: { type: 'string', description: '事件简述（2-3 句话）' },
-        keyInfo: { type: 'array', items: { type: 'string' }, description: '关键信息列表' },
-        foreshadowing: { type: 'array', items: { type: 'string' }, description: '伏笔列表（可选）' },
-      },
-      required: ['title', 'world', 'date', 'location', 'characters', 'description'],
-    },
-    async execute(ctx, params) {
-      const sp: SavePoint = {
-        sequence: 0,
-        title: params.title ?? '',
-        world: params.world ?? '现实',
-        date: params.date ?? '',
-        location: params.location ?? '',
-        characters: params.characters ?? '',
-        description: params.description ?? '',
-        keyInfo: Array.isArray(params.keyInfo) ? params.keyInfo : [],
-        foreshadowing: Array.isArray(params.foreshadowing) ? params.foreshadowing : [],
-      };
-      ctx.appendHistory(sp);
-      return {
-        content: [{ type: 'text', text: `已记录剧情节点：「${sp.title}」(${sp.world}/${sp.location})` }],
-        details: { savePoint: sp },
-      };
-    },
-  },
 
   roll_dice: {
     name: 'roll_dice',
@@ -109,48 +59,6 @@ export const mechanicTools: Record<string, AgentToolDef> = {
       }
 
       return { content: [{ type: 'text', text }], details: { rolls, total, dc, modifier } };
-    },
-  },
-
-  switch_scene: {
-    name: 'switch_scene',
-    label: '切换场景',
-    category: 'mechanics',
-    description:
-      '根据当前情节发展切换场景类型，引擎会自动过滤变量工具列表。\n' +
-      '【可选场景】\n' +
-      '- combat: 战斗 — 资源/状态/技能/物品\n' +
-      '- exploration: 探索 — 地点/地图/NPC跟踪/物品/状态\n' +
-      '- social: 社交 — 社交关系/NPC跟踪/着装/资源\n' +
-      '- intimate: 亲密 — 身体开发/着装/社交/资源/状态\n' +
-      '- dream: 梦境 — 梦境切换/地点/地图/状态/资源\n\n' +
-      '【使用时机】\n' +
-      '- 场景发生明显变化时调用（如从日常进入战斗）\n' +
-      '- 不确定当前场景时可以调用此工具确认\n' +
-      '- 不调用时默认使用上一次设置的场景',
-    parameters: {
-      type: 'object',
-      properties: {
-        scene: { type: 'string', enum: ['combat', 'exploration', 'social', 'intimate', 'dream'], description: '新场景类型' },
-        reason: { type: 'string', description: '为什么切换场景' },
-      },
-      required: ['scene', 'reason'],
-    },
-    async execute(ctx, params) {
-      const scene = params?.scene as SceneType;
-      const reason = params?.reason as string;
-      if (!scene || !SCENE_VARIABLE_TOOLS[scene]) {
-        return { content: [{ type: 'text', text: `参数错误：scene 必须是 combat/exploration/social/intimate/dream 之一` }] };
-      }
-      if (!reason || !reason.trim()) {
-        return { content: [{ type: 'text', text: '参数错误：reason 不能为空' }] };
-      }
-      if (ctx.setCurrentScene) ctx.setCurrentScene(scene);
-      const toolNames = SCENE_VARIABLE_TOOLS[scene];
-      return {
-        content: [{ type: 'text', text: `🎬 场景切换至: ${scene}\n  可用变量工具: ${toolNames.join(', ')}\n  原因：${reason}` }],
-        details: { scene, reason },
-      };
     },
   },
 

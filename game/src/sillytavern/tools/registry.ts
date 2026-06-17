@@ -10,7 +10,7 @@
  *   character.ts    — add_condition, remove_condition, update_social
  *   npc.ts          — update_outfit, update_body_development, update_npc_info
  *   map.ts          — update_map
- *   mechanics.ts    — roll_dice, save_point
+ *   mechanics.ts    — roll_dice, submit_reply
  *
  * 新增工具：在对应分类文件中添加 → 无需改动本文件
  */
@@ -41,10 +41,7 @@ export interface ToolExecutionContext {
   dreamAnchor: DreamAnchor;
   patchVariables: (ops: JsonPatchOp[]) => { ok: boolean; error?: string; changes?: Array<{ path: string; oldValue?: any; newValue?: any }> };
   appendHistory: (sp: SavePoint) => void;
-  setCurrentScene?: (scene: SceneType) => void;
 }
-
-import type { SceneType } from './scene-profiles';
 
 export type ToolCategory = 'lookup' | 'world' | 'variable' | 'mechanics' | 'deprecated';
 

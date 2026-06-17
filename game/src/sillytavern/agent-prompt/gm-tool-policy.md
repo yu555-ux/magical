@@ -38,7 +38,6 @@
 | NPC 位置/行动/想法 | `update_npc_info` |
 | 地图更新（新地点/异常/信息） | `update_map` |
 | 骰子判定 | `roll_dice` |
-| 剧情节点存档 | `save_point`（仅重要事件时使用） |
 
 ## 回合边界
 
