@@ -1,6 +1,62 @@
 # Agent 模式优化方案
 
-> 基于 fate-sandbox（agent1-示例）和 tavern2agent 的深度分析。我们的项目是独立 Web 应用（React + IndexedDB），不依赖 pi agent 平台，所有方案都已针对此架构适配。
+> **最后更新**: 2026-06-17
+> **主要参考**: fate-sandbox-master（Fate/strange Fake 沙盒，基于 pi agent 平台的双 pass 架构）
+> **架构说明**: 我们的项目是独立 Web 应用（React + Vite + IndexedDB），不依赖 pi agent 平台。所有方案已针对 Web 端架构适配——核心概念可直接借鉴，但实现路径需自行造轮子（无 pi 的 extension hook / TypeBox / session manager）。
+
+---
+
+## 〇、fate-sandbox 双 Pass 架构速览
+
+在深入优化方案之前，先理解 fate-sandbox 最核心的架构决策。详细模拟见 `fate-sandbox-循环模拟.md`。
+
+### 双 Pass 是什么
+
+```
+玩家输入
+  ↓
+┌─ Pass A: Settlement Director (agent loop) ──────────────┐
+│  身份: "You never write player-visible narration."       │
+│  输入: system-settlement.md                              │
+│       + preset-settlement.json 的 10 个模块               │
+│       + 聊天历史 + 用户输入                               │
+│  输出: submit_direction_packet (结构化 JSON)              │
+│        → playerAction / resolvedChanges / npcStances     │
+│        → sensoryAnchors / endWindow / eventWeight        │
+│        → canonFacts                                      │
+│        → 经 packet-firewall 扫描秘密泄漏后 terminate     │
+└──────────────────┬──────────────────────────────────────┘
+                   │ direction packet (唯一通道)
+                   ▼
+┌─ Pass B: Clean-room Renderer (纯 stream()) ─────────────┐
+│  身份: "Do not run tools, settle rules, inspect state."  │
+│  输入: system-render.md                                  │
+│       + preset-render.json 的 5 个模块                    │
+│       + 散文史 (摘要层 + 全文层)                          │
+│       + 本轮玩家输入 + Direction Packet                  │
+│  输出: 纯中文叙事正文 → lint → 回写 session              │
+│  可见: 玩家输入 + packet + 历史正文                      │
+│  不可见: ❌ 工具历史 ❌ State ❌ 未揭示秘密 ❌ GM Brief  │
+└──────────────────────────────────────────────────────────┘
+```
+
+### 为什么需要双 Pass
+
+来自 ADR-0002（`docs/adr/0002-two-pass-direction-render-split.md`）：
+
+> 两个工作在单次生成中互相腐蚀：文笔质量和工具纪律在同一个模型 pass 中互相折衷，工作记忆中的秘密泄漏到热情的叙述中（审计发现真实的真名泄漏），引擎端的拒绝变成玩家可见的失败。
+
+### 对 Web 端的适用性
+
+| 双 Pass 解决的问题 | 我们是否需要 | 建议 |
+|-------------------|-------------|------|
+| 结算与渲染在工作记忆中互相腐蚀 | ⚠️ 部分存在 — submit_reply 同时处理结算信息和叙事 | P2 考虑方向 |
+| 隐藏秘密泄漏到叙事中 | 当前项目无隐藏信息层 | 暂不需要 |
+| 工具失败暴露给玩家 | 当前已有 ToolCallBubble | 可接受 |
+| 不同模型做结算 vs 渲染 | 目前单模型可用 | 未来可选 |
+| 多一次模型调用成本 + packet 完整性依赖 | — | 先优化单 pass |
+
+**结论**：双 Pass 是核心创新但不是当前最紧迫的——我们的项目没有秘密泄漏问题，且单 pass 的 submit_reply 效果已可用。先把单 pass 做到极致，再考虑切两轮。
 
 ---
 
@@ -9,525 +65,322 @@
 ### 1.1 当前架构
 
 ```
-用户输入 → buildAgentContext() → runAgentLoop() → LLM + tools → 输出
+用户输入 → buildAgentContext() → runAgentLoop() → LLM + tools → submit_reply → 输出
               │                      │
               ├─ 3层消息结构          ├─ while(turn < maxTurns)
               │  system: 身份+契约     │  ├─ router.callAgent()
-              │  reference: 世界书+工具 │  ├─ 流式解析 SSE
-              │  rules: 铁则(最后)      │  ├─ 检测 tool_calls
-              └─ 静态拼接              │  ├─ 执行工具 → 结果回注
-                                     │  └─ 无 tool → 退出
-                                     └─ 5个工具: get_status, patch_state, save_point,
-                                                  roll_dice, lookup_world
+              │  pre-history: 8个文风模块 │  ├─ 流式解析 SSE
+              │  pre-response: 3个规则模块 │  ├─ 检测 tool_calls
+              │  final-contract: 3个检查模块│  ├─ 执行工具(含事务保护) → 结果回注
+              └─ preset.json + injection.ts │  └─ submit_reply → 退出
+                                         └─ 工具: get_status, lookup_world,
+                                            roll_dice, save_point, switch_scene,
+                                            submit_reply, 及 9 个领域工具
 ```
 
 ### 1.2 当前优点
 
-- Agent loop 清晰，流式解析正确
-- 已采用 "铁则离生成最近" 的 DeepSeek V4 适配策略
-- 工具 description 包含"必须调用/严禁"模板
-- 缓存友好的前缀消息布局
+- Agent loop 清晰，事务保护完善（structuredClone 快照回滚）
+- 已采用 preset.json + slot/priority 的模块化架构（与 fate-sandbox 同级）
+- 工具 description 三段式模板已部分应用
+- GM Brief 运行时动态生成（buildGmBrief）
+- 自检清单（think_check 9 条）比 fate-sandbox 的 Quality Gate 更结构化
+- 缓存监控（DeepSeek cache hit/miss 追踪）
 
-### 1.3 与 fate-sandbox 的核心差距
+### 1.3 与 fate-sandbox-master 的核心差距（修订版）
 
-| 维度 | 我们 | fate-sandbox | 差距等级 |
-|------|------|-------------|:--:|
-| 提示词架构 | 单一文件字符串拼接 | preset.json + 13个独立模块 + 3个slot | **大** |
-| 状态注入 | LLM手动 get_status | 运行时自动 GM Brief 每轮注入 | **大** |
-| 状态写入 | 通用 JSON Patch | 领域事件工具，patch 已禁用 | **大** |
-| 技能系统 | 无 | skills/ 目录，场景化加载 | **大** |
-| 工具管理 | 5个工具始终暴露 | 按场景动态切换，3-6个/场景 | 中 |
-| 思维链/自检 | 无 | 生成前13步 + 输出前8条双阶段检查 | 中 |
-| 内容质量控制 | 仅格式规则 | 文风黑名单 + 好坏对比 + 渲染协议 + 创作宪法 | 中 |
-| 状态持久化 | 对话结束整体保存 | 每轮快照 + 事务回滚 | 中 |
-| Schema管理 | 无版本号 | schemaVersion + 渐进迁移 | 小 |
-| 回合管理 | 自由loop | 强约束 commit_turn + pacing 警告 | 小 |
-
----
-
-## 二、优化方案
-
-以下 17 项按主题归为四组：**提示词架构 / 工具与状态 / 质量控制 / 支撑系统**。
+| 维度 | 我们 | fate-sandbox-master | 差距等级 | 说明 |
+|------|------|---------------------|:--:|------|
+| **双 Pass 分离** | 单 pass | 结算器 + 洁净室渲染器 | **大** | 但我们暂不需要——无秘密泄漏问题 |
+| **Slot 策略** | 预置 pre-response | 所有规则放 **pre-history** | **中** | fate 把 tool-policy/hard-rules/story-driver 全放低注意力区 |
+| **turn-reminder** | 无 | 3 行极简每轮提醒 | **小** | 高价值低成本 |
+| **presence-impressions** | 无 | 运行时从 state 提取 NPC 印象卡 | **中** | compaction 后保持 NPC 声音一致性 |
+| **story-driver 深度** | ~30 行 | **180 行**，13 步规划 + post-tool 写作映射 | **大** | 最值得借鉴的单文件 |
+| **tool-policy 深度** | 53 行，基础路由 | **130 行**，canon query 规则 + beat lifecycle + subagent 路由 | **大** | 工具纪律的核心防线 |
+| **TypeBox schema** | JSON Schema 对象 | 完整 TypeBox 类型定义 | 中 | pi 平台专有，我们不依赖 |
+| **Domain Event Runner** | 无统一事务层 | clone → execute → commit → persist | 中 | 当前 structuredClone 回滚已可用 |
+| **packet-firewall** | 无 | 代码层秘密泄漏扫描 + 整包拒绝 | 小 | 无秘密层则不需要 |
+| **prose lint + retry** | 无 | 渲染后 3 层检查 + 重写 + redact | 中 | 可参考做正文质量检查 |
+| **digest writer** | 无 | 独立小模型写每行摘要 | 小 | 未来 compaction 时可用 |
 
 ---
 
-### 组 A：提示词架构（P0 — 基础重构）
+## 二、提示词架构优化（P0）
 
-#### A1. 模块化装配系统
+### 2.1 当前已做到的
 
-**目标**：从 `agent-defaults.ts` 单一文件 → `preset.json` + 多个独立 markdown 模块。
+当前项目的 preset.json + injection.ts + module-content.ts 架构已经和 fate-sandbox 同级：
+- preset.json 声明模块 id/enabled/slot/priority/header/source
+- injection.ts 按 slot/priority 排序组装
+- module-content.ts 提供 Vite `?raw` import 的内容映射
+- 支持 `runtime:state-brief` 动态生成
 
-**参考**：fate-sandbox 的 `preset.json` + `injection.ts`，13 个模块各司其职。
+### 2.2 需要调整的部分
 
-**三个 slot 的注意力模型**：
+#### A. Slot 策略调整
+
+**fate-sandbox 的做法**：**所有规则模块放在 pre-history**（低注意力区），pre-response 只放 3 个极简模块。
+
 ```
-高注意力 ▲  pre-response    GM Brief、工具策略、硬规则、自检清单
-          │                   ★ 离生成最近，最高注意力
-          │  user input      玩家本轮输入
-          │  pre-history     创作宪法、世界观、文风指南、渲染协议
-          ▼                   ★ 背景参考，注意力最低
-低注意力    final-contract   输出格式契约
-                              ★ 最后注入，影响输出形状
+fate-sandbox settlement preset:
+  pre-history (低注意力):
+    settlement-principles (pri=10)
+    world-context (pri=20)
+    input-guide (pri=30)
+    social-guide (pri=40)
+    tool-policy (pri=80)          ← 130 行工具路由在这里
+    hard-rules (pri=90)           ← 50 行硬规则在这里
+    story-driver (pri=100)        ← 180 行剧情纪律在这里
+  pre-response (最高注意力):
+    mechanical-state (pri=10)      ← GM Brief，运行时生成
+    turn-reminder (pri=20)        ← 3 行极简
+    presence-impressions (pri=15)  ← NPC 印象卡，运行时生成
+  final-contract:
+    direction-contract (pri=10)   ← packet 格式契约
 ```
 
-**需要拆分的模块**（按 slot 分组）：
+哲学：**工具 description 是模型调用的第一入口，prompt 模块只是上下文参考。** 规则需要存在但不需要每轮高声朗读。pre-response 只放"绝对不可跳过的最小纪律"——3 行 turn-reminder。
 
-| Slot | 模块 | 内容 |
-|------|------|------|
-| system | `gm-system.md` | 极简身份 + 最高契约（≤5条） |
-| pre-history | `gm-creative-constitution.md` | 玩家视角、世界惯性、场景运动 |
-| pre-history | `gm-style-guide.md` | 文风指南：字数、对话占比、镜头规则 |
-| pre-history | `gm-style-blacklist.md` | 禁止句式清单 |
-| pre-history | `gm-render-protocol.md` | 连续性规则、状态锚点、好坏对比示例 |
-| pre-response | `mechanical_state` | **运行时动态生成**的 GM Brief |
-| pre-response | `gm-tool-policy.md` | 工具调用策略 |
-| pre-response | `gm-rules.md` | 硬性规则、机械纪律 |
-| pre-response | `gm-story-driver.md` | 生成前内部分析（5步） |
-| final-contract | `gm-output-contract.md` | 输出格式契约 |
-| final-contract | `gm-think.md` | 输出前验证（8条） |
+**当前项目的做法**：story-driver、tool-policy、hard-rules 放在 **pre-response**（最高注意力区）。
 
-**实现要点**：
-- `preset.json` 声明每个模块的 id/enabled/slot/priority/header/source
-- `injection.ts` 装配引擎：读 preset → 按 slot 分组 → 按 priority 排序 → 注入消息流
-- 每个模块独立启用/禁用/调优先级
-- 用户可通过 `agents/user/` 目录覆盖默认模块
+**建议**：两种策略各有利弊。当前项目的做法（规则放 pre-response）在 DS V4 上可能更有效——DS V4 对 user-role 的服从度远超 system，且 high-attention 区域的指令更容易被遵循。保持当前布局，但做以下微调：
 
-**preset.json 示例**：
-```json
-{
-  "version": 1,
-  "modules": [
-    { "id": "creative-constitution", "enabled": true, "slot": "pre-history", "priority": 10, "header": "creative_constitution", "source": "agents/gm-creative-constitution.md" },
-    { "id": "mechanical-state", "enabled": true, "slot": "pre-response", "priority": 5, "header": "mechanical_state", "source": "runtime:state-brief" },
-    { "id": "output-contract", "enabled": true, "slot": "final-contract", "priority": 10, "header": "output_contract", "source": "agents/gm-output-contract.md" }
-  ]
+1. **新增 turn-reminder 模块**：3 行极简，放在 pre-response 第一位（pri=5）。
+
+```markdown
+# Turn Reminder
+
+- 先调工具确认机械事实，再叙事。工具返回值覆盖 GM Brief。
+- 一轮只处理一个玩家的行动窗口。停在玩家必须回应的时刻。
+- 不要把推理、字段名、JSON、schema 路径写进正文。
+```
+
+2. **考虑将 story-driver 拆分为两个模块**：
+   - `gm-story-driver.md`（pre-history，pri=15）：写作前的剧情规划（轻量 5 步）
+   - `gm-story-driver-full.md`（可选 skill）：完整的 13 步规划 + post-tool 写作映射表
+
+#### B. 新增模块：presence-impressions（NPC 在场印象卡）
+
+**来源**：fate-sandbox 的 `buildPresenceImpressionsText()`，从 state 的 actor impression 中提取当前场景 NPC 的 presence/actionStyle/relationshipPosture/voiceMaterial。
+
+**Web 端适配**：从变量树 `主要人物/` + 当前场景中提取。
+
+```typescript
+function buildPresenceImpressions(variables: Record<string, any>, currentLocation: string): string {
+  // 从变量树中提取当前场景相关的 NPC
+  // 格式：NPC 名 / 在场状态 / 当前情绪 / 对玩家的态度 / 声音特征
+  // 控制在 200-400 字
 }
 ```
 
----
+**价值**：compaction 后 NPC 声音一致性是纯 prompt 最易丢失的维度。印象卡作为每轮注入的"当前 NPC 状态锚"可以显著缓解。
 
-#### A2. 运行时 GM Brief（机械状态简报）
+#### C. story-driver 深化
 
-**问题**：Agent 必须手动 `get_status` 才知道状态 → 第一轮必浪费 1 个 tool call → LLM 可能"忘记"查状态。
+**参考**：fate-sandbox 的 `gm-story-driver.md` 180 行。最值得借鉴的部分：
 
-**方案**：每轮从变量树自动生成 GM Brief，注入 pre-response slot。
+1. **13 步当前轮内部分析**（我们可压缩为 5-8 步）
+2. **Post-tool 写作映射表**（最具实操价值）：
 
 ```
-<mechanical_state>
-[当前 GM 简报]
-时间：第3天 午后  地点：夏城一中·教学楼
-玩家：HP 85/100  MP 60/100  金钱 320G
-同行者：周汝
-异常状态：轻微擦伤（左臂）
-最近事件：教室遇袭 → 逃至天台 → 发现异常结界
-</mechanical_state>
+- Time change → sky, bells, foot traffic, fatigue, transit, temperature
+- Location change → route, ground, entrance, blocked sightline, sense of distance
+- Wound / mana → limited movement, pain, dizziness, changed breathing
+- Money / object → payment, change, bag weight, receipt, object position
+- Relationship change → address, distance, pause, avoidance, active care, concrete promise
 ```
 
-**实现**：
-```typescript
-function buildGmBrief(vars: Record<string, any>): string {
-  const lines: string[] = [];
-  lines.push(`时间：${vars['世界']?.['现实']?.['时间'] ?? '--'}`);
-  lines.push(`地点：${vars['世界']?.['现实']?.['地点'] ?? '未知'}`);
-  const r = vars['主角']?.['资源'];
-  if (r) lines.push(`HP ${r['HP']}/${r['HP上限']}  MP ${r['MP']}/${r['MP上限']}  💰${r['金钱']}`);
-  const companions = vars['主角']?.['同行者'] ?? [];
-  if (companions.length) lines.push(`同行者：${companions.join('、')}`);
-  return lines.join('  |  ');
-}
-```
+这个映射表把"工具结果如何转化为叙事细节"做成了速查清单。建议加入我们的 `gm-story-driver.md`。
 
-**设计原则**：
-- 简报只压住叙事倾向，工具返回值优先
-- 控制在 300-500 字，不泄露隐藏信息
-- `get_status` 工具仍保留作为精确查询手段（带去重保护）
+3. **压力纪律**：
+```
+- Gentle cushioning is drift.
+- Pressure must land on state or an action window.
+- If each careful player action gets clean success, the next success must carry cost.
+```
 
 ---
 
-#### A3. 思维链/自检清单
+## 三、工具调用优化（P1）
 
-**参考**：fate-sandbox 的 `gm-story-driver.md`（生成前 13 步分析）+ `gm-think.md`（生成后 8 条验证）。
+### 3.1 当前工具现状
 
-**核心指令**：`Do not write this Module's content into the final reply.`
+当前 15 个工具（get_status, lookup_world, roll_dice, save_point, switch_scene, submit_reply, advance_time, change_location, change_weather, toggle_dream, update_resource, commit_turn, update_skill, add_item, remove_item, add_condition, remove_condition, update_social, update_outfit, update_body_development, update_npc_info, update_map）。
 
-**生成前内部分析**（5 步，注入 pre-response）：
-1. 玩家本轮实际做了什么？不要扩展成更大的决定
-2. 本轮需要工具确认的信息是什么？先调工具再叙事
-3. 哪个 NPC 最重要？他/她想要什么、绝不会说出口什么？
-4. 本轮叙事的主锚点是什么？身体动作 / 物品交互 / 环境变化？
-5. 最后一段停在哪个具体行动窗口？
+分 5 个 category：lookup / world / variable / mechanics / deprecated。
 
-**输出前验证**（8 条，注入 final-contract）：
-1. 是否替玩家做了决定？→ 删除，停在选择时刻
-2. 是否在工具成功前声称了数值变化？→ 删除
-3. 是否有裸数值？→ 改为自然语言
-4. NPC 是否说了不该知道的信息？→ 删除或转推测
-5. 是否有报告句式？→ 改为场景描写
-6. 结尾是否停在可行动时刻？→ 加感官锚点
-7. 是否有禁止句式？→ 替换
-8. 标签是否正确闭合？→ 检查
+### 3.2 需要调整的部分
 
----
+#### A. 工具 description 全面三段式
 
-### 组 B：工具与状态（P1 — 正确性基础）
+每个工具必须包含：
 
-#### B1. 从通用 patch → 领域事件工具
-
-**问题**：LLM 会尝试各种 path → 失败 + 重试浪费 token → 无法防止写入错误路径。
-
-**方案**：`patch_state` 降级为白名单约束模式，日常状态变更走领域事件工具。
-
-```typescript
-// 当前：通用 patch
-patch_state({ ops: [{ op: "replace", path: "/主角/资源/HP", value: 80 }] })
-
-// 优化后：领域事件
-update_resource({ kind: "spend", resource: "HP", amount: 20, reason: "战斗受伤" })
-advance_time({ kind: "elapsed", minutes: 30, reason: "在酒馆休息" })
-change_location({ place: "夏城一中·天台", reason: "从教室逃至天台" })
+```
+【必须调用的场景】— 具体列表，不用模糊表述
+【严禁的行为】— 显式否定模型的内部记忆权威性
+【你的职责】— 重新定义角色（"你不是创造者，你是翻译者"）
 ```
 
-**建议新增的领域工具**：
-| 工具 | 职责 |
-|------|------|
-| `update_resource` | HP/MP/金钱等资源的增减，强制 reason |
-| `advance_time` | 时间推进，强制显式声明 |
-| `change_location` | 地点切换 |
-| `add_item` / `remove_item` | 物品获取/消耗 |
-| `update_relationship` | NPC 好感度变化 |
-| `commit_turn` | 回合提交（时间 + 事件摘要） |
+**参考 fate-sandbox `lookup` 的优秀范例**：
 
-工具 execute 内部决定 path，LLM 只选择"做什么"。
+```
+"查询型月世界的权威设定——角色、从者、地点、概念、时间线的唯一数据入口。
 
----
+【必须调用的场景】
+- 玩家遇到或提及任何预设角色/从者/NPC——必须先查再叙述
+- 玩家进入预设地点——先查地点设定再描述环境
+- 当前场景涉及憑依、伪装、身份分裂、外观错位...——先查本地；
+  若本地条目没写清身份层、外观层、知识边界、时点，再继续外部 canon research
 
-#### B2. 动态场景切换（工具集 + 技能统一管理）
-
-**问题**：所有工具始终暴露 → token 浪费 + 误调用风险。
-
-**方案**：`switch_scene` 一次调用同时切换**工具集**和**场景技能**。
-
-```typescript
-// 场景配置
-const SCENE_PROFILES = {
-  always: {
-    tools: ['get_status', 'lookup_world', 'roll_dice', 'save_point', 'use_skill', 'switch_scene'],
-    skills: [],
-  },
-  setup: {
-    tools: ['get_status', 'lookup_world', 'initialize_game', 'use_skill', 'switch_scene'],
-    skills: ['start-game'],
-  },
-  combat: {
-    tools: ['get_status', 'roll_dice', 'update_condition', 'use_skill', 'switch_scene'],
-    skills: ['combat'],
-  },
-  social: {
-    tools: ['get_status', 'lookup_world', 'update_relationship', 'save_point', 'use_skill', 'switch_scene'],
-    skills: ['social-protocol'],
-  },
-  exploration: {
-    tools: ['get_status', 'lookup_world', 'lookup_location', 'change_location', 'advance_time', 'use_skill', 'switch_scene'],
-    skills: ['time-sense'],
-  },
-};
+【严禁的行为】
+- 凭记忆编造角色外貌/性格/背景
+- 即兴发明设定
+- 用一句粗略摘要填补复杂 canon 细节；不知道外观、时点、身份主体或
+  知识边界时必须继续查证"
 ```
 
-Agent loop 中的过滤：根据 `ctx.currentToolset` 过滤 `openaiTools`。
+**注意**：fate-sandbox 的 lookup description 比我们当前的 lookup_world 长 3 倍，列举了更具体的 canon-sensitive 触发条件。
 
----
+#### B. submit_reply 的 description 是最高优先级
 
-#### B3. 工具 description 全面增强
+submit_reply 是 agent loop 的唯一出口。它的 description 必须最强：
 
-为每个工具补充：
-- **失败时的明确行为**（"如果查不到 → 直接用现有信息叙事，不要反复换关键词重查"）
-- **工具间协作关系**（"update_resource 后应接着写叙事，不要重复 get_status"）
-- **去重保护**：get_status 状态未变化时拒绝重复调用
+```
+"提交本轮最终回复。这是你向玩家输出叙事的**唯一方式**。
 
----
+【必须调用的场景】
+- 所有工具调用完成后，准备输出叙事时
+- 你确定本轮不需要再查询或修改状态时
+- 不确定还需要什么时——直接调用此工具提交当前回复
 
-#### B4. State Schema 版本化与迁移
+【严禁的行为】
+- 在调用 submit_reply 之前直接输出任何文本——会被系统忽略
+- 在 maintext 中输出推理、字段名、JSON、schema 路径、骰点
+- 替玩家做决定——叙事必须停在玩家可回应处
 
-**问题**：字段重命名 → 旧存档报废。
-
-**方案**：变量树加 `_meta.schemaVersion`，每次改字段 bump 版本 + 添加 migration 函数。
-
-```typescript
-const MIGRATIONS = [
-  { from: 1, to: 2, description: "HP/MP移到 /主角/资源/", migrate(v) { ... } },
-  { from: 2, to: 3, description: "新增体力字段", migrate(v) { ... } },
-];
-
-function migrateToLatest(vars) {
-  let current = structuredClone(vars);
-  const version = current['_meta']?.schemaVersion ?? 1;
-  for (const m of MIGRATIONS.filter(m => m.from >= version)) {
-    current = m.migrate(current);
-  }
-  return current;
-}
+【你的职责】
+你不是在聊天框中回复，你是在通过工具提交一篇完整的叙事作品。
+maintext 是你唯一的叙事输出渠道。"
 ```
 
-**原则**：
-- 运行时只读当前字段，不保留 fallback
-- 迁移是纯代码逻辑，不调用 LLM
-- IndexedDB 读取时自动检测版本并提示迁移
+#### C. 引入 turn-reminder 到 tool-policy
+
+参考 fate-sandbox 在 pre-response 中的 3 行极简提醒。可合并到 tool-policy.md 的顶部：
+
+```markdown
+## 每轮最小纪律（turn-reminder）
+
+- 先调工具确认机械事实，再叙事。工具返回值覆盖 GM Brief。
+- 一轮只处理一个玩家行动窗口。停在玩家必须回应的时刻。
+- 秘密/幕后真相只通过痕迹、传闻、梦境或后果呈现。
+```
+
+#### D. Domain Event 思维
+
+fate-sandbox 的核心哲学："工具是领域事件，不是 MVU 状态栏"。当前项目已部分采用——`commit_turn` 作为 canonical turn 提交入口。可以进一步强化：
+
+- 每个写工具必须有 `reason` 参数（当前 `update_resource` 已有 reason，但 `add_item`/`remove_item` 没有）
+- 时间推进必须是 turn envelope，不是可选项
 
 ---
 
-#### B5. 状态持久化与回退
+## 四、质量控制优化（P1-P2）
 
-**问题**：当前只在对话结束时整体保存，没有每轮快照。
+### 4.1 gm-system.md 双层框架
 
-**方案**：每个 agent turn 结束后自动保存快照到 IndexedDB。
+当前 gm-system.md 已有"Tools and Game State are the source of mechanical truth"。但缺少 fate-sandbox 的显式双层框架：
 
-```typescript
-interface TurnSnapshot {
-  id: number;
-  messageIndex: number;
-  timestamp: number;
-  variables: Record<string, any>;     // 深拷贝
-  toolCalls: Array<{ name: string }>;
-  changes: Array<{ path: string; oldValue?: any; newValue?: any }>;
-}
+```markdown
+## Your output has two layers
+
+① **Mechanical layer** — determined by tool calls. All concrete data, settings,
+   and judgment results MUST come from tool return values.
+② **Narrative layer** — generated by you. Translate mechanical results into vivid
+   second-person Chinese narration.
+
+**Nothing in the mechanical layer exists until confirmed by a tool call.**
+If you narrate mechanical content without calling the corresponding tool,
+you are **polluting the game state**.
 ```
 
-**事务保护**：
-```typescript
-async function executeToolWithSnapshot(tool, ctx, params) {
-  const beforeVars = deepClone(ctx.variables);
-  try {
-    const result = await tool.execute(ctx, params);
-    const changes = diffVariables(beforeVars, ctx.variables);
-    if (changes.length > 0) {
-      await snapshotStore.saveSnapshot({ ... });
-    }
-    return result;
-  } catch (error) {
-    ctx.variables = beforeVars;  // 回滚
-    throw error;
-  }
-}
-```
+关键：把"不调就编"重新框定为**污染游戏状态**，不是"偷懒"或"拖慢节奏"。
 
-**回退**：从 IndexedDB 读取指定轮次快照 → 截断聊天历史 → 恢复变量树。
+### 4.2 文风 Lint（未来）
+
+fate-sandbox 的 `engine/audit/lint-rules.ts` + `extensions/two-pass-render/index.ts` 中的 `lintRenderedProse()` 提供了渲染后自动检查 + 重写的机制。Web 端可以在 `submit_reply` 的 execute 中或 agent loop 完成后加入类似的正文后检查。
+
+### 4.3 玩家印象卡（protagonist-impression）
+
+fate-sandbox 的 `agents/protagonist-impression.md` 是空白模板，让玩家/系统填写对玩家角色的行为模式观察。可以参考内循环系统中的"梦呓分析"模块——分析玩家的游玩类型、行为模式、交互偏好，注入 pre-history 供 GM 参考。
 
 ---
 
-### 组 C：质量控制（P2 — 体验提升）
+## 五、实施路线图（修订版）
 
-#### C1. 内容质量三层防线
+### 第一阶段：提示词微调（本周可完成）
 
-| 层 | 机制 | 示例 |
-|----|------|------|
-| 事前约束 | 文风黑名单 | 12 条禁止句式（否定反转、空氛围、连续双喻等） |
-| 事中引导 | 创作宪法 + 渲染协议 | "每个回合必须留下至少一个新的可行动压力" |
-| 事后检查 | 输出前 8 条自检 | 见 A3 节 |
+| # | 改动 | 文件 | 工作量 |
+|---|------|------|--------|
+| 1 | **gm-system.md 双层框架** | `agent-prompt/gm-system.md` | 5 行 |
+| 2 | **submit_reply description 三段式强化** | `tools/mechanics.ts` | 20 行 |
+| 3 | **新增 turn-reminder 模块** | 新建 `agent-prompt/gm-turn-reminder.md` + 更新 `preset.json` + 更新 `module-content.ts` | 10 行 |
+| 4 | **tool-policy 顶部加 turn-reminder** | `agent-prompt/gm-tool-policy.md` | 5 行 |
+| 5 | **story-driver 加入 post-tool 写作映射表** | `agent-prompt/gm-story-driver.md` | 15 行 |
 
-**好坏对比示例**（prompt 中直接放弱→强对比，比纯规则有效 10 倍）：
-```
-弱: 你们抵达柳洞寺外围。当前目标是观察结界并安全撤回。
-强: 山门还隔着一段石阶，凛已经停了两次。她没有说累，
-    只把手套重新往指根处拽紧。
-```
+### 第二阶段：工具增强（1-2 周）
 
-#### C2. 输入协议（三种引号）
-
-用户输入中的三种引号解析：
-
-| 标记 | 含义 | NPC 可见性 |
-|------|------|-----------|
-| `「…」` | 角色说出口的话 | NPC 可听见和反应 |
-| `『…』` | 内心想法 | NPC 不可知 |
-| `【…】` | 元指令 | 不进入角色世界 |
-
-实现：消息预处理时解析三种引号 → 注入时附带可见性提示。
-
-#### C3. 回合强约束
-
-- `commit_turn` 工具强制要求 `time` 参数
-- Pacing 警告：事件数 ≥3 → "请停止推进，先写足正文"；时间 >30 分钟 → "请勿继续玩下一个窗口"
-
----
-
-### 组 D：支撑系统（P1-P3 — 长期能力）
-
-#### D1. Skills 技能系统
-
-**与 pi 的关键差异**：我们没有 pi 的 `resources_discover`、slash command、`use_skill` 内置工具。需自建。
-
-**设计**：Skill = 条件提示词模块 + 生命周期。与 B2 的场景切换统一管理——`switch_scene` 同时切换工具集和技能。
-
-**技能加载的三种路径**：
-
-| 路径 | 触发方式 | 延迟 |
-|------|---------|------|
-| 自动检测 | 用户输入匹配关键词 | 同轮注入 |
-| LLM 调用 | 调用 `switch_scene()` 或 `use_skill()` | 下一轮生效 |
-| UI 触发 | 前端按钮 | 同轮注入 |
-
-**`use_skill` 工具**：LLM 手动加载额外技能（如 `use_skill("time-sense")`），内容作为工具结果回注。
-
-**文件结构**：
-```
-game/src/sillytavern/agent-skills/
-├── registry.ts
-├── scene-profiles.ts
-└── skills/
-    ├── start-game/SKILL.md
-    ├── combat/SKILL.md
-    └── social/SKILL.md
-```
-
-#### D2. Player Panel
-
-**Web 端实现**：React 组件，放在聊天界面侧边栏，独立数据源。
-
-- 直接读 snapshotStore，不依赖 AI 回复
-- 每次 agent turn 结束后自动刷新
-- 显示：位置/时间、HP/MP/金钱、同行者、异常状态、本轮变化（动画高亮）
-
-#### D3. 上下文压缩策略
-
-**触发条件**：`estimatedTokens > contextWindow * 0.8`
-
-**流程**：调用小模型生成摘要 → 用摘要替换旧消息 → 最近 4 轮完整保留 → 注入 state exclusion digest（已在 state 中的信息不需要保留在摘要里）
-
-#### D4. 验证测试体系
-
-| 层 | 方法 | 检查内容 |
-|----|------|---------|
-| 第一层 | grep/代码扫描 | 字段引用一致性、schema 匹配 |
-| 第二层 | 人工检查清单 | 规则条数、模块完整性 |
-| 第三层 | 自动化玩家 agent | 工具调用链路、状态写入一致性 |
-
----
-
-### 提示词工程补充技巧
-
-以下是跨模块的通用技巧：
-
-**1. 创作宪法**（gm-creative-constitution.md）— 三条最高原则：
-- 玩家视角：正文只展示玩家能感知的内容
-- 世界惯性：世界不为玩家暂停，每次呼吸都有代价
-- 场景运动：每个回合留下至少一个新压力
-
-**2. "LLM 是叙事者，不是会计"** — 删除 prompt 里所有"因为你无法判断所以我要告诉你"的内容。计数、公式、触发条件进代码。Prompt 只放最小规则。
-
-**3. 每个模块只做一件事** — 模块间不互相引用，不出现"详见某某模块"。这样每个模块可以独立启用/禁用/调优先级。
-
-**4. 深度思考自检策略**（DeepSeek 使用总结）
-
-**总结**：
-1. 发挥 V4 的“深度思考”能力，让 AI 在生成前/后内部过一遍检查清单（prompt 自检，无额外延迟）。
-2. 用户侧判断不准确时，优先在 prompt 中给对比示例引导。
-3. 对话历史过长触发“摘要压缩”时，若问题与提示词内容相关，**务必以正确内容为准，及时修正压缩结果**。（记忆系统的正确内容始终以 `CLAUDE.md` 和 `MEMORY.md` 中的文件为准）
-
-**5. 用户可覆盖的空白模板** — 如 `protagonist-impression.md` 是空白模板，玩家在设置中填写后自动覆盖默认版。
-
-**6. 叙事技法参考** — 每个场景结束时必须有价值翻面。每轮至少推动一个微小变化。可作为可选 skill，LLM 在卡壳时自己加载。
-
----
-
-## 三、提示词最终结构
-
-### 最终固化的预设模块
-
-基于上述所有分析，以下是推荐固化到项目中的完整提示词模块清单：
-
-| # | 模块文件 | 注入 slot | 优先级 | 内容 |
-|---|---------|----------|--------|------|
-| 1 | `gm-system.md` | system | — | 身份 + 5 条最高契约 |
-| 2 | `gm-creative-constitution.md` | pre-history | 10 | 玩家视角、世界惯性、场景运动 |
-| 3 | `gm-style-guide.md` | pre-history | 20 | 字数、对话占比、镜头规则、句式节奏 |
-| 4 | `gm-style-blacklist.md` | pre-history | 30 | 禁止句式清单 |
-| 5 | `gm-render-protocol.md` | pre-history | 40 | 连续性规则、状态锚点、好坏对比 |
-| 6 | `mechanical_state` | pre-response | 5 | **运行时生成**：当前时间/地点/HP/MP/金钱/同行者 |
-| 7 | `gm-story-driver.md` | pre-response | 10 | 生成前 5 步内部规划 |
-| 8 | `gm-tool-policy.md` | pre-response | 15 | 工具调用策略 |
-| 9 | `gm-rules.md` | pre-response | 20 | 硬性规则、机械纪律 |
-| 10 | `gm-output-contract.md` | final-contract | 10 | 输出格式契约 |
-| 11 | `gm-think.md` | final-contract | 20 | 输出前 8 条验证 |
-
-### Skills（条件加载，不常驻）
-
-| Skill | 触发条件 | 内容 |
-|-------|---------|------|
-| `start-game` | 用户说"开始游戏" / `switch_scene("setup")` | 7 阶段开局流程 |
-| `combat` | `switch_scene("combat")` | 战斗协议 |
-| `social-protocol` | `switch_scene("social")` | 社交协议、本音建前 |
-| `time-sense` | `switch_scene("exploration")` 或 `use_skill` | 时间感知 |
-| `intimacy` | `use_skill("intimacy")` | 亲密场景 |
-| `storytelling-beats` | `use_skill("storytelling-beats")` | 叙事节奏参考 |
-
----
-
-## 四、实施路线图
-
-### 第一阶段：架构基础（P0，1-2 周）
-
-| # | 项目 | 说明 |
+| # | 改动 | 说明 |
 |---|------|------|
-| 1 | **提示词模块化装配** | preset.json + 11 个 markdown 模块 + injection 引擎 |
-| 2 | **运行时 GM Brief** | buildGmBrief() 动态生成，注入 pre-response slot |
-| 3 | **Skills 加载器** | skills/ 目录解析，start-game skill 优先 |
-| 4 | **思维链/自检清单** | 生成前 5 步 + 输出前 8 条 |
+| 6 | **补全所有工具 description 三段式** | 逐一检查 tools/ 下每个工具 |
+| 7 | **给写工具加 reason 参数** | add_item, remove_item, add_condition 等 |
+| 8 | **lookup_world description 强化** | 参考 fate-sandbox lookup 的详细触发条件 |
 
-**验收**：preset.json 驱动装配，每轮自动注入 GM Brief + 自检清单，start-game 可走通开局流程。
+### 第三阶段：质量系统（2-4 周）
 
-### 第二阶段：工具与状态重构（P1，2-4 周）
-
-| # | 项目 | 说明 |
+| # | 改动 | 说明 |
 |---|------|------|
-| 5 | **领域事件工具** | update_resource、advance_time、change_location、add/remove_item |
-| 6 | **switch_scene** | 场景统一切换（工具集 + 技能） |
-| 7 | **工具 description 增强** | 失败指导 + 去重保护 |
-| 8 | **Schema 版本化** | _meta.schemaVersion + 迁移函数 |
-| 9 | **每轮状态快照** | TurnSnapshot → IndexedDB + 事务回滚 |
+| 9 | **正文 lint 检查** | submit_reply 后扫描禁止句式、秘密泄漏 |
+| 10 | **presence-impressions** | 运行时从变量树提取 NPC 印象卡注入 |
+| 11 | **玩家印象卡** | 追踪玩家行为模式，注入 pre-history |
 
-**验收**：新领域工具可用，patch_state 降级，普通轮只看到 5-6 个工具，回退后状态正确恢复。
+### 第四阶段：架构升级（评估后决定）
 
-### 第三阶段：质量与体验（P2，4-6 周）
-
-| # | 项目 | 说明 |
+| # | 改动 | 说明 |
 |---|------|------|
-| 10 | **内容质量控制** | 文风黑名单 + 好坏对比 + 创作宪法 |
-| 11 | **回合强约束** | commit_turn + pacing 警告 |
-| 12 | **输入协议** | 「」『』【】三种引号解析 + 可见性标注 |
-| 13 | **Player Panel** | React 侧边栏，实时状态显示 |
-| 14 | **验证测试体系** | checklist + 自动化玩家脚本 |
-
-**验收**：输出前自检生效，时间推进显式记录，Player Panel 可用。
-
-### 第四阶段：高级能力（P3，按需迭代）
-
-| # | 项目 | 说明 |
-|---|------|------|
-| 15 | **多 Agent 认知隔离** | 有隐藏信息的 NPC 独立 context |
-| 16 | **上下文压缩** | 自动摘要 + state exclusion digest |
-| 17 | **叙事技法 skill** | 麦基三问、五步循环等可选参考 |
+| 12 | **双 Pass 分离** | 结算器 + 渲染器分离，需要重构 agent loop |
+| 13 | **Domain Event Tool Runner** | 统一事务层 |
+| 14 | **Subagent 系统** | offscreen 事件生成 / 节奏审计 |
 
 ---
 
-## 五、设计原则总结
+## 六、与 fate-sandbox 的关键设计理念对照
+
+| 理念 | fate-sandbox 实现 | 我们应该怎么做 |
+|------|------------------|---------------|
+| "Agent 是程序本身" | 所有逻辑进 engine/*.ts，prompt 极简 | 继续保持代码层优先 |
+| "Prompt 不是防线" | 约束下沉到 schema、tool boundary、engine invariant | 工具加 strict path 保护 |
+| "工具是领域事件" | commit_turn 必须带 time，所有写工具有 reason | 给所有写工具强制加 reason |
+| "工具 description 是第一防线" | 每个工具三段式 + 跨工具路由规则 | 补全三段式 + tool-policy 深化 |
+| "硬规则离生成最近" | 3 行 turn-reminder 在 pre-response | 新增 turn-reminder |
+| "叙事交给 LLM，计数交给代码" | 骰子/伤害/好感度计算全部进 engine | 保持当前做法 |
+| "数据没有查询工具 = 死数据" | 索引文件 + lookup 工具 | 当前 get_status + lookup_world 已覆盖 |
+
+---
+
+## 七、设计原则（不变）
 
 | 原则 | 当前 | 目标 |
 |------|------|------|
-| 提示词装配 | 单一文件 | preset.json + 模块化 |
-| 状态注入 | LLM 手动查询 | 自动 GM Brief 每轮注入 |
-| 状态写入 | 通用 JSON Patch | 领域事件工具 |
-| 注意力管理 | 铁则在最后 ✓ | 三个 slot + priority 精确控制 |
-| 思维链 | 无 | 生成前规划 + 输出前验证双阶段 |
-| 内容质量 | 仅格式规则 | 黑名单 + 好坏对比 + 创作宪法 |
-| 工具暴露 | 5 个始终可见 | switch_scene 按场景过滤 |
-| 回合管理 | 自由 loop | commit_turn + pacing 警告 |
-| 配置能力 | 代码级修改 | preset.json 声明式 + 用户覆盖 |
-| 技能系统 | 无 | skills/ + switch_scene 统一管理 |
-| 状态持久化 | 结束时整体保存 | 每轮快照 + 事务回滚 |
-| Schema 管理 | 无版本号 | schemaVersion + 渐进迁移 |
-| 触发模式 | 被动响应 | LLM判断→自动调度（减少手动干预） |
+| 提示词装配 | preset.json + 模块化 ✓ | 微调 slot 策略 + 新增模块 |
+| 状态注入 | GM Brief 运行时生成 ✓ | 新增 presence-impressions |
+| 状态写入 | 领域事件工具 ✓ | 统一 reason 参数 |
+| 注意力管理 | pre-response 放铁则 ✓ | 新增 turn-reminder 极简层 |
+| 思维链 | 生成前规划 + 输出前自检 ✓ | story-driver 加入写作映射表 |
+| 内容质量 | think_check 9 条 | + 正文 lint 检查 |
+| 工具暴露 | switch_scene 过滤 ✓ | 补全三段式 description |
+| 回合管理 | commit_turn ✓ | turn-reminder 强调时间必填 |
 
-**核心思路**：分三路推进——
+**核心思路不变**：分三路推进——
 - **核心循环**（模块化装配、GM Brief、领域工具、自检清单）→ 决定"能不能跑好"
 - **支撑系统**（技能系统、场景切换、状态持久化、测试体系）→ 决定"能不能走远"
 - **提示词内容**（好坏对比、创作宪法、文风黑名单）→ 决定输出"够不够好"

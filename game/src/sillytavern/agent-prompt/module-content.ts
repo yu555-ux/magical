@@ -17,6 +17,7 @@ import gmToolPolicyRaw from './gm-tool-policy.md?raw';
 import gmRulesRaw from './gm-rules.md?raw';
 import gmOutputContractRaw from './gm-output-contract.md?raw';
 import gmThinkRaw from './gm-think.md?raw';
+import gmTurnReminderRaw from './gm-turn-reminder.md?raw';
 
 /** source 路径 → 文件内容 */
 export const MODULE_CONTENT: Record<string, string> = {
@@ -34,4 +35,5 @@ export const MODULE_CONTENT: Record<string, string> = {
   'agent-prompt/gm-rules.md': gmRulesRaw,
   'agent-prompt/gm-output-contract.md': gmOutputContractRaw,
   'agent-prompt/gm-think.md': gmThinkRaw,
+  'agent-prompt/gm-turn-reminder.md': gmTurnReminderRaw,
 };

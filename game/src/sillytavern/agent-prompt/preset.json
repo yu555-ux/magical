@@ -75,6 +75,14 @@
       "source": "runtime:state-brief"
     },
     {
+      "id": "turn-reminder",
+      "enabled": true,
+      "slot": "pre-response",
+      "priority": 8,
+      "header": "turn_reminder",
+      "source": "agent-prompt/gm-turn-reminder.md"
+    },
+    {
       "id": "story-driver",
       "enabled": true,
       "slot": "pre-response",
