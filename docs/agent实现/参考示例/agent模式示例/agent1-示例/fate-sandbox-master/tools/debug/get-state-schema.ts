@@ -1,5 +1,9 @@
-import { CURRENT_STATE_SCHEMA_VERSION } from "../../engine/core/state";
-import { textResult, type ToolResult } from "../runtime/tool-result";
+import type { FsnToolDefinition } from "../runtime/tool-definition.ts";
+
+import { Type } from "typebox";
+
+import { CURRENT_STATE_SCHEMA_VERSION } from "../../engine/core/state.ts";
+import { textResult, type ToolResult } from "../runtime/tool-result.ts";
 
 export function getStateSchemaTool(): ToolResult {
   const schema = {
@@ -28,8 +32,22 @@ export function getStateSchemaTool(): ToolResult {
       "reveal_secret",
       "private_resolve",
     ],
-    debugOnly: ["export_state", "get_state_schema", "migrate_state", "patch_state"],
+    debugOnly: [
+      "export_state",
+      "get_state_schema",
+      "migrate_state",
+      "override_locked_fact",
+      "patch_state",
+      "reset_state",
+    ],
     forbidden: "常规玩法禁止 raw JSON Patch；必须使用领域事件工具。",
   };
   return textResult(JSON.stringify(schema, null, 2));
 }
+
+export const getStateSchemaToolDefinition: FsnToolDefinition = {
+  name: "get_state_schema",
+  description: "【调试工具】查看当前状态 schema 版本与聚合根。",
+  parameters: Type.Object({}),
+  execute: async () => getStateSchemaTool(),
+};

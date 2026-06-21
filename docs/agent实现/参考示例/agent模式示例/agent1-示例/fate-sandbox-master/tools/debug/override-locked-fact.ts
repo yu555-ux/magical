@@ -1,153 +1,131 @@
-import { assertFateRank } from "../../engine/core/fate-rank";
+import type { Static } from "typebox";
+
+import type { TypeBoxValidator } from "../../engine/core/typebox-validation.ts";
+import type { FsnToolDefinition } from "../runtime/tool-definition.ts";
+
+import { Type } from "typebox";
+import { Compile } from "typebox/compile";
+
+import { FATE_PARAMS_SCHEMA } from "../../engine/core/actor-schema.ts";
 import {
-  updateState,
-  writeStateToDetails,
-  type ActorId,
-  type FateParams,
-  type ServantClass,
-} from "../../engine/core/state";
-import { persistCurrentState } from "../../engine/core/state-persistence";
-import { textResult, type ToolResult } from "../runtime/tool-result";
+  REVEAL_STATUS_SCHEMA,
+  SERVANT_CLASS_SCHEMA,
+  stringEnumSchema,
+} from "../../engine/core/state-enum-schemas.ts";
+import { persistStateAfterCommit } from "../../engine/core/state-persistence.ts";
+import { cloneState, commitState } from "../../engine/core/state-store.ts";
+import { parseTaggedTypeBoxUnion, trimStringsDeep } from "../../engine/core/typebox-validation.ts";
+import { textResult, type ToolResult } from "../runtime/tool-result.ts";
+
+const OVERRIDE_LOCKED_FACT_KINDS = [
+  "servant-class",
+  "servant-true-name",
+  "servant-base-params",
+] as const;
+const OVERRIDE_LOCKED_FACT_KIND_SCHEMA = stringEnumSchema(OVERRIDE_LOCKED_FACT_KINDS);
+
+const SERVANT_CLASS_OVERRIDE_SCHEMA = Type.Object({
+  kind: Type.Literal("servant-class"),
+  actorId: Type.String({ minLength: 1 }),
+  className: SERVANT_CLASS_SCHEMA,
+  reason: Type.String({ minLength: 1 }),
+});
+
+const SERVANT_TRUE_NAME_OVERRIDE_SCHEMA = Type.Object({
+  kind: Type.Literal("servant-true-name"),
+  actorId: Type.String({ minLength: 1 }),
+  display: Type.String({ minLength: 1 }),
+  status: Type.Optional(REVEAL_STATUS_SCHEMA),
+  reason: Type.String({ minLength: 1 }),
+});
+
+const SERVANT_BASE_PARAMS_OVERRIDE_SCHEMA = Type.Object({
+  kind: Type.Literal("servant-base-params"),
+  actorId: Type.String({ minLength: 1 }),
+  base: FATE_PARAMS_SCHEMA,
+  reason: Type.String({ minLength: 1 }),
+});
 
 export type OverrideLockedFactParams =
-  | { kind: "servant-class"; actorId: ActorId; className: ServantClass; reason: string }
-  | {
-      kind: "servant-true-name";
-      actorId: ActorId;
-      display: string;
-      status?: "hidden" | "suspected" | "revealed";
-      reason: string;
-    }
-  | { kind: "servant-base-params"; actorId: ActorId; base: FateParams; reason: string };
+  | Static<typeof SERVANT_CLASS_OVERRIDE_SCHEMA>
+  | Static<typeof SERVANT_TRUE_NAME_OVERRIDE_SCHEMA>
+  | Static<typeof SERVANT_BASE_PARAMS_OVERRIDE_SCHEMA>;
+
+const OVERRIDE_LOCKED_FACT_KIND_VALIDATOR = Compile(OVERRIDE_LOCKED_FACT_KIND_SCHEMA);
+const SERVANT_CLASS_OVERRIDE_VALIDATOR = Compile(SERVANT_CLASS_OVERRIDE_SCHEMA);
+const SERVANT_TRUE_NAME_OVERRIDE_VALIDATOR = Compile(SERVANT_TRUE_NAME_OVERRIDE_SCHEMA);
+const SERVANT_BASE_PARAMS_OVERRIDE_VALIDATOR = Compile(SERVANT_BASE_PARAMS_OVERRIDE_SCHEMA);
+
+// Compile 必须在独立常量上调用（satisfies 上下文会干扰泛型推导）。
+const OVERRIDE_LOCKED_FACT_VARIANT_VALIDATORS = {
+  "servant-class": SERVANT_CLASS_OVERRIDE_VALIDATOR,
+  "servant-true-name": SERVANT_TRUE_NAME_OVERRIDE_VALIDATOR,
+  "servant-base-params": SERVANT_BASE_PARAMS_OVERRIDE_VALIDATOR,
+} satisfies Record<OverrideLockedFactParams["kind"], TypeBoxValidator<OverrideLockedFactParams>>;
 
 export function overrideLockedFactTool(params: unknown, sessionManager: unknown): ToolResult {
-  const override = assertOverrideLockedFactParams(params);
-  if (override.reason.trim().length === 0) {
-    throw new Error("override_locked_fact 必须提供 reason。");
+  const override = parseTaggedTypeBoxUnion<
+    OverrideLockedFactParams["kind"],
+    OverrideLockedFactParams
+  >(
+    trimStringsDeep(params),
+    "override_locked_fact 参数",
+    "kind",
+    OVERRIDE_LOCKED_FACT_KIND_VALIDATOR,
+    OVERRIDE_LOCKED_FACT_VARIANT_VALIDATORS,
+  );
+  const draft = cloneState();
+  const actor = draft.public.actors[override.actorId];
+  if (actor === undefined) {
+    throw new Error(`actor 不存在: ${override.actorId}`);
   }
-  updateState((draft) => {
-    const actor = draft.public.actors[override.actorId];
-    if (actor === undefined) {
-      throw new Error(`actor 不存在: ${override.actorId}`);
-    }
-    const servantForm = actor.servantForm;
-    if (servantForm === null) {
-      throw new Error(`actor ${override.actorId} 没有 servantForm。`);
-    }
-    switch (override.kind) {
-      case "servant-class":
-        servantForm.identity.className = override.className;
-        break;
-      case "servant-true-name":
-        servantForm.identity.trueName = {
-          status: override.status ?? "revealed",
-          display: override.display,
-        };
-        break;
-      case "servant-base-params":
-        servantForm.parameters.base = override.base;
-        break;
-      default:
-        throw new Error("unreachable override kind");
-    }
-  });
-  persistCurrentState(sessionManager);
+  const servantForm = actor.servantForm;
+  if (servantForm === null) {
+    throw new Error(`actor ${override.actorId} 没有 servantForm。`);
+  }
+  switch (override.kind) {
+    case "servant-class":
+      servantForm.identity.className = override.className;
+      break;
+    case "servant-true-name":
+      servantForm.identity.trueName = {
+        status: override.status ?? "revealed",
+        display: override.display,
+      };
+      break;
+    case "servant-base-params":
+      servantForm.parameters.base = override.base;
+      break;
+  }
+  commitState(draft);
   const details: Record<string, unknown> = {
     kind: override.kind,
     actorId: override.actorId,
     reason: override.reason,
   };
-  writeStateToDetails(details);
+  persistStateAfterCommit(sessionManager, details);
   return textResult(`锁定事实已覆盖：${override.kind}。原因：${override.reason}`, details);
 }
 
-function assertOverrideLockedFactParams(params: unknown): OverrideLockedFactParams {
-  if (!isRecord(params)) {
-    throw new Error("override_locked_fact 参数必须是对象。");
-  }
-  const kind = assertString(params["kind"], "kind");
-  const actorId = assertString(params["actorId"], "actorId");
-  const reason = assertString(params["reason"], "reason");
-  switch (kind) {
-    case "servant-class":
-      return { kind, actorId, className: assertServantClass(params["className"]), reason };
-    case "servant-true-name":
-      return {
-        kind,
-        actorId,
-        display: assertString(params["display"], "display"),
-        status: assertOptionalTrueNameStatus(params["status"]),
-        reason,
-      };
-    case "servant-base-params":
-      return { kind, actorId, base: assertFateParams(params["base"]), reason };
-    default:
-      throw new Error(`非法 override kind: ${kind}`);
-  }
-}
-
-function assertOptionalTrueNameStatus(
-  value: unknown,
-): "hidden" | "suspected" | "revealed" | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  const status = assertString(value, "status");
-  if (status === "hidden" || status === "suspected" || status === "revealed") {
-    return status;
-  }
-  throw new Error(`非法 status: ${status}。允许值: hidden, suspected, revealed。`);
-}
-
-function assertFateParams(value: unknown): FateParams {
-  if (!isRecord(value)) {
-    throw new Error("base 必须是 FateParams 对象。");
-  }
-  return {
-    strength: assertRank(value["strength"], "strength"),
-    endurance: assertRank(value["endurance"], "endurance"),
-    agility: assertRank(value["agility"], "agility"),
-    mana: assertRank(value["mana"], "mana"),
-    luck: assertRank(value["luck"], "luck"),
-    noblePhantasm: assertRank(value["noblePhantasm"], "noblePhantasm"),
-  };
-}
-
-function assertRank(value: unknown, fieldName: string): FateParams["strength"] {
-  return assertFateRank(value, fieldName);
-}
-
-function assertServantClass(value: unknown): ServantClass {
-  const className = assertString(value, "className");
-  if (
-    className === "Saber" ||
-    className === "Archer" ||
-    className === "Lancer" ||
-    className === "Rider" ||
-    className === "Caster" ||
-    className === "Assassin" ||
-    className === "Berserker" ||
-    className === "Avenger" ||
-    className === "Ruler" ||
-    className === "AlterEgo" ||
-    className === "Foreigner" ||
-    className === "Shielder" ||
-    className === "MoonCancer" ||
-    className === "Pretender" ||
-    className === "Custom"
-  ) {
-    return className;
-  }
-  throw new Error(`非法 className: ${className}`);
-}
-
-function assertString(value: unknown, fieldName: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${fieldName} 必须是非空字符串。`);
-  }
-  return value.trim();
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+export const overrideLockedFactToolDefinition: FsnToolDefinition = {
+  name: "override_locked_fact",
+  description:
+    "【调试工具】覆盖已锁定的从者职阶、真名或基础参数。仅用于开发修档，必须写明 reason。",
+  parameters: Type.Object({
+    kind: Type.String({
+      description: "允许: servant-class / servant-true-name / servant-base-params",
+    }),
+    actorId: Type.String(),
+    className: Type.Optional(Type.String()),
+    display: Type.Optional(Type.String()),
+    status: Type.Optional(
+      Type.String({
+        description: "servant-true-name 可选；允许 hidden / suspected / revealed，默认 revealed",
+      }),
+    ),
+    base: Type.Optional(Type.Unknown()),
+    reason: Type.String(),
+  }),
+  execute: async (_toolCallId, params, _signal, _onUpdate, ctx) =>
+    overrideLockedFactTool(params, ctx.sessionManager),
+};

@@ -1,61 +1,22 @@
-import {
-  assertIsoDateString,
-  assertNonEmptyString,
-  createId,
-  getState,
-  updateState,
-  type DailySummaryMemoryId,
-  type MajorEventMemoryId,
-  type MemoryFact,
-  type MemoryFactId,
-  type SecretSlot,
-} from "./state";
+import type { MemoryClaim, MemoryEvent } from "./memory-schema.ts";
+import type {
+  DailySummaryMemoryId,
+  MajorEventMemoryId,
+  MemoryFactId,
+  SecretSlot,
+  State,
+} from "./state.ts";
 
-export type MemoryCertainty = "observed" | "confirmed" | "inferred" | "rumor" | "hypothesis";
+import { createId } from "./ids.ts";
+import { settleOldestObligation } from "./obligations.ts";
+import { assertIsoDateString, assertNonEmptyString } from "./typebox-validation.ts";
 
-export type MemoryClaimKind =
-  | "mundane"
-  | "identity"
-  | "location"
-  | "affiliation"
-  | "motive"
-  | "ability"
-  | "resource"
-  | "relationship"
-  | "event-cause"
-  | "world-fact";
-
-export interface MemoryClaim {
-  kind: MemoryClaimKind;
-  statement: string;
-  certainty: MemoryCertainty;
-  subjectId?: string;
-  relatedSecretSlotIds?: string[];
-  evidence?: string;
-}
-
-export type MemoryEvent =
-  | {
-      kind: "pin-fact";
-      scope: MemoryFact["scope"];
-      subject: string;
-      text: string;
-      sourceEventId: string | null;
-      claims: MemoryClaim[];
-    }
-  | {
-      kind: "record-major-event";
-      title: string;
-      summary: string;
-      consequences?: string[];
-      claims: MemoryClaim[];
-    }
-  | {
-      kind: "record-daily-summary";
-      startDate: string;
-      endDate: string;
-      summary: string;
-    };
+export type {
+  MemoryCertainty,
+  MemoryClaim,
+  MemoryClaimKind,
+  MemoryEvent,
+} from "./memory-schema.ts";
 
 export interface MemoryEventResult {
   factId?: MemoryFactId;
@@ -63,51 +24,57 @@ export interface MemoryEventResult {
   dailySummaryId?: DailySummaryMemoryId;
 }
 
-export function recordMemory(event: MemoryEvent): MemoryEventResult {
+export function recordMemory(draft: State, event: MemoryEvent): MemoryEventResult {
+  const result = applyMemoryEvent(draft, event);
+  settleOldestObligation(draft, ["memory"]);
+  return result;
+}
+
+function applyMemoryEvent(draft: State, event: MemoryEvent): MemoryEventResult {
   switch (event.kind) {
     case "pin-fact":
-      return recordPinnedFact(event);
+      return recordPinnedFact(draft, event);
     case "record-major-event":
-      return recordMajorEvent(event);
+      return recordMajorEvent(draft, event);
     case "record-daily-summary":
-      return recordDailySummary(event);
+      return recordDailySummary(draft, event);
     default:
       throw new Error("unreachable memory event kind");
   }
 }
 
-function recordPinnedFact(event: Extract<MemoryEvent, { kind: "pin-fact" }>): MemoryEventResult {
-  validateClaims(event.claims);
-  const id = createId("fact");
-  updateState((draft) => {
-    draft.public.memory.pinnedFacts.push({
-      id,
-      scope: event.scope,
-      subject: assertNonEmptyString(event.subject, "subject"),
-      text: assertNonEmptyString(event.text, "text"),
-      since: draft.public.clock.currentAt,
-      sourceEventId:
-        event.sourceEventId === null
-          ? null
-          : assertNonEmptyString(event.sourceEventId, "sourceEventId"),
-    });
+function recordPinnedFact(
+  draft: State,
+  event: Extract<MemoryEvent, { kind: "pin-fact" }>,
+): MemoryEventResult {
+  validateClaims(draft, event.claims);
+  const id = createId(draft, "fact");
+  draft.public.memory.pinnedFacts.push({
+    id,
+    scope: event.scope,
+    subject: assertNonEmptyString(event.subject, "subject"),
+    text: assertNonEmptyString(event.text, "text"),
+    since: draft.public.clock.currentAt,
+    sourceEventId:
+      event.sourceEventId === null
+        ? null
+        : assertNonEmptyString(event.sourceEventId, "sourceEventId"),
   });
   return { factId: id };
 }
 
 function recordMajorEvent(
+  draft: State,
   event: Extract<MemoryEvent, { kind: "record-major-event" }>,
 ): MemoryEventResult {
-  validateClaims(event.claims);
-  const id = createId("event");
-  updateState((draft) => {
-    draft.public.memory.eventLog.push({
-      id,
-      time: draft.public.clock.currentAt,
-      title: assertNonEmptyString(event.title, "title"),
-      summary: assertNonEmptyString(event.summary, "summary"),
-      consequences: normalizeConsequences(event.consequences),
-    });
+  validateClaims(draft, event.claims);
+  const id = createId(draft, "event");
+  draft.public.memory.eventLog.push({
+    id,
+    time: draft.public.clock.currentAt,
+    title: assertNonEmptyString(event.title, "title"),
+    summary: assertNonEmptyString(event.summary, "summary"),
+    consequences: normalizeConsequences(event.consequences),
   });
   return { eventId: id };
 }
@@ -119,15 +86,14 @@ function normalizeConsequences(consequences: readonly string[] | undefined): str
   return consequences.map((consequence) => assertNonEmptyString(consequence, "consequences[]"));
 }
 
-function validateClaims(claims: readonly MemoryClaim[] | undefined): void {
+function validateClaims(draft: State, claims: readonly MemoryClaim[] | undefined): void {
   if (claims === undefined || claims.length === 0) {
     throw new Error(
       "record_memory 必须提供 claims；用结构化 claim 表达 public memory 的事实类型、确定性和证据。普通事实用 kind=mundane。",
     );
   }
-  const state = getState();
   for (const claim of claims) {
-    validateClaim(claim, state.secrets.actorSecrets);
+    validateClaim(claim, draft.secrets.actorSecrets);
   }
 }
 
@@ -202,17 +168,16 @@ function assertUncertainWording(statement: string): void {
 }
 
 function recordDailySummary(
+  draft: State,
   event: Extract<MemoryEvent, { kind: "record-daily-summary" }>,
 ): MemoryEventResult {
   assertDailySummaryScope(event.summary);
-  const id = createId("daily");
-  updateState((draft) => {
-    draft.public.memory.dailySummaries.push({
-      id,
-      startDate: assertIsoDateString(event.startDate, "startDate"),
-      endDate: assertIsoDateString(event.endDate, "endDate"),
-      summary: assertNonEmptyString(event.summary, "summary"),
-    });
+  const id = createId(draft, "daily");
+  draft.public.memory.dailySummaries.push({
+    id,
+    startDate: assertIsoDateString(event.startDate, "startDate"),
+    endDate: assertIsoDateString(event.endDate, "endDate"),
+    summary: assertNonEmptyString(event.summary, "summary"),
   });
   return { dailySummaryId: id };
 }

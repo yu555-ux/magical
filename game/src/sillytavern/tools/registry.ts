@@ -43,7 +43,7 @@ export interface ToolExecutionContext {
   appendHistory: (sp: SavePoint) => void;
 }
 
-export type ToolCategory = 'lookup' | 'world' | 'variable' | 'mechanics' | 'deprecated';
+export type ToolCategory = 'lookup' | 'variable' | 'gameplay';
 
 export interface AgentToolDef {
   name: string;
@@ -81,7 +81,7 @@ export function getEnabledTools(names: string[]): AgentToolDef[] {
 }
 
 export function getToolsByCategory(filterHidden = true): Record<ToolCategory, AgentToolDef[]> {
-  const grouped: Record<ToolCategory, AgentToolDef[]> = { lookup: [], world: [], variable: [], mechanics: [], deprecated: [] };
+  const grouped: Record<ToolCategory, AgentToolDef[]> = { lookup: [], variable: [], gameplay: [] };
   for (const tool of ALL_TOOLS) {
     if (filterHidden && tool.hidden) continue;
     grouped[tool.category].push(tool);
@@ -90,7 +90,7 @@ export function getToolsByCategory(filterHidden = true): Record<ToolCategory, Ag
 }
 
 export const CATEGORY_LABELS: Record<ToolCategory, string> = {
-  lookup: '🔍 查询', world: '🌍 世界', variable: '📊 变量', mechanics: '🎲 机制', deprecated: '🗑️ 已降级',
+  lookup: '🔍 查找工具', variable: '📊 变量工具', gameplay: '🎮 玩法工具',
 };
 
 export function toOpenAITool(def: AgentToolDef): Record<string, unknown> {

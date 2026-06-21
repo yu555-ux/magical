@@ -1,14 +1,42 @@
+import type {
+  OffscreenEventSource,
+  OffscreenEventVisibility,
+  TimelineId,
+} from "./state-enum-schemas.ts";
+
+export type { OffscreenEventSource, OffscreenEventVisibility } from "./state-enum-schemas.ts";
+
 export type ParallelLineOutcome = "no-change" | "progress" | "escalation" | "blocked";
-export type OffscreenEventVisibility = "secret" | "foreshadowed" | "player-known";
-export type OffscreenEventSource = "parallel-line-subagent" | "gm" | "debug";
 
 export interface ParallelLineTimeWindow {
   start: string;
   end: string;
 }
 
+export interface ParallelLinePressureSlotHint {
+  id: string;
+  label: string;
+  pressureType: string;
+  actorOrFactionHints: string[];
+  playerSafeProjectionKinds: string[];
+  cooldownTurns: number;
+  recentUses?: number;
+  coolingDown?: boolean;
+  forbiddenWhen: string[];
+}
+
+export interface ParallelLineRecentEvent {
+  lineId: string;
+  actorIds: string[];
+  pressureType: string;
+  summary: string;
+}
+
 export interface ParallelLineInput {
   lineId: string;
+  timelineId: TimelineId;
+  genreContract: string;
+  activePressurePalette: ParallelLinePressureSlotHint[];
   timeWindow: ParallelLineTimeWindow;
   currentArc: string;
   currentBeat: string;
@@ -19,10 +47,19 @@ export interface ParallelLineInput {
   actorGoals: string[];
   previousLineState: string;
   playerSideSummary: string;
+  recentOffscreenEvents?: ParallelLineRecentEvent[];
+  excludedActorIds?: string[];
+  excludedPressureTypes?: string[];
+  preferredPressureType?: string;
+  majorBeatEnd?: boolean;
+  arcTransition?: boolean;
 }
+
+export type ParallelLineToneDriftRisk = "none" | "watch" | "drifting";
 
 export interface ParallelLineOutput {
   lineId: string;
+  timelineId: TimelineId;
   actorIds: string[];
   timeRange: ParallelLineTimeWindow;
   outcome: ParallelLineOutcome;
@@ -30,6 +67,8 @@ export interface ParallelLineOutput {
   secretStateChanges: string[];
   publicLeakCandidates: string[];
   futureHooks: string[];
+  toneDriftRisk: ParallelLineToneDriftRisk;
+  genreFitNotes: string[];
   riskFlags: string[];
   optionalNarrativeSnippet: string | null;
 }

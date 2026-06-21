@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { cloneState, hydrateState, migrateState, resetState } from "./state";
+import { cloneState, hydrateState, migrateState, createInitialState } from "./state-store.ts";
+import { CURRENT_STATE_SCHEMA_VERSION } from "./state.ts";
 
-void test("migrateState upgrades schema v1 states to schema v3 turn log shape", () => {
-  const current = resetState();
-  const { turnLog: _turnLog, ...publicV1 } = current.public;
+void test("migrateState upgrades schema v1 states to current turn log shape", () => {
+  const current = createInitialState();
+  const { turnLog: _turnLog, obligations: _obligations, ...publicV1 } = current.public;
   const rawV1 = {
     ...current,
     meta: { ...current.meta, schemaVersion: 1 },
@@ -14,18 +15,20 @@ void test("migrateState upgrades schema v1 states to schema v3 turn log shape", 
 
   const migrated = migrateState(rawV1);
 
-  assert.equal(migrated.meta.schemaVersion, 3);
+  assert.equal(migrated.meta.schemaVersion, CURRENT_STATE_SCHEMA_VERSION);
   assert.deepEqual(migrated.public.turnLog, []);
+  assert.deepEqual(migrated.public.obligations, []);
   assert.equal(migrated.public.clock.currentAt, current.public.clock.currentAt);
 });
 
 void test("migrateState drops schema v2 non-advancing turn log entries", () => {
-  const current = resetState();
+  const current = createInitialState();
+  const { obligations: _obligations, ...publicV2 } = current.public;
   const rawV2 = {
     ...current,
     meta: { ...current.meta, schemaVersion: 2 },
     public: {
-      ...current.public,
+      ...publicV2,
       turnLog: [
         {
           id: "turn-1",
@@ -51,14 +54,14 @@ void test("migrateState drops schema v2 non-advancing turn log entries", () => {
 
   const migrated = migrateState(rawV2);
 
-  assert.equal(migrated.meta.schemaVersion, 3);
+  assert.equal(migrated.meta.schemaVersion, CURRENT_STATE_SCHEMA_VERSION);
   assert.equal(migrated.public.turnLog.length, 1);
   assert.equal(migrated.public.turnLog[0]?.id, "turn-2");
 });
 
 void test("hydrateState accepts session-wrapped schema v1 states through migration", () => {
-  const current = resetState();
-  const { turnLog: _turnLog, ...publicV1 } = current.public;
+  const current = createInitialState();
+  const { turnLog: _turnLog, obligations: _obligations, ...publicV1 } = current.public;
   const rawV1 = {
     ...current,
     meta: { ...current.meta, schemaVersion: 1 },
@@ -68,6 +71,137 @@ void test("hydrateState accepts session-wrapped schema v1 states through migrati
   hydrateState({ v: 1, turn: 0, state: rawV1 });
 
   const hydrated = cloneState();
-  assert.equal(hydrated.meta.schemaVersion, 3);
+  assert.equal(hydrated.meta.schemaVersion, CURRENT_STATE_SCHEMA_VERSION);
   assert.deepEqual(hydrated.public.turnLog, []);
+  assert.deepEqual(hydrated.public.obligations, []);
+});
+
+void test("migrateState upgrades schema v3 states with an empty obligations ledger", () => {
+  const current = createInitialState();
+  const { obligations: _obligations, ...publicV3 } = current.public;
+  const rawV3 = {
+    ...current,
+    meta: { ...current.meta, schemaVersion: 3 },
+    public: publicV3,
+  };
+
+  const migrated = migrateState(rawV3);
+
+  assert.equal(migrated.meta.schemaVersion, CURRENT_STATE_SCHEMA_VERSION);
+  assert.deepEqual(migrated.public.obligations, []);
+  assert.deepEqual(migrated.secrets.factionClocks, []);
+  assert.deepEqual(migrated.secrets.scheduledEvents, []);
+});
+
+void test("migrateState upgrades schema v4 states with empty clock ledgers", () => {
+  const current = createInitialState();
+  const { factionClocks: _clocks, scheduledEvents: _events, ...secretsV4 } = current.secrets;
+  const rawV4 = {
+    ...current,
+    meta: { ...current.meta, schemaVersion: 4 },
+    secrets: secretsV4,
+  };
+
+  const migrated = migrateState(rawV4);
+
+  assert.equal(migrated.meta.schemaVersion, CURRENT_STATE_SCHEMA_VERSION);
+  assert.deepEqual(migrated.secrets.factionClocks, []);
+  assert.deepEqual(migrated.secrets.scheduledEvents, []);
+  assert.deepEqual(migrated.public.hooks, []);
+});
+
+void test("migrateState upgrades schema v5 states with an empty hook ledger", () => {
+  const current = createInitialState();
+  const { hooks: _hooks, ...publicV5 } = current.public;
+  const rawV5 = {
+    ...current,
+    meta: { ...current.meta, schemaVersion: 5 },
+    public: publicV5,
+  };
+
+  const migrated = migrateState(rawV5);
+
+  assert.equal(migrated.meta.schemaVersion, CURRENT_STATE_SCHEMA_VERSION);
+  assert.deepEqual(migrated.public.hooks, []);
+  assert.deepEqual(migrated.secrets.actorAgendas, []);
+  assert.deepEqual(migrated.secrets.actorKnowledgeLenses, []);
+});
+
+void test("migrateState upgrades schema v6 states with empty actor autonomy ledgers", () => {
+  const current = createInitialState();
+  const { actorAgendas: _agendas, actorKnowledgeLenses: _lenses, ...secretsV6 } = current.secrets;
+  const rawV6 = {
+    ...current,
+    meta: { ...current.meta, schemaVersion: 6 },
+    secrets: secretsV6,
+  };
+
+  const migrated = migrateState(rawV6);
+
+  assert.equal(migrated.meta.schemaVersion, CURRENT_STATE_SCHEMA_VERSION);
+  assert.deepEqual(migrated.secrets.actorAgendas, []);
+  assert.deepEqual(migrated.secrets.actorKnowledgeLenses, []);
+  assert.deepEqual(migrated.public.relationshipSignals, []);
+  assert.deepEqual(migrated.secrets.relationshipSignals, []);
+});
+
+void test("migrateState upgrades schema v7 states with empty relationship signal ledgers", () => {
+  const current = createInitialState();
+  const { relationshipSignals: _publicSignals, ...publicV7 } = current.public;
+  const { relationshipSignals: _secretSignals, ...secretsV7 } = current.secrets;
+  const rawV7 = {
+    ...current,
+    meta: { ...current.meta, schemaVersion: 7 },
+    public: publicV7,
+    secrets: secretsV7,
+  };
+
+  const migrated = migrateState(rawV7);
+
+  assert.equal(migrated.meta.schemaVersion, CURRENT_STATE_SCHEMA_VERSION);
+  assert.deepEqual(migrated.public.relationshipSignals, []);
+  assert.deepEqual(migrated.secrets.relationshipSignals, []);
+});
+
+void test("migrateState upgrades v8 to v9 with actorImpressions", () => {
+  const current = createInitialState();
+  const { actorImpressions: _impressions, ...publicV8 } = current.public;
+  const rawV8 = {
+    ...current,
+    meta: { ...current.meta, schemaVersion: 8 },
+    public: publicV8,
+  };
+
+  const migrated = migrateState(rawV8);
+
+  assert.equal(migrated.meta.schemaVersion, CURRENT_STATE_SCHEMA_VERSION);
+  assert.deepEqual(migrated.public.actorImpressions, []);
+});
+
+void test("migrateState upgrades v10 to v11 with renderName copied from displayName", () => {
+  const current = createInitialState();
+  const actor = current.public.actors.protagonist;
+  if (actor === undefined) {
+    throw new Error("expected protagonist");
+  }
+  const { renderName: _renderName, ...presentationV10 } = actor.presentation;
+  const rawV10 = {
+    ...current,
+    meta: { ...current.meta, schemaVersion: 10 },
+    public: {
+      ...current.public,
+      actors: {
+        ...current.public.actors,
+        protagonist: {
+          ...actor,
+          presentation: presentationV10,
+        },
+      },
+    },
+  };
+
+  const migrated = migrateState(rawV10);
+
+  assert.equal(migrated.meta.schemaVersion, CURRENT_STATE_SCHEMA_VERSION);
+  assert.equal(migrated.public.actors.protagonist?.presentation.renderName, "你");
 });

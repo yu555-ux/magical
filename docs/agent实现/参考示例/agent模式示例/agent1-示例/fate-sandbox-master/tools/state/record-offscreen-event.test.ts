@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { advanceClock, resetState } from "../../engine/core/state";
-import { recordOffscreenEventTool } from "./record-offscreen-event";
+import { advanceClock } from "../../engine/core/turn-time.ts";
+import { cloneState, commitState, resetState } from "../../engine/core/state-store.ts";
+import { recordOffscreenEventTool } from "./record-offscreen-event.ts";
 
 void test("record_offscreen_event tool persists a foreshadowed offscreen event", () => {
   resetState();
-  advanceClock(60, "测试推进到幕后事件结束后");
+  const clockDraft = cloneState();
+  advanceClock(clockDraft, 60, "测试推进到幕后事件结束后");
+  commitState(clockDraft);
   const result = recordOffscreenEventTool(
     {
       lineId: "caster-ryudou",

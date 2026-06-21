@@ -214,7 +214,7 @@ type SceneResult =
 - 主 GM 必须以 project scope 调用项目子代理；不要依赖 user-scope agent。
 - 子代理不得继承大块主项目上下文或技能目录：`inheritProjectContext: false`、`inheritSkills: false`。
 - 子代理必须显式配置 `tools` 和 `extensions`。不要 omitted `extensions`，否则可能加载普通扩展。
-- timeline 子代理只应加载 `extensions/subagents/timeline/index.ts`，拿到自动注入的 `<timeline_state_context>` 和 `lookup`。
+- timeline 子代理只应加载 `extensions/subagents/timeline/index.ts`（提供 `lookup`）。`<timeline_state_context>` 由主 GM 进程在 subagent 工具调用发出前注入 task（`extensions/subagents/timeline/task-injection.ts`），不再读 state/state.json 侧通道。
 - `parallel-line` 输出必须是 bare JSON；不要 Markdown、解释、长 prose。
 - 后台事件必须归属到 actor / faction / location / consequence，并给前台一个可行动痕迹；新闻、巡逻、门响、信件不能替代事件本体。
 
@@ -292,7 +292,7 @@ function handleTurn(state: State, _turnIndex: number): void {
 
 ### 零副作用导入
 
-`import "./side-effects"` 不存在于本项目中。pi 用 jiti/tsx 加载，模块初始化顺序不可靠。
+`import "./side-effects"` 不存在于本项目中。pi 用 jiti 加载、测试用 node 原生 type stripping 运行，模块初始化顺序不可靠。相对导入必须带 `.ts` 后缀（node 原生运行的硬性要求）。
 
 ### type import 必须显式
 
@@ -443,6 +443,10 @@ __tests__/state.ts          ❌（不用 jest 目录惯例）
 ### 一个 commit 做一件事
 
 不要「修了 A bug + 重构了 B + 加了 C 字段」。拆开。
+
+### 每步完成后 commit & push
+
+每完成一个独立可验收步骤，必须在四项检查通过后立即 commit 并 push；不要把多个已完成步骤堆在工作区里等最后一起提交。下一步开始前工作区应保持干净，除非用户明确要求继续累积未提交改动。
 
 ### commit message 用英文 imperative
 

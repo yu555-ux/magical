@@ -1,6 +1,10 @@
-import type { TimeZoneId } from "./state";
+import type { TimelinePressureSlot } from "../../data/timeline-pressure-palettes.ts";
+import type { TimeZoneId, TimelineId } from "./state.ts";
 
-import { formatHumanTime } from "./date-time";
+import { getTimelinePressureSlots } from "../../data/timeline-pressure-palettes.ts";
+import { formatHumanTime } from "./date-time.ts";
+import { TIMELINE_IDS, TIMEZONE_IDS } from "./state-enum-schemas.ts";
+import { isRecord } from "./typebox-validation.ts";
 
 export interface TimelineStateContext {
   currentAt: string;
@@ -22,7 +26,9 @@ export interface TimelineStateContext {
     threats: string[];
   };
   actors: TimelineActorContext[];
+  relationshipSignals: TimelineRelationshipSignalContext[];
   recentOffscreenEvents: TimelineOffscreenEventContext[];
+  pressurePalette: TimelinePressureSlotContext[];
 }
 
 export interface TimelineActorContext {
@@ -33,6 +39,22 @@ export interface TimelineActorContext {
   wounds: number;
   afflictions: number;
   servantModifiers: number;
+  agenda: TimelineActorAgendaContext | null;
+  knowledgeLens: TimelineActorKnowledgeLensContext | null;
+}
+
+export interface TimelineActorAgendaContext {
+  goal: string;
+  fear: string;
+  currentOrder: string | null;
+  lastIndependentActionAt: string | null;
+}
+
+export interface TimelineActorKnowledgeLensContext {
+  knows: string[];
+  suspects: string[];
+  falseBeliefs: string[];
+  forbiddenKnowledge: string[];
 }
 
 export interface TimelineOffscreenEventContext {
@@ -46,29 +68,24 @@ export interface TimelineOffscreenEventContext {
   futureHooks: string[];
 }
 
-export interface StateExclusionDigest {
-  clock: {
-    currentAt: string;
-    timezone: string;
-    displayTime: string;
-  };
-  campaign: {
-    title: string;
-    timeline: string;
-    premise: string;
-  };
-  scene: {
-    location: string;
-    situation: string;
-    presentActorIds: string[];
-    objectiveIds: string[];
-    threatIds: string[];
-  };
-  actorIds: string[];
-  offscreenEventIds: string[];
+export interface TimelineRelationshipSignalContext {
+  id: string;
+  actorId: string;
+  targetActorId: string;
+  signal: string;
+  interpretation: string;
+  boundary: string;
+  sourceEventId: string | null;
+  visibility: string;
+}
+
+export interface TimelinePressureSlotContext extends TimelinePressureSlot {
+  recentUses: number;
+  coolingDown: boolean;
 }
 
 const RECENT_OFFSCREEN_LIMIT = 6;
+const RECENT_RELATIONSHIP_SIGNAL_LIMIT = 8;
 
 export function buildTimelineStateContextFromRaw(raw: unknown): TimelineStateContext {
   const state = selectStateRecord(raw);
@@ -79,9 +96,22 @@ export function buildTimelineStateContextFromRaw(raw: unknown): TimelineStateCon
   const scene = requireRecord(publicState["scene"], "public.scene");
   const actors = requireRecord(publicState["actors"], "public.actors");
   const offscreenEventLog = optionalArray(secrets["offscreenEventLog"]);
+  const relationshipSignals = recentRelationshipSignals(
+    optionalArray(publicState["relationshipSignals"]),
+    optionalArray(secrets["relationshipSignals"]),
+  );
+  const actorAgendas = indexByActorId(optionalArray(secrets["actorAgendas"]), "actorAgendas");
+  const actorKnowledgeLenses = indexByActorId(
+    optionalArray(secrets["actorKnowledgeLenses"]),
+    "actorKnowledgeLenses",
+  );
   const currentAt = requireString(clock["currentAt"], "clock.currentAt");
   const timezone = requireTimezone(clock["timezone"], "clock.timezone");
   const displayTime = formatHumanTime(currentAt, timezone).display;
+  const timeline = requireTimelineId(campaign["timeline"], "campaign.timeline");
+  const recentOffscreenEvents = offscreenEventLog
+    .slice(-RECENT_OFFSCREEN_LIMIT)
+    .map((event, index) => offscreenEventContext(event, index));
 
   return {
     currentAt,
@@ -92,7 +122,7 @@ export function buildTimelineStateContextFromRaw(raw: unknown): TimelineStateCon
     timeRangeRule: `所有 timeWindow/timeRange.start/end 必须使用 ISO UTC；当前 UTC ${currentAt} = ${timezone} 本地 ${displayTime}；不得把本地时钟直接加 Z 输出；timeRange.end <= currentAt。`,
     campaign: {
       title: requireString(campaign["title"], "campaign.title"),
-      timeline: requireString(campaign["timeline"], "campaign.timeline"),
+      timeline,
       premise: requireString(campaign["premise"], "campaign.premise"),
     },
     scene: {
@@ -102,51 +132,21 @@ export function buildTimelineStateContextFromRaw(raw: unknown): TimelineStateCon
       objectives: formatObjectives(optionalArray(scene["objectives"])),
       threats: formatThreats(optionalArray(scene["threats"])),
     },
-    actors: Object.entries(actors).map(([actorId, actor]) => actorContext(actorId, actor)),
-    recentOffscreenEvents: offscreenEventLog
-      .slice(-RECENT_OFFSCREEN_LIMIT)
-      .map((event, index) => offscreenEventContext(event, index)),
-  };
-}
-
-export function buildStateExclusionDigestFromRaw(raw: unknown): StateExclusionDigest {
-  const state = selectStateRecord(raw);
-  const publicState = requireRecord(state["public"], "state.public");
-  const secrets = requireRecord(state["secrets"], "state.secrets");
-  const campaign = requireRecord(publicState["campaign"], "public.campaign");
-  const clock = requireRecord(publicState["clock"], "public.clock");
-  const scene = requireRecord(publicState["scene"], "public.scene");
-  const actors = requireRecord(publicState["actors"], "public.actors");
-  const currentAt = requireString(clock["currentAt"], "clock.currentAt");
-  const timezone = requireTimezone(clock["timezone"], "clock.timezone");
-  return {
-    clock: {
-      currentAt,
-      timezone,
-      displayTime:
-        optionalString(clock["displayTime"]) ?? formatHumanTime(currentAt, timezone).display,
-    },
-    campaign: {
-      title: requireString(campaign["title"], "campaign.title"),
-      timeline: requireString(campaign["timeline"], "campaign.timeline"),
-      premise: requireString(campaign["premise"], "campaign.premise"),
-    },
-    scene: {
-      location: formatStateFileLocation(requireRecord(scene["location"], "scene.location")),
-      situation: requireString(scene["situation"], "scene.situation"),
-      presentActorIds: stringArray(scene["presentActorIds"], "scene.presentActorIds"),
-      objectiveIds: objectIdArray(optionalArray(scene["objectives"]), "scene.objectives"),
-      threatIds: objectIdArray(optionalArray(scene["threats"]), "scene.threats"),
-    },
-    actorIds: Object.keys(actors),
-    offscreenEventIds: objectIdArray(
-      optionalArray(secrets["offscreenEventLog"]),
-      "offscreenEventLog",
+    actors: Object.entries(actors).map(([actorId, actor]) =>
+      actorContext(actorId, actor, actorAgendas.get(actorId), actorKnowledgeLenses.get(actorId)),
     ),
+    relationshipSignals,
+    recentOffscreenEvents,
+    pressurePalette: buildPressurePaletteContext(timeline, recentOffscreenEvents),
   };
 }
 
-function actorContext(actorId: string, value: unknown): TimelineActorContext {
+function actorContext(
+  actorId: string,
+  value: unknown,
+  agendaValue: unknown,
+  knowledgeLensValue: unknown,
+): TimelineActorContext {
   const actor = requireRecord(value, `actors.${actorId}`);
   const presentation = requireRecord(actor["presentation"], `actors.${actorId}.presentation`);
   const relationship = requireRecord(
@@ -158,13 +158,83 @@ function actorContext(actorId: string, value: unknown): TimelineActorContext {
   const parameters = servantForm === null ? null : optionalRecord(servantForm["parameters"]);
   return {
     actorId,
-    displayName: requireString(presentation["displayName"], `actors.${actorId}.displayName`),
+    displayName: requireString(presentation["renderName"], `actors.${actorId}.renderName`),
     kind: requireString(actor["kind"], `actors.${actorId}.kind`),
     stance: requireString(relationship["stance"], `actors.${actorId}.stance`),
     wounds: optionalArray(condition["wounds"]).length,
     afflictions: optionalArray(condition["afflictions"]).length,
     servantModifiers: parameters === null ? 0 : optionalArray(parameters["modifiers"]).length,
+    agenda: agendaValue === undefined ? null : agendaContext(actorId, agendaValue),
+    knowledgeLens:
+      knowledgeLensValue === undefined ? null : knowledgeLensContext(actorId, knowledgeLensValue),
   };
+}
+
+function agendaContext(actorId: string, value: unknown): TimelineActorAgendaContext {
+  const agenda = requireRecord(value, `actorAgendas.${actorId}`);
+  return {
+    goal: requireString(agenda["goal"], `actorAgendas.${actorId}.goal`),
+    fear: requireString(agenda["fear"], `actorAgendas.${actorId}.fear`),
+    currentOrder: nullableString(agenda["currentOrder"], `actorAgendas.${actorId}.currentOrder`),
+    lastIndependentActionAt: nullableString(
+      agenda["lastIndependentActionAt"],
+      `actorAgendas.${actorId}.lastIndependentActionAt`,
+    ),
+  };
+}
+
+function knowledgeLensContext(actorId: string, value: unknown): TimelineActorKnowledgeLensContext {
+  const lens = requireRecord(value, `actorKnowledgeLenses.${actorId}`);
+  return {
+    knows: stringArray(lens["knows"], `actorKnowledgeLenses.${actorId}.knows`),
+    suspects: stringArray(lens["suspects"], `actorKnowledgeLenses.${actorId}.suspects`),
+    falseBeliefs: stringArray(lens["falseBeliefs"], `actorKnowledgeLenses.${actorId}.falseBeliefs`),
+    forbiddenKnowledge: stringArray(
+      lens["forbiddenKnowledge"],
+      `actorKnowledgeLenses.${actorId}.forbiddenKnowledge`,
+    ),
+  };
+}
+
+function relationshipSignalContext(
+  value: unknown,
+  index: number,
+): TimelineRelationshipSignalContext {
+  const signal = requireRecord(value, `relationshipSignals[${index}]`);
+  return {
+    id: requireString(signal["id"], `relationshipSignals[${index}].id`),
+    actorId: requireString(signal["actorId"], `relationshipSignals[${index}].actorId`),
+    targetActorId: requireString(
+      signal["targetActorId"],
+      `relationshipSignals[${index}].targetActorId`,
+    ),
+    signal: requireString(signal["signal"], `relationshipSignals[${index}].signal`),
+    interpretation: requireString(
+      signal["interpretation"],
+      `relationshipSignals[${index}].interpretation`,
+    ),
+    boundary: requireString(signal["boundary"], `relationshipSignals[${index}].boundary`),
+    sourceEventId: nullableString(
+      signal["sourceEventId"],
+      `relationshipSignals[${index}].sourceEventId`,
+    ),
+    visibility: requireString(signal["visibility"], `relationshipSignals[${index}].visibility`),
+  };
+}
+
+function recentRelationshipSignals(
+  publicSignals: readonly unknown[],
+  secretSignals: readonly unknown[],
+): TimelineRelationshipSignalContext[] {
+  return [...publicSignals, ...secretSignals]
+    .map((signal, index) => relationshipSignalContext(signal, index))
+    .toSorted((left, right) => relationshipSignalOrder(left.id) - relationshipSignalOrder(right.id))
+    .slice(-RECENT_RELATIONSHIP_SIGNAL_LIMIT);
+}
+
+function relationshipSignalOrder(id: string): number {
+  const match = /-(\d+)$/u.exec(id);
+  return match === null ? 0 : Number(match[1]);
 }
 
 function offscreenEventContext(value: unknown, index: number): TimelineOffscreenEventContext {
@@ -247,11 +317,41 @@ function formatThreats(values: readonly unknown[]): string[] {
   });
 }
 
-function objectIdArray(values: readonly unknown[], fieldName: string): string[] {
-  return values.map((value, index) => {
-    const record = requireRecord(value, `${fieldName}[${index}]`);
-    return requireString(record["id"], `${fieldName}[${index}].id`);
-  });
+function buildPressurePaletteContext(
+  timeline: TimelineId,
+  recentEvents: readonly TimelineOffscreenEventContext[],
+): TimelinePressureSlotContext[] {
+  const recentPressureTypes = recentEvents.map((event) => event.pressureType);
+  return getTimelinePressureSlots(timeline).map((slot) => ({
+    ...slot,
+    recentUses: recentPressureTypes.filter((pressureType) => pressureType === slot.pressureType)
+      .length,
+    coolingDown: isCoolingDown(slot, recentPressureTypes),
+  }));
+}
+
+function isCoolingDown(
+  slot: TimelinePressureSlot,
+  recentPressureTypes: readonly string[],
+): boolean {
+  if (slot.cooldownTurns <= 0) {
+    return false;
+  }
+  const windowStart = Math.max(0, recentPressureTypes.length - slot.cooldownTurns);
+  return recentPressureTypes.slice(windowStart).includes(slot.pressureType);
+}
+
+function indexByActorId(values: readonly unknown[], fieldName: string): Map<string, unknown> {
+  const result = new Map<string, unknown>();
+  for (const [index, value] of values.entries()) {
+    const entry = requireRecord(value, `${fieldName}[${index}]`);
+    const actorId = requireString(entry["actorId"], `${fieldName}[${index}].actorId`);
+    if (result.has(actorId)) {
+      throw new Error(`${fieldName} 含重复 actorId: ${actorId}。`);
+    }
+    result.set(actorId, entry);
+  }
+  return result;
 }
 
 function selectStateRecord(raw: unknown): Record<string, unknown> {
@@ -260,12 +360,28 @@ function selectStateRecord(raw: unknown): Record<string, unknown> {
   return nestedState ?? root;
 }
 
+function requireTimelineId(value: unknown, fieldName: string): TimelineId {
+  const timeline = requireString(value, fieldName);
+  if (isTimelineId(timeline)) {
+    return timeline;
+  }
+  throw new Error(`${fieldName} 不支持: ${timeline}。`);
+}
+
+function isTimelineId(value: string): value is TimelineId {
+  return TIMELINE_IDS.some((timelineId) => timelineId === value);
+}
+
 function requireTimezone(value: unknown, fieldName: string): TimeZoneId {
   const timezone = requireString(value, fieldName);
-  if (timezone === "Asia/Tokyo" || timezone === "America/Denver" || timezone === "UTC") {
+  if (isTimeZoneId(timezone)) {
     return timezone;
   }
   throw new Error(`${fieldName} 不支持: ${timezone}。`);
+}
+
+function isTimeZoneId(value: string): value is TimeZoneId {
+  return TIMEZONE_IDS.some((timezoneId) => timezoneId === value);
 }
 
 function requireRecord(value: unknown, fieldName: string): Record<string, unknown> {
@@ -290,6 +406,13 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+function nullableString(value: unknown, fieldName: string): string | null {
+  if (value === null) {
+    return null;
+  }
+  return requireString(value, fieldName);
+}
+
 function stringArray(value: unknown, fieldName: string): string[] {
   if (!Array.isArray(value)) {
     throw new Error(`${fieldName} 必须是字符串数组。`);
@@ -299,8 +422,4 @@ function stringArray(value: unknown, fieldName: string): string[] {
 
 function optionalArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

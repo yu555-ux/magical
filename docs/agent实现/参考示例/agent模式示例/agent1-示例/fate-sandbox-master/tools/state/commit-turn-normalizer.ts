@@ -1,13 +1,15 @@
-import type { ScenePresenceInput } from "../../engine/core/actor";
-import type { EconomyEvent } from "../../engine/core/economy";
-import type { MemoryEvent } from "../../engine/core/memory";
-import type { SceneEvent } from "../../engine/core/scene";
-import type { ServantFormEvent } from "../../engine/core/servant";
-import type { TurnCommitEvent, TurnCommitInput } from "../../engine/core/turn-commit";
+import type { ScenePresenceInput } from "../../engine/core/actor.ts";
+import type { MemoryEvent } from "../../engine/core/memory.ts";
+import type { TurnCommitEvent, TurnCommitInput } from "../../engine/core/turn-commit.ts";
 
-import { parseTurnTimePolicySchema } from "../../engine/core/turn-time-schema";
+import { parseEconomyEvent } from "../../engine/core/economy-schema.ts";
+import { parseMemoryEvent } from "../../engine/core/memory-schema.ts";
+import { parseSceneEvent } from "../../engine/core/scene-schema.ts";
+import { parseServantFormEvent } from "../../engine/core/servant-schema.ts";
+import { parseTurnTimePolicySchema } from "../../engine/core/turn-time-schema.ts";
 
-import { normalizeActorConditionEvent } from "./actor-condition-normalizer";
+import { normalizeActorConditionEvent } from "./actor-condition-normalizer.ts";
+import { isRecord } from "../../engine/core/typebox-validation.ts";
 
 const DEFAULT_SUMMARY = "本轮状态变化。";
 const TURN_EVENT_KINDS = [
@@ -17,16 +19,6 @@ const TURN_EVENT_KINDS = [
   "servant-form",
   "economy",
   "memory",
-] as const;
-const COMMIT_SCENE_EVENT_KINDS = [
-  "set-location",
-  "set-situation",
-  "set-story-window",
-  "clear-story-window",
-  "add-objective",
-  "resolve-objective",
-  "add-threat",
-  "clear-threat",
 ] as const;
 
 export function normalizeTurnCommitInput(params: unknown): TurnCommitInput {
@@ -66,15 +58,17 @@ function normalizeTurnCommitEvent(value: unknown, summary: string): TurnCommitEv
     case "servant-form":
       return {
         kind: normalizedKind,
-        event: trustDomainEvent<ServantFormEvent>(
+        event: parseServantFormEvent(
           withReason(extractDomainEvent(event, "servant-form.event"), summary),
+          "commit_turn servant-form.event",
         ),
       };
     case "economy":
       return {
         kind: normalizedKind,
-        event: trustDomainEvent<EconomyEvent>(
+        event: parseEconomyEvent(
           withReason(extractDomainEvent(event, "economy.event"), summary),
+          "commit_turn economy.event",
         ),
       };
     case "memory":
@@ -113,32 +107,33 @@ function extractDomainEvent(event: Record<string, unknown>, fieldName: string): 
 }
 
 function normalizeMemoryTurnEvent(event: Record<string, unknown>): MemoryEvent {
-  return extractDomainEvent(event, "memory.event") as unknown as MemoryEvent;
+  const payload = extractDomainEvent(event, "memory.event");
+  const normalized =
+    payload["kind"] === "pin-fact"
+      ? { ...payload, sourceEventId: payload["sourceEventId"] ?? null }
+      : payload;
+  return parseMemoryEvent(normalized, "commit_turn memory.event");
 }
 
 function normalizeSceneTurnEvent(
   event: Record<string, unknown>,
   summary: string,
 ): TurnCommitEvent {
-  const payload = normalizeSceneEventPayload(withReason(extractDomainEvent(event, "scene.event"), summary));
-  if (payload["kind"] === "set-scene-presence") {
-    return {
-      kind: "scene-presence",
-      event: normalizeScenePresenceInput(payload, summary),
-    };
-  }
-  return { kind: "scene", event: payload as unknown as SceneEvent };
+  const payload = normalizeSceneEventPayload(
+    withReason(extractDomainEvent(event, "scene.event"), summary),
+  );
+  return { kind: "scene", event: parseSceneEvent(payload, "commit_turn scene.event") };
 }
 
+/**
+ * 进 TypeBox parser 之前的宽松预归一化：
+ * kind 容错（大小写 / 下划线），resolve-objective 的空白选填字段降级为缺省。
+ * 结构与字段校验交给 parseSceneEvent。
+ */
 function normalizeSceneEventPayload(
   payload: Record<string, unknown> & { reason: string },
 ): Record<string, unknown> & { reason: string } {
   const kind = normalizeKindText(payload["kind"]);
-  if (!COMMIT_SCENE_EVENT_KINDS.includes(kind as (typeof COMMIT_SCENE_EVENT_KINDS)[number])) {
-    throw new Error(
-      `非法 commit_turn scene.event.kind: ${formatUnknown(payload["kind"])}。允许: ${COMMIT_SCENE_EVENT_KINDS.join(" / ")}。`,
-    );
-  }
   if (kind !== "resolve-objective") {
     return { ...payload, kind };
   }
@@ -233,10 +228,6 @@ function assertNonEmptyString(value: unknown, fieldName: string): string {
   return value.trim();
 }
 
-function trustDomainEvent<T>(event: Record<string, unknown>): T {
-  return event as unknown as T; // safe: tool adapter only normalizes common LLM omissions; owning engine module validates the domain event.
-}
-
 function normalizeOptionalString(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -261,8 +252,4 @@ function assertRecord(value: unknown, fieldName: string): Record<string, unknown
 
 function formatUnknown(value: unknown): string {
   return value === undefined ? "undefined" : JSON.stringify(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

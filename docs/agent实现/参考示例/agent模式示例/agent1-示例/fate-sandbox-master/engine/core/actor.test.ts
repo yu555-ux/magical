@@ -1,20 +1,22 @@
+import type { State } from "./state.ts";
+
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { retireActor, setScenePresence, upsertActor } from "./actor";
-import { buildGmBrief } from "./gm-brief";
+import { retireActor, setScenePresence, upsertActor } from "./actor.ts";
+import { buildGmBrief } from "./public-projection.ts";
 import {
   configureActorSecrets,
   configureServantSecrets,
   privateResolve,
   revealSecret,
-} from "./secrets";
-import { getPublicState, getState, resetState } from "./state";
+} from "./secrets.ts";
+import { createInitialState } from "./state-store.ts";
 
 void test("upsertActor adds an entered NPC from safe public projection", () => {
-  resetState();
+  const draft = createInitialState();
 
-  const result = upsertActor({
+  const result = upsertActor(draft, {
     kind: "upsert-public-npc",
     npc: {
       id: "tohsaka-rin",
@@ -31,7 +33,7 @@ void test("upsertActor adds an entered NPC from safe public projection", () => {
     reason: "NPC enters scene during smoke test",
   });
 
-  const publicState = getPublicState();
+  const publicState = draft.public;
   const actor = publicState.actors["tohsaka-rin"];
   assert.equal(result.message, "public npc 已写入：tohsaka-rin。");
   assert.equal(actor?.presentation.displayName, "远坂凛");
@@ -42,9 +44,9 @@ void test("upsertActor adds an entered NPC from safe public projection", () => {
 });
 
 void test("ensurePublicNpc creates a minimal public skeleton", () => {
-  resetState();
+  const draft = createInitialState();
 
-  const result = upsertActor({
+  const result = upsertActor(draft, {
     kind: "ensure-public-npc",
     npc: {
       actorId: "tohsaka-rin",
@@ -54,7 +56,7 @@ void test("ensurePublicNpc creates a minimal public skeleton", () => {
     reason: "确保同行 NPC 可被 scene presence 引用",
   });
 
-  const publicState = getPublicState();
+  const publicState = draft.public;
   const actor = publicState.actors["tohsaka-rin"];
   assert.equal(result.message, "public npc skeleton 已写入：tohsaka-rin。");
   assert.equal(actor?.presentation.displayName, "远坂凛");
@@ -65,9 +67,9 @@ void test("ensurePublicNpc creates a minimal public skeleton", () => {
 });
 
 void test("ensurePublicNpc does not overwrite an existing actor", () => {
-  resetState();
+  const draft = createInitialState();
 
-  upsertActor({
+  upsertActor(draft, {
     kind: "upsert-public-npc",
     npc: {
       id: "tohsaka-rin",
@@ -84,7 +86,7 @@ void test("ensurePublicNpc does not overwrite an existing actor", () => {
     reason: "NPC enters scene during smoke test",
   });
 
-  const result = upsertActor({
+  const result = upsertActor(draft, {
     kind: "ensure-public-npc",
     npc: {
       actorId: "tohsaka-rin",
@@ -94,7 +96,7 @@ void test("ensurePublicNpc does not overwrite an existing actor", () => {
     reason: "重复确保 actor 存在",
   });
 
-  const actor = getPublicState().actors["tohsaka-rin"];
+  const actor = draft.public.actors["tohsaka-rin"];
   assert.equal(result.message, "actor 已存在：tohsaka-rin。");
   assert.equal(actor?.presentation.displayName, "远坂凛");
   assert.equal(actor?.presentation.outfit.label, "穗群原学园制服");
@@ -102,11 +104,11 @@ void test("ensurePublicNpc does not overwrite an existing actor", () => {
 });
 
 void test("upsertActor rejects non-protagonist setup", () => {
-  resetState();
+  const draft = createInitialState();
 
   assert.throws(
     () =>
-      upsertActor({
+      upsertActor(draft, {
         kind: "setup-protagonist",
         actor: {
           id: "tohsaka-rin",
@@ -117,12 +119,13 @@ void test("upsertActor rejects non-protagonist setup", () => {
           identity: { publicIdentity: "远坂凛", background: "测试", lockedFacts: [] },
           presentation: {
             displayName: "远坂凛",
+            renderName: "远坂凛",
             apparentAge: "17岁",
             outfit: { label: "制服", details: "测试" },
             demeanor: "测试",
           },
           condition: { wounds: [], afflictions: [], permanentEffects: [] },
-          inventory: { ordinaryItems: [], heldTrackedItemIds: [] },
+          inventory: { ordinaryItems: [] },
           abilities: [],
           relationshipToProtagonist: { stance: "neutral", summary: "测试" },
         },
@@ -133,28 +136,28 @@ void test("upsertActor rejects non-protagonist setup", () => {
 });
 
 void test("upsertActor can replace protagonist setup skeleton", () => {
-  resetState();
+  const draft = createInitialState();
 
-  upsertShirouProtagonist(40);
+  upsertShirouProtagonist(draft, 40);
 
-  const publicState = getPublicState();
+  const publicState = draft.public;
   assert.equal(publicState.actors.protagonist?.identity.publicIdentity, "卫宫士郎");
   assert.match(buildGmBrief(publicState), /玩家角色：卫宫士郎 \/ human \/ 卫宫士郎/);
 });
 
 void test("GM brief separates human circuit aptitude from Od remaining percentage", () => {
-  resetState();
+  const draft = createInitialState();
 
-  upsertShirouProtagonist(100);
+  upsertShirouProtagonist(draft, 100);
 
-  const brief = buildGmBrief(getPublicState());
+  const brief = buildGmBrief(draft.public);
   assert.match(brief, /魔术回路27\/E；Od余量稳定（100%）/);
 });
 
 void test("GM brief separates servant mana parameter from mana remaining percentage", () => {
-  resetState();
+  const draft = createInitialState();
 
-  upsertActor({
+  upsertActor(draft, {
     kind: "upsert-servant",
     servant: {
       id: "protagonist",
@@ -189,12 +192,12 @@ void test("GM brief separates servant mana parameter from mana remaining percent
     reason: "测试玩家从者魔力显示",
   });
 
-  const brief = buildGmBrief(getPublicState());
+  const brief = buildGmBrief(draft.public);
   assert.match(brief, /魔力余量稳定（100%；参数A\+）/);
 });
 
-function upsertShirouProtagonist(od: number): void {
-  upsertActor({
+function upsertShirouProtagonist(draft: State, od: number): void {
+  upsertActor(draft, {
     kind: "setup-protagonist",
     actor: {
       id: "protagonist",
@@ -216,12 +219,13 @@ function upsertShirouProtagonist(od: number): void {
       },
       presentation: {
         displayName: "卫宫士郎",
+        renderName: "卫宫士郎",
         apparentAge: "17岁",
         outfit: { label: "穗群原学园制服", details: "冬季制服。" },
         demeanor: "固执且容易主动帮忙。",
       },
       condition: { wounds: [], afflictions: [], permanentEffects: [] },
-      inventory: { ordinaryItems: [], heldTrackedItemIds: [] },
+      inventory: { ordinaryItems: [] },
       abilities: [
         { id: "reinforcement", label: "强化魔术", summary: "强化物体结构。" },
         { id: "projection", label: "投影魔术", summary: "基础投影。" },
@@ -233,10 +237,10 @@ function upsertShirouProtagonist(od: number): void {
 }
 
 void test("configureServantSecrets creates mergeable slots for runtime servants", () => {
-  resetState();
-  upsertTestCaster();
+  const draft = createInitialState();
+  upsertTestCaster(draft);
 
-  configureServantSecrets({
+  configureServantSecrets(draft, {
     kind: "configure-servant-secrets",
     actorId: "caster",
     trueName: {
@@ -257,7 +261,7 @@ void test("configureServantSecrets creates mergeable slots for runtime servants"
     ],
     reason: "测试从者 secrets 初始化",
   });
-  configureServantSecrets({
+  configureServantSecrets(draft, {
     kind: "configure-servant-secrets",
     actorId: "caster",
     hiddenNoblePhantasms: [
@@ -275,7 +279,7 @@ void test("configureServantSecrets creates mergeable slots for runtime servants"
     reason: "测试追加宝具揭示条件",
   });
 
-  const casterSecrets = getState().secrets.actorSecrets["caster"];
+  const casterSecrets = draft.secrets.actorSecrets["caster"];
   assert.equal(casterSecrets?.trueName?.value, "美狄亚");
   assert.deepEqual(casterSecrets?.trueName?.revealConditions, ["科尔基斯", "金羊皮"]);
   assert.equal(casterSecrets?.hiddenNoblePhantasms.length, 1);
@@ -287,9 +291,9 @@ void test("configureServantSecrets creates mergeable slots for runtime servants"
 });
 
 void test("configured servant secrets can be revealed by evidence", () => {
-  resetState();
-  upsertTestCaster();
-  configureServantSecrets({
+  const draft = createInitialState();
+  upsertTestCaster(draft);
+  configureServantSecrets(draft, {
     kind: "configure-servant-secrets",
     actorId: "caster",
     trueName: {
@@ -299,22 +303,22 @@ void test("configured servant secrets can be revealed by evidence", () => {
     reason: "测试真名揭示槽位",
   });
 
-  const result = revealSecret({
+  const result = revealSecret(draft, {
     kind: "claim-reveal",
     actorId: "caster",
     claim: "美狄亚",
     evidence: "她的神代魔术与科尔基斯传承、金羊皮逸话一致。",
   });
 
-  const caster = getState().public.actors["caster"];
+  const caster = draft.public.actors["caster"];
   assert.equal(result.outcome, "revealed");
   assert.equal(caster?.servantForm?.identity.trueName.status, "revealed");
   assert.equal(caster?.servantForm?.identity.trueName.display, "美狄亚");
 });
 
 void test("reveal_secret replaces placeholder hidden noble phantasm instead of duplicating", () => {
-  resetState();
-  upsertActor({
+  const draft = createInitialState();
+  upsertActor(draft, {
     kind: "upsert-servant",
     servant: {
       id: "caster",
@@ -357,7 +361,7 @@ void test("reveal_secret replaces placeholder hidden noble phantasm instead of d
     reason: "测试从者入场",
   });
 
-  configureServantSecrets({
+  configureServantSecrets(draft, {
     kind: "configure-servant-secrets",
     actorId: "caster",
     hiddenNoblePhantasms: [
@@ -375,26 +379,26 @@ void test("reveal_secret replaces placeholder hidden noble phantasm instead of d
     reason: "测试宝具揭示",
   });
 
-  const result = revealSecret({
+  const result = revealSecret(draft, {
     kind: "claim-reveal",
     actorId: "caster",
     claim: "Rule Breaker",
     evidence: "短剑形宝具切开了魔术契约。",
   });
 
-  const caster = getState().public.actors["caster"];
+  const caster = draft.public.actors["caster"];
   assert.equal(result.outcome, "revealed");
   assert.equal(caster?.servantForm?.noblePhantasms.length, 1);
   assert.equal(caster?.servantForm?.noblePhantasms[0]?.name, "Rule Breaker");
   assert.equal(caster?.servantForm?.noblePhantasms[0]?.status, "revealed");
 });
 
-function upsertTestCaster(): void {
-  upsertTestCasterWithMaster(null);
+function upsertTestCaster(draft: State): void {
+  upsertTestCasterWithMaster(draft, null);
 }
 
-function upsertTestCasterWithMaster(masterActorId: string | null): void {
-  upsertActor({
+function upsertTestCasterWithMaster(draft: State, masterActorId: string | null): void {
+  upsertActor(draft, {
     kind: "upsert-servant",
     servant: {
       id: "caster",
@@ -431,9 +435,9 @@ function upsertTestCasterWithMaster(masterActorId: string | null): void {
 }
 
 void test("upsert-servant writes servant form with full parameter block", () => {
-  resetState();
+  const draft = createInitialState();
 
-  upsertActor({
+  upsertActor(draft, {
     kind: "upsert-servant",
     servant: {
       id: "caster",
@@ -476,7 +480,7 @@ void test("upsert-servant writes servant form with full parameter block", () => 
     reason: "测试从者入场",
   });
 
-  const state = getState();
+  const state = draft;
   const caster = state.public.actors["caster"];
   assert.notEqual(caster, undefined);
   assert.equal(caster?.kind, "spirit");
@@ -494,16 +498,16 @@ void test("upsert-servant writes servant form with full parameter block", () => 
 });
 
 void test("retireActor removes a non-referenced actor from registry and scene", () => {
-  resetState();
-  upsertTestCaster();
-  setScenePresence({
+  const draft = createInitialState();
+  upsertTestCaster(draft);
+  setScenePresence(draft, {
     presentActorIds: ["protagonist", "caster"],
     allyActorIds: [],
     reason: "Caster enters before retiring",
   });
 
-  const result = retireActor({ actorId: "caster", reason: "测试敌人退场" });
-  const state = getState();
+  const result = retireActor(draft, { actorId: "caster", reason: "测试敌人退场" });
+  const state = draft;
 
   assert.match(result.message, /caster/);
   assert.equal(state.public.actors["caster"], undefined);
@@ -511,8 +515,8 @@ void test("retireActor removes a non-referenced actor from registry and scene", 
 });
 
 void test("retireActor rejects actors referenced by master contracts", () => {
-  resetState();
-  upsertActor({
+  const draft = createInitialState();
+  upsertActor(draft, {
     kind: "upsert-public-npc",
     npc: {
       id: "master",
@@ -528,36 +532,36 @@ void test("retireActor rejects actors referenced by master contracts", () => {
     },
     reason: "测试御主入场",
   });
-  upsertTestCasterWithMaster("master");
+  upsertTestCasterWithMaster(draft, "master");
 
   assert.throws(
-    () => retireActor({ actorId: "master", reason: "仍被从者契约引用" }),
+    () => retireActor(draft, { actorId: "master", reason: "仍被从者契约引用" }),
     /masterActorId/,
   );
 });
 
 void test("setScenePresence updates current scene independently from actor registry", () => {
-  resetState();
-  upsertTestCaster();
+  const draft = createInitialState();
+  upsertTestCaster(draft);
 
-  const result = setScenePresence({
+  const result = setScenePresence(draft, {
     presentActorIds: ["protagonist", "caster"],
     allyActorIds: ["caster"],
     reason: "Caster enters the scene as temporary ally",
   });
 
-  const publicState = getPublicState();
+  const publicState = draft.public;
   assert.equal(result.message, "场景在场 actor 已更新。");
   assert.deepEqual(publicState.scene.presentActorIds, ["protagonist", "caster"]);
   assert.deepEqual(publicState.allyActorIds, ["caster"]);
 });
 
 void test("setScenePresence rejects unknown actors", () => {
-  resetState();
+  const draft = createInitialState();
 
   assert.throws(
     () =>
-      setScenePresence({
+      setScenePresence(draft, {
         presentActorIds: ["protagonist", "caster"],
         allyActorIds: [],
         reason: "unknown actor should fail",
@@ -567,8 +571,8 @@ void test("setScenePresence rejects unknown actors", () => {
 });
 
 void test("configureActorSecrets enables hidden reactions for non-servant NPCs", () => {
-  resetState();
-  upsertActor({
+  const draft = createInitialState();
+  upsertActor(draft, {
     kind: "upsert-public-npc",
     npc: {
       id: "sakura",
@@ -585,7 +589,7 @@ void test("configureActorSecrets enables hidden reactions for non-servant NPCs",
     reason: "测试非从者 NPC hidden reaction",
   });
 
-  configureActorSecrets({
+  configureActorSecrets(draft, {
     kind: "configure-actor-secrets",
     actorId: "sakura",
     privateMotives: [
@@ -597,7 +601,7 @@ void test("configureActorSecrets enables hidden reactions for non-servant NPCs",
     reason: "测试 Sakura 私密反应槽位",
   });
 
-  const result = privateResolve({
+  const result = privateResolve(draft, {
     kind: "hidden-reaction",
     actorId: "sakura",
     stimulus: "慎二",
@@ -608,10 +612,10 @@ void test("configureActorSecrets enables hidden reactions for non-servant NPCs",
 });
 
 void test("configureServantSecrets accepts multi-plus Fate ranks", () => {
-  resetState();
-  upsertTestCaster();
+  const draft = createInitialState();
+  upsertTestCaster(draft);
 
-  configureServantSecrets({
+  configureServantSecrets(draft, {
     kind: "configure-servant-secrets",
     actorId: "caster",
     hiddenNoblePhantasms: [
@@ -629,15 +633,12 @@ void test("configureServantSecrets accepts multi-plus Fate ranks", () => {
     reason: "测试多加号 rank",
   });
 
-  assert.equal(
-    getState().secrets.actorSecrets["caster"]?.hiddenNoblePhantasms[0]?.value.rank,
-    "A++",
-  );
+  assert.equal(draft.secrets.actorSecrets["caster"]?.hiddenNoblePhantasms[0]?.value.rank, "A++");
 });
 
 void test("configureServantSecrets accepts non-noble-phantasm sword techniques", () => {
-  resetState();
-  upsertActor({
+  const draft = createInitialState();
+  upsertActor(draft, {
     kind: "upsert-servant",
     servant: {
       id: "assassin",
@@ -672,7 +673,7 @@ void test("configureServantSecrets accepts non-noble-phantasm sword techniques",
     reason: "测试非宝具剑技隐藏槽位",
   });
 
-  configureServantSecrets({
+  configureServantSecrets(draft, {
     kind: "configure-servant-secrets",
     actorId: "assassin",
     hiddenNoblePhantasms: [
@@ -690,8 +691,5 @@ void test("configureServantSecrets accepts non-noble-phantasm sword techniques",
     reason: "记录 Assassin 隐藏剑技线索",
   });
 
-  assert.equal(
-    getState().secrets.actorSecrets["assassin"]?.hiddenNoblePhantasms[0]?.value.rank,
-    "none",
-  );
+  assert.equal(draft.secrets.actorSecrets["assassin"]?.hiddenNoblePhantasms[0]?.value.rank, "none");
 });

@@ -1,8 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { isRecord } from "../core/typebox-validation.ts";
+
 export type PromptSlot = "pre-history" | "pre-response" | "final-contract";
-export type RuntimePromptSource = "state-brief";
+/** 双 pass 架构：结算器与渲染器各自持有独立的 preset 文件。 */
+export type PromptPass = "settlement" | "render";
+export type RuntimePromptSource = "state-brief" | "presence-impressions";
 
 export interface PromptPreset {
   version: 1;
@@ -23,12 +27,20 @@ export type PromptSource =
   | { kind: "runtime"; name: RuntimePromptSource };
 
 const PROMPT_SLOTS: readonly string[] = ["pre-history", "pre-response", "final-contract"];
-const RUNTIME_SOURCES: readonly string[] = ["state-brief"];
+const RUNTIME_SOURCES: readonly string[] = ["state-brief", "presence-impressions"];
 
-export function loadPromptPreset(projectRoot: string): PromptPreset {
-  const path = join(projectRoot, "agents", "preset.json");
+export function loadPromptPreset(projectRoot: string, pass: PromptPass): PromptPreset {
+  const path = join(projectRoot, "agents", `preset-${pass}.json`);
   const raw = readFileSync(path, "utf-8");
-  return parsePromptPreset(JSON.parse(raw), path);
+  return parsePromptPreset(parseJsonFile(raw, path), path);
+}
+
+function parseJsonFile(raw: string, path: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`Invalid JSON in ${path}: ${String(error)}`, { cause: error });
+  }
 }
 
 export function parsePromptPreset(raw: unknown, sourcePath: string): PromptPreset {
@@ -173,8 +185,4 @@ function isPromptSlot(value: string): value is PromptSlot {
 
 function isRuntimePromptSource(value: string): value is RuntimePromptSource {
   return RUNTIME_SOURCES.includes(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

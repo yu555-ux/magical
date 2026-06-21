@@ -1,13 +1,28 @@
-import { patchState, writeStateToDetails, type PatchOp } from "../../engine/core/state";
-import { textResult, type ToolResult } from "../runtime/tool-result";
+import type { FsnToolDefinition } from "../runtime/tool-definition.ts";
+import { Type } from "typebox";
+import { patchState } from "../../engine/core/state-store.ts";
+import { isRecord } from "../../engine/core/typebox-validation.ts";
+import { textResult, type ToolResult } from "../runtime/tool-result.ts";
 
-export interface PatchStateParams {
-  ops: ReadonlyArray<PatchOp>;
+export function patchStateTool(params: unknown, _sessionManager: unknown): ToolResult {
+  const opsRaw = isRecord(params) ? params["ops"] : undefined;
+  patchState(Array.isArray(opsRaw) ? opsRaw : []);
+  // 已禁用的只读工具：不 commit state，不需要把全量 state 写进 details。
+  return textResult("patch_state 已禁用：常规玩法必须使用领域 update 工具。");
 }
 
-export function patchStateTool(params: PatchStateParams, _sessionManager: unknown): ToolResult {
-  patchState(params.ops);
-  const details: Record<string, unknown> = {};
-  writeStateToDetails(details);
-  return textResult("patch_state 已禁用：常规玩法必须使用领域 update 工具。", details);
-}
+export const patchStateToolDefinition: FsnToolDefinition = {
+  name: "patch_state",
+  description: "【调试工具】裸 JSON Patch 已禁用；常规玩法必须使用领域 update 工具。",
+  parameters: Type.Object({
+    ops: Type.Array(
+      Type.Object({
+        op: Type.Literal("replace"),
+        path: Type.String(),
+        value: Type.Unknown(),
+      }),
+    ),
+  }),
+  execute: async (_toolCallId, params, _signal, _onUpdate, ctx) =>
+    patchStateTool(params, ctx.sessionManager),
+};

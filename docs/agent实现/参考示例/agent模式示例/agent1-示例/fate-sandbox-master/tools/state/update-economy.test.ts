@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getState, resetState } from "../../engine/core/state";
-import { updateEconomyTool } from "./update-economy";
+import { getState, resetState } from "../../engine/core/state-store.ts";
+import { updateEconomyTool } from "./update-economy.ts";
 
 void test("updateEconomy reports available purse ids for an unknown purse", () => {
   resetState();
@@ -52,7 +52,7 @@ void test("updateEconomy reports invalid enum-like fields clearly", () => {
         },
         undefined,
       ),
-    /非法 source.*earned, refund, found, gift, withdrawal, sale, quest-reward/,
+    /source 必须是允许值之一: earned, refund, found, gift, withdrawal, sale, quest-reward/,
   );
 
   assert.throws(
@@ -68,6 +68,6 @@ void test("updateEconomy reports invalid enum-like fields clearly", () => {
         },
         undefined,
       ),
-    /非法 access.*held, shared, requires-permission/,
+    /access 必须是允许值之一: held, shared, requires-permission/,
   );
 });

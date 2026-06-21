@@ -41,7 +41,7 @@ export interface ToolExecutionContext {
 }
 
 /** 工具分类（前端展示用） */
-export type ToolCategory = 'lookup' | 'world' | 'variable' | 'mechanics' | 'deprecated';
+export type ToolCategory = 'lookup' | 'variable' | 'gameplay';
 
 export interface AgentToolDef {
   name: string;

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { FateParams, PublicActorState } from "../../engine/core/state";
+import type { FateParams, PublicActorState } from "../../engine/core/state.ts";
 
-import { resetState, updateState } from "../../engine/core/state";
-import { resolveCombatExchangeTool } from "./resolve-combat-exchange";
+import { cloneState, commitState, resetState } from "../../engine/core/state-store.ts";
+import { resolveCombatExchangeTool } from "./resolve-combat-exchange.ts";
 
 void test("resolveCombatExchangeTool returns player-safe constraints and state details", () => {
   resetState();
@@ -34,13 +34,14 @@ void test("resolveCombatExchangeTool returns player-safe constraints and state d
   assert.match(text, /状态落点：/u);
   assert.match(text, /后果力度：/u);
   assert.match(text, /禁止输出 HP/u);
-  assert.ok(result.details["fsn-state"] !== undefined);
+  // session 可写时 state 走 custom entry，details 不再冗余携带全量 state。
+  assert.equal(result.details["fsn-state"], undefined);
 });
 
 function insertActor(actor: PublicActorState): void {
-  updateState((draft) => {
-    draft.public.actors[actor.id] = actor;
-  });
+  const draft = cloneState();
+  draft.public.actors[actor.id] = actor;
+  commitState(draft);
 }
 
 function servantActor(id: string, displayName: string, parameters: FateParams): PublicActorState {
@@ -76,12 +77,13 @@ function servantActor(id: string, displayName: string, parameters: FateParams): 
     identity: { publicIdentity: displayName, background: "测试 actor", lockedFacts: [] },
     presentation: {
       displayName,
+      renderName: displayName,
       apparentAge: "未知",
       outfit: { label: "测试服装", details: "测试用。" },
       demeanor: "测试状态",
     },
     condition: { wounds: [], afflictions: [], permanentEffects: [] },
-    inventory: { ordinaryItems: [], heldTrackedItemIds: [] },
+    inventory: { ordinaryItems: [] },
     abilities: [],
     relationshipToProtagonist: { stance: "neutral", summary: "测试关系。" },
   };

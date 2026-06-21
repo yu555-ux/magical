@@ -1,143 +1,92 @@
-import type { EconomyEvent, MoneyGainSource } from "../../engine/core/economy";
-import type { MoneyPurse } from "../../engine/core/state";
+import type { FsnToolDefinition } from "../runtime/tool-definition.ts";
+import { Type } from "typebox";
+import type { EconomyEvent } from "../../engine/core/economy.ts";
+import type { ToolResult } from "../runtime/tool-result.ts";
 
-import { updateEconomy } from "../../engine/core/economy";
-import { assertNonNegativeInteger, getPublicState } from "../../engine/core/state";
-import type { ToolResult } from "../runtime/tool-result";
+import { updateEconomy } from "../../engine/core/economy.ts";
+import { parseEconomyEvent } from "../../engine/core/economy-schema.ts";
+import type { State } from "../../engine/core/state.ts";
 
-import { resultDetails, runDomainEventTool } from "./domain-tool-runner";
-import { assertOneOf, assertRecord, assertString, normalizeOptionalString } from "./tool-input";
-
-const ECONOMY_EVENT_KINDS = [
-  "spend-money",
-  "gain-money",
-  "add-purse",
-  "rename-purse",
-  "add-debt",
-] as const;
-
-const MONEY_GAIN_SOURCES = [
-  "earned",
-  "refund",
-  "found",
-  "gift",
-  "withdrawal",
-  "sale",
-  "quest-reward",
-] as const satisfies readonly MoneyGainSource[];
-
-const PURSE_ACCESSES = ["held", "shared", "requires-permission"] as const satisfies readonly MoneyPurse["access"][];
+import { resultDetails, runDomainEventTool } from "./domain-tool-runner.ts";
 
 export function updateEconomyTool(params: unknown, sessionManager: unknown): ToolResult {
   return runDomainEventTool({
     sessionManager,
-    execute: () => updateEconomy(assertEconomyEvent(params)),
+    execute: (draft) => {
+      const event = parseEconomyEvent(params, "update_economy 参数");
+      assertExistingPurseIdIfPresent(draft, event);
+      return updateEconomy(draft, event);
+    },
     details: resultDetails,
     message: (result) => result.message,
   });
 }
 
-function assertEconomyEvent(params: unknown): EconomyEvent {
-  const input = assertRecord(params, "update_economy 参数");
-  const kind = assertOneOf(input["kind"], "update_economy.kind", ECONOMY_EVENT_KINDS);
-  const reason = assertString(input["reason"], "reason");
-
-  if (kind === "spend-money") {
-    return normalizeSpendMoney(input, reason);
-  }
-  if (kind === "gain-money") {
-    return normalizeGainMoney(input, reason);
-  }
-  if (kind === "add-purse") {
-    return normalizeAddPurse(input, reason);
-  }
-  if (kind === "rename-purse") {
-    return normalizeRenamePurse(input, reason);
-  }
-  return normalizeAddDebt(input, reason);
-}
-
-function normalizeSpendMoney(
-  input: Record<string, unknown>,
-  reason: string,
-): Extract<EconomyEvent, { kind: "spend-money" }> {
-  const purseId = normalizeOptionalString(input["purseId"], "purseId");
-  assertExistingPurseIdIfPresent(purseId);
-  return {
-    kind: "spend-money",
-    purseId,
-    ownerActorId: normalizeOptionalString(input["ownerActorId"], "ownerActorId"),
-    amount: assertNonNegativeInteger(input["amount"], "amount"),
-    reason,
-  };
-}
-
-function normalizeGainMoney(
-  input: Record<string, unknown>,
-  reason: string,
-): Extract<EconomyEvent, { kind: "gain-money" }> {
-  const purseId = normalizeOptionalString(input["purseId"], "purseId");
-  assertExistingPurseIdIfPresent(purseId);
-  return {
-    kind: "gain-money",
-    purseId,
-    ownerActorId: normalizeOptionalString(input["ownerActorId"], "ownerActorId"),
-    amount: assertNonNegativeInteger(input["amount"], "amount"),
-    source: assertOneOf(input["source"], "source", MONEY_GAIN_SOURCES),
-    counterparty: assertString(input["counterparty"], "counterparty"),
-    reason,
-  };
-}
-
-function normalizeAddPurse(
-  input: Record<string, unknown>,
-  reason: string,
-): Extract<EconomyEvent, { kind: "add-purse" }> {
-  return {
-    kind: "add-purse",
-    ownerActorId: assertString(input["ownerActorId"], "ownerActorId"),
-    label: assertString(input["label"], "label"),
-    amount: assertNonNegativeInteger(input["amount"], "amount"),
-    access: assertOneOf(input["access"], "access", PURSE_ACCESSES),
-    reason,
-  };
-}
-
-function normalizeRenamePurse(
-  input: Record<string, unknown>,
-  reason: string,
-): Extract<EconomyEvent, { kind: "rename-purse" }> {
-  const purseId = assertString(input["purseId"], "purseId");
-  assertExistingPurseIdIfPresent(purseId);
-  return { kind: "rename-purse", purseId, label: assertString(input["label"], "label"), reason };
-}
-
-function normalizeAddDebt(
-  input: Record<string, unknown>,
-  reason: string,
-): Extract<EconomyEvent, { kind: "add-debt" }> {
-  return {
-    kind: "add-debt",
-    debtorActorId: assertString(input["debtorActorId"], "debtorActorId"),
-    creditor: assertString(input["creditor"], "creditor"),
-    amount: assertNonNegativeInteger(input["amount"], "amount"),
-    reason,
-  };
-}
-
-function assertExistingPurseIdIfPresent(purseId: string | undefined): void {
-  if (purseId === undefined) {
+/** purseId 是否存在依赖当前 Game State，schema 管不了；保留领域校验与 get_status 指引。 */
+function assertExistingPurseIdIfPresent(draft: State, event: EconomyEvent): void {
+  if (!("purseId" in event) || event.purseId === undefined) {
     return;
   }
-  const exists = getPublicState().economy.accessibleFunds.some((purse) => purse.id === purseId);
+  const purseId = event.purseId;
+  const exists = draft.public.economy.accessibleFunds.some((purse) => purse.id === purseId);
   if (!exists) {
     throw new Error(
-      `资金账户不存在: ${purseId}。请先调用 get_status 查看可用 purseId；当前可用: ${formatPurseIds()}。`,
+      `资金账户不存在: ${purseId}。请先调用 get_status 查看可用 purseId；当前可用: ${formatPurseIds(draft)}。`,
     );
   }
 }
 
-function formatPurseIds(): string {
-  const purseIds = getPublicState().economy.accessibleFunds.map((purse) => purse.id);
+function formatPurseIds(draft: State): string {
+  const purseIds = draft.public.economy.accessibleFunds.map((purse) => purse.id);
   return purseIds.length === 0 ? "无" : purseIds.join(", ");
 }
+
+export const updateEconomyToolDefinition: FsnToolDefinition = {
+  name: "update_economy",
+  description:
+    "更新 2004 年日本円经济状态；每笔资金必须指定 purse/account 与 reason，资金增加必须说明可审计来源。\n\n" +
+    "【必须调用的场景】\n" +
+    "- 消费、获得现金、增加可访问资金账户、修正资金账户名称或记录债务\n" +
+    "- 食宿、装备、服务、情报等交易发生时\n\n" +
+    "【严禁的行为】\n" +
+    "- 把同行者资金说成玩家随身现金\n" +
+    "- 资金不足时默认免费兜底\n" +
+    "- 用 gain-money 把现金设为目标数值或凭空发财；gain-money 必须提供 source 和 counterparty",
+  parameters: Type.Object({
+    kind: Type.String({
+      description: "允许: spend-money / gain-money / add-purse / rename-purse / add-debt",
+    }),
+    purseId: Type.Optional(
+      Type.String({
+        description:
+          "资金账户 id；可省略并提供 ownerActorId，让工具自动选择该 actor 唯一 held purse",
+      }),
+    ),
+    ownerActorId: Type.Optional(
+      Type.String({
+        description: "不确定 purseId 时填写 actorId；若该 actor 只有一个 held purse 会自动选择",
+      }),
+    ),
+    debtorActorId: Type.Optional(Type.String()),
+    creditor: Type.Optional(Type.String()),
+    source: Type.Optional(
+      Type.String({
+        description:
+          "资金来源，允许: earned / refund / found / gift / withdrawal / sale / quest-reward",
+      }),
+    ),
+    counterparty: Type.Optional(Type.String({ description: "gain-money 必填：付款方/来源说明" })),
+    label: Type.Optional(
+      Type.String({ description: "add-purse / rename-purse 必填：资金账户玩家可见名称" }),
+    ),
+    amount: Type.Optional(
+      Type.Unknown({ description: "金额；可填 number 或数字字符串，由领域工具校验。" }),
+    ),
+    access: Type.Optional(
+      Type.String({ description: "资金访问权限，允许: held / shared / requires-permission" }),
+    ),
+    reason: Type.String(),
+  }),
+  execute: async (_toolCallId, params, _signal, _onUpdate, ctx) =>
+    updateEconomyTool(params, ctx.sessionManager),
+};

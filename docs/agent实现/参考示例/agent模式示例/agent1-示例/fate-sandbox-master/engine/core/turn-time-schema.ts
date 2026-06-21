@@ -1,27 +1,21 @@
-import type { LocationState, TurnTimePolicy } from "./state";
-import type { TypeBoxValidator } from "./typebox-validation";
+import type { LocationState, TurnTimePolicy } from "./state.ts";
+import type { TypeBoxValidator } from "./typebox-validation.ts";
 
 import { Type } from "typebox";
 import { Compile } from "typebox/compile";
 
-import { parseTaggedTypeBoxUnion } from "./typebox-validation";
+import { BOUNDARY_KIND_SCHEMA } from "./state-enum-schemas.ts";
+import { parseTaggedTypeBoxUnion } from "./typebox-validation.ts";
 
 export const TURN_TIME_KIND_SCHEMA = Type.Unsafe<TurnTimePolicy["kind"]>({
   enum: ["elapsed", "travel"],
 });
 
-const BOUNDARY_SCHEMA = Type.Union([
-  Type.Literal("normal"),
-  Type.Literal("bounded-field"),
-  Type.Literal("reality-marble"),
-  Type.Literal("otherworld"),
-]);
-
 export const LOCATION_STATE_SCHEMA = Type.Object({
   region: Type.String({ minLength: 1 }),
   site: Type.String({ minLength: 1 }),
   detail: Type.String({ minLength: 1 }),
-  boundary: BOUNDARY_SCHEMA,
+  boundary: BOUNDARY_KIND_SCHEMA,
 });
 
 export const ELAPSED_TURN_TIME_SCHEMA = Type.Object({

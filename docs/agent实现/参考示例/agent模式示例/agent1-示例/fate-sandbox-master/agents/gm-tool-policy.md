@@ -4,29 +4,34 @@ This Module only decides whether to call tools and which tool has priority. Fina
 
 ## Read state first
 
-- Call `get_status` only when this turn has no current GM Brief/tool result, when the player explicitly asks for status, or once after a tool failure to resynchronise player-visible state.
-- Do not call `get_status` again if no domain tool has changed state since the last status read; reuse the current brief.
 - Tool returns override the GM Brief. The GM Brief only constrains narrative tendency; it does not replace current-turn tool resolution.
 - Ordinary passerby details, short dialogue, and a few minutes of everyday action do not require tools.
+- Narration must not claim that time, location, resources, wounds, contracts, memory, or secret revelation changed before the corresponding tool succeeded. Resolve the tool first, then write the change.
+
+## Tool failure
+
+- When a tool call fails, first repair the payload and retry. Do not bypass the tool by writing the failed state into narration.
+- If failures repeat, briefly say the mechanical resolution is blocked and wait for repair; do not invent narrative cushioning.
 
 ## Canon queries
 
+- **Canon-sensitive trigger (mandatory):** If the current turn depends on possession, disguise, split identity, altered appearance, mirror/self-perception, summoning exceptions, true-name/public-name separation, cross-world identity, route timing, or who knows a canon fact, do not proceed from memory or a short local summary. Call `lookup` first. If the local entry does not explicitly answer identity layer, appearance layer, knowledge boundary, and timing, use `web_search` with narrow queries and `fetch_content` for the page body before settling or rendering the scene.
+- **First-turn / new-character rule (mandatory):** On the opening turn of a new game, and whenever a preset character appears in a scene for the first time, call `lookup` for every actor in `presentActorIds` plus the current location **before** writing the direction packet. Put the returned appearance, personality, voice, relationship boundaries, and ability presentation into `canonFacts`. The renderer has no lookup access; if you skip this, it will hallucinate. Even if you "remember" the character from training data, call lookup anyway — training memory is not canon.
+- **User-provided reference rule (mandatory):** If the user provides a file, image, source excerpt, or says a local file is the appearance/reference for an actor, inspect that reference before `initialize_new_game`, `upsert_actor`, `update_actor_condition` outfit changes, or the direction packet that first renders the actor. Put extracted visual facts into actor `outfit.details`, `presentation`, or `canonFacts`. Do not create the actor first and plan to fill appearance later.
+- **Distinct-person rule (mandatory):** Possession, disguise, projection, or appearance override does not merge people. If canon says two minds/persons exist, materialize them as separate actors when both can matter to state, secrets, knowledge, relationships, or future autonomy. Use public appearance and knowledge boundaries to explain what observers see; do not collapse the hidden person into an alias of the visible one.
 - When preset characters, locations, concepts, timelines, or ability details are involved, and the current public brief / current tool results / explicit conversation context are insufficient: call `lookup` first to confirm local index and version limits.
 - When `lookup` gives only an index, boundary, or incomplete material, and exact canon is still required: call `web_search`, then `fetch_content` for the specific page body. Do not settle facts from search summaries alone.
+- Web research must answer the canon dimensions that make the scene risky, not just find a general wiki paragraph. For possession/disguise/summoning cases, explicitly verify: strict actor, active controller, public name, external appearance, self-perceived appearance, who knows the identity, when the state begins, when it ends, and what changes after it ends.
 - Before a preset character first appears, becomes scene focus, acts, or speaks in a way that reveals personality or relationships, use external research if local material lacks version-specific appearance, relationships, voice, current position, and action limits.
 - Before writing long-term state, staging a preset character, or resolving combat with Servant parameters, skills, Noble Phantasms, class eligibility, true names, appearance, faction relationships, or version differences, externally confirm if local data is incomplete or source quality is unclear.
 - External research is not the default action. First identify the single canon question for this turn. Calls to `web_search` must set `workflow: "none"` to disable the interactive curator. If using `queries`, each query must still be narrow.
 - Prefer Japanese name + work title + target field in search queries, such as `ペイルライダー Fate strange Fake ステータス` or `Fate EXTRA 遠坂リン 性格`. Do not search only `Rider` or `遠坂凛`.
 - External research results default to GM knowledge. Whether they can enter Public Game State, Campaign Memory, NPC dialogue, or body text is governed by information-safety rules.
+- If external research reveals a durable correction to local data, do not rely on memory next time. Carry it in this turn's `canonFacts`, and outside live gameplay patch the relevant `data/` entry so future sessions inherit the corrected canon.
 
 ## Scene Beat lifecycle
 
-- Entering complex investigation, infiltration, confrontation, retreat, or battle preparation: prefer `progress_scene_beat kind=begin`.
-- When the current beat objective is satisfied and needs closure, consequence recording, or transition to the next beat: prefer `progress_scene_beat kind=complete`.
-- In a complex beat, use `progress_scene_beat`; its top-level `time` is mandatory.
-- Outside beat lifecycle, use `commit_turn`; its top-level `time` is mandatory.
-- Use `time.kind=elapsed` for waiting, rest, sleep, watchkeeping, treatment, investigation, or any non-travel time passage.
-- Use `time.kind=travel` when the player changes location through the fiction.
+- Entering complex investigation, infiltration, confrontation, retreat, or battle preparation: prefer `progress_scene_beat kind=begin`; close it with `kind=complete`. Outside beat lifecycle, use `commit_turn`. Top-level `time` is mandatory either way.
 
 ## Turn pacing boundary
 
@@ -37,16 +42,13 @@ This Module only decides whether to call tools and which tool has priority. Fina
 
 ## Domain Event Tool routing
 
+Per-tool usage rules live in each tool's schema description; follow them. Cross-tool routing:
+
 - If one reply changes scene / condition / servant / economy / memory, and Scene Beat lifecycle cannot cover it: aggregate with `commit_turn` inside the current player action window.
-- Actor entrance, exit, and companion changes: use `set_scene_presence`. `upsert_actor` writes the Public Actor Registry only; it does not mean the actor is present.
-- Wounds, curses, outfit presentation, and key Tracked Item changes: use `update_actor_condition`.
-- Servant mana supply, spiritual-core injury, contracts, and parameter modifiers: use `update_servant_form`.
-- Spending, receiving funds, services, and information trades: use `update_economy`.
-- Long-term Player-Known Facts such as origin, contract, death, true name, Noble Phantasm, faction, or time jump: use `record_memory`.
-- When true name, Noble Phantasm, or hidden identity moves from clue to public fact: use `reveal_secret`.
-- For NPC hidden reactions and hidden compatibility: use `private_resolve`; only write the player-safe result into narration.
-- For offscreen events and parallel-line results: after review, use `record_offscreen_event` to write into Secret Game State / foreshadowing.
-- Before pressure enters narration, decide whether it needs state landing: wounds/fatigue use `update_actor_condition`; mana/Saint Graph loss use `update_servant_form`; money/resources use `update_economy`; lasting hostility or missed windows use `record_memory`; offscreen hostile progress uses `record_offscreen_event`.
+- Before pressure enters narration, decide whether it needs state landing: wounds/fatigue use `update_actor_condition`; mana/Saint Graph loss use `update_servant_form`; money/resources use `update_economy`; relationship cost or trust movement use `record_relationship_signal`; lasting hostility or missed windows use `record_memory`; offscreen hostile progress uses `record_offscreen_event`.
+- When an important NPC gains/changes a goal, fear, order, or acts on their own initiative, use `update_actor_agenda`; when their knowledge, suspicion, false belief, or forbidden knowledge changes, use `record_actor_knowledge`; when a relationship turn creates behavior evidence, use `record_relationship_signal`. Do not let NPCs speak or act from GM-only facts that are absent from their knowledge lens.
+- 重要 NPC 入场、态度或关系重大变化、beat 结束、arc 转换、或 compaction 前，用 `update_actor_impression` 蒸馏或更新印象卡（presence / actionStyle / relationshipPosture / voiceMaterial）。印象卡在该 actor 在场时自动注入 pre-response，保证 compaction 后 NPC 声音一致性。
+- 需要回忆旧事实（GM brief 只有最近 3 条 eventLog）时，调用 `recall_memory`（关键词/actor/地点/scope 过滤），不要凭模型记忆编造已记录事实。
 
 ## Project subagent routing
 
@@ -70,7 +72,11 @@ Call `parallel-line` to advance one relevant offscreen faction in these cases, u
 - The current beat closes, an arc transition occurs, or the player gains a safety window.
 - Two consecutive turns have no cost, hostile initiative, resource loss, time loss, or relationship loss.
 
-Before calling it, inspect the most recent 2-3 offscreen events. The input must include `recentOffscreenEvents`. Use `excludedActorIds` / `excludedPressureTypes` only for hard bans; ordinary repetition should go into recentOffscreenEvents so the subagent can downrank it instead of being forbidden.
+**使用 `run_parallel_line` 工具装配输入**：不要手写完整 `ParallelLineInput`。调用 `run_parallel_line`，只需传 `lineId` + `timeWindow` + 可选偏好（`preferredPressureType` / `excludedActorIds` / `excludedPressureTypes` / `majorBeatEnd` / `arcTransition`），engine 从 secret state、actor agenda、offscreenEventLog、pressure palette 自动装配其余字段。
+
+工具返回装配好的 JSON 后，将其作为 task 传给 `parallel-line` 子代理（`agentScope: "project"`）。子代理返回后审查候选结果，用 `record_offscreen_event` 或其它领域工具落地。
+
+Use `excludedActorIds` / `excludedPressureTypes` only for hard bans; ordinary repetition is automatically tracked in `recentOffscreenEvents` and cooldown flags so the subagent can downrank it.
 
 The same offscreen ecosystem slot may repeat, but this turn must bring a new state: new position, new judgment, new resource cost, new relationship change, new action window, new countdown, internal conflict, failure, or payoff. Avoid or audit reskins such as “more patrols / higher monitoring / more news.”
 

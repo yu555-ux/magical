@@ -1,187 +1,104 @@
 import type {
-  ActorId,
-  ActorKind,
-  ActorRole,
-  FateParams,
-  NoblePhantasm,
-  OutfitState,
-  PublicActorState,
-  PublicGameState,
-  RelationshipState,
-  ServantClass,
-  ServantSkill,
-} from "./state";
+  ActorRegistryInput,
+  PublicNpcInput,
+  PublicNpcSkeletonInput,
+  RetireActorInput,
+  ScenePresenceInput,
+  ServantInput,
+} from "./actor-schema.ts";
+import type { ActorId, PublicActorState, PublicGameState, State } from "./state.ts";
 
-import { assertNonEmptyString, updateState } from "./state";
+import { assertNonEmptyString } from "./typebox-validation.ts";
 
 export interface UpsertActorInput {
   actor: PublicActorState;
   reason: string;
 }
 
-export interface PublicNpcInput {
-  id: ActorId;
-  kind: "human" | "outsider" | "spirit" | "other";
-  displayName: string;
-  publicIdentity: string;
-  apparentAge: string;
-  outfit: OutfitState;
-  demeanor: string;
-  publicRoles: ActorRole[];
-  relationshipToProtagonist: RelationshipState;
-  ordinaryItems: string[];
-}
-
-export interface PublicNpcSkeletonInput {
-  actorId: ActorId;
-  npcKind?: ActorKind;
-  displayName: string;
-  publicIdentity: string;
-  apparentAge?: string;
-  outfit?: OutfitState;
-  demeanor?: string;
-  publicRoles?: ActorRole[];
-  relationshipToProtagonist?: RelationshipState;
-  ordinaryItems?: string[];
-}
-
-export interface ServantInput {
-  id: ActorId;
-  displayName: string;
-  publicIdentity: string;
-  apparentAge: string;
-  outfit: OutfitState;
-  demeanor: string;
-  className: ServantClass;
-  trueNameDisplay: string;
-  trueNameStatus: "hidden" | "suspected" | "revealed";
-  parameters: FateParams;
-  classSkills: ServantSkill[];
-  personalSkills: ServantSkill[];
-  noblePhantasms: NoblePhantasm[];
-  spiritualCore: number;
-  mana: number;
-  spiritualCondition: string;
-  masterActorId: ActorId | null;
-  masterName: string | null;
-  contractStatus: "stable" | "weak" | "cut" | "masterless";
-  manaSupply: "sufficient" | "strained" | "starved";
-  currentOrder: string;
-  publicRoles?: ActorRole[];
-  relationshipToProtagonist?: RelationshipState;
-  ordinaryItems?: string[];
-}
-
-export type ActorRegistryInput =
-  | {
-      kind: "setup-protagonist";
-      actor: PublicActorState;
-      reason: string;
-    }
-  | {
-      kind: "upsert-public-npc";
-      npc: PublicNpcInput;
-      reason: string;
-    }
-  | {
-      kind: "ensure-public-npc";
-      npc: PublicNpcSkeletonInput;
-      reason: string;
-    }
-  | {
-      kind: "upsert-servant";
-      servant: ServantInput;
-      reason: string;
-    };
+export type {
+  ActorRegistryInput,
+  PublicNpcInput,
+  PublicNpcSkeletonInput,
+  ServantInput,
+} from "./actor-schema.ts";
 
 export interface UpsertActorResult {
   message: string;
 }
 
-export function setScenePresence(input: ScenePresenceInput): ScenePresenceResult {
+export function setScenePresence(draft: State, input: ScenePresenceInput): ScenePresenceResult {
   assertNonEmptyString(input.reason, "reason");
-  updateState((draft) => {
-    assertKnownActors(draft.public.actors, input.presentActorIds, "presentActorIds");
-    assertKnownActors(draft.public.actors, input.allyActorIds, "allyActorIds");
-    draft.public.scene.presentActorIds = uniqueActorIds(input.presentActorIds);
-    draft.public.allyActorIds = uniqueActorIds(input.allyActorIds);
-  });
+  assertKnownActors(draft.public.actors, input.presentActorIds, "presentActorIds");
+  assertKnownActors(draft.public.actors, input.allyActorIds, "allyActorIds");
+  draft.public.scene.presentActorIds = uniqueActorIds(input.presentActorIds);
+  draft.public.allyActorIds = uniqueActorIds(input.allyActorIds);
   return { message: "场景在场 actor 已更新。" };
 }
 
-export interface ScenePresenceInput {
-  presentActorIds: ActorId[];
-  allyActorIds: ActorId[];
-  reason: string;
-}
+export type { ScenePresenceInput } from "./actor-schema.ts";
 
 export interface ScenePresenceResult {
   message: string;
 }
 
-export interface RetireActorInput {
-  actorId: ActorId;
-  reason: string;
-}
+export type { RetireActorInput } from "./actor-schema.ts";
 
 export interface RetireActorResult {
   message: string;
 }
 
-export function upsertActor(input: ActorRegistryInput): UpsertActorResult {
+export function upsertActor(draft: State, input: ActorRegistryInput): UpsertActorResult {
   switch (input.kind) {
     case "setup-protagonist":
-      return upsertProtagonist(input);
+      return upsertProtagonist(draft, input);
     case "upsert-public-npc":
-      return upsertPublicNpc(input);
+      return upsertPublicNpc(draft, input);
     case "ensure-public-npc":
-      return ensurePublicNpc(input);
+      return ensurePublicNpc(draft, input);
     case "upsert-servant":
-      return upsertServant(input);
+      return upsertServant(draft, input);
     default:
       throw new Error("unreachable actor registry input kind");
   }
 }
 
 function upsertProtagonist(
+  draft: State,
   input: Extract<ActorRegistryInput, { kind: "setup-protagonist" }>,
 ): UpsertActorResult {
   assertNonEmptyString(input.reason, "reason");
   if (input.actor.id !== "protagonist") {
     throw new Error("setup-protagonist 只能写入 actor.id=protagonist。");
   }
-  writeActor(input.actor);
+  writeActor(draft, input.actor);
   return { message: `actor 已写入：${input.actor.id}。` };
 }
 
 function upsertPublicNpc(
+  draft: State,
   input: Extract<ActorRegistryInput, { kind: "upsert-public-npc" }>,
 ): UpsertActorResult {
   assertNonEmptyString(input.reason, "reason");
   const actor = toSafePublicActor(input.npc);
-  writeActor(actor);
+  writeActor(draft, actor);
   return { message: `public npc 已写入：${actor.id}。` };
 }
 
 function ensurePublicNpc(
+  draft: State,
   input: Extract<ActorRegistryInput, { kind: "ensure-public-npc" }>,
 ): UpsertActorResult {
   assertNonEmptyString(input.reason, "reason");
   const actor = toSafePublicActorFromSkeleton(input.npc);
-  let created = false;
-  updateState((draft) => {
-    if (draft.public.actors[actor.id] !== undefined) {
-      return;
-    }
-    draft.public.actors[actor.id] = actor;
-    created = true;
-  });
-  return {
-    message: created ? `public npc skeleton 已写入：${actor.id}。` : `actor 已存在：${actor.id}。`,
-  };
+  if (draft.public.actors[actor.id] !== undefined) {
+    return { message: `actor 已存在：${actor.id}。` };
+  }
+  draft.public.actors[actor.id] = actor;
+  return { message: `public npc skeleton 已写入：${actor.id}。` };
 }
 
 function upsertServant(
+  draft: State,
   input: Extract<ActorRegistryInput, { kind: "upsert-servant" }>,
 ): UpsertActorResult {
   assertNonEmptyString(input.reason, "reason");
@@ -236,12 +153,13 @@ function upsertServant(
     },
     presentation: {
       displayName: sv.displayName,
+      renderName: sv.renderName ?? sv.displayName,
       apparentAge: sv.apparentAge,
       outfit: sv.outfit,
       demeanor: sv.demeanor,
     },
     condition: { wounds: [], afflictions: [], permanentEffects: [] },
-    inventory: { ordinaryItems: sv.ordinaryItems ?? [], heldTrackedItemIds: [] },
+    inventory: { ordinaryItems: sv.ordinaryItems ?? [] },
     abilities: [],
     relationshipToProtagonist: sv.relationshipToProtagonist ?? {
       stance: "neutral",
@@ -249,7 +167,7 @@ function upsertServant(
     },
   };
 
-  writeActor(actor);
+  writeActor(draft, actor);
   return { message: `从者已写入：${sv.id} (${sv.className})。` };
 }
 
@@ -281,27 +199,25 @@ function normalizeServantMasterName(servant: ServantInput): string | null {
   return assertNonEmptyString(servant.masterName, "servant.masterName");
 }
 
-export function retireActor(input: RetireActorInput): RetireActorResult {
+export function retireActor(draft: State, input: RetireActorInput): RetireActorResult {
   const actorId = assertNonEmptyString(input.actorId, "actorId");
   assertNonEmptyString(input.reason, "reason");
   if (actorId === "protagonist") {
     throw new Error("不能 retire protagonist。");
   }
-  updateState((draft) => {
-    const actor = draft.public.actors[actorId];
-    if (actor === undefined) {
-      throw new Error(`actor 不存在，无法 retire: ${actorId}。`);
-    }
-    assertActorHasNoBlockingReferences(draft.public, actorId);
-    delete draft.public.actors[actorId];
-    delete draft.secrets.actorSecrets[actorId];
-    draft.public.scene.presentActorIds = draft.public.scene.presentActorIds.filter(
-      (presentActorId) => presentActorId !== actorId,
-    );
-    draft.public.allyActorIds = draft.public.allyActorIds.filter(
-      (allyActorId) => allyActorId !== actorId,
-    );
-  });
+  const actor = draft.public.actors[actorId];
+  if (actor === undefined) {
+    throw new Error(`actor 不存在，无法 retire: ${actorId}。`);
+  }
+  assertActorHasNoBlockingReferences(draft.public, actorId);
+  delete draft.public.actors[actorId];
+  delete draft.secrets.actorSecrets[actorId];
+  draft.public.scene.presentActorIds = draft.public.scene.presentActorIds.filter(
+    (presentActorId) => presentActorId !== actorId,
+  );
+  draft.public.allyActorIds = draft.public.allyActorIds.filter(
+    (allyActorId) => allyActorId !== actorId,
+  );
   return { message: `actor 已退场并从当前 registry 移除：${actorId}。` };
 }
 
@@ -325,10 +241,8 @@ function assertActorHasNoBlockingReferences(publicState: PublicGameState, actorI
   }
 }
 
-function writeActor(actor: PublicActorState): void {
-  updateState((draft) => {
-    draft.public.actors[actor.id] = actor;
-  });
+function writeActor(draft: State, actor: PublicActorState): void {
+  draft.public.actors[actor.id] = actor;
 }
 
 function toSafePublicActor(npc: PublicNpcInput): PublicActorState {
@@ -344,12 +258,13 @@ function toSafePublicActor(npc: PublicNpcInput): PublicActorState {
     },
     presentation: {
       displayName: assertNonEmptyString(npc.displayName, "npc.displayName"),
+      renderName: assertNonEmptyString(npc.renderName ?? npc.displayName, "npc.renderName"),
       apparentAge: assertNonEmptyString(npc.apparentAge, "npc.apparentAge"),
       outfit: npc.outfit,
       demeanor: assertNonEmptyString(npc.demeanor, "npc.demeanor"),
     },
     condition: { wounds: [], afflictions: [], permanentEffects: [] },
-    inventory: { ordinaryItems: npc.ordinaryItems, heldTrackedItemIds: [] },
+    inventory: { ordinaryItems: npc.ordinaryItems },
     abilities: [],
     relationshipToProtagonist: npc.relationshipToProtagonist,
   };

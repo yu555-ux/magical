@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { updateServantFormTool } from "./update-servant-form";
+import { updateServantFormTool } from "./update-servant-form.ts";
 
 void test("updateServantForm reports locked-field attempts clearly", () => {
   assert.throws(
@@ -31,7 +31,7 @@ void test("updateServantForm reports invalid contract enums clearly", () => {
         },
         undefined,
       ),
-    /非法 contract\.status.*stable, weak, cut, masterless/,
+    /contract\.status 必须是允许值之一: stable, weak, cut, masterless/,
   );
 });
 
@@ -52,6 +52,6 @@ void test("updateServantForm reports invalid affected params clearly", () => {
         },
         undefined,
       ),
-    /非法 modifier\.affectedParams\[\].*strength, endurance, agility, mana, luck, noblePhantasm/,
+    /modifier\.affectedParams\[0\] 必须是允许值之一: strength, endurance, agility, mana, luck, noblePhantasm/,
   );
 });

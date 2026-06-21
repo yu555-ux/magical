@@ -8,7 +8,7 @@ export const mechanicTools: Record<string, AgentToolDef> = {
   roll_dice: {
     name: 'roll_dice',
     label: '掷骰子',
-    category: 'mechanics',
+    category: 'gameplay',
     description:
       '执行掷骰检定。支持 d20/d100 等标准骰子，以及带难度等级(DC)的技能检定。\n\n' +
       '【必须调用的场景】\n' +
@@ -69,7 +69,7 @@ export const mechanicTools: Record<string, AgentToolDef> = {
   submit_reply: {
     name: 'submit_reply',
     label: '提交回复',
-    category: 'mechanics',
+    category: 'gameplay',
     description:
       '提交本轮最终回复。这是你向玩家输出叙事的**唯一方式**——只有通过此工具提交，你的回复才会被玩家看到。\n\n' +
       '【必须调用的场景】\n' +

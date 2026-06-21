@@ -1,5 +1,11 @@
-import { cloneState, migrateState, replaceStateForDebug } from "../../engine/core/state";
-import { textResult, type ToolResult } from "../runtime/tool-result";
+import type { FsnToolDefinition } from "../runtime/tool-definition.ts";
+
+import { Type } from "typebox";
+
+import { persistStateAfterCommit } from "../../engine/core/state-persistence.ts";
+import { cloneState, migrateState, replaceStateForDebug } from "../../engine/core/state-store.ts";
+import { isRecord } from "../../engine/core/typebox-validation.ts";
+import { textResult, type ToolResult } from "../runtime/tool-result.ts";
 
 interface MigrateStateParams {
   state?: unknown;
@@ -7,20 +13,24 @@ interface MigrateStateParams {
   reason: string;
 }
 
-export function migrateStateTool(params: unknown): ToolResult {
+export function migrateStateTool(params: unknown, sessionManager: unknown): ToolResult {
   const input = normalizeParams(params);
   const migrated = migrateState(input.state ?? cloneState());
-  if (input.apply === true) {
-    replaceStateForDebug(migrated);
-  }
-  return textResult(`State 已迁移到 schemaVersion ${migrated.meta.schemaVersion}。`, {
+  const details: Record<string, unknown> = {
     result: {
       schemaVersion: migrated.meta.schemaVersion,
       applied: input.apply === true,
       reason: input.reason,
     },
     migratedState: migrated,
-  });
+  };
+  if (input.apply === true) {
+    replaceStateForDebug(migrated);
+    // 与 reset_state / override_locked_fact 同款持久化：缺了这步，
+    // 下次 session hydrate 会把“已应用”的迁移静默冲回旧状态。
+    persistStateAfterCommit(sessionManager, details);
+  }
+  return textResult(`State 已迁移到 schemaVersion ${migrated.meta.schemaVersion}。`, details);
 }
 
 function normalizeParams(params: unknown): MigrateStateParams {
@@ -51,6 +61,15 @@ function assertString(value: unknown, fieldName: string): string {
   return value.trim();
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+export const migrateStateToolDefinition: FsnToolDefinition = {
+  name: "migrate_state",
+  description:
+    "【调试工具】把旧 Game State 程序化迁移到当前 schemaVersion；默认只返回迁移结果，apply=true 时覆盖当前内存状态。必须写明 reason。",
+  parameters: Type.Object({
+    state: Type.Optional(Type.Unknown()),
+    apply: Type.Optional(Type.Boolean()),
+    reason: Type.String(),
+  }),
+  execute: async (_toolCallId, params, _signal, _onUpdate, ctx) =>
+    migrateStateTool(params, ctx.sessionManager),
+};

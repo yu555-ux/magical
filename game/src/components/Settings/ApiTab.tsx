@@ -3,7 +3,8 @@ import { Server, Zap, AlertTriangle, Bot, Wrench } from 'lucide-react';
 import { SectionHeader, InputRow, ActionButton } from './SettingsFields';
 import type { ApiSettings, AppSettings } from '../../sillytavern/types';
 import { DEFAULT_SETTINGS } from '../../sillytavern/types';
-import { ALL_TOOLS } from '../../sillytavern/tools/registry';
+import { ALL_TOOLS, CATEGORY_LABELS } from '../../sillytavern/tools/registry';
+import type { ToolCategory } from '../../sillytavern/tools/registry';
 
 interface Props {
   draft: AppSettings;
@@ -121,76 +122,89 @@ export default function ApiTab({ draft, setDraft, busy, primaryModels, secondary
                 </select>
               </div>
 
-              {/* Tools */}
+              {/* Tools — grouped by category */}
               <div>
-                <span className="block text-xs text-white/50 mb-2">
+                <span className="block text-xs text-white/50 mb-3">
                   启用的工具
                   <span className="text-white/20 ml-1">
                     ({api?.enabledTools?.length ?? 0}/{ALL_TOOLS.length})
                   </span>
                 </span>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {ALL_TOOLS.map((tool) => {
-                    const checked = (api?.enabledTools ?? []).includes(tool.name);
-                    return (
-                      <motion.div key={tool.name}
-                        whileTap={{ scale: 0.96 }}
-                        onClick={(e) => { e.preventDefault(); toggleTool(tool.name); }}
-                        role="checkbox"
-                        aria-checked={checked}
-                        className={`relative flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer select-none overflow-hidden ${
-                          checked
-                            ? 'bg-purple-400/15 text-purple-300 border border-purple-400/30'
-                            : 'bg-white/[0.02] text-white/40 border border-transparent hover:border-white/10 hover:bg-white/[0.04] hover:text-white/60'
-                        }`}
-                      >
-                        {/* Background flash on toggle */}
-                        <AnimatePresence>
-                          {checked && (
-                            <motion.div
-                              key="glow"
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              className="absolute inset-0 rounded bg-purple-400/10 pointer-events-none"
-                              layoutId={`tool-glow-${tool.name}`}
-                              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                            />
-                          )}
-                        </AnimatePresence>
 
-                        {/* Animated checkbox */}
-                        <motion.div
-                          animate={{
-                            scale: checked ? 1 : 0.9,
-                            borderColor: checked ? 'rgba(168, 85, 247, 1)' : 'rgba(255,255,255,0.15)',
-                            backgroundColor: checked ? 'rgba(168, 85, 247, 1)' : 'transparent',
-                          }}
-                          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                          className="w-3.5 h-3.5 rounded flex items-center justify-center border shrink-0"
-                        >
-                          <motion.div
-                            animate={{ scale: checked ? 1 : 0, opacity: checked ? 1 : 0 }}
-                            transition={{ type: 'spring', stiffness: 500, damping: 15, delay: checked ? 0.05 : 0 }}
-                          >
-                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                              <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          </motion.div>
-                        </motion.div>
+                {(['lookup', 'gameplay', 'variable'] as ToolCategory[]).map(cat => {
+                  const catTools = ALL_TOOLS.filter(t => t.category === cat);
+                  if (catTools.length === 0) return null;
+                  return (
+                    <div key={cat} className="mb-3">
+                      <div className="text-[11px] text-white/40 mb-1.5">
+                        {CATEGORY_LABELS[cat]}
+                        {cat === 'variable' && (
+                          <span className="text-white/15 ml-1">— 默认全部开启，可按需关闭</span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        {catTools.map((tool) => {
+                          const checked = (api?.enabledTools ?? []).includes(tool.name);
+                          return (
+                            <motion.div key={tool.name}
+                              whileTap={{ scale: 0.96 }}
+                              onClick={(e) => { e.preventDefault(); toggleTool(tool.name); }}
+                              role="checkbox"
+                              aria-checked={checked}
+                              className={`relative flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer select-none overflow-hidden ${
+                                checked
+                                  ? 'bg-purple-400/15 text-purple-300 border border-purple-400/30'
+                                  : 'bg-white/[0.02] text-white/40 border border-transparent hover:border-white/10 hover:bg-white/[0.04] hover:text-white/60'
+                              }`}
+                            >
+                              <AnimatePresence>
+                                {checked && (
+                                  <motion.div
+                                    key="glow"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="absolute inset-0 rounded bg-purple-400/10 pointer-events-none"
+                                    layoutId={`tool-glow-${tool.name}`}
+                                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                                  />
+                                )}
+                              </AnimatePresence>
 
-                        <motion.div
-                          className="flex-1 truncate"
-                          animate={{ x: checked ? 1 : 0 }}
-                          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                        >
-                          <div className="font-mono text-[11px]">{tool.name}</div>
-                          <div className="text-[10px] opacity-50 truncate">{tool.label}</div>
-                        </motion.div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
+                              <motion.div
+                                animate={{
+                                  scale: checked ? 1 : 0.9,
+                                  borderColor: checked ? 'rgba(168, 85, 247, 1)' : 'rgba(255,255,255,0.15)',
+                                  backgroundColor: checked ? 'rgba(168, 85, 247, 1)' : 'transparent',
+                                }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                                className="w-3.5 h-3.5 rounded flex items-center justify-center border shrink-0"
+                              >
+                                <motion.div
+                                  animate={{ scale: checked ? 1 : 0, opacity: checked ? 1 : 0 }}
+                                  transition={{ type: 'spring', stiffness: 500, damping: 15, delay: checked ? 0.05 : 0 }}
+                                >
+                                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                    <path d="M1.5 4L3.5 6L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                </motion.div>
+                              </motion.div>
+
+                              <motion.div
+                                className="flex-1 truncate"
+                                animate={{ x: checked ? 1 : 0 }}
+                                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                              >
+                                <div className="font-mono text-[11px]">{tool.name}</div>
+                                <div className="text-[10px] opacity-50 truncate">{tool.label}</div>
+                              </motion.div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <p className="text-[10px] text-white/20 flex items-center gap-1">

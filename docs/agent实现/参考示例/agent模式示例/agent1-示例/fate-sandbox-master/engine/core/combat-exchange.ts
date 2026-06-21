@@ -1,19 +1,31 @@
-import type { FateParams, FateRank, NoblePhantasm, PublicActorState } from "./state";
+import type {
+  CombatExchangeTactic,
+  CombatRiskTolerance,
+  CombatSwing,
+} from "./combat-exchange-schema.ts";
+import type {
+  FateParams,
+  FateRank,
+  FateRankRange,
+  NoblePhantasm,
+  PublicActorState,
+  State,
+} from "./state.ts";
 
-import { compareFateRanks, type FateRankComparison } from "./fate-rank";
-import { getState } from "./state";
+import {
+  compareFateRanks,
+  fateRankOrderValue,
+  fateRankWithinRange,
+  isFateRankRange,
+  type FateRankComparison,
+} from "./fate-rank.ts";
 
-export type CombatExchangeTactic =
-  | "direct-attack"
-  | "defense"
-  | "escape"
-  | "protect"
-  | "probe"
-  | "break-restraint"
-  | "noble-phantasm"
-  | "support";
-export type CombatRiskTolerance = "low" | "medium" | "high" | "desperate";
-export type CombatSwing = "bad-break" | "pressure" | "neutral" | "opening" | "turnabout";
+export type {
+  CombatExchangeTactic,
+  CombatRiskTolerance,
+  CombatSwing,
+} from "./combat-exchange-schema.ts";
+
 export type CombatOutcomeBand =
   | "clean-advantage"
   | "advantage-with-cost"
@@ -30,7 +42,6 @@ export type CombatStateLandingKind =
   | "memory"
   | "reveal-secret";
 export type CombatParameter = keyof FateParams;
-export type RawCombatExchangeInput = Record<string, unknown>;
 
 export interface CombatExchangeInput {
   actorId: string;
@@ -41,6 +52,9 @@ export interface CombatExchangeInput {
   opponentParameter: CombatParameter;
   actorNoblePhantasmName?: string;
   opponentNoblePhantasmName?: string;
+  /** 可变宝具（rank 为 X~Y）本次释放的实际评级；必须落在范围内。 */
+  actorNoblePhantasmRelease?: FateRank;
+  opponentNoblePhantasmRelease?: FateRank;
   targetObjective?: string;
   committedResources: string[];
   knownAdvantages: string[];
@@ -71,76 +85,28 @@ export interface CombatExchangeResult {
   nextActionWindow: string;
 }
 
+type CombatRankSource = "noble-phantasm" | "parameter";
+
 interface CombatProfile {
   scale: CombatScale;
   rank: FateRank | null;
   label: string;
+  /** 双轨 EX 语义：宝具栏 EX 按质性压制计分，属性栏 EX 走规格外中性。 */
+  source: CombatRankSource;
 }
 
-const COMBAT_TACTICS = [
-  "direct-attack",
-  "defense",
-  "escape",
-  "protect",
-  "probe",
-  "break-restraint",
-  "noble-phantasm",
-  "support",
-] as const satisfies readonly CombatExchangeTactic[];
-const RISK_TOLERANCES = [
-  "low",
-  "medium",
-  "high",
-  "desperate",
-] as const satisfies readonly CombatRiskTolerance[];
-const COMBAT_PARAMETERS = [
-  "strength",
-  "endurance",
-  "agility",
-  "mana",
-  "luck",
-  "noblePhantasm",
-] as const satisfies readonly CombatParameter[];
-const COMBAT_SWINGS = [
-  "bad-break",
-  "pressure",
-  "neutral",
-  "opening",
-  "turnabout",
-] as const satisfies readonly CombatSwing[];
-const EMPTY_MARKERS = new Set(["none", "无", "n/a", "null"]);
-
-export function assertCombatExchangeInput(raw: RawCombatExchangeInput): CombatExchangeInput {
-  return {
-    actorId: assertString(raw["actorId"], "actorId"),
-    opponentId: assertString(raw["opponentId"], "opponentId"),
-    intent: assertString(raw["intent"], "intent"),
-    tactic: assertOneOf(raw["tactic"], "tactic", COMBAT_TACTICS),
-    actorParameter: assertOneOf(raw["actorParameter"], "actorParameter", COMBAT_PARAMETERS),
-    opponentParameter: assertOneOf(
-      raw["opponentParameter"],
-      "opponentParameter",
-      COMBAT_PARAMETERS,
-    ),
-    actorNoblePhantasmName: assertOptionalString(
-      raw["actorNoblePhantasmName"],
-      "actorNoblePhantasmName",
-    ),
-    opponentNoblePhantasmName: assertOptionalString(
-      raw["opponentNoblePhantasmName"],
-      "opponentNoblePhantasmName",
-    ),
-    targetObjective: assertOptionalString(raw["targetObjective"], "targetObjective"),
-    committedResources: normalizeStringArray(raw["committedResources"], "committedResources"),
-    knownAdvantages: normalizeStringArray(raw["knownAdvantages"], "knownAdvantages"),
-    knownDisadvantages: normalizeStringArray(raw["knownDisadvantages"], "knownDisadvantages"),
-    riskTolerance: assertOneOf(raw["riskTolerance"], "riskTolerance", RISK_TOLERANCES),
-    swing: assertOptionalOneOf(raw["swing"], "swing", COMBAT_SWINGS) ?? "neutral",
-  };
+interface RankAssessment {
+  score: number;
+  /** 触发了瞬间倍化窗口的一方。 */
+  burstApplied: { actor: boolean; opponent: boolean };
+  /** 宝具栏 EX 质性压制生效的一方。 */
+  offScaleCrush: "actor" | "opponent" | null;
 }
 
-export function resolveCombatExchange(input: CombatExchangeInput): CombatExchangeResult {
-  const state = getState();
+export function resolveCombatExchange(
+  state: State,
+  input: CombatExchangeInput,
+): CombatExchangeResult {
   const actor = requireActor(state.public.actors[input.actorId], input.actorId);
   const opponent = requireActor(state.public.actors[input.opponentId], input.opponentId);
   const actorProfile = buildCombatProfile(
@@ -148,6 +114,7 @@ export function resolveCombatExchange(input: CombatExchangeInput): CombatExchang
     input.actorParameter,
     input.tactic,
     input.actorNoblePhantasmName,
+    input.actorNoblePhantasmRelease,
     "actorNoblePhantasmName",
   );
   const opponentProfile = buildCombatProfile(
@@ -155,11 +122,13 @@ export function resolveCombatExchange(input: CombatExchangeInput): CombatExchang
     input.opponentParameter,
     input.tactic,
     input.opponentNoblePhantasmName,
+    input.opponentNoblePhantasmRelease,
     "opponentNoblePhantasmName",
   );
   const rankComparison = compareProfiles(actorProfile, opponentProfile);
+  const rankAssessment = assessRank(rankComparison, actorProfile, opponentProfile, input);
   const swing = combatSwing(input);
-  const score = calculateScore(input, actor, opponent, rankComparison);
+  const score = calculateScore(input, actor, opponent, rankAssessment.score);
   const outcome = determineOutcome(score, input);
   return {
     actorId: input.actorId,
@@ -169,10 +138,10 @@ export function resolveCombatExchange(input: CombatExchangeInput): CombatExchang
     outcome,
     score,
     swing,
-    rankCheck: formatRankCheck(actorProfile, opponentProfile, rankComparison),
-    stateLandings: buildStateLandings(input, outcome, actorProfile),
+    rankCheck: formatRankCheck(actorProfile, opponentProfile, rankComparison, rankAssessment),
+    stateLandings: buildStateLandings(input, outcome, actorProfile, rankAssessment),
     consequenceGuidance: buildConsequenceGuidance(outcome, swing),
-    narrativeConstraints: buildNarrativeConstraints(input, outcome, rankComparison),
+    narrativeConstraints: buildNarrativeConstraints(input, outcome, rankComparison, rankAssessment),
     forbiddenNarration: buildForbiddenNarration(outcome),
     nextActionWindow: buildNextActionWindow(input, outcome),
   };
@@ -199,6 +168,7 @@ function shouldUseConcreteNoblePhantasm(
 function selectConcreteNoblePhantasm(
   actor: PublicActorState,
   noblePhantasmName: string | undefined,
+  noblePhantasmRelease: FateRank | undefined,
   noblePhantasmFieldName: string,
 ): { name: string; rank: FateRank } {
   const servant = actor.servantForm;
@@ -215,7 +185,10 @@ function selectConcreteNoblePhantasm(
         `resolve_combat_exchange: ${noblePhantasmFieldName} 未匹配公开宝具。可用: ${formatAvailableNoblePhantasms(revealedNoblePhantasms)}。`,
       );
     }
-    return { name: matched.name, rank: matched.rank };
+    return {
+      name: matched.name,
+      rank: resolveNoblePhantasmRank(matched, noblePhantasmRelease, noblePhantasmFieldName),
+    };
   }
   if (revealedNoblePhantasms.length !== 1) {
     throw new Error(
@@ -226,17 +199,43 @@ function selectConcreteNoblePhantasm(
   if (onlyNoblePhantasm === undefined) {
     throw new Error(`resolve_combat_exchange: ${actor.id} 缺少可用公开宝具。`);
   }
-  return { name: onlyNoblePhantasm.name, rank: onlyNoblePhantasm.rank };
+  return {
+    name: onlyNoblePhantasm.name,
+    rank: resolveNoblePhantasmRank(onlyNoblePhantasm, noblePhantasmRelease, noblePhantasmFieldName),
+  };
+}
+
+/** 可变宝具（X~Y）必须指定本次释放档位；单值宝具忽略 release。 */
+function resolveNoblePhantasmRank(
+  noblePhantasm: { name: string; rank: FateRank | FateRankRange },
+  release: FateRank | undefined,
+  fieldName: string,
+): FateRank {
+  if (!isFateRankRange(noblePhantasm.rank)) {
+    return noblePhantasm.rank;
+  }
+  const releaseFieldName = fieldName.replace(/Name$/, "Release");
+  if (release === undefined) {
+    throw new Error(
+      `resolve_combat_exchange: 宝具「${noblePhantasm.name}」为可变评级 ${noblePhantasm.rank}，必须用 ${releaseFieldName} 指定本次释放档位。`,
+    );
+  }
+  if (!fateRankWithinRange(release, noblePhantasm.rank)) {
+    throw new Error(
+      `resolve_combat_exchange: ${releaseFieldName}=${release} 不在宝具「${noblePhantasm.name}」的可变范围 ${noblePhantasm.rank} 内。`,
+    );
+  }
+  return release;
 }
 
 function isConcreteNoblePhantasm(
   noblePhantasm: NoblePhantasm,
-): noblePhantasm is NoblePhantasm & { rank: FateRank } {
+): noblePhantasm is NoblePhantasm & { rank: FateRank | FateRankRange } {
   return noblePhantasm.status !== "hidden" && noblePhantasm.rank !== "none";
 }
 
 function formatAvailableNoblePhantasms(
-  noblePhantasms: ReadonlyArray<{ name: string; rank: FateRank }>,
+  noblePhantasms: ReadonlyArray<{ name: string; rank: FateRank | FateRankRange }>,
 ): string {
   if (noblePhantasms.length === 0) {
     return "无";
@@ -251,38 +250,46 @@ function buildCombatProfile(
   parameter: CombatParameter,
   tactic: CombatExchangeTactic,
   noblePhantasmName: string | undefined,
+  noblePhantasmRelease: FateRank | undefined,
   noblePhantasmFieldName: string,
 ): CombatProfile {
+  const source: CombatRankSource = parameter === "noblePhantasm" ? "noble-phantasm" : "parameter";
   if (actor.servantForm !== null) {
     if (shouldUseConcreteNoblePhantasm(parameter, tactic, noblePhantasmName)) {
       const noblePhantasm = selectConcreteNoblePhantasm(
         actor,
         noblePhantasmName,
+        noblePhantasmRelease,
         noblePhantasmFieldName,
       );
       return {
         scale: "servant",
         rank: noblePhantasm.rank,
-        label: `${actor.presentation.displayName}/${actor.servantForm.identity.className}.宝具「${noblePhantasm.name}」`,
+        label: `${actor.presentation.renderName}/${actor.servantForm.identity.className}.宝具「${noblePhantasm.name}」`,
+        source: "noble-phantasm",
       };
     }
+    const parameterValue = actor.servantForm.parameters.base[parameter];
     return {
       scale: "servant",
-      rank: actor.servantForm.parameters.base[parameter],
-      label: `${actor.presentation.displayName}/${actor.servantForm.identity.className}.${parameter}`,
+      rank: parameterValue === "unknown" ? null : parameterValue,
+      label: `${actor.presentation.renderName}/${actor.servantForm.identity.className}.${parameter}${parameterValue === "unknown" ? "(未知)" : ""}`,
+      source,
     };
   }
   if (actor.magecraft !== null) {
     return {
       scale: "mage",
       rank: mageRank(actor, parameter),
-      label: `${actor.presentation.displayName}/magecraft.${parameter}`,
+      label: `${actor.presentation.renderName}/magecraft.${parameter}`,
+      source,
     };
   }
   return {
     scale: "mundane",
     rank: null,
-    label: `${actor.presentation.displayName}/mundane.${parameter}`,
+    label: `${actor.presentation.renderName}/mundane.${parameter}`,
+    source,
   };
 }
 
@@ -305,7 +312,7 @@ function bestDisciplineRank(ranks: ReadonlyArray<FateRank | "none">): FateRank |
     if (rank === "none") {
       continue;
     }
-    if (best === null || compareFateRanks(rank, best).mainRankDelta > 0) {
+    if (best === null || fateRankOrderValue(rank) > fateRankOrderValue(best)) {
       best = rank;
     }
   }
@@ -326,10 +333,10 @@ function calculateScore(
   input: CombatExchangeInput,
   actor: PublicActorState,
   opponent: PublicActorState,
-  rankComparison: FateRankComparison | null,
+  rankScore: number,
 ): number {
   return (
-    rankScore(rankComparison) +
+    rankScore +
     scaleScore(actor, opponent) +
     factorScore(input) +
     swingScore(combatSwing(input)) +
@@ -338,11 +345,92 @@ function calculateScore(
   );
 }
 
-function rankScore(comparison: FateRankComparison | null): number {
+/**
+ * Canon 参数语义裁决：
+ * - 基线：主级差 ×2（「-」已按低一级计入基线），限幅 ±6。
+ * - 「+」瞬间倍化：仅在条件触发窗口（宝具释放或该侧有利 swing）生效，按倍化后数值重算级差。
+ * - EX 双轨：宝具栏 EX 按质性压制 ±4；属性栏 EX 规格外中性计 0，交由叙事约束。
+ */
+function assessRank(
+  comparison: FateRankComparison | null,
+  actorProfile: CombatProfile,
+  opponentProfile: CombatProfile,
+  input: CombatExchangeInput,
+): RankAssessment {
+  const noBurst = { actor: false, opponent: false };
   if (comparison === null) {
-    return 0;
+    return { score: 0, burstApplied: noBurst, offScaleCrush: null };
   }
-  return comparison.mainRankDelta * 2 + clamp(comparison.modifierDelta, -1, 1);
+  if (comparison.band === "off-scale") {
+    return {
+      score: offScaleScore(comparison, actorProfile, opponentProfile),
+      burstApplied: noBurst,
+      offScaleCrush: offScaleCrushSide(comparison, actorProfile, opponentProfile),
+    };
+  }
+  const actorBaseline = comparison.left.baselineValue;
+  const opponentBaseline = comparison.right.baselineValue;
+  if (actorBaseline === null || opponentBaseline === null) {
+    return { score: 0, burstApplied: noBurst, offScaleCrush: null };
+  }
+  const actorBurst =
+    burstTriggered("actor", actorProfile, input) && comparison.left.burstValue !== null;
+  const opponentBurst =
+    burstTriggered("opponent", opponentProfile, input) && comparison.right.burstValue !== null;
+  const actorValue = actorBurst ? (comparison.left.burstValue ?? actorBaseline) : actorBaseline;
+  const opponentValue = opponentBurst
+    ? (comparison.right.burstValue ?? opponentBaseline)
+    : opponentBaseline;
+  const tierDelta = (actorValue - opponentValue) / 10;
+  return {
+    score: clamp(Math.round(tierDelta * 2), -6, 6),
+    burstApplied: { actor: actorBurst, opponent: opponentBurst },
+    offScaleCrush: null,
+  };
+}
+
+/** 倍化触发窗口：宝具释放、或该侧的有利 swing；条件不满足时「+」完全不计。 */
+function burstTriggered(
+  side: "actor" | "opponent",
+  profile: CombatProfile,
+  input: CombatExchangeInput,
+): boolean {
+  if (profile.source === "noble-phantasm") {
+    return true;
+  }
+  const swing = input.swing ?? "neutral";
+  if (side === "actor") {
+    return swing === "opening" || swing === "turnabout";
+  }
+  return swing === "bad-break";
+}
+
+function offScaleScore(
+  comparison: FateRankComparison,
+  actorProfile: CombatProfile,
+  opponentProfile: CombatProfile,
+): number {
+  const crush = offScaleCrushSide(comparison, actorProfile, opponentProfile);
+  if (crush === "actor") return 4;
+  if (crush === "opponent") return -4;
+  return 0;
+}
+
+function offScaleCrushSide(
+  comparison: FateRankComparison,
+  actorProfile: CombatProfile,
+  opponentProfile: CombatProfile,
+): "actor" | "opponent" | null {
+  if (comparison.left.offScale && comparison.right.offScale) {
+    return null;
+  }
+  if (comparison.left.offScale && actorProfile.source === "noble-phantasm") {
+    return "actor";
+  }
+  if (comparison.right.offScale && opponentProfile.source === "noble-phantasm") {
+    return "opponent";
+  }
+  return null;
 }
 
 function scaleScore(actor: PublicActorState, opponent: PublicActorState): number {
@@ -497,17 +585,34 @@ function formatRankCheck(
   actorProfile: CombatProfile,
   opponentProfile: CombatProfile,
   rankComparison: FateRankComparison | null,
+  rankAssessment: RankAssessment,
 ): string {
   if (rankComparison === null) {
-    return `${actorProfile.label} vs ${opponentProfile.label}: 至少一方缺少可比较 Fate rank；以尺度、资源、伤势、情报与行动目标裁决。`;
+    return `${actorProfile.label} vs ${opponentProfile.label}: 至少一方缺少可比较 Fate rank（未知/无参数）；以尺度、资源、伤势、情报与行动目标裁决。`;
   }
-  return `${actorProfile.label} ${rankComparison.left} vs ${opponentProfile.label} ${rankComparison.right}: ${rankComparison.narrative}`;
+  const extras: string[] = [];
+  if (rankAssessment.burstApplied.actor) {
+    extras.push(
+      `本次交锋左侧触发瞬间倍化（${rankComparison.left.rank} 以 ${rankComparison.left.burstValue} 参与判定）。`,
+    );
+  }
+  if (rankAssessment.burstApplied.opponent) {
+    extras.push(
+      `本次交锋右侧触发瞬间倍化（${rankComparison.right.rank} 以 ${rankComparison.right.burstValue} 参与判定）。`,
+    );
+  }
+  if (rankAssessment.offScaleCrush !== null) {
+    extras.push("宝具栏 EX：按质性压制计分，但压制形态必须写出其「质」的具体表现。");
+  }
+  const extraText = extras.length > 0 ? ` ${extras.join("")}` : "";
+  return `${actorProfile.label} ${rankComparison.left.rank} vs ${opponentProfile.label} ${rankComparison.right.rank}: ${rankComparison.narrative}${extraText}`;
 }
 
 function buildStateLandings(
   input: CombatExchangeInput,
   outcome: CombatOutcomeBand,
   actorProfile: CombatProfile,
+  rankAssessment: RankAssessment,
 ): CombatStateLanding[] {
   const landings: CombatStateLanding[] = [
     {
@@ -544,6 +649,13 @@ function buildStateLandings(
       kind: "servant-form",
       required: true,
       reason: "从者高强度交锋、宝具或不利交换需要魔力/灵核/参数修正落点。",
+    });
+  }
+  if (rankAssessment.burstApplied.actor) {
+    landings.push({
+      kind: actorProfile.scale === "servant" ? "servant-form" : "actor-condition",
+      required: true,
+      reason: "瞬间倍化只覆盖一瞬：倍化过后必须落反噬、硬直、魔力消耗或暴露破绽，不得当常驻强化。",
     });
   }
   if (input.tactic === "noble-phantasm") {
@@ -617,15 +729,28 @@ function buildNarrativeConstraints(
   input: CombatExchangeInput,
   outcome: CombatOutcomeBand,
   rankComparison: FateRankComparison | null,
+  rankAssessment: RankAssessment,
 ): string[] {
   const constraints = [
-    "交锋裁决只覆盖当前动作窗口；不要借此直接写完整场战斗结束，除非当前目标就是终结战斗且状态落点已处理。",
-    "结果必须落到位置、距离、伤势、魔力、目标推进、威胁变化或可回应窗口；不要写成纯气势胜负。",
+    "交锋裁决只覆盖当前交锋意图；不要借此直接写完整场战斗结束，除非当前目标就是终结战斗且状态落点已处理。",
+    "结果必须落到位置、距离、伤势、魔力、目标推进、威胁变化或自然可接续的新局面；不要写成纯气势胜负。",
     "骰子或气氛不能覆盖 Fate 参数压制、Locked Facts、真名/宝具信息安全与已记录伤势。",
   ];
   if (rankComparison?.band === "overwhelming") {
     constraints.push(
       "两级以上参数压制默认成立；低位方只能靠相性、地形、情报、牺牲资源或改换目标争取局部窗口。",
+    );
+  }
+  if (rankComparison?.band === "off-scale") {
+    constraints.push(
+      rankAssessment.offScaleCrush !== null
+        ? "宝具栏 EX 按质性压制处理：叙事必须写出其规格外『质』的具体形态；对侧仍可用相性、发动条件限制或代价争取局部窗口。"
+        : "EX 为规格外参数：不默认强于 A，不按数值压制计分；其能力的质性是否适用本次交锋，由 knownAdvantages/knownDisadvantages 与场景条件决定。",
+    );
+  }
+  if (rankAssessment.burstApplied.actor || rankAssessment.burstApplied.opponent) {
+    constraints.push(
+      "「+」是条件触发的瞬间倍化：只覆盖本次交锋的一瞬，不是常驻强化；倍化过后的破绽或代价必须写进后续。",
     );
   }
   if (input.riskTolerance === "high" || input.riskTolerance === "desperate") {
@@ -670,65 +795,6 @@ function buildNextActionWindow(input: CombatExchangeInput, outcome: CombatOutcom
     default:
       throw new Error("unreachable combat outcome");
   }
-}
-
-function normalizeStringArray(value: unknown, fieldName: string): string[] {
-  if (value === undefined) {
-    return [];
-  }
-  if (!Array.isArray(value)) {
-    throw new Error(`${fieldName} 必须是数组。`);
-  }
-  return value
-    .map((entry, index) => assertString(entry, `${fieldName}[${index}]`))
-    .filter(isMeaningfulFactor);
-}
-
-function isMeaningfulFactor(value: string): boolean {
-  return !EMPTY_MARKERS.has(value.toLowerCase());
-}
-
-function assertOptionalString(value: unknown, fieldName: string): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return assertString(value, fieldName);
-}
-
-function assertOptionalOneOf<const T extends readonly string[]>(
-  value: unknown,
-  fieldName: string,
-  allowed: T,
-): T[number] | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return assertOneOf(value, fieldName, allowed);
-}
-
-function assertString(value: unknown, fieldName: string): string {
-  if (typeof value !== "string") {
-    throw new Error(`${fieldName} 必须是字符串。`);
-  }
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    throw new Error(`${fieldName} 必须是非空字符串。`);
-  }
-  return trimmed;
-}
-
-function assertOneOf<const T extends readonly string[]>(
-  value: unknown,
-  fieldName: string,
-  allowed: T,
-): T[number] {
-  const text = assertString(value, fieldName);
-  for (const candidate of allowed) {
-    if (text === candidate) {
-      return candidate;
-    }
-  }
-  throw new Error(`非法 ${fieldName}: ${text}。允许值: ${allowed.join(", ")}。`);
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

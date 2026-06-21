@@ -1,6 +1,8 @@
-import type { PublicGameState } from "./state";
+import type { PublicGameState } from "./state.ts";
 
-import { formatHumanTime } from "./date-time";
+import { formatHumanTime } from "./date-time.ts";
+import { formatHookLedger } from "./hooks.ts";
+import { recentPlayerKnownRelationshipSignals } from "./relationship-signal.ts";
 
 export function buildGmBrief(publicState: PublicGameState): string {
   const protagonist = publicState.actors[publicState.protagonistActorId];
@@ -21,9 +23,25 @@ export function buildGmBrief(publicState: PublicGameState): string {
     `当前目标：${formatActiveObjectives(publicState, { separator: "；" })}`,
     `目标推进规则：${formatObjectiveRouting(publicState)}`,
     `当前威胁：${formatSceneThreats(publicState, { separator: "；", colon: ":" })}`,
+    ...formatOpenObligationLines(publicState),
+    ...formatHookLedgerLines(publicState),
+    `最近关系信号：${formatRecentRelationshipSignals(publicState)}`,
     `最近重大记忆：${formatRecentEvents(publicState)}`,
     "本轮工具纪律：每轮 time 必须用 elapsed/travel 推进时间；Scene Beat lifecycle 用 progress_scene_beat；非 Scene Beat lifecycle 的多状态变化用 commit_turn；actor 入场/离场用 set_scene_presence。不要输出 JSON、数值表、schema 字段。",
   ].join("\n");
+}
+
+function formatHookLedgerLines(publicState: PublicGameState): string[] {
+  const ledger = formatHookLedger(publicState.hooks);
+  return ledger === undefined ? [] : [ledger];
+}
+
+function formatOpenObligationLines(publicState: PublicGameState): string[] {
+  if (publicState.obligations.length === 0) return [];
+  const entries = publicState.obligations
+    .map((entry) => `[${entry.kind}] ${entry.summary}`)
+    .join("；");
+  return [`⚠ 未清裁决义务（canonical commit 前必须落地）：${entries}`];
 }
 
 export function buildStatusMarkdown(publicState: PublicGameState): string {
@@ -59,7 +77,7 @@ export function buildInventoryMarkdown(publicState: PublicGameState): string {
   ].join("\n");
 }
 
-export function formatPublicLocation(
+function formatPublicLocation(
   location: PublicGameState["scene"]["location"],
   options: { includeBoundary?: boolean } = {},
 ): string {
@@ -72,7 +90,7 @@ export function formatPublicLocation(
   return `${base}（${location.boundary}）`;
 }
 
-export function formatActiveObjectives(
+function formatActiveObjectives(
   publicState: PublicGameState,
   options: { separator: string },
 ): string {
@@ -97,7 +115,7 @@ function formatObjectiveRouting(publicState: PublicGameState): string {
   return "active beat 收口用 progress_scene_beat complete；仅在 commit_turn 局部解决目标且不收口 beat 时，scene event 使用 resolve-objective，并用 objectiveSummary 逐字复制上方 summary。";
 }
 
-export function formatSceneThreats(
+function formatSceneThreats(
   publicState: PublicGameState,
   options: { separator: string; colon: string },
 ): string {
@@ -108,8 +126,9 @@ export function formatSceneThreats(
         .join(options.separator);
 }
 
-export function actorDisplayName(publicState: PublicGameState, actorId: string): string {
-  return publicState.actors[actorId]?.presentation.displayName ?? actorId;
+function actorDisplayName(publicState: PublicGameState, actorId: string): string {
+  const actor = publicState.actors[actorId];
+  return actor === undefined ? actorId : actor.presentation.renderName;
 }
 
 function formatStoryWindow(publicState: PublicGameState): string {
@@ -129,12 +148,12 @@ function formatActorLine(actor: NonNullable<PublicGameState["actors"][string]>):
   const servant = actor.servantForm;
   const identity = formatIdentity(actor);
   if (servant === null) {
-    return [actor.presentation.displayName, actor.kind, identity, formatMagecraft(actor)].join(
+    return [actor.presentation.renderName, actor.kind, identity, formatMagecraft(actor)].join(
       " / ",
     );
   }
   return [
-    actor.presentation.displayName,
+    actor.presentation.renderName,
     actor.kind,
     servant.identity.className,
     `真名${servant.identity.trueName.status}:${servant.identity.trueName.display}`,
@@ -157,7 +176,7 @@ function formatAllies(publicState: PublicGameState): string {
     .map((actorId) => publicState.actors[actorId])
     .filter((actor) => actor !== undefined)
     .map(
-      (actor) => `${actor.presentation.displayName}（${actor.relationshipToProtagonist.summary}）`,
+      (actor) => `${actor.presentation.renderName}（${actor.relationshipToProtagonist.summary}）`,
     )
     .join("；");
 }
@@ -187,6 +206,18 @@ function formatRecentEvents(publicState: PublicGameState): string {
   return recent.length === 0
     ? "无"
     : recent.map((event) => `${event.title}：${event.summary}`).join("；");
+}
+
+function formatRecentRelationshipSignals(publicState: PublicGameState): string {
+  const recent = recentPlayerKnownRelationshipSignals(publicState, 4);
+  return recent.length === 0
+    ? "无"
+    : recent
+        .map(
+          (signal) =>
+            `${actorDisplayName(publicState, signal.actorId)}→${actorDisplayName(publicState, signal.targetActorId)}：${signal.signal}（边界：${signal.boundary}）`,
+        )
+        .join("；");
 }
 
 function formatPresentActors(publicState: PublicGameState): string {
@@ -231,7 +262,7 @@ function formatOrdinaryItems(publicState: PublicGameState): string {
   const lines = Object.values(publicState.actors)
     .filter((actor) => actor.inventory.ordinaryItems.length > 0)
     .map(
-      (actor) => `- ${actor.presentation.displayName}：${actor.inventory.ordinaryItems.join("、")}`,
+      (actor) => `- ${actor.presentation.renderName}：${actor.inventory.ordinaryItems.join("、")}`,
     );
   return lines.length === 0 ? "- 无记录" : lines.join("\n");
 }

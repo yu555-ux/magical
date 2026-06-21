@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { upsertActorTool } from "./upsert-actor";
-import { getState, resetState } from "../../engine/core/state";
+import { upsertActorTool } from "./upsert-actor.ts";
+import { getState, resetState } from "../../engine/core/state-store.ts";
 
 void test("upsertActorTool accepts omitted master fields for masterless servants", () => {
   resetState();
@@ -84,7 +84,7 @@ void test("upsertActorTool reports invalid servant enums in domain language", ()
         },
         createNoopSessionManager(),
       ),
-    /非法 servant\.contractStatus: free。允许值: stable, weak, cut, masterless。/,
+    /servant\.contractStatus 必须是允许值之一: stable, weak, cut, masterless/,
   );
 });
 
@@ -106,7 +106,7 @@ void test("upsertActorTool reports invalid npc relationship stance in domain lan
         },
         createNoopSessionManager(),
       ),
-    /非法 npc\.relationshipToProtagonist\.stance: close。允许值: self, ally, friendly, neutral, wary, hostile, unknown。/,
+    /npc\.relationshipToProtagonist\.stance 必须是允许值之一: self, ally, friendly, neutral, wary, hostile, unknown/,
   );
 });
 
@@ -196,12 +196,13 @@ function baseProtagonistActor(): Record<string, unknown> {
     },
     presentation: {
       displayName: "主人公",
+      renderName: "主人公",
       apparentAge: "十几岁",
       outfit: { label: "旧校舍制服", details: "黑色学生制服。" },
       demeanor: "警惕但保持冷静",
     },
     condition: { wounds: [], afflictions: [], permanentEffects: [] },
-    inventory: { ordinaryItems: [], heldTrackedItemIds: [] },
+    inventory: { ordinaryItems: [] },
     abilities: [],
     relationshipToProtagonist: { stance: "self", summary: "玩家角色本人。" },
   };

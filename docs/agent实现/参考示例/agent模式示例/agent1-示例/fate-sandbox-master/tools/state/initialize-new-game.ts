@@ -1,170 +1,71 @@
-import type {
-  HumanNewGameInput,
-  HumanProtagonistOpeningInput,
-  NewGameCampaignInput,
-  NewGameInitializationInput,
-  NewGamePresenceInput,
-  ServantNewGameInput,
-  ServantProtagonistOpeningInput,
-} from "../../engine/core/new-game-initialization";
-import type { FateParams, OutfitState, ServantClass } from "../../engine/core/state";
+import type { FsnToolDefinition } from "../runtime/tool-definition.ts";
+import { Type } from "typebox";
+import type { ToolResult } from "../runtime/tool-result.ts";
 
-import { initializeNewGame } from "../../engine/core/new-game-initialization";
-import { assertFateRank } from "../../engine/core/fate-rank";
-import type { ToolResult } from "../runtime/tool-result";
+import { initializeNewGame } from "../../engine/core/new-game-initialization.ts";
+import { parseNewGameInitializationInput } from "../../engine/core/new-game-schema.ts";
 
-import { resultDetails, runDomainEventTool } from "./domain-tool-runner";
-import {
-  assertOneOf,
-  assertRecord,
-  assertString,
-  assertStringArray,
-  normalizeOptionalString,
-  normalizeOptionalStringArray,
-} from "./tool-input";
-
-const SERVANT_CLASSES = [
-  "Saber",
-  "Archer",
-  "Lancer",
-  "Rider",
-  "Caster",
-  "Assassin",
-  "Berserker",
-  "Avenger",
-  "Ruler",
-  "AlterEgo",
-  "Foreigner",
-  "Shielder",
-  "MoonCancer",
-  "Pretender",
-  "Custom",
-] as const satisfies readonly ServantClass[];
+import { resultDetails, runDomainEventTool } from "./domain-tool-runner.ts";
 
 export function initializeNewGameTool(params: unknown, sessionManager: unknown): ToolResult {
   return runDomainEventTool({
     sessionManager,
-    execute: () => initializeNewGame(assertNewGameInitializationInput(params)),
+    execute: (draft) =>
+      initializeNewGame(draft, parseNewGameInitializationInput(params, "initialize_new_game 参数")),
     details: resultDetails,
     message: (result) => result.message,
   });
 }
 
-function assertNewGameInitializationInput(params: unknown): NewGameInitializationInput {
-  const input = assertRecord(params, "initialize_new_game 参数");
-  const kind = assertOneOf(input["kind"], "kind", ["human-protagonist", "servant-protagonist"] as const);
-  if (kind === "human-protagonist") {
-    return assertHumanNewGameInput(input);
-  }
-  return assertServantNewGameInput(input);
-}
-
-function assertHumanNewGameInput(input: Record<string, unknown>): HumanNewGameInput {
-  return {
-    kind: "human-protagonist",
-    campaign: assertCampaign(input["campaign"]),
-    protagonist: assertHumanProtagonist(input["protagonist"]),
-    presence: normalizeOptionalPresence(input["presence"]),
-    reason: assertString(input["reason"], "reason"),
-  };
-}
-
-function assertServantNewGameInput(input: Record<string, unknown>): ServantNewGameInput {
-  const hiddenTrueName = input["hiddenTrueName"];
-  return {
-    kind: "servant-protagonist",
-    campaign: assertCampaign(input["campaign"]),
-    protagonist: assertServantProtagonist(input["protagonist"]),
-    presence: normalizeOptionalPresence(input["presence"]),
-    hiddenTrueName:
-      hiddenTrueName === undefined
-        ? undefined
-        : {
-            value: assertString(assertRecord(hiddenTrueName, "hiddenTrueName")["value"], "hiddenTrueName.value"),
-            revealConditions: assertStringArray(
-              assertRecord(hiddenTrueName, "hiddenTrueName")["revealConditions"],
-              "hiddenTrueName.revealConditions",
-            ),
-          },
-    reason: assertString(input["reason"], "reason"),
-  };
-}
-
-function assertCampaign(value: unknown): NewGameCampaignInput {
-  const input = assertRecord(value, "campaign");
-  return {
-    presetId: assertString(input["presetId"], "campaign.presetId"),
-    title: normalizeOptionalString(input["title"], "campaign.title"),
-    premise: normalizeOptionalString(input["premise"], "campaign.premise"),
-    startedAt: normalizeOptionalString(input["startedAt"], "campaign.startedAt"),
-    currentAt: normalizeOptionalString(input["currentAt"], "campaign.currentAt"),
-    reason: normalizeOptionalString(input["reason"], "campaign.reason"),
-  };
-}
-
-function assertHumanProtagonist(value: unknown): HumanProtagonistOpeningInput {
-  const input = assertRecord(value, "protagonist");
-  return {
-    displayName: assertString(input["displayName"], "protagonist.displayName"),
-    publicIdentity: assertString(input["publicIdentity"], "protagonist.publicIdentity"),
-    background: assertString(input["background"], "protagonist.background"),
-    apparentAge: assertString(input["apparentAge"], "protagonist.apparentAge"),
-    outfit: assertOutfit(input["outfit"], "protagonist.outfit"),
-    demeanor: assertString(input["demeanor"], "protagonist.demeanor"),
-    abilities: normalizeOptionalStringArray(input["abilities"], "protagonist.abilities"),
-    ordinaryItems: normalizeOptionalStringArray(input["ordinaryItems"], "protagonist.ordinaryItems"),
-  };
-}
-
-function assertServantProtagonist(value: unknown): ServantProtagonistOpeningInput {
-  const input = assertRecord(value, "protagonist");
-  return {
-    displayName: assertString(input["displayName"], "protagonist.displayName"),
-    publicIdentity: assertString(input["publicIdentity"], "protagonist.publicIdentity"),
-    apparentAge: assertString(input["apparentAge"], "protagonist.apparentAge"),
-    outfit: assertOutfit(input["outfit"], "protagonist.outfit"),
-    demeanor: assertString(input["demeanor"], "protagonist.demeanor"),
-    className: assertOneOf(input["className"], "protagonist.className", SERVANT_CLASSES),
-    trueNameDisplay: assertString(input["trueNameDisplay"], "protagonist.trueNameDisplay"),
-    trueNameStatus: assertOneOf(input["trueNameStatus"], "protagonist.trueNameStatus", [
-      "hidden",
-      "suspected",
-    ] as const),
-    parameters: normalizeOptionalFateParams(input["parameters"]),
-    ordinaryItems: normalizeOptionalStringArray(input["ordinaryItems"], "protagonist.ordinaryItems"),
-  };
-}
-
-function assertOutfit(value: unknown, fieldName: string): OutfitState {
-  const input = assertRecord(value, fieldName);
-  return {
-    label: assertString(input["label"], `${fieldName}.label`),
-    details: assertString(input["details"], `${fieldName}.details`),
-  };
-}
-
-function normalizeOptionalPresence(value: unknown): NewGamePresenceInput | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  const input = assertRecord(value, "presence");
-  return {
-    presentActorIds: assertStringArray(input["presentActorIds"], "presence.presentActorIds"),
-    allyActorIds: normalizeOptionalStringArray(input["allyActorIds"], "presence.allyActorIds"),
-  };
-}
-
-function normalizeOptionalFateParams(value: unknown): FateParams | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  const input = assertRecord(value, "protagonist.parameters");
-  return {
-    strength: assertFateRank(input["strength"], "protagonist.parameters.strength"),
-    endurance: assertFateRank(input["endurance"], "protagonist.parameters.endurance"),
-    agility: assertFateRank(input["agility"], "protagonist.parameters.agility"),
-    mana: assertFateRank(input["mana"], "protagonist.parameters.mana"),
-    luck: assertFateRank(input["luck"], "protagonist.parameters.luck"),
-    noblePhantasm: assertFateRank(input["noblePhantasm"], "protagonist.parameters.noblePhantasm"),
-  };
-}
+export const initializeNewGameToolDefinition: FsnToolDefinition = {
+  name: "initialize_new_game",
+  description:
+    "初始化新游戏 Game State 的单入口 recipe：重置 state、配置 campaign、写入 protagonist、设置在场 actor、必要时配置 protagonist 从者隐藏真名。\n\n" +
+    "【必须调用的场景】\n" +
+    "- /skill:start-game 已收集好时间线、玩家立场和开场身份，准备进入正式剧情前\n" +
+    "- 新游戏或重新开始，需要一次性建立可运行 campaign state\n" +
+    "- protagonist 是从者/非人现界者，且真名或宝具需要 hidden-canonical secret slot\n\n" +
+    "【严禁的行为】\n" +
+    "- 用它续局、修档或在剧情中重置后果\n" +
+    "- 把 player-only 原作知识写成 public world fact\n" +
+    "- protagonist 从者开局直接 public revealed 真名；未剧情内公开必须 hidden/suspected 并用 hiddenTrueName 配置 secret\n" +
+    "- 用它替代后续剧情中的领域事件工具",
+  parameters: Type.Object({
+    kind: Type.String({ description: "human-protagonist / servant-protagonist" }),
+    campaign: Type.Object({
+      presetId: Type.String({
+        description:
+          "fsn_2004_fuyuki / fz_1994_fuyuki / ha_2004_fuyuki / fsf_2008_snowfield / apocrypha_2004_trifas / extra_2032_seraph / extra_ccc_2032_far_side / case_files_2003_london / tsukihime_2000_misaki / tsukihime_2021_souya / knk_1998_mifune / mahoyo_1989_misaki / custom_worldline",
+      }),
+      title: Type.Optional(Type.String()),
+      premise: Type.Optional(Type.String()),
+      startedAt: Type.Optional(Type.String({ description: "UTC ISO instant" })),
+      currentAt: Type.Optional(Type.String({ description: "UTC ISO instant" })),
+      reason: Type.Optional(Type.String()),
+    }),
+    protagonist: Type.Unknown({
+      description:
+        "human: displayName/renderName/publicIdentity/background/apparentAge/outfit/demeanor；servant additionally className/trueNameDisplay/trueNameStatus(hidden|suspected)。renderName 是正文固定用名，中文名优先。",
+    }),
+    presence: Type.Optional(
+      Type.Object({
+        presentActorIds: Type.Array(Type.String()),
+        allyActorIds: Type.Optional(Type.Array(Type.String())),
+      }),
+    ),
+    hiddenTrueName: Type.Optional(
+      Type.Object({
+        value: Type.String(),
+        revealConditions: Type.Array(
+          Type.String({
+            description:
+              "可被后续 reveal_secret 的 claim/trigger/evidence 字面命中的短线索词；不要写整句判定条件。例：直死之魔眼 / 死亡线 / 自报姓名 / 両儀式",
+          }),
+        ),
+      }),
+    ),
+    reason: Type.String(),
+  }),
+  execute: async (_toolCallId, params, _signal, _onUpdate, ctx) =>
+    initializeNewGameTool(params, ctx.sessionManager),
+};

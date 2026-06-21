@@ -1,7 +1,16 @@
 import type { TLocalizedValidationError } from "typebox/error";
 
+import type { Percent } from "./state.ts";
+
+import { normalizeIsoInstant } from "./date-time.ts";
+
+const MIN_PERCENT = 0;
+const MAX_PERCENT = 100;
+
 export interface TypeBoxValidator<T> {
   Convert(value: unknown): unknown;
+  /** 剔除 schema 未声明的多余字段，对齐旧手写 normalizer 重建对象的 strip 语义。 */
+  Clean(value: unknown): unknown;
   Check(value: unknown): value is T;
   Errors(value: unknown): TLocalizedValidationError[];
 }
@@ -23,11 +32,105 @@ export function parseTypeBoxValue<T>(
   fieldName: string,
   validator: TypeBoxValidator<T>,
 ): T {
-  const converted = validator.Convert(cloneValidationInput(value, fieldName));
+  const convertedRaw = validator.Convert(cloneValidationInput(value, fieldName));
+  assertNoUnsafeCoercion(value, convertedRaw, fieldName);
+  const converted = validator.Clean(convertedRaw);
   if (validator.Check(converted)) {
     return converted;
   }
   throw new Error(formatTypeBoxValidationErrors(fieldName, validator.Errors(converted)));
+}
+
+/**
+ * Convert 后的定向白名单守卫，只允许信息无损的 LLM 容错转换：
+ * - 字符串 → 数字/布尔（"3" → 3，对齐 assertInteger 接受整数字符串的既有立场）
+ * - 标量 → 单元素数组包装（"x" → ["x"]，见 initialize-new-game 的 revealConditions 测试）
+ * 其余类型变化是 Value.Convert 的过度宽容：null → "null"、number → string 等
+ * 会把坏输入改名上桌，必须按字段路径拒绝。
+ */
+function assertNoUnsafeCoercion(original: unknown, converted: unknown, path: string): void {
+  if (jsonTypeOf(original) !== jsonTypeOf(converted)) {
+    assertAllowedTypeChange(original, converted, path);
+    return;
+  }
+  if (Array.isArray(original) && Array.isArray(converted)) {
+    const length = Math.max(original.length, converted.length);
+    for (let index = 0; index < length; index++) {
+      assertNoUnsafeCoercion(original[index], converted[index], `${path}[${index}]`);
+    }
+    return;
+  }
+  if (isRecord(original) && isRecord(converted)) {
+    const keys = new Set([...Object.keys(original), ...Object.keys(converted)]);
+    for (const key of keys) {
+      assertNoUnsafeCoercion(original[key], converted[key], `${path}.${key}`);
+    }
+  }
+}
+
+/** 类型发生变化时的白名单裁决；不在白名单内一律按字段路径拒绝。 */
+function assertAllowedTypeChange(original: unknown, converted: unknown, path: string): void {
+  const originalType = jsonTypeOf(original);
+  const convertedType = jsonTypeOf(converted);
+  if (originalType === "string" && (convertedType === "number" || convertedType === "boolean")) {
+    return;
+  }
+  const isScalarWrap =
+    originalType !== "object" && Array.isArray(converted) && converted.length === 1;
+  if (isScalarWrap) {
+    assertNoUnsafeCoercion(original, converted[0], `${path}[0]`);
+    return;
+  }
+  throw new Error(
+    `非法 ${path}: 类型 ${originalType} 不会被隐式转换为 ${convertedType}；请传入正确类型的值。`,
+  );
+}
+
+type JsonValueType =
+  | "null"
+  | "undefined"
+  | "string"
+  | "number"
+  | "boolean"
+  | "array"
+  | "object"
+  | "other";
+
+function jsonTypeOf(value: unknown): JsonValueType {
+  if (value === null) {
+    return "null";
+  }
+  if (value === undefined) {
+    return "undefined";
+  }
+  if (Array.isArray(value)) {
+    return "array";
+  }
+  const type = typeof value;
+  if (type === "string" || type === "number" || type === "boolean" || type === "object") {
+    return type;
+  }
+  return "other";
+}
+
+/**
+ * 递归 trim 所有字符串值，返回新结构（不改原值）。
+ * 在 parseTypeBoxValue 之前调用，保持旧手写 assertString 的 trim 语义：
+ * 纯空白字符串 trim 后会被 minLength: 1 拒绝。
+ */
+export function trimStringsDeep(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (Array.isArray(value)) {
+    return value.map(trimStringsDeep);
+  }
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, trimStringsDeep(entry)]),
+    );
+  }
+  return value;
 }
 
 function assertRecordForValidation(value: unknown, fieldName: string): Record<string, unknown> {
@@ -37,8 +140,68 @@ function assertRecordForValidation(value: unknown, fieldName: string): Record<st
   return value;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+/** 共享的 record 类型守卫：全仓唯一定义，不要再复制粘贴。 */
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function assertPercent(value: unknown, fieldName: string): Percent {
+  const percent = assertInteger(value, fieldName);
+  if (percent < MIN_PERCENT || percent > MAX_PERCENT) {
+    throw new Error(`非法${fieldName}: ${percent}。必须在 0-100 之间。`);
+  }
+  return percent;
+}
+
+export function assertNonEmptyString(value: unknown, fieldName: string): string {
+  if (typeof value !== "string") {
+    throw new Error(`非法${fieldName}: ${formatUnknown(value)}。必须是字符串。`);
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`非法${fieldName}: 不能为空。`);
+  }
+  return trimmed;
+}
+
+export function assertOptionalString(value: unknown, fieldName: string): string | null {
+  if (value === null) {
+    return null;
+  }
+  return assertNonEmptyString(value, fieldName);
+}
+
+export function assertIsoDateString(value: unknown, fieldName: string): string {
+  if (typeof value !== "string") {
+    throw new Error(`非法${fieldName}: ${formatUnknown(value)}。必须是 ISO 时间字符串。`);
+  }
+  return normalizeIsoInstant(value, fieldName);
+}
+
+export function assertNonNegativeInteger(value: unknown, fieldName: string): number {
+  const integer = assertInteger(value, fieldName);
+  if (integer < 0) {
+    throw new Error(`非法${fieldName}: ${integer}。不能为负数。`);
+  }
+  return integer;
+}
+
+export function assertInteger(value: unknown, fieldName: string): number {
+  if (typeof value === "number" && Number.isInteger(value)) {
+    return value;
+  }
+  if (typeof value === "string" && /^-?\d+$/.test(value.trim())) {
+    return Number(value.trim());
+  }
+  throw new Error(`非法${fieldName}: ${formatUnknown(value)}。必须是整数。`);
+}
+
+export function formatUnknown(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch (error) {
+    return `无法序列化的值 (${String(error)})`;
+  }
 }
 
 function cloneValidationInput(value: unknown, fieldName: string): unknown {
@@ -73,6 +236,13 @@ function formatTypeBoxValidationError(fieldName: string, error: TLocalizedValida
       return `${path} 类型必须是 ${formatExpectedType(error.params.type)}`;
     case "minLength":
       return `${path} 长度不能少于 ${error.params.limit}`;
+    case "pattern":
+      return `${path} 必须匹配格式 ${error.params.pattern}`;
+    case "minimum":
+    case "maximum":
+    case "exclusiveMinimum":
+    case "exclusiveMaximum":
+      return `${path} 必须满足 ${error.params.comparison} ${error.params.limit}`;
     case "additionalProperties":
       return `${path} 不允许额外字段: ${error.params.additionalProperties.join(", ")}`;
     case "anyOf":

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isRecord } from "../core/typebox-validation.ts";
+
 export type LookupKind = "角色" | "地点" | "设定" | "时间线";
 
 export interface LookupRequest {
@@ -410,7 +412,12 @@ function readJsonRecord<T>(
 }
 
 function readJson(path: string): unknown {
-  return JSON.parse(readFileSync(path, "utf-8"));
+  const raw = readFileSync(path, "utf-8");
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`Invalid JSON in ${path}: ${String(error)}`, { cause: error });
+  }
 }
 
 function assertCharacterEntry(value: unknown, label: string): CharacterEntry {
@@ -538,8 +545,4 @@ function assertOptionalString(value: unknown, label: string): string | undefined
     throw new Error(`Invalid data ${label}: value must be a string when present.`);
   }
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

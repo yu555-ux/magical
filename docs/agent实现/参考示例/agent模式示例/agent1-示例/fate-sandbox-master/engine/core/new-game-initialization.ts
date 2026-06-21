@@ -1,7 +1,7 @@
-import type { PublicNpcSkeletonInput, ServantInput } from "./actor";
-import type { ConfigureCampaignInput } from "./campaign";
-import type { MemoryClaim } from "./memory";
-import type { ServantSecretNoblePhantasmInput, ServantSecretStringInput } from "./secrets";
+import type { PublicNpcSkeletonInput, ServantInput } from "./actor.ts";
+import type { ConfigureCampaignInput } from "./campaign.ts";
+import type { MemoryClaim } from "./memory.ts";
+import type { ServantSecretNoblePhantasmInput, ServantSecretStringInput } from "./secrets.ts";
 import type {
   ActorId,
   ActorRole,
@@ -13,13 +13,14 @@ import type {
   RelationshipState,
   ServantClass,
   ServantSkill,
-} from "./state";
+  State,
+} from "./state.ts";
 
-import { setScenePresence, upsertActor } from "./actor";
-import { configureCampaign } from "./campaign";
-import { recordMemory } from "./memory";
-import { configureServantSecrets } from "./secrets";
-import { getState, resetState } from "./state";
+import { setScenePresence, upsertActor } from "./actor.ts";
+import { configureCampaign } from "./campaign.ts";
+import { recordMemory } from "./memory.ts";
+import { configureServantSecrets } from "./secrets.ts";
+import { createInitialState } from "./state-store.ts";
 
 export type NewGameInitializationInput = HumanNewGameInput | ServantNewGameInput;
 
@@ -50,6 +51,7 @@ export interface ServantNewGameInput {
 
 export interface HumanProtagonistOpeningInput {
   displayName: string;
+  renderName?: string;
   publicIdentity: string;
   background: string;
   apparentAge: string;
@@ -63,6 +65,7 @@ export interface HumanProtagonistOpeningInput {
 
 export interface ServantProtagonistOpeningInput {
   displayName: string;
+  renderName?: string;
   publicIdentity: string;
   apparentAge: string;
   outfit: OutfitState;
@@ -114,27 +117,30 @@ const DEFAULT_FATE_PARAMS: FateParams = {
   noblePhantasm: "E",
 };
 
-export function initializeNewGame(input: NewGameInitializationInput): NewGameInitializationResult {
+export function initializeNewGame(
+  draft: State,
+  input: NewGameInitializationInput,
+): NewGameInitializationResult {
   const steps: string[] = [];
-  resetState();
+  Object.assign(draft, createInitialState());
   steps.push("reset-state");
 
-  configureCampaign({ ...input.campaign, reason: input.campaign.reason ?? input.reason });
+  configureCampaign(draft, { ...input.campaign, reason: input.campaign.reason ?? input.reason });
   steps.push("configure-campaign");
 
   if (input.kind === "human-protagonist") {
-    upsertActor({
+    upsertActor(draft, {
       kind: "setup-protagonist",
       actor: buildHumanProtagonist(input.protagonist),
       reason: input.reason,
     });
     steps.push("setup-human-protagonist");
   } else {
-    initializeServantProtagonist(input, steps);
+    initializeServantProtagonist(draft, input, steps);
   }
 
   if (input.presence !== undefined) {
-    setScenePresence({
+    setScenePresence(draft, {
       presentActorIds: input.presence.presentActorIds,
       allyActorIds: input.presence.allyActorIds ?? [],
       reason: input.reason,
@@ -143,7 +149,7 @@ export function initializeNewGame(input: NewGameInitializationInput): NewGameIni
   }
 
   for (const fact of input.knownFacts ?? []) {
-    recordMemory({
+    recordMemory(draft, {
       kind: "pin-fact",
       scope: fact.scope,
       subject: fact.subject ?? PROTAGONIST_ACTOR_ID,
@@ -154,17 +160,21 @@ export function initializeNewGame(input: NewGameInitializationInput): NewGameIni
     steps.push("record-known-fact");
   }
 
-  assertNewGameInitialized(input);
+  assertNewGameInitialized(draft, input);
   return { message: "新游戏 state 已初始化。", steps };
 }
 
-function initializeServantProtagonist(input: ServantNewGameInput, steps: string[]): void {
+function initializeServantProtagonist(
+  draft: State,
+  input: ServantNewGameInput,
+  steps: string[],
+): void {
   if (input.master !== undefined) {
-    upsertActor({ kind: "ensure-public-npc", npc: input.master, reason: input.reason });
+    upsertActor(draft, { kind: "ensure-public-npc", npc: input.master, reason: input.reason });
     steps.push("ensure-master-npc");
   }
 
-  upsertActor({
+  upsertActor(draft, {
     kind: "upsert-servant",
     servant: buildServantProtagonist(input.protagonist),
     reason: input.reason,
@@ -172,7 +182,7 @@ function initializeServantProtagonist(input: ServantNewGameInput, steps: string[
   steps.push("setup-servant-protagonist");
 
   if (input.hiddenTrueName !== undefined || input.hiddenNoblePhantasms !== undefined) {
-    configureServantSecrets({
+    configureServantSecrets(draft, {
       kind: "configure-servant-secrets",
       actorId: PROTAGONIST_ACTOR_ID,
       trueName: input.hiddenTrueName,
@@ -197,12 +207,13 @@ function buildHumanProtagonist(input: HumanProtagonistOpeningInput): PublicActor
     },
     presentation: {
       displayName: input.displayName,
+      renderName: input.renderName ?? input.displayName,
       apparentAge: input.apparentAge,
       outfit: input.outfit,
       demeanor: input.demeanor,
     },
     condition: { wounds: [], afflictions: [], permanentEffects: [] },
-    inventory: { ordinaryItems: input.ordinaryItems ?? [], heldTrackedItemIds: [] },
+    inventory: { ordinaryItems: input.ordinaryItems ?? [] },
     abilities: (input.abilities ?? []).map((summary, index) => ({
       id: `ability-protagonist-${index + 1}`,
       label: summary,
@@ -216,6 +227,7 @@ function buildServantProtagonist(input: ServantProtagonistOpeningInput): Servant
   return {
     id: PROTAGONIST_ACTOR_ID,
     displayName: input.displayName,
+    renderName: input.renderName,
     publicIdentity: input.publicIdentity,
     apparentAge: input.apparentAge,
     outfit: input.outfit,
@@ -244,8 +256,7 @@ function buildServantProtagonist(input: ServantProtagonistOpeningInput): Servant
   };
 }
 
-function assertNewGameInitialized(input: NewGameInitializationInput): void {
-  const state = getState();
+function assertNewGameInitialized(state: State, input: NewGameInitializationInput): void {
   const protagonist = state.public.actors[PROTAGONIST_ACTOR_ID];
   if (protagonist === undefined) {
     throw new Error("新游戏初始化失败：protagonist actor 不存在。");
