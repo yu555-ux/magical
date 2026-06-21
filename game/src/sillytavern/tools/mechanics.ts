@@ -99,7 +99,10 @@ const PHASE_INSTRUCTIONS: Record<number, string> = {
 本阶段调用 finish_reply 提交最终回复。
 
 maintext 填入审查通过的最终正文，options 填入 4 个选项，history 填入标题/人物/描述。
-调用 finish_reply 后，本次流水线结束，玩家将收到最终回复。`,
+
+⚠️ 如果 finish_reply 返回错误（如字数不足），不要放弃——调 pipeline_phase(phase=4) 回到阶段 4 修改正文，修改通过后再回到阶段 5 重新提交。
+
+调用成功（无 ❌ 错误）后，本次流水线结束，玩家将收到最终回复。`,
 };
 
 // ── Tools ──

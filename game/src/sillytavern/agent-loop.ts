@@ -330,14 +330,19 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
           console.log(`  ✅ ${toolName} (${duration}ms) →`, resultText);
         }
 
-        // finish_reply → 捕获格式化 XML 到 allText，退出循环
+        // finish_reply → 成功时退出循环，失败时继续（如字数不足）
         const submitReply = turnRecords.find(r => r.name === 'finish_reply');
         if (submitReply) {
-          allText = submitReply.result;
-          if (allThinking) allText = `<thinking>\n${allThinking}\n</thinking>\n` + allText;
-          console.log(`✅ finish_reply 已执行，退出循环`);
-          console.groupEnd();
-          break;
+          if (submitReply.result.startsWith('❌')) {
+            console.log(`⚠️ finish_reply 被拒绝：${submitReply.result.slice(0, 80)}`);
+            // 不退出，让 LLM 修正后重试
+          } else {
+            allText = submitReply.result;
+            if (allThinking) allText = `<thinking>\n${allThinking}\n</thinking>\n` + allText;
+            console.log(`✅ finish_reply 已执行，退出循环`);
+            console.groupEnd();
+            break;
+          }
         }
 
         console.log(`🔧 工具执行完成 (${turnRecords.length} 项)，继续生成...`);
