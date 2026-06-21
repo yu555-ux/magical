@@ -39,6 +39,7 @@ export interface ToolExecutionContext {
   userInput: string;
   historyText: string;
   dreamAnchor: DreamAnchor;
+  userName: string;
   patchVariables: (ops: JsonPatchOp[]) => { ok: boolean; error?: string; changes?: Array<{ path: string; oldValue?: any; newValue?: any }> };
   appendHistory: (sp: SavePoint) => void;
 }

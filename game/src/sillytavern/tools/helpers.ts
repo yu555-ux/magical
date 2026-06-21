@@ -34,6 +34,8 @@ export interface ToolExecutionContext {
   historyText: string;
   /** 梦境锚点（toggle_dream 需要） */
   dreamAnchor: DreamAnchor;
+  /** 玩家名称（宏替换用） */
+  userName: string;
   /** 修改变量（JSON Patch），返回是否成功 */
   patchVariables: (ops: JsonPatchOp[]) => { ok: boolean; error?: string; changes?: Array<{ path: string; oldValue?: any; newValue?: any }> };
   /** 追加剧情历史 */

@@ -409,6 +409,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         dreamAnchor: updatedChat.dreamAnchor ?? {},
         userInput: userText,
         historyText,
+        userName: effectiveSettings.userName ?? DEFAULT_SETTINGS.userName,
         patchVariables: (ops) => {
           // 白名单 + 类型守卫：每一条 op 写入前先校验
           for (const op of ops) {
