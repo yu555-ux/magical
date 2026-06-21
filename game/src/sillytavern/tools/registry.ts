@@ -5,7 +5,7 @@
  *   helpers.ts      — 共享工具函数
  *   lookup.ts       — get_status, lookup_world
  *   world.ts        — advance_time, change_location, change_weather, toggle_dream
- *   resource.ts     — update_resource, commit_turn, update_skill
+ *   resource.ts     — update_resource, commit_turn
  *   item.ts         — add_item, remove_item
  *   character.ts    — add_condition, remove_condition, update_social
  *   npc.ts          — update_outfit, update_body_development, update_npc_info

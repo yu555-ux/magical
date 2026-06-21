@@ -320,7 +320,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       'update_resource', 'advance_time', 'change_location', 'change_weather', 'toggle_dream',
       'commit_turn', 'update_map',
       'add_condition', 'remove_condition', 'update_social',
-      'upsert_actor', 'update_outfit', 'update_body_development', 'update_npc_info',
+      'upsert_actor', 'update_ability', 'update_outfit', 'update_body_development', 'update_npc_info',
       'add_item', 'remove_item',
     ],
     maxTurnsPerMessage: 20,

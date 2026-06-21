@@ -32,7 +32,7 @@
 | 物品增减（获赠/购买/丢弃） | `add_item` / `remove_item` |
 | 异常状态（受伤/中毒/诅咒/buff） | `add_condition` / `remove_condition` |
 | 社交关系变化 | `update_social` |
-| 技能变化（习得/升级/解锁分支） | `update_skill` |
+| 能力变化（习得/升级/解锁分支） | `update_ability` |
 | NPC 着装变化 | `update_outfit`（仅女性角色） |
 | 身体开发记录 | `update_body_development`（仅女性角色） |
 | NPC 位置/行动/想法 | `update_npc_info` |

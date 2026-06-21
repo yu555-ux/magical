@@ -171,34 +171,34 @@ export const npcTools: Record<string, AgentToolDef> = {
     },
   },
 
-  // update_skill — 管理技能
+  // update_ability — 管理能力
 // ══════════════════════════════════════════════
 
-update_skill: {
-  name: 'update_skill',
-  label: '技能管理',
+update_ability: {
+  name: 'update_ability',
+  label: '能力管理',
   category: 'variable',
   description:
-    '管理主角或异人 NPC 的技能（仅异人具备技能字段）。技能是角色能力的体现。\n\n' +
+    '管理主角或异人 NPC 的能力（仅异人具备能力字段）。能力是角色力量的体现。\n\n' +
     '【必须调用的场景】\n' +
     '- 角色首次展现或习得新能力 → action=create\n' +
-    '- 技能熟练度/等级因使用或训练提升 → action=update\n' +
-    '- 技能突破性进展，解锁新分支 → action=unlock_branch\n\n' +
+    '- 能力熟练度/等级因使用或训练提升 → action=update\n' +
+    '- 能力突破性进展，解锁新分支 → action=unlock_branch\n\n' +
     '【严禁的行为】\n' +
-    '- 对普通人（非异人）使用——他们没有技能字段\n' +
-    '- 未经剧情铺垫就凭空习得高级技能\n' +
+    '- 对普通人（非异人）使用——他们没有能力字段\n' +
+    '- 未经剧情铺垫就凭空习得高级能力\n' +
     '- reason 写成标签（"升级"）而非习得/提升的来源事件\n\n' +
     '【你的职责】\n' +
-    '你不是技能的发明者，你是角色能力成长的记录者。\n' +
-    '每次技能变化都应有一个具体的触发事件。\n' +
+    '你不是能力的发明者，你是角色力量成长的记录者。\n' +
+    '每次能力变化都应有一个具体的触发事件。\n' +
     '✅ "在与影魔的战斗中领悟了新能力"  ❌ "升级"\n\n' +
     '【action 说明】\n' +
-    '- create: 创建新技能条目\n' +
-    '- update: 更新已有技能的熟练度/等级\n' +
+    '- create: 创建新能力条目\n' +
+    '- update: 更新已有能力的熟练度/等级\n' +
     '- unlock_branch: 解锁新分支\n\n' +
     '【create 时需提供的字段】\n' +
     '- level: 等级（微尘/聚砂/凝石/磐岩/撼山/摧城/覆国/夷地/灭世）\n' +
-    '- desc: 技能描述\n' +
+    '- desc: 能力描述\n' +
     '- requirement: 使用要求\n' +
     '- cost: 消耗能量（数字）\n' +
     '- sideEffects: 副作用 { "副作用名": "描述" }\n' +
@@ -212,7 +212,7 @@ update_skill: {
     type: 'object',
     properties: {
       target: { type: 'string', description: '"主角" 或异人 NPC 名字' },
-      skillName: { type: 'string', description: '技能名称' },
+      abilityName: { type: 'string', description: '能力名称' },
       action: { type: 'string', enum: ['create', 'update', 'unlock_branch'], description: '操作类型' },
       level: { type: 'string', description: '（create 时）技能等级' },
       desc: { type: 'string', description: '（create 时）技能描述' },
@@ -227,16 +227,16 @@ update_skill: {
       branchEffect: { type: 'string', description: '（unlock_branch 时）分支效果' },
       reason: { type: 'string', description: '变化原因' },
     },
-    required: ['target', 'skillName', 'action', 'reason'],
+    required: ['target', 'abilityName', 'action', 'reason'],
   },
   async execute(ctx, params) {
     const target = params?.target as string;
-    const skillName = params?.skillName as string;
+    const abilityName = params?.abilityName as string;
     const action = params?.action as string;
     const reason = params?.reason as string;
 
-    if (!target || !skillName || !action || !['create', 'update', 'unlock_branch'].includes(action)) {
-      return { content: [{ type: 'text', text: '参数错误：target、skillName、action（create/update/unlock_branch）均为必填' }] };
+    if (!target || !abilityName || !action || !['create', 'update', 'unlock_branch'].includes(action)) {
+      return { content: [{ type: 'text', text: '参数错误：target、abilityName、action（create/update/unlock_branch）均为必填' }] };
     }
     if (!reason || !reason.trim()) {
       return { content: [{ type: 'text', text: '参数错误：reason 不能为空' }] };
@@ -244,7 +244,7 @@ update_skill: {
 
     let skillPath: string;
     if (target === '主角') {
-      skillPath = `/主角/技能/${skillName}`;
+      skillPath = `/主角/技能/${abilityName}`;
     } else {
       const chars = ctx.variables?.['主要人物'];
       skillPath = '';
@@ -252,7 +252,7 @@ update_skill: {
         for (const gender of ['女性', '男性']) {
           const g = chars[gender]?.['异人'];
           if (g?.[target]) {
-            skillPath = `/主要人物/${gender}/异人/${target}/技能/${skillName}`;
+            skillPath = `/主要人物/${gender}/异人/${target}/技能/${abilityName}`;
             break;
           }
         }
@@ -266,7 +266,7 @@ update_skill: {
 
     if (action === 'create') {
       if (existing) {
-        return { content: [{ type: 'text', text: `技能 "${skillName}" 已存在。请使用 action=update 修改` }] };
+        return { content: [{ type: 'text', text: `技能 "${abilityName}" 已存在。请使用 action=update 修改` }] };
       }
       const entry: Record<string, unknown> = {
         等级: params?.level ?? '微尘',
@@ -279,12 +279,12 @@ update_skill: {
       };
       ctx.patchVariables([{ op: 'insert', path: skillPath, value: entry }]);
       return {
-        content: [{ type: 'text', text: `🎯 ${target} 习得新技能: ${skillName} (${entry['等级']})\n  原因：${reason}` }],
+        content: [{ type: 'text', text: `🎯 ${target} 习得新技能: ${abilityName} (${entry['等级']})\n  原因：${reason}` }],
       };
     }
 
     if (!existing || typeof existing !== 'object') {
-      return { content: [{ type: 'text', text: `技能 "${skillName}" 不存在。请使用 action=create 创建` }] };
+      return { content: [{ type: 'text', text: `技能 "${abilityName}" 不存在。请使用 action=create 创建` }] };
     }
 
     if (action === 'update') {
@@ -295,7 +295,7 @@ update_skill: {
       }
       ctx.patchVariables([{ op: 'replace', path: `${skillPath}/${field}`, value }]);
       return {
-        content: [{ type: 'text', text: `🎯 ${target} ${skillName}.${field}: ${JSON.stringify(existing[field])} → ${JSON.stringify(value)}\n  原因：${reason}` }],
+        content: [{ type: 'text', text: `🎯 ${target} ${abilityName}.${field}: ${JSON.stringify(existing[field])} → ${JSON.stringify(value)}\n  原因：${reason}` }],
       };
     }
 
@@ -309,7 +309,7 @@ update_skill: {
     const branchEntry = { 描述: branchDesc, 效果: branchEffect };
     ctx.patchVariables([{ op: 'insert', path: `${skillPath}/分支/${branchName}`, value: branchEntry }]);
     return {
-      content: [{ type: 'text', text: `🎯 ${target} ${skillName} 解锁新分支: ${branchName}\n  原因：${reason}` }],
+      content: [{ type: 'text', text: `🎯 ${target} ${abilityName} 解锁新分支: ${branchName}\n  原因：${reason}` }],
     };
   },
 },
