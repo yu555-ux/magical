@@ -42,8 +42,8 @@ update_resource: {
     '- "主角": 玩家角色\n' +
     '- NPC 名字: 如 "顾昀"、"周汝"、"张云"\n\n' +
     '【支持的资源】\n' +
-    '- 主角: 生命、体力、能量、SAN、金钱、蝶烬、尸气、力量、体质、精神、敏捷、幸运、魅力、评级\n' +
-    '- NPC: 生命、能量、SAN、好感值（仅女性）、堕落值（仅女性）、性欲值（仅女性）、友善值（仅男性）、力量、体质、精神、敏捷、幸运、魅力\n\n' +
+    '- 主角: 生命、生命上限、体力、体力上限、能量、能量上限、SAN、SAN上限、金钱、蝶烬、尸气、力量、体质、精神、敏捷、幸运、魅力、评级、疲软长度、勃起长度\n' +
+    '- NPC: 生命、生命上限、能量、能量上限、SAN、SAN上限、好感值（仅女性）、堕落值（仅女性）、性欲值（仅女性）、友善值（仅男性）、力量、体质、精神、敏捷、幸运、魅力\n\n' +
     '【action 含义】\n' +
     '- spend: 消耗（减法），如受伤扣血\n' +
     '- restore: 恢复（加法，不超过上限），如治疗回血\n' +
@@ -84,6 +84,8 @@ update_resource: {
     if (isTargetSelf) {
       if (['生命', '体力', '能量', 'SAN'].includes(resource)) {
         resourcePath = `/主角/身体属性/${resource}/当前`;
+      } else if (['生命上限', '体力上限', '能量上限', 'SAN上限'].includes(resource)) {
+        resourcePath = `/主角/身体属性/${resource.replace('上限', '')}/上限`;
       } else if (resource === '金钱') {
         resourcePath = '/主角/资源/金钱/数值';
       } else if (['蝶烬', '尸气'].includes(resource)) {
@@ -110,6 +112,8 @@ update_resource: {
             if (g[target]) {
               if (['生命', '能量', 'SAN'].includes(resource)) {
                 resourcePath = `/主要人物/${gender}/${group}/${target}/身体属性/${resource}/当前`;
+              } else if (['生命上限', '能量上限', 'SAN上限'].includes(resource)) {
+                resourcePath = `/主要人物/${gender}/${group}/${target}/身体属性/${resource.replace('上限', '')}/上限`;
               } else if (resource === '好感值' && gender === '女性') {
                 resourcePath = `/主要人物/${gender}/${group}/${target}/好感值`;
               } else if (resource === '堕落值' && gender === '女性') {
@@ -133,8 +137,8 @@ update_resource: {
 
     if (!resourcePath) {
       const available = isTargetSelf
-        ? '身体属性: 生命/体力/能量/SAN | 基础属性: 力量/体质/精神/敏捷 | 特殊属性: 幸运/魅力 | 资源: 金钱/蝶烬/尸气 | 评级'
-        : '身体属性: 生命/能量/SAN | 基础: 力量/体质/精神/敏捷 | 特殊: 幸运/魅力 | 好感/堕落/性欲(女)/友善(男)';
+        ? '身体属性: 生命/生命上限/体力/体力上限/能量/能量上限/SAN/SAN上限 | 基础属性: 力量/体质/精神/敏捷 | 特殊属性: 幸运/魅力 | 资源: 金钱/蝶烬/尸气 | 评级 | 性器: 疲软长度/勃起长度'
+        : '身体属性: 生命/生命上限/能量/能量上限/SAN/SAN上限 | 基础: 力量/体质/精神/敏捷 | 特殊: 幸运/魅力 | 好感/堕落/性欲(女)/友善(男)';
       return { content: [{ type: 'text', text: `未找到资源路径。target="${target}", resource="${resource}"。可用资源: ${available}` }] };
     }
 
@@ -149,10 +153,15 @@ update_resource: {
     switch (action) {
       case 'spend': newVal = currentVal - amount; break;
       case 'restore': {
-        const maxPath = resourcePath.replace('/当前', '/上限');
-        const maxVal = maxPath.split('/').filter(Boolean).reduce((o: any, k) => o?.[k], ctx.variables);
-        const upper = typeof maxVal === 'number' ? maxVal : 100;
-        newVal = Math.min(currentVal + amount, upper);
+        const isCap = resourcePath.endsWith('/上限');
+        if (isCap) {
+          newVal = currentVal + amount; // 上限无上界
+        } else {
+          const maxPath = resourcePath.replace('/当前', '/上限');
+          const maxVal = maxPath.split('/').filter(Boolean).reduce((o: any, k) => o?.[k], ctx.variables);
+          const upper = typeof maxVal === 'number' ? maxVal : 100;
+          newVal = Math.min(currentVal + amount, upper);
+        }
         break;
       }
       case 'set': newVal = amount; break;
@@ -161,7 +170,9 @@ update_resource: {
     }
 
     // clamp 到合理范围
-    if (['生命', '体力', '能量', 'SAN'].includes(resource)) {
+    if (['生命上限', '体力上限', '能量上限', 'SAN上限'].includes(resource)) {
+      newVal = Math.max(1, newVal); // 上限至少为 1
+    } else if (['生命', '体力', '能量', 'SAN'].includes(resource)) {
       const maxPath = resourcePath.replace('/当前', '/上限');
       const maxVal = maxPath.split('/').filter(Boolean).reduce((o: any, k) => o?.[k], ctx.variables);
       const upper = typeof maxVal === 'number' ? maxVal : 100;
@@ -338,6 +349,7 @@ commit_turn: {
         let rp: string | null = null;
         if (isSelf) {
           if (['生命', '体力', '能量', 'SAN'].includes(resource)) rp = `/主角/身体属性/${resource}/当前`;
+          else if (['生命上限', '体力上限', '能量上限', 'SAN上限'].includes(resource)) rp = `/主角/身体属性/${resource.replace('上限', '')}/上限`;
           else if (resource === '金钱') rp = '/主角/资源/金钱/数值';
           else if (['蝶烬', '尸气'].includes(resource)) rp = `/主角/资源/超凡资源/${resource}`;
           else if (['力量', '体质', '精神', '敏捷'].includes(resource)) rp = `/主角/基础属性/${resource}`;
@@ -351,6 +363,7 @@ commit_turn: {
                 const g = chars[gender]?.[group];
                 if (!g || !g[target]) continue;
                 if (['生命', '能量', 'SAN'].includes(resource)) rp = `/主要人物/${gender}/${group}/${target}/身体属性/${resource}/当前`;
+                else if (['生命上限', '能量上限', 'SAN上限'].includes(resource)) rp = `/主要人物/${gender}/${group}/${target}/身体属性/${resource.replace('上限', '')}/上限`;
                 else if (resource === '好感值' && gender === '女性') rp = `/主要人物/${gender}/${group}/${target}/好感值`;
                 else if (resource === '堕落值' && gender === '女性') rp = `/主要人物/${gender}/${group}/${target}/堕落值`;
                 else if (resource === '性欲值' && gender === '女性') rp = `/主要人物/${gender}/${group}/${target}/性欲值`;

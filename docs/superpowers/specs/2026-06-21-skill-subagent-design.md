@@ -592,3 +592,25 @@ interface SubagentOutput {
 | 常驻启用（`enabled: true`） | slash command 触发 | ⚠️ 适配差异（web 无 TUI） |
 
 核心差异只有一个：piagent 通过 slash command 触发 skill，我们通过 `preset.json` 的 `enabled` 字段控制。但 skill 的存储格式、列表格式、内容包装格式、注入方式完全一致。
+
+---
+
+## 八、变量写入错误恢复（待实现）
+
+### 背景
+
+白名单 + 类型守卫（`var-validate.ts`）会在写入前校验每条 `patchVariables` 操作。如果校验失败（路径不存在、类型不匹配），`patchVariables` 返回 `{ ok: false, error: "..." }`。
+
+### 利用 Agent 循环自动恢复
+
+当前 `agent-loop.ts` 已有事务保护：工具执行前快照全部可变状态，执行失败时回滚（`beforeVars = structuredClone(...)` + 失败时恢复）。
+
+**待补充**：当 `patchVariables` 返回 `{ ok: false }` 时，工具应将错误信息作为 tool result 返回给 LLM。LLM 在下一轮看到错误后可以：
+
+1. 用 `get_status` 重新确认当前变量结构
+2. 修正路径或值类型后重试
+3. 如果是"路径不存在"，改用 `insert` 操作新增字段
+
+这不需要额外基础设施——agent loop 本身的工具调用→结果反馈→重试循环天然支持这种错误恢复。唯一要确保的是工具在 patch 失败时不静默吞错，而是把错误放入 `content` 返回给 LLM。
+
+当前大部分工具在 `ctx.patchVariables()` 返回 `!ok` 时已经这样做了（如 `update_resource` 的 `状态更新失败：${result.error}`）。需要审计其余工具确保一致性。

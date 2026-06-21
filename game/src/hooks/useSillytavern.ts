@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { useStreamParser } from './useStreamParser';
 import { createApiRouter } from '../sillytavern/api-router';
 import { applyParsedToChat, autoTagDreamItems, enrichHistory, formatVariablesForPrompt, buildVarChanges } from '../sillytavern/variables';
+import { validatePatchOp } from '../sillytavern/var-validate';
 import { assemblePrompt, replaceMacros } from '../sillytavern/prompt-assembler';
 import { DEFAULT_TAGS, DEFAULT_OPAQUE_TAGS, DEFAULT_SETTINGS, DEFAULT_PRESET_BLOCKS, DEFAULT_PRESET_PARAMS, type AppSettings, type ChatSession, type ChatMessage, type HistoryTimeline, type ToolExecutionRecord } from '../sillytavern/types';
 import { getDatabase, initializeDatabase, getSettings, getChats, saveChat, deleteChat, saveSettings } from '../sillytavern/database';
@@ -409,6 +410,11 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         userInput: userText,
         historyText,
         patchVariables: (ops) => {
+          // 白名单 + 类型守卫：每一条 op 写入前先校验
+          for (const op of ops) {
+            const validation = validatePatchOp(op, agentVars);
+            if (!validation.ok) return { ok: false, error: validation.error };
+          }
           // 直接修改 agentVars（deep copy）
           const changes: Array<{ path: string; oldValue?: any; newValue?: any }> = [];
           for (const op of ops) {
