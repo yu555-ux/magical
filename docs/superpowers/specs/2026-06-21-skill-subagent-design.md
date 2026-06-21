@@ -1,7 +1,7 @@
 # Skill 系统 + 正文优化流水线 + Subagent 远期设计
 
-> 2026-06-21 · 修订 2
-> 基于 Fate sandbox + piagent 参考架构，对 web 端 GM Agent 进行流程编排能力升级。
+> 2026-06-21 · 修订 3
+> 基于 Fate sandbox + piagent + superpowers skill 参考架构，引入 pipeline_phase 工具实现阶段化渐进式正文优化。
 
 ---
 
@@ -187,54 +187,36 @@ export const MODULE_CONTENT: Record<string, string> = {
 
 ### 1.4 Skill 文件格式
 
+Skill 内容是**静态参考**（流程全貌 + 质量门禁），与 `pipeline_phase` 工具的阶段指令**互补**。Skill 告诉 AI "为什么这样做"，工具告诉 AI "这一步做什么"。
+
 ```markdown
 ---
 name: prose-optimization
-description: 正文优化流水线——大纲→正文→审查修改→提交。每轮叙事生成时自动激活。
+description: 正文优化流水线——渐进式多阶段正文生成与优化。与 pipeline_phase 工具绑定使用。
 ---
 
 # 正文优化流水线
 
 ## 核心原则
 
-你不是在聊天框中即兴回复。你是在交付一篇经过规划、检定、撰写、审查的叙事作品。
+你不是在聊天框中即兴回复。你是在多个回合中逐步交付一篇经过规划、检定、撰写、审查的叙事作品。
 
-## 操作顺序（严格遵守）
+## 阶段流程（与 pipeline_phase 工具绑定）
 
-**必须先完成机械结算，再规划叙事。** 未落地的状态变化不得出现在大纲中。
+每回合开始时，先调 pipeline_phase() 确认当前阶段。**每个回合只做一个阶段。**
 
-### 阶段 0：机械结算（在进入本 skill 的阶段 1 之前完成）
+| 阶段 | 允许的工具 | 完成标志 |
+|------|-----------|---------|
+| 0 机械查询 | get_status, lookup_character, lookup_location, lookup_world | 状态/角色/地点已确认 |
+| 1 变量修改 | roll_dice, update_resource, change_location, advance_time 等全部变量工具 | 骰子已掷，变量已写入 |
+| 2 大纲规划 | plan_reply | 大纲已记录 |
+| 3 正文初稿 | draft_maintext | 初稿完成 |
+| 4 审查修改 | review_draft, revise_draft | 所有门禁通过 |
+| 5 提交回复 | submit_reply | 最终回复已提交 |
 
-1. 调用 get_status 确认当前状态
-2. 调用 roll_dice 执行必要的骰子检定
-3. 调用 patch_state 等工具将变量变化写入状态树
-4. 确保所有机械变化已落地，状态树已更新
+**严禁跳步。** 未完成当前阶段就去下一阶段 = 违规。
 
-### 阶段 1：改变量写大纲 (plan_reply)
-
-基于**已落地的状态**，调用 plan_reply：
-1. 列出本轮涉及的变量变化（path / from / to / reason）
-2. 规划叙事节拍序列（3-7 个 beat）
-3. 定义结尾停在什么可行动的瞬间
-
-### 阶段 2：写正文 (draft_maintext)
-
-按大纲的节拍顺序撰写正文初稿：
-- 中文第二人称沉浸式叙事
-- 不复制设定表或 GM 简报
-- 停在明确可行动的瞬间
-
-### 阶段 3：优化修改 (review_draft → revise_draft)
-
-1. 调用 review_draft 审查初稿：字数（1000-1500）、八股检测、格式验证
-2. 根据审查结果调用 revise_draft 逐项修改
-3. 改后再次 review_draft，直到所有门禁通过
-
-### 阶段 4：提交回复 (submit_reply)
-
-所有门禁通过后调用 submit_reply。
-
-## 质量门禁
+## 质量门禁（阶段 4 生效）
 
 | 门禁 | 条件 | 不通过处理 |
 |------|------|-----------|
@@ -250,11 +232,120 @@ description: 正文优化流水线——大纲→正文→审查修改→提交�
 3. **常驻 skill 不需要调用/卸载。** 正文优化是每轮都需要的标准流程，没有"加载"和"卸载"的概念。
 4. **缓存更友好。** Skill 内容固定不变，放在 prompt 模板里，DeepSeek 可以跨轮次缓存这个段落。放在 tool result 中反而每轮被当作"新内容"。
 
+### 1.6 阶段绑定：`pipeline_phase` 工具（核心机制）
+
+**问题**：skill 全部内容一坨展开在 AI 面前，5 个阶段同时可见。AI 倾向于一次性完成所有阶段，跳过中间步骤。
+
+**方案**：参考 superpowers skill 的 **Checklist 模式**——每个阶段只做一件事，AI 通过对话历史自追踪进度。但我们没有文件系统和 Task 系统，所以用 **`pipeline_phase` 工具**替代。
+
+**`pipeline_phase`** 是一个**流程控制工具**（gameplay 分类）。它不修改游戏状态，只追踪当前阶段和返回阶段指引。
+
+```
+AI 调 pipeline_phase(phase=0) → "阶段 0：机械查询。本回合只允许查询工具。"
+AI 调 pipeline_phase(phase=1) → "阶段 1：变量修改。本回合只允许变量工具和掷骰。"
+AI 调 pipeline_phase(phase=2) → "阶段 2：大纲规划。调用 plan_reply。"
+...
+```
+
+Skill 内容和工具**互相绑定**：
+- Skill 定义了阶段流程、质量门禁、禁止跳步的硬约束
+- `pipeline_phase` 工具强制执行阶段约束，返回当前阶段的**专属指令**（允许的工具列表 + 完成标志 + 下一阶段提示）
+
+**对标 superpowers**：
+
+| superpowers skill | 我们的实现 |
+|---|---|
+| Checklist "按顺序完成每一项" | `pipeline_phase` 的阶段 0-5 |
+| Hard Gate "禁止调用实现 skill" | 工具返回"本回合只允许 xxx 工具" |
+| Terminal State "invoke writing-plans" | 阶段 5 = submit_reply |
+| 自追踪（从对话历史判断进度） | AI 调 `pipeline_phase()` 显式查询当前阶段 |
+
+**工具定义**（`tools/mechanics.ts` 新增）：
+
+```typescript
+pipeline_phase: {
+  name: 'pipeline_phase',
+  label: '流水线阶段',
+  category: 'gameplay',
+  description:
+    '查看或推进正文优化流水线的当前阶段。每轮开始时应调用本工具确认当前阶段和允许的工具。\n\n' +
+    '阶段 0：机械查询 — 只调查询工具（get_status/lookup_character/lookup_location/lookup_world）\n' +
+    '阶段 1：变量修改 — 修改变量（update_resource/advance_time/change_location 等）+ 掷骰（roll_dice）\n' +
+    '阶段 2：大纲规划 — 调用 plan_reply 写叙事大纲\n' +
+    '阶段 3：正文初稿 — 调用 draft_maintext 写初稿\n' +
+    '阶段 4：审查修改 — 调用 review_draft/revise_draft 优化正文\n' +
+    '阶段 5：提交回复 — 调用 submit_reply 提交最终回复',
+  parameters: {
+    phase: { type: 'number', description: '切换到的阶段号（0-5）。不填则返回当前阶段。' },
+  },
+  execute(ctx, params) {
+    if (typeof params.phase === 'number') {
+      currentPhase = Math.max(0, Math.min(5, params.phase));
+    }
+    return { content: [{ text: PHASE_INSTRUCTIONS[currentPhase] }] };
+  },
+}
+```
+
+**阶段状态存储**：`currentPhase` 是模块级变量（内存），不污染状态树。工具调用之间保持，agent loop 结束后重置。
+
 ---
 
-## 二、正文优化流水线设计
+## 二、正文优化流水线设计（修订 3）
 
-### 2.1 操作顺序（参考 Fate sandbox 修正）
+### 2.1 渐进式阶段流程
+
+每个 "Turn" 是一个 tool loop 回合。每个回合 AI 只能做一个阶段。通过 `pipeline_phase` 工具显式推进。
+
+```
+玩家输入 "我挥剑砍向哥布林"
+  │
+  ▼
+Turn 1: pipeline_phase(phase=0)    ← 确认阶段 0
+        get_status()               ← 查状态
+        lookup_character(name="哥布林") ← 查 NPC 属性
+        lookup_location(name="地下洞穴") ← 查地点描述
+        submit_reply("状态已确认，哥布林守卫在洞穴入口。")
+  │
+  ▼
+Turn 2: pipeline_phase(phase=1)    ← 推进到阶段 1
+        roll_dice(label="长剑攻击", sides=20, dc=12) → 命中 ✅
+        roll_dice(label="伤害", sides=8, count=1, modifier=3) → 7 点
+        update_resource(target="主角", resource="体力", action="spend", amount=5)
+        submit_reply("检定完成。长剑命中，造成 7 点伤害。体力 -5。")
+  │
+  ▼
+Turn 3: pipeline_phase(phase=2)    ← 推进到阶段 2
+        plan_reply(variableChanges=[...], narrativeBeats=[...])
+        submit_reply("大纲已记录。")
+  │
+  ▼
+Turn 4: pipeline_phase(phase=3)    ← 推进到阶段 3
+        draft_maintext(maintext="你握紧长剑...")
+        submit_reply("初稿完成。")
+  │
+  ▼
+Turn 5: pipeline_phase(phase=4)    ← 推进到阶段 4
+        review_draft() → 字数不足、三处八股
+        revise_draft() → 修正
+        review_draft() → 通过 ✅
+        submit_reply("审查完成，修改已应用。")
+  │
+  ▼
+Turn 6: pipeline_phase(phase=5)    ← 推进到阶段 5
+        submit_reply(maintext=最终正文, options=[...], history={...}) → 退出 tool loop
+```
+
+**关键规则**：
+- `pipeline_phase` 返回当前阶段的**专属工具白名单**，AI 不得越界
+- 每阶段结束时调 `submit_reply` 作为阶段收口（非最终提交）
+- 下一个回合从 `pipeline_phase(phase=N+1)` 开始
+
+### 2.2 操作顺序（不变）
+
+机械结算（阶段 0-1）→ 大纲（阶段 2）→ 正文（阶段 3）→ 审查修改（阶段 4）→ 提交（阶段 5）。
+
+---
 
 Fate sandbox 的 `gm-direction.md` 明确规定：
 
@@ -514,29 +605,28 @@ interface SubagentOutput {
 
 ## 四、文件改动清单
 
-### 新增文件
+### 已完成
+
+| 文件 | 说明 | 状态 |
+|------|------|:--:|
+| `sillytavern/skills/skill-registry.ts` | Vite `?raw` 导入，导出 `SKILL_CONTENT` | ✅ |
+| `sillytavern/skills/prose-optimization.md` | 正文优化流水线 skill（需按修订 3 重写内容） | ⚠️ 待更新 |
+| `agent-prompt/module-content.ts` | spread `SKILL_CONTENT` 到 `MODULE_CONTENT` | ✅ |
+| `agent-prompt/preset.json` | 新增 skill 模块声明（pre-response slot, priority 5） | ✅ |
+| `agent-prompt/injection.ts` | `<skill>` XML 标签包装 + `References` 行 | ✅ |
+
+### 待实现
 
 | 文件 | 说明 |
 |------|------|
-| `sillytavern/skills/skill-registry.ts` | Vite `?raw` 导入所有 skill .md 文件，导出 `SKILL_CONTENT` map |
-| `sillytavern/skills/prose-optimization.md` | 正文优化流水线 skill |
-| `sillytavern/tools/outline.ts` | `plan_reply` 工具 |
-| `sillytavern/tools/draft.ts` | `draft_maintext` 工具 |
-| `sillytavern/tools/review.ts` | `review_draft` + `revise_draft` 工具 |
+| `tools/mechanics.ts` | 新增 `pipeline_phase` 工具（阶段追踪 + 专属指令） |
+| `tools/outline.ts` | `plan_reply` 工具 |
+| `tools/draft.ts` | `draft_maintext` 工具 |
+| `tools/review.ts` | `review_draft` + `revise_draft` 工具 |
+| `tools/registry.ts` | 注册 pipeline_phase + outline/draft/review |
+| `skills/prose-optimization.md` | 重写为阶段绑定格式 |
 
-### 改造文件
-
-| 文件 | 改动 | 说明 |
-|------|------|------|
-| `agent-prompt/module-content.ts` | +2 行 | `import { SKILL_CONTENT }` + spread 到 MODULE_CONTENT |
-| `agent-prompt/preset.json` | +8 行 | 新增 skill-prose-optimization 模块声明 |
-| `agent-prompt/injection.ts` | +20 行 | 新增 `<available_skills>` 列表生成 + `<skill>` 标签包装 |
-| `tools/registry.ts` | +10 行 | 注册 outline/draft/review 工具 |
-| `tools/mechanics.ts` | +30 行 | `submit_reply` 增加字数验证 |
-
-配合在 `game/.gitignore` 末尾添加 `skills/`。
-
-### 后续扩展（不在本次范围）
+### 后续扩展
 
 | 文件 | 说明 |
 |------|------|
@@ -546,26 +636,34 @@ interface SubagentOutput {
 
 ---
 
-## 五、实施阶段
+## 五、实施阶段（修订 3）
 
-### 阶段 1：Skill 基础设施 + 优化流水线工具（5-7 天）
+### 阶段 1：Skill 基础设施 ✅ 已完成
 
-1. 新增 `sillytavern/skills/skill-registry.ts` — Vite raw import
-2. 新增 `sillytavern/skills/prose-optimization.md` — 第一个 skill
-3. 改造 `module-content.ts` + `preset.json` — 接入 skill
-4. 改造 `injection.ts` — 生成 `<available_skills>` + `<skill>` 包装
-5. 新增 `plan_reply` / `draft_maintext` / `review_draft` / `revise_draft` 工具
-6. 改造 `submit_reply` — 字数硬验证
-7. **检验**：完整流水线跑通（机械结算→大纲→正文→审查修改→提交），字数 1000-1500，无八股
+1. ✅ 新增 `sillytavern/skills/skill-registry.ts` — Vite raw import
+2. ✅ 新增 `sillytavern/skills/prose-optimization.md` — 第一个 skill 文件
+3. ✅ 改造 `module-content.ts` + `preset.json` — 接入 skill
+4. ✅ 改造 `injection.ts` — `<skill>` 标签包装
 
-### 阶段 2：体验打磨（2-3 天）
+### 阶段 2：pipeline_phase + 流水线工具（下一步，3-5 天）
+
+1. 新增 `tools/mechanics.ts` — `pipeline_phase` 工具
+2. 新增 `tools/outline.ts` — `plan_reply` 工具
+3. 新增 `tools/draft.ts` — `draft_maintext` 工具
+4. 新增 `tools/review.ts` — `review_draft` + `revise_draft` 工具
+5. 改造 `tools/mechanics.ts` — `submit_reply` 字数硬验证
+6. 改造 `tools/registry.ts` — 注册新工具
+7. 重写 `skills/prose-optimization.md` — 阶段绑定格式
+8. **检验**：完整流水线跑通 6 个阶段，字数 1000-1500，无八股
+
+### 阶段 3：体验打磨（2-3 天）
 
 1. UI：ToolCallBubble 展示流水线阶段进度
 2. 日志：记录每阶段耗时和通过率
 3. Prompt 微调
 4. **检验**：连续 20 轮，字数达标率 > 90%
 
-### 阶段 3（远期）：Subagent 探索
+### 阶段 4（远期）：Subagent 探索
 
 ---
 
