@@ -1,5 +1,5 @@
 /**
- * 机制工具 — pipeline_phase, roll_dice, submit_reply
+ * 机制工具 — pipeline_phase, end_phase, roll_dice, finish_reply
  */
 import type { AgentToolDef } from './registry';
 
@@ -10,74 +10,69 @@ let currentPhase = 0;
 const PHASE_INSTRUCTIONS: Record<number, string> = {
   0: `[阶段 0/5：机械查询]
 
-本回合你只能调用查询工具。禁止调用任何变量修改工具。
+本阶段只能调用查询工具。禁止调用任何变量修改工具。
 
 1. get_status — 获取当前状态快照
 2. lookup_character — 查在场 NPC 的完整属性
 3. lookup_location — 查当前地点的描述和异常
 4. lookup_world — 如有需要，查世界书
 
-完成后调用 submit_reply，以一句简短总结结束本回合。
-然后下一回合调 pipeline_phase(phase=1)。`,
+本阶段可以跨多轮完成。查询工作全部完成后，调 end_phase 收口，然后调 pipeline_phase(phase=1) 进入下一阶段。`,
 
   1: `[阶段 1/5：变量修改]
 
-本回合你只能修改变量和掷骰子。禁止写大纲或正文。
+本阶段只能修改变量和掷骰子。禁止写大纲或正文。
 
-1. roll_dice — 执行所有需要的骰子检定（可多次调用）
+1. roll_dice — 执行所有需要的骰子检定（可多次调用，可跨多轮）
 2. update_resource / advance_time / change_location 等 — 将变化写入状态树
 3. 确保所有机械变化已落地
 
-完成后调用 submit_reply，列出本回合所做的变更。
-然后下一回合调 pipeline_phase(phase=2)。`,
+本阶段可以跨多轮完成。全部变量修改完成后，调 end_phase 收口，然后调 pipeline_phase(phase=2) 进入下一阶段。`,
 
   2: `[阶段 2/5：大纲规划]
 
-本回合你只能调用 plan_reply 写叙事大纲。禁止写正文。
+本阶段调用 plan_reply 写叙事大纲。禁止写正文。
 
 基于已落地的状态，调用 plan_reply：
 - variableChanges: 本轮已写入的变量变化清单
 - narrativeBeats: 叙事节拍序列（3-7 个 beat）
 - endingPosition: 结尾停在什么可行动的瞬间
 
-完成后调用 submit_reply，大纲会自动记录。
-然后下一回合调 pipeline_phase(phase=3)。`,
+完成后调 end_phase 收口，然后调 pipeline_phase(phase=3) 进入下一阶段。`,
 
   3: `[阶段 3/5：正文初稿]
 
-本回合你只能调用 draft_maintext 写正文初稿。
+本阶段调用 draft_maintext 写正文初稿。
 
 按大纲的节拍顺序撰写正文：
 - 中文第二人称沉浸式叙事
 - 不复制设定表或 GM 简报
 - 停在明确可行动的瞬间
-- 这是初稿，不需要追求完美——字数在 800-1600 字都接受
+- 这是初稿，不需要追求完美
 
-完成后调用 submit_reply，初稿会自动记录。
-然后下一回合调 pipeline_phase(phase=4)。`,
+完成后调 end_phase 收口，然后调 pipeline_phase(phase=4) 进入下一阶段。`,
 
   4: `[阶段 4/5：审查修改]
 
-本回合你只能调用 review_draft 和 revise_draft。
+本阶段只能调用 review_draft 和 revise_draft，可跨多轮反复修改。
 
 1. 调 review_draft 审查初稿
 2. 根据返回的问题逐项修改——调 revise_draft
 3. 修改后再次 review_draft 确认
-4. 重复直到所有 mandatory gate 通过：
+4. 重复直到所有门禁通过：
    - 字数 1000-1500（不计标签和空白）
    - 无八股句式
    - maintext 不含 GM 解说/推理/JSON/骰点/字段名
    - options 恰好 4 条
 
-完成后调用 submit_reply，确认审查通过。
-然后下一回合调 pipeline_phase(phase=5)。`,
+全部门禁通过后，调 end_phase 收口，然后调 pipeline_phase(phase=5) 进入最终阶段。`,
 
   5: `[阶段 5/5：提交回复]
 
-本回合调用 submit_reply 提交最终回复。
+本阶段调用 finish_reply 提交最终回复。
 
 maintext 填入审查通过的最终正文，options 填入 4 个选项，history 填入标题/人物/描述。
-提交后，本次优化流水线结束。`,
+调用 finish_reply 后，本次流水线结束，玩家将收到最终回复。`,
 };
 
 // ── Tools ──
@@ -95,7 +90,7 @@ export const mechanicTools: Record<string, AgentToolDef> = {
       '阶段 2：大纲规划 — 调 plan_reply\n' +
       '阶段 3：正文初稿 — 调 draft_maintext\n' +
       '阶段 4：审查修改 — 调 review_draft/revise_draft\n' +
-      '阶段 5：提交回复 — 调 submit_reply\n\n' +
+      '阶段 5：提交回复 — 调 finish_reply\n\n' +
       '【必须调用的场景】\n' +
       '- 每回合开始时，必须先调本工具确认当前阶段\n' +
       '- 完成当前阶段后，调 pipeline_phase(phase=N+1) 推进到下一阶段\n\n' +
@@ -115,6 +110,31 @@ export const mechanicTools: Record<string, AgentToolDef> = {
       }
       const instruction = PHASE_INSTRUCTIONS[currentPhase] ?? '未知阶段';
       return { content: [{ type: 'text', text: instruction }] };
+    },
+  },
+
+  end_phase: {
+    name: 'end_phase',
+    label: '结束阶段',
+    category: 'gameplay',
+    description:
+      '标记当前流水线阶段完成，进行阶段收口。不退出 agent loop——仅表示本阶段工作已做完，可以进入下一阶段。\n\n' +
+      '【必须调用的场景】\n' +
+      '- 当前阶段的所有工作已完成，准备进入下一阶段时\n\n' +
+      '【严禁的行为】\n' +
+      '- 工作未完成就调本工具——必须确认当前阶段的目标已达成',
+    parameters: {
+      type: 'object',
+      properties: {
+        summary: { type: 'string', description: '本阶段完成的总结（一句话）' },
+      },
+      required: ['summary'],
+    },
+    async execute(_ctx, params) {
+      const summary = (params?.summary as string) ?? '';
+      return {
+        content: [{ type: 'text', text: `✅ 阶段 ${currentPhase}/5 收口完成：${summary}\n请调 pipeline_phase(phase=${currentPhase + 1}) 进入下一阶段。` }],
+      };
     },
   },
 
@@ -176,27 +196,22 @@ export const mechanicTools: Record<string, AgentToolDef> = {
   },
 
   // ══════════════════════════════════════════════
-  // submit_reply — 提交最终回复
+  // finish_reply — 提交最终回复
   // ══════════════════════════════════════════════
 
-  submit_reply: {
-    name: 'submit_reply',
+  finish_reply: {
+    name: 'finish_reply',
     label: '提交回复',
     category: 'gameplay',
     description:
-      '提交本轮最终回复。这是你向玩家输出叙事的**唯一方式**——只有通过此工具提交，你的回复才会被玩家看到。\n\n' +
+      '提交最终回复，退出 agent loop。仅在流水线阶段 5（提交回复）中使用。调用本工具后玩家将收到最终叙事。\n\n' +
       '【必须调用的场景】\n' +
-      '- 所有工具调用完成后，准备输出叙事时\n' +
-      '- 你确定本轮不需要再查询或修改状态时\n' +
-      '- 不确定还需要什么时——直接调用此工具提交当前回复，不要犹豫\n\n' +
+      '- pipeline_phase 返回阶段 5 时\n' +
+      '- 所有质量门禁已通过，正文准备就绪\n\n' +
       '【严禁的行为】\n' +
-      '- 在调用 submit_reply 之前直接输出任何文本——会被系统忽略，玩家什么也看不到\n' +
+      '- 在阶段 0-4 调用本工具——阶段收口请用 end_phase\n' +
       '- 在 maintext 中输出推理、字段名、JSON、schema 路径、骰点或 GM 元评论\n' +
-      '- 替玩家做决定——叙事必须停在玩家可回应处\n' +
-      '- 跳过此工具直接发言——等于什么都没提交\n\n' +
-      '【你的职责】\n' +
-      '你不是在聊天框中回复，你是在通过工具提交一篇完整的叙事作品。\n' +
-      'maintext 是你唯一的叙事输出渠道，所有思考、状态查询、数值计算都不应出现在其中。\n\n' +
+      '- 替玩家做决定——叙事必须停在玩家可回应处\n\n' +
       '【格式要求】\n' +
       '- maintext: 正文 1000-1500 字，第二人称沉浸式中文叙事，禁止 GM 解说/推理/JSON/骰点\n' +
       '- options: 4 个选项，格式 "(动作/交流/观察/色色) 内容"\n' +

@@ -316,7 +316,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     agentMode: false,
     enabledTools: [
       'get_status', 'lookup_character', 'lookup_location', 'lookup_world',
-      'pipeline_phase', 'roll_dice', 'submit_reply',
+      'pipeline_phase', 'end_phase', 'roll_dice', 'finish_reply',
       'plan_reply', 'draft_maintext', 'review_draft', 'revise_draft',
       'update_resource', 'advance_time', 'change_location', 'change_weather', 'toggle_dream',
       'commit_turn', 'update_map',

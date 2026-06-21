@@ -15,7 +15,7 @@ export const draftTools: Record<string, AgentToolDef> = {
       '- pipeline_phase 返回阶段 3 时\n' +
       '- 在 plan_reply 和必要的 roll_dice 之后\n\n' +
       '【严禁的行为】\n' +
-      '- 跳过此工具直接 submit_reply\n' +
+      '- 跳过此工具直接 finish_reply\n' +
       '- 在此阶段追求完美——字数和去八股留给阶段 4',
     parameters: {
       type: 'object',

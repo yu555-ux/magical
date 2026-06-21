@@ -10,7 +10,7 @@
  *   character.ts    — add_condition, remove_condition, update_social
  *   npc.ts          — update_outfit, update_body_development, update_npc_info
  *   map.ts          — update_map
- *   mechanics.ts    — pipeline_phase, roll_dice, submit_reply
+ *   mechanics.ts    — pipeline_phase, end_phase, roll_dice, finish_reply
  *   outline.ts      — plan_reply
  *   draft.ts        — draft_maintext
  *   review.ts       — review_draft, revise_draft

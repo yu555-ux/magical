@@ -11,18 +11,18 @@ description: 正文优化流水线——渐进式多阶段正文生成与优化�
 
 ## 阶段流程（与 pipeline_phase 工具绑定）
 
-每回合开始时，必须先调 pipeline_phase() 确认当前阶段。**每个回合只做一个阶段。只有收到 submit_reply 后玩家才能回复——在此之前，你必须完成全部 6 个阶段。**
+每轮开始时先调 pipeline_phase() 确认当前阶段。阶段可以跨多轮完成——不要求一轮做完。
 
-| 阶段 | 允许的工具 | 完成标志 |
-|------|-----------|---------|
-| 0 机械查询 | get_status, lookup_character, lookup_location, lookup_world | 状态/角色/地点已确认 |
-| 1 变量修改 | roll_dice, update_resource, change_location, advance_time 等全部变量工具 | 骰子已掷，变量已写入 |
-| 2 大纲规划 | plan_reply | 大纲已记录 |
-| 3 正文初稿 | draft_maintext | 初稿完成 |
-| 4 审查修改 | review_draft, revise_draft | 所有门禁通过 |
-| 5 提交回复 | submit_reply | 最终回复已提交 |
+| 阶段 | 允许的工具 | 收口 |
+|------|-----------|------|
+| 0 机械查询 | get_status, lookup_character, lookup_location, lookup_world | end_phase |
+| 1 变量修改 | roll_dice, update_resource, change_location, advance_time 等全部变量工具 | end_phase |
+| 2 大纲规划 | plan_reply | end_phase |
+| 3 正文初稿 | draft_maintext | end_phase |
+| 4 审查修改 | review_draft, revise_draft（可跨多轮反复） | end_phase |
+| 5 提交回复 | finish_reply（唯一退出循环的方式） | — |
 
-**严禁跳步。** 未完成当前阶段就去下一阶段 = 违规。pipeline_phase 工具返回的阶段指令中已经写明了本阶段允许的工具——不要在阶段 0 调用变量工具，不要在阶段 1 写大纲。
+**严禁跳步。** 收口用 end_phase 而非 finish_reply——finish_reply 只在阶段 5 使用，调用后整个流水线结束。
 
 ## 质量门禁（阶段 4 生效）
 

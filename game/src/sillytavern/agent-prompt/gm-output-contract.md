@@ -1,6 +1,6 @@
-⚠️ 禁止直接输出文本。最终回复必须调用 submit_reply 工具提交。
+⚠️ 禁止直接输出文本。最终回复必须调用 finish_reply 工具提交。流水线阶段收口用 end_phase。
 
-## submit_reply 参数说明
+## finish_reply 参数说明（仅在阶段 5 使用）
 
 maintext: 正文 1000-1500 字，第二人称沉浸式中文叙事。
   禁止输出推理、字段名、JSON、schema 路径、骰点或 GM 元评论。

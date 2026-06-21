@@ -83,10 +83,10 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         break;
       }
 
-      // 接近上限时注入强制 submit_reply 提示
+      // 接近上限时注入强制 finish_reply 提示
       if (turnCount >= maxTurns - 2) {
-        console.warn(`⚠️ 接近 maxTurns (${turnCount}/${maxTurns})，注入 submit_reply 提示`);
-        contextMessages.push({ role: 'user', content: '剩余轮次不足！请立即调用 submit_reply 提交最终回复，不要再查询或修改状态。' } as any);
+        console.warn(`⚠️ 接近 maxTurns (${turnCount}/${maxTurns})，注入 finish_reply 提示`);
+        contextMessages.push({ role: 'user', content: '剩余轮次不足！请立即调用 finish_reply 提交最终回复，不要再查询或修改状态。' } as any);
       }
 
       turnCount++;
@@ -117,10 +117,10 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         console.log(`\n── [${i}] ${m.role} ──\n${text}`);
       });
 
-      // 最后两轮：强制只调用 submit_reply（LLM 无法绕过）
+      // 最后两轮：强制只调用 finish_reply（LLM 无法绕过）
       const isLastTurn = turnCount >= maxTurns - 2;
       const toolChoice: any = isLastTurn
-        ? { type: 'function', function: { name: 'submit_reply' } }
+        ? { type: 'function', function: { name: 'finish_reply' } }
         : undefined;
 
       const t0 = Date.now();
@@ -330,12 +330,12 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
           console.log(`  ✅ ${toolName} (${duration}ms) →`, resultText);
         }
 
-        // submit_reply → 捕获格式化 XML 到 allText，退出循环
-        const submitReply = turnRecords.find(r => r.name === 'submit_reply');
+        // finish_reply → 捕获格式化 XML 到 allText，退出循环
+        const submitReply = turnRecords.find(r => r.name === 'finish_reply');
         if (submitReply) {
           allText = submitReply.result;
           if (allThinking) allText = `<thinking>\n${allThinking}\n</thinking>\n` + allText;
-          console.log(`✅ submit_reply 已执行，退出循环`);
+          console.log(`✅ finish_reply 已执行，退出循环`);
           console.groupEnd();
           break;
         }
@@ -347,8 +347,8 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
         continue;
       }
 
-      // ── 4. 无 tool call → 不退出，提示调 submit_reply 继续循环 ──
-      contextMessages.push({ role: 'user', content: '请调用 submit_reply 提交最终回复。' } as any);
+      // ── 4. 无 tool call → 不退出，提示调 finish_reply 继续循环 ──
+      contextMessages.push({ role: 'user', content: '请调用 finish_reply 提交最终回复。' } as any);
       console.log(`🔁 Turn #${turnCount} 无工具，注入提示继续`);
       continue;
     }

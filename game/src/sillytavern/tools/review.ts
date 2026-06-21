@@ -16,7 +16,7 @@ export const reviewTools: Record<string, AgentToolDef> = {
       '- draft_maintext 之后\n' +
       '- revise_draft 修改后需要再次验证时\n\n' +
       '【严禁的行为】\n' +
-      '- 跳过审查直接 submit_reply\n' +
+      '- 未通过审查就进入阶段 5\n' +
       '- 看到问题后忽略——必须修复',
     parameters: {
       type: 'object',
