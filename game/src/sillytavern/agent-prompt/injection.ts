@@ -35,6 +35,7 @@ interface PromptModule {
   priority: number;
   header: string;
   body: string;
+  source: string;
 }
 
 export interface InjectionContext {
@@ -84,6 +85,7 @@ function loadPromptModules(): PromptModule[] {
       priority: m.priority,
       header: m.header,
       body,
+      source: m.source,
     });
   }
 
