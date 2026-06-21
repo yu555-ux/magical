@@ -14,11 +14,11 @@
 
 ## 查询工具纪律
 
-- 每轮最多调用 1-2 次查询工具（get_status / lookup_world / lookup_character），然后必须开始叙事。
-- get_status 每轮只调一次——它返回完整状态快照，不需要重复。
-- lookup_character 无参时返回全部角色摘要；有参时返回单个角色详情。摘要够用就不要再调详情。
+- 每轮固定调用链：get_status → lookup_character(name=在场NPC) → 叙事。不得跳过。
+- get_status 的在场NPC段只告诉你"谁在场、在哪、在做什么"——没有属性和技能。这些必须通过 lookup_character 获取。
+- 玩家与任何 NPC 互动（对话/战斗/交易/社交）→ 必须先调 lookup_character(name=该NPC)。
+- lookup_character 无参时返回全部角色摘要（名字/身份/地点），用于浏览角色池；有参时返回完整详情（属性/技能/好感/物品）。
 - lookup_world 返回"未找到"时，说明当前无对应信息，不要换关键词重试。
-- 不需要查询已经通过 get_status 获取的信息。
 
 ## 领域事件路由
 
