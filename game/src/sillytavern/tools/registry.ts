@@ -90,7 +90,7 @@ export function getToolsByCategory(filterHidden = true): Record<ToolCategory, Ag
 }
 
 export const CATEGORY_LABELS: Record<ToolCategory, string> = {
-  lookup: '🔍 查找工具', variable: '📊 变量工具', gameplay: '🎮 玩法工具',
+  lookup: '查找', variable: '变量', gameplay: '玩法',
 };
 
 export function toOpenAITool(def: AgentToolDef): Record<string, unknown> {

@@ -136,12 +136,15 @@ export default function ApiTab({ draft, setDraft, busy, primaryModels, secondary
                   if (catTools.length === 0) return null;
                   return (
                     <div key={cat} className="mb-3">
-                      <div className="text-[11px] text-white/40 mb-1.5">
-                        {CATEGORY_LABELS[cat]}
-                        {cat === 'variable' && (
-                          <span className="text-white/15 ml-1">— 默认全部开启，可按需关闭</span>
-                        )}
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-xs font-medium text-white/70 tracking-wide">
+                          {CATEGORY_LABELS[cat]}
+                        </span>
+                        <span className="flex-1 h-px bg-white/[0.06]" />
                       </div>
+                      {cat === 'variable' && (
+                        <p className="text-[10px] text-white/25 mb-1">默认全部开启，可按需关闭</p>
+                      )}
                       <div className="grid grid-cols-2 gap-1">
                         {catTools.map((tool) => {
                           const checked = (api?.enabledTools ?? []).includes(tool.name);
