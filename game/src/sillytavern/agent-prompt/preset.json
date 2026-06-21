@@ -121,6 +121,14 @@
       "priority": 20,
       "header": "think_check",
       "source": "agent-prompt/gm-think.md"
+    },
+    {
+      "id": "skill-prose-optimization",
+      "enabled": true,
+      "slot": "pre-response",
+      "priority": 5,
+      "header": "skill name=\"prose-optimization\" location=\"skills/prose-optimization.md\"",
+      "source": "skills/prose-optimization.md"
     }
   ]
 }

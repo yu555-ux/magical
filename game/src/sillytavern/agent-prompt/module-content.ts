@@ -19,8 +19,11 @@ import gmOutputContractRaw from './gm-output-contract.md?raw';
 import gmThinkRaw from './gm-think.md?raw';
 import gmTurnReminderRaw from './gm-turn-reminder.md?raw';
 
+import { SKILL_CONTENT } from '../skills/skill-registry';
+
 /** source 路径 → 文件内容 */
 export const MODULE_CONTENT: Record<string, string> = {
+  ...SKILL_CONTENT,
   'agent-prompt/gm-system.md': gmSystemRaw,
   'agent-prompt/gm-world-logic.md': gmWorldLogicRaw,
   'agent-prompt/gm-character-engine.md': gmCharacterEngineRaw,

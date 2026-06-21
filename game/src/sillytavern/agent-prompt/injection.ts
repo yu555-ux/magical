@@ -195,12 +195,20 @@ function buildSlotMessages(
         body = buildGmBrief(ctx.variables);
       }
 
+      // skill 模块：开头加 References 行（对齐 piagent formatSkillInvocation）
+      if (m.id.startsWith('skill-')) {
+        const skillDir = m.source.replace(/\/[^/]+\.md$/, '');
+        body = `References are relative to ${skillDir}/.\n\n${body}`;
+      }
+
       // 解析 {{user}} <user> {{char}} 等宏
       body = replaceMacros(body, macroCtx);
 
+      // 支持带属性的标签头（如 skill name="xxx" location="xxx"）
+      const tagName = m.header.split(/\s+/)[0];
       return {
         role: 'user' as const,
-        content: `<${m.header}>\n${body}\n</${m.header}>`,
+        content: `<${m.header}>\n${body}\n</${tagName}>`,
       };
     });
 }
