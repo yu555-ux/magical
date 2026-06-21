@@ -2,36 +2,222 @@
  * 查询工具 — get_status, lookup_world
  */
 import { scanLorebooks, formatMatchedEntries, type ScanResult } from '../lorebookEngine';
-import { formatVariablesForPrompt } from '../var-format';
-import type { AgentToolDef, ToolExecutionContext } from './registry';
-import { pathGet, findMapNode } from './helpers';
+import type { AgentToolDef } from './registry';
 
-/** 生成变量树的结构视图（深度限制），让 LLM 自行发现字段和分组 */
-function buildTreeView(obj: Record<string, any>, maxDepth: number, prefix = '', depth = 0): string {
-  if (depth >= maxDepth) return '';
+// ── Status Brief Builder ──
+
+function buildStatusBrief(vars: Record<string, any>): string {
   const lines: string[] = [];
-  const keys = Object.keys(obj).filter(k => !k.startsWith('_'));
-  for (const key of keys) {
-    const val = obj[key];
-    const indent = '  '.repeat(depth);
-    if (val && typeof val === 'object' && !Array.isArray(val)) {
-      const subKeys = Object.keys(val).filter(k => !k.startsWith('_'));
-      if (subKeys.length > 0) {
-        lines.push(`${indent}${key}: {${subKeys.join(', ')}}`);
-        if (depth < maxDepth - 1 && Object.keys(val).length < 20) {
-          lines.push(buildTreeView(val, maxDepth, key, depth + 1));
-        }
-      } else {
-        lines.push(`${indent}${key}: {}`);
-      }
-    } else if (Array.isArray(val)) {
-      lines.push(`${indent}${key}: [...]`);
-    } else {
-      lines.push(`${indent}${key}: ${typeof val === 'string' ? `"${val.slice(0, 30)}"` : val}`);
+  const hero = vars['主角'] ?? {};
+  const world = vars['世界'] ?? {};
+  const inDream = world['位于梦境'] === true;
+  const worldSource = inDream ? (world['梦境存档'] ?? {}) : (world['现实'] ?? {});
+  const worldLabel = inDream ? '梦境' : '现实';
+
+  // ── 时间 ──
+  const time = worldSource['时间'];
+  lines.push(`时间：${time ?? '未知'}`);
+
+  // ── 地点 ──
+  const location = worldSource['地点'];
+  lines.push(`地点：${worldLabel}-${location ?? '未知'}`);
+
+  // ── 天气 ──
+  const weather = worldSource['天气'];
+  lines.push(`天气：${weather ?? '未知'}`);
+  lines.push('');
+
+  // ── 玩家 ──
+  lines.push('玩家：{{user}}');
+  const age = hero['年龄'];
+  if (age !== undefined) lines.push(`年龄：${age}`);
+  const rating = hero['评级'];
+  if (rating) lines.push(`评级：${rating}`);
+  lines.push('');
+
+  // ── 属性 ──
+  lines.push('属性：');
+  const body = hero['身体属性'] ?? {};
+  const basic = hero['基础属性'] ?? {};
+  const special = hero['特殊属性'] ?? {};
+
+  for (const key of ['生命', '体力', '能量', 'SAN']) {
+    const v = body[key];
+    if (v && typeof v === 'object') {
+      lines.push(`  ${key}: ${v['当前'] ?? '?'}/${v['上限'] ?? '?'}`);
     }
   }
-  return lines.join('\n');
+  for (const key of ['力量', '体质', '精神', '敏捷']) {
+    if (basic[key] !== undefined) lines.push(`  ${key}: ${basic[key]}`);
+  }
+  for (const key of ['幸运', '魅力']) {
+    if (special[key] !== undefined) lines.push(`  ${key}: ${special[key]}`);
+  }
+  lines.push('');
+
+  // ── 资源 ──
+  lines.push('资源：');
+  const res = hero['资源'] ?? {};
+  const money = res['金钱'];
+  if (money && typeof money === 'object') {
+    lines.push(`  金钱: ${money['数值'] ?? 0} ${money['单位'] ?? '元'}`);
+  }
+  const superRes = res['超凡资源'] ?? {};
+  for (const key of ['蝶烬', '尸气']) {
+    const v = superRes[key];
+    if (v > 0) lines.push(`  ${key}: ${v}`);
+  }
+  if (!res['金钱'] && Object.values(superRes).every((v: any) => !(v > 0))) {
+    lines.push('  无');
+  }
+  lines.push('');
+
+  // ── 技能 ──
+  lines.push('技能：');
+  const skills = hero['技能'] ?? {};
+  const skillNames = Object.keys(skills).filter(k => !k.startsWith('_'));
+  if (skillNames.length === 0) {
+    lines.push('  无');
+  } else {
+    for (const name of skillNames) {
+      const s = skills[name];
+      if (!s || typeof s !== 'object') continue;
+      lines.push(`  ${name}:`);
+      if (s['等级']) lines.push(`    等级: ${s['等级']}`);
+      if (typeof s['熟练度'] === 'number') lines.push(`    熟练度: ${s['熟练度']}`);
+      if (s['消耗能量'] !== undefined) lines.push(`    消耗能量: ${s['消耗能量']}`);
+      if (s['描述']) lines.push(`    描述: ${s['描述']}`);
+      if (s['使用要求']) lines.push(`    使用要求: ${s['使用要求']}`);
+      if (s['副作用'] && typeof s['副作用'] === 'object' && Object.keys(s['副作用']).length > 0) {
+        lines.push('    副作用:');
+        for (const [ek, ev] of Object.entries(s['副作用'])) {
+          lines.push(`      ${ek}: ${typeof ev === 'string' ? (ev || "''") : ev}`);
+        }
+      }
+      if (s['分支'] && typeof s['分支'] === 'object' && Object.keys(s['分支']).length > 0) {
+        lines.push('    分支:');
+        for (const [bk, bv] of Object.entries(s['分支'])) {
+          lines.push(`      ${bk}: ${typeof bv === 'string' ? bv : JSON.stringify(bv)}`);
+        }
+      } else {
+        lines.push('    分支: 无');
+      }
+    }
+  }
+  lines.push('');
+
+  // ── 状态 ──
+  lines.push('状态：');
+  const conditions = hero['状态'] ?? {};
+  const condNames = Object.keys(conditions).filter(k => !k.startsWith('_'));
+  if (condNames.length === 0) {
+    lines.push('  无');
+  } else {
+    for (const name of condNames) {
+      const c = conditions[name];
+      if (!c || typeof c !== 'object') continue;
+      const desc = c['描述'] ?? '';
+      const dur = c['持续时间'];
+      const label = dur ? `${name} — ${desc} (${dur})` : `${name} — ${desc}`;
+      lines.push(`  ${label}`);
+    }
+  }
+  lines.push('');
+
+  // ── 持有物品 ──
+  lines.push('持有物品：');
+  const inv = hero['持有物品'] ?? {};
+  for (const cat of ['灵宝', '诡物', '物品']) {
+    const items = inv[cat];
+    if (!items || typeof items !== 'object' || Object.keys(items).length === 0) {
+      lines.push(`  ${cat}：无`);
+    } else {
+      lines.push(`  ${cat}：`);
+      for (const [itemName, item] of Object.entries(items)) {
+        if (!item || typeof item !== 'object') continue;
+        const parts: string[] = [];
+        if ((item as any)['等级']) parts.push(`等级: ${(item as any)['等级']}`);
+        if (typeof (item as any)['数量'] === 'number') parts.push(`数量: ${(item as any)['数量']}`);
+        if ((item as any)['描述']) parts.push(`描述: ${(item as any)['描述']}`);
+        if ((item as any)['效果'] && typeof (item as any)['效果'] === 'object') {
+          parts.push(`效果: {${Object.entries((item as any)['效果']).map(([k, v]) => `${k}: ${v}`).join(', ')}}`);
+        }
+        if ((item as any)['规则'] && typeof (item as any)['规则'] === 'object') {
+          parts.push(`规则: {${Object.entries((item as any)['规则']).map(([k, v]) => `${k}: ${v}`).join(', ')}}`);
+        }
+        if ((item as any)['副作用'] && typeof (item as any)['副作用'] === 'object') {
+          parts.push(`副作用: {${Object.entries((item as any)['副作用']).map(([k, v]) => `${k}: ${v}`).join(', ')}}`);
+        }
+        lines.push(`    ${itemName}:`);
+        for (const p of parts) lines.push(`      ${p}`);
+      }
+    }
+  }
+  lines.push('');
+
+  // ── 社交关系 ──
+  lines.push('社交关系：');
+  const social = hero['社交'] ?? {};
+  const socialNames = Object.keys(social).filter(k => !k.startsWith('_'));
+  if (socialNames.length === 0) {
+    lines.push('  无');
+  } else {
+    for (const name of socialNames) {
+      const rel = social[name];
+      const relText = rel && typeof rel === 'object' ? (rel['关系'] ?? '未知') : String(rel);
+      lines.push(`  ${name}: ${relText}`);
+    }
+  }
+  lines.push('');
+
+  // ── 在场 NPC ──
+  lines.push('在场NPC：');
+  const chars = vars['主要人物'] ?? {};
+  const playerLocation = location ?? '';
+  const presentNpcs: Array<{
+    name: string;
+    gender: string;
+    group: string;
+    data: Record<string, any>;
+  }> = [];
+
+  for (const gender of ['女性', '男性']) {
+    for (const group of ['异人', '普通人']) {
+      const g = chars[gender]?.[group];
+      if (!g || typeof g !== 'object') continue;
+      for (const [npcName, npcData] of Object.entries(g)) {
+        if (!npcData || typeof npcData !== 'object') continue;
+        const npcLoc = (npcData as any)['当前位置'];
+        if (typeof npcLoc === 'string' && npcLoc === playerLocation) {
+          presentNpcs.push({ name: npcName, gender, group, data: npcData as Record<string, any> });
+        }
+      }
+    }
+  }
+
+  if (presentNpcs.length === 0) {
+    lines.push('  无');
+  } else {
+    for (const npc of presentNpcs) {
+      const d = npc.data;
+      lines.push(`  - ${npc.name}:`);
+      // 关系（从主角社交中查或从 NPC 好感/友善推断）
+      const heroRel = social[npc.name];
+      if (heroRel && typeof heroRel === 'object' && heroRel['关系']) {
+        lines.push(`    关系: ${heroRel['关系']}`);
+      } else {
+        lines.push('    关系: 未知');
+      }
+      if (d['当前位置']) lines.push(`    位置: ${d['当前位置']}`);
+      if (d['当前行动']) lines.push(`    行动: ${d['当前行动']}`);
+      if (d['当前想法']) lines.push(`    想法: ${d['当前想法']}`);
+    }
+  }
+
+  return `<player_var>\n${lines.join('\n')}\n</player_var>`;
 }
+
+// ── Tools ──
 
 export const lookupTools: Record<string, AgentToolDef> = {
 
@@ -41,54 +227,22 @@ export const lookupTools: Record<string, AgentToolDef> = {
     label: '查看状态',
     category: 'lookup',
     description:
-      '按路径查询变量树。多路径用空格分隔。\n' +
-      '不填 path 时自动显示完整变量结构(树形,深度2),可直接看到所有字段名和NPC分组。\n' +
-      '【严禁】凭记忆推测数值、一次性查询全部状态',
+      '查看玩家当前状态简报。包含时间/地点/天气/属性/资源/技能/状态/持有物品/社交关系/在场NPC。\n\n' +
+      '【必须调用的场景】\n' +
+      '- 每轮开始叙事前，获取当前完整状态快照\n' +
+      '- 玩家询问当前状态、资源、同行者\n' +
+      '- 不确定变量当前值时\n\n' +
+      '【严禁的行为】\n' +
+      '- 凭记忆推测数值——以本工具返回为准\n' +
+      '- 状态未变化时重复调用（每轮最多调用一次）',
     parameters: {
       type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: '查询路径。多个用空格分隔。不确定时先用 "/主角 /世界/现实" 看顶层结构。NPC路径必须使用"异人"或"普通人"分组。',
-        },
-      },
-      required: ['path'],
+      properties: {},
+      required: [],
     },
-    async execute(ctx, params) {
-      const rawPath = (params?.path as string)?.trim();
-      if (!rawPath) {
-        // 无 path → 显示完整变量结构（深度2层），让 LLM 自行发现所有字段和分组
-        const tree = buildTreeView(ctx.variables, 2);
-        return {
-          content: [{ type: 'text', text: `变量结构总览:\n${tree}\n\n请指定 path 查询具体路径。例如 path="/主角/身体属性/生命/当前"` }],
-        };
-      }
-
-      const paths = rawPath.split(/\s+/).filter(Boolean);
-      const results: string[] = [];
-      for (const p of paths) {
-        const target = pathGet(ctx.variables, p);
-        if (target === undefined) {
-          let hint = '';
-          if (p.startsWith('/主要人物')) {
-            hint = '  提示：NPC 分类只有"异人"和"普通人"，请检查路径中的分组名称';
-          } else if (p.includes('/梦境')) {
-            hint = '  提示：梦境状态在 /世界/位于梦境，梦境数据在 /世界/梦境存档';
-          } else if (p.startsWith('/主角') && p !== '/主角') {
-            const hero = ctx.variables?.['主角'];
-            if (hero && typeof hero === 'object') {
-              hint = `  提示：/主角 顶层字段: ${Object.keys(hero).filter(k => !k.startsWith('_')).join(', ')}`;
-            }
-          }
-          results.push(`路径 ${p}: 不存在${hint}`);
-        } else {
-          const text = typeof target === 'object' && !Array.isArray(target)
-            ? formatVariablesForPrompt(target as Record<string, any>)
-            : String(target);
-          results.push(`## ${p}\n${text}`);
-        }
-      }
-      return { content: [{ type: 'text', text: results.join('\n\n') }], details: { paths, rawPath } };
+    async execute(ctx, _params) {
+      const brief = buildStatusBrief(ctx.variables);
+      return { content: [{ type: 'text', text: brief }] };
     },
   },
 
