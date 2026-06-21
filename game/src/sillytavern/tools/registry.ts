@@ -10,7 +10,10 @@
  *   character.ts    — add_condition, remove_condition, update_social
  *   npc.ts          — update_outfit, update_body_development, update_npc_info
  *   map.ts          — update_map
- *   mechanics.ts    — roll_dice, submit_reply
+ *   mechanics.ts    — pipeline_phase, roll_dice, submit_reply
+ *   outline.ts      — plan_reply
+ *   draft.ts        — draft_maintext
+ *   review.ts       — review_draft, revise_draft
  *
  * 新增工具：在对应分类文件中添加 → 无需改动本文件
  */
@@ -24,6 +27,9 @@ import { characterTools } from './character';
 import { npcTools } from './npc';
 import { mapTools } from './map';
 import { mechanicTools } from './mechanics';
+import { outlineTools } from './outline';
+import { draftTools } from './draft';
+import { reviewTools } from './review';
 
 // ── Types ──
 
@@ -67,6 +73,9 @@ export const ALL_TOOL_DEFS: Record<string, AgentToolDef> = {
   ...npcTools,
   ...mapTools,
   ...mechanicTools,
+  ...outlineTools,
+  ...draftTools,
+  ...reviewTools,
 };
 
 // ── Public API ──

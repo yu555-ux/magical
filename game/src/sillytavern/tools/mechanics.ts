@@ -1,9 +1,122 @@
 /**
- * 机制工具 — roll_dice, submit_reply
+ * 机制工具 — pipeline_phase, roll_dice, submit_reply
  */
 import type { AgentToolDef } from './registry';
 
+// ── Phase tracker ──
+
+let currentPhase = 0;
+
+const PHASE_INSTRUCTIONS: Record<number, string> = {
+  0: `[阶段 0/5：机械查询]
+
+本回合你只能调用查询工具。禁止调用任何变量修改工具。
+
+1. get_status — 获取当前状态快照
+2. lookup_character — 查在场 NPC 的完整属性
+3. lookup_location — 查当前地点的描述和异常
+4. lookup_world — 如有需要，查世界书
+
+完成后调用 submit_reply，以一句简短总结结束本回合。
+然后下一回合调 pipeline_phase(phase=1)。`,
+
+  1: `[阶段 1/5：变量修改]
+
+本回合你只能修改变量和掷骰子。禁止写大纲或正文。
+
+1. roll_dice — 执行所有需要的骰子检定（可多次调用）
+2. update_resource / advance_time / change_location 等 — 将变化写入状态树
+3. 确保所有机械变化已落地
+
+完成后调用 submit_reply，列出本回合所做的变更。
+然后下一回合调 pipeline_phase(phase=2)。`,
+
+  2: `[阶段 2/5：大纲规划]
+
+本回合你只能调用 plan_reply 写叙事大纲。禁止写正文。
+
+基于已落地的状态，调用 plan_reply：
+- variableChanges: 本轮已写入的变量变化清单
+- narrativeBeats: 叙事节拍序列（3-7 个 beat）
+- endingPosition: 结尾停在什么可行动的瞬间
+
+完成后调用 submit_reply，大纲会自动记录。
+然后下一回合调 pipeline_phase(phase=3)。`,
+
+  3: `[阶段 3/5：正文初稿]
+
+本回合你只能调用 draft_maintext 写正文初稿。
+
+按大纲的节拍顺序撰写正文：
+- 中文第二人称沉浸式叙事
+- 不复制设定表或 GM 简报
+- 停在明确可行动的瞬间
+- 这是初稿，不需要追求完美——字数在 800-1600 字都接受
+
+完成后调用 submit_reply，初稿会自动记录。
+然后下一回合调 pipeline_phase(phase=4)。`,
+
+  4: `[阶段 4/5：审查修改]
+
+本回合你只能调用 review_draft 和 revise_draft。
+
+1. 调 review_draft 审查初稿
+2. 根据返回的问题逐项修改——调 revise_draft
+3. 修改后再次 review_draft 确认
+4. 重复直到所有 mandatory gate 通过：
+   - 字数 1000-1500（不计标签和空白）
+   - 无八股句式
+   - maintext 不含 GM 解说/推理/JSON/骰点/字段名
+   - options 恰好 4 条
+
+完成后调用 submit_reply，确认审查通过。
+然后下一回合调 pipeline_phase(phase=5)。`,
+
+  5: `[阶段 5/5：提交回复]
+
+本回合调用 submit_reply 提交最终回复。
+
+maintext 填入审查通过的最终正文，options 填入 4 个选项，history 填入标题/人物/描述。
+提交后，本次优化流水线结束。`,
+};
+
+// ── Tools ──
+
 export const mechanicTools: Record<string, AgentToolDef> = {
+
+  pipeline_phase: {
+    name: 'pipeline_phase',
+    label: '流水线阶段',
+    category: 'gameplay',
+    description:
+      '查看或推进正文优化流水线的当前阶段。每回合开始时必须先调本工具确认当前阶段和允许使用的工具。\n\n' +
+      '阶段 0：机械查询 — 只调查询工具\n' +
+      '阶段 1：变量修改 — 修改变量 + 掷骰\n' +
+      '阶段 2：大纲规划 — 调 plan_reply\n' +
+      '阶段 3：正文初稿 — 调 draft_maintext\n' +
+      '阶段 4：审查修改 — 调 review_draft/revise_draft\n' +
+      '阶段 5：提交回复 — 调 submit_reply\n\n' +
+      '【必须调用的场景】\n' +
+      '- 每回合开始时，必须先调本工具确认当前阶段\n' +
+      '- 完成当前阶段后，调 pipeline_phase(phase=N+1) 推进到下一阶段\n\n' +
+      '【严禁的行为】\n' +
+      '- 跳过阶段——必须按 0→1→2→3→4→5 顺序推进\n' +
+      '- 在当前阶段调用其他阶段的专属工具',
+    parameters: {
+      type: 'object',
+      properties: {
+        phase: { type: 'number', description: '切换到的阶段号（0-5）。不填则返回当前阶段。' },
+      },
+      required: [],
+    },
+    async execute(_ctx, params) {
+      if (typeof params?.phase === 'number') {
+        currentPhase = Math.max(0, Math.min(5, params.phase));
+      }
+      const instruction = PHASE_INSTRUCTIONS[currentPhase] ?? '未知阶段';
+      return { content: [{ type: 'text', text: instruction }] };
+    },
+  },
 
   roll_dice: {
     name: 'roll_dice',
@@ -111,6 +224,19 @@ export const mechanicTools: Record<string, AgentToolDef> = {
     },
     async execute(_ctx, params) {
       const maintext = (params?.maintext as string)?.trim() ?? '';
+      const isFinal = currentPhase === 5;
+
+      // 阶段 5（最终提交）时强制字数验证
+      if (isFinal) {
+        const charCount = maintext.replace(/\s/g, '').length;
+        if (charCount < 1000) {
+          return { content: [{ type: 'text', text: `❌ 字数不足 (${charCount}/1000)。请先调用 revise_draft 扩写正文。` }] };
+        }
+        if (charCount > 1500) {
+          return { content: [{ type: 'text', text: `❌ 字数超标 (${charCount}/1500)。请先调用 revise_draft 精简正文。` }] };
+        }
+      }
+
       const options = (params?.options as string[]) ?? [];
       const history = params?.history as Record<string, any> | undefined;
       const thinking = (params?.thinking as string)?.trim();
