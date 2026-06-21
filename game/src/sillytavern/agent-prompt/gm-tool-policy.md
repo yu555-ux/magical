@@ -15,6 +15,8 @@
 ## 查询工具纪律
 
 - 每轮固定调用链：get_status → lookup_character(name=在场NPC) → 叙事。不得跳过。
+- 玩家进入新地点或切换场景 → 先调 lookup_location(name=该地点)获取地点描述再叙事。
+- lookup_location 无参时返回全部地点的树状结构，有参时返回该地点的完整信息（现实/梦境描述、地点细节、异常、子地点）。
 - get_status 的在场NPC段只告诉你"谁在场、在哪、在做什么"——没有属性和技能。这些必须通过 lookup_character 获取。
 - 玩家与任何 NPC 互动（对话/战斗/交易/社交）→ 必须先调 lookup_character(name=该NPC)。
 - lookup_character 无参时返回全部角色摘要（名字/身份/地点），用于浏览角色池；有参时返回完整详情（属性/技能/好感/物品）。

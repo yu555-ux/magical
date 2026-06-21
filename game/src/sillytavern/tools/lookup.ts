@@ -426,6 +426,147 @@ function buildCharacterBrief(name: string, vars: Record<string, any>, userName: 
   return `<character_var>\n${lines.join('\n').trim()}\n</character_var>`;
 }
 
+// ── Location Brief Builders ──
+
+function buildLocationIndex(mapTree: any): string {
+  if (!mapTree || typeof mapTree !== 'object') return '<location_index>\n无地图数据\n</location_index>';
+  const lines: string[] = [];
+  function walk(node: any, depth: number) {
+    const sub = node['子地图'];
+    if (!sub || typeof sub !== 'object' || Object.keys(sub).length === 0) return;
+    const indent = '  '.repeat(depth);
+    for (const [name, child] of Object.entries(sub)) {
+      const childSub = (child as any)?.['子地图'];
+      const hasChildren = childSub && typeof childSub === 'object' && Object.keys(childSub).length > 0;
+      if (hasChildren) {
+        lines.push(`${indent}${name}：`);
+        walk(child, depth + 1);
+      } else {
+        lines.push(`${indent}${name}`);
+      }
+    }
+  }
+  for (const [world, data] of Object.entries(mapTree)) {
+    lines.push(`${world}：`);
+    walk(data, 1);
+  }
+  return `<location_index>\n${lines.join('\n').trim()}\n</location_index>`;
+}
+
+function findLocationNode(root: any, target: string): { node: any; name: string } | null {
+  if (!root || typeof root !== 'object') return null;
+  const sub = root['子地图'];
+  if (!sub || typeof sub !== 'object') return null;
+  for (const [childName, childNode] of Object.entries(sub)) {
+    if (childName === target) return { node: childNode, name: childName };
+    const keywords = (childNode as any)?.['检索词'];
+    if (Array.isArray(keywords) && keywords.some((k: string) => k === target)) {
+      return { node: childNode, name: childName };
+    }
+    const found = findLocationNode(childNode, target);
+    if (found) return found;
+  }
+  return null;
+}
+
+function searchAllWorlds(mapTree: any, target: string): { node: any; name: string; world: string; path: string[] } | null {
+  if (!mapTree || typeof mapTree !== 'object') return null;
+  for (const worldName of Object.keys(mapTree)) {
+    const worldNode = mapTree[worldName];
+    if (worldName === target) return { node: worldNode, name: worldName, world: worldName, path: [worldName] };
+    const result = findLocationNode(worldNode, target);
+    if (result) {
+      // 递归向上拼接路径
+      const path = [result.name];
+      function collectPath(root2: any, t: string, acc: string[]) {
+        const sub2 = root2['子地图'];
+        if (!sub2) return false;
+        for (const [cn, cn2] of Object.entries(sub2)) {
+          if (cn === t) { acc.unshift(cn); return true; }
+          if (collectPath(cn2, t, acc)) { acc.unshift(cn); return true; }
+        }
+        return false;
+      }
+      collectPath(worldNode, result.name, path);
+      return { node: result.node, name: result.name, world: worldName, path: [worldName, ...path] };
+    }
+  }
+  return null;
+}
+
+function buildLocationBrief(target: string, mapTree: any): string | null {
+  const result = searchAllWorlds(mapTree, target);
+  if (!result) return null;
+
+  const { node, world, path } = result;
+  const lines: string[] = [];
+  const real = (node as any)?.['现实'];
+  const dream = (node as any)?.['梦境'];
+  const sub = (node as any)?.['子地图'];
+
+  lines.push(`${target}:`);
+  // 路径用 - 连接（去掉 子地图 段，只保留地点名）
+  const cleanPath = path.filter(p => p !== '子地图');
+  lines.push(`  路径: ${cleanPath.join('-')}`);
+  lines.push('');
+
+  if (real && typeof real === 'object') {
+    lines.push('  现实:');
+    if (real['描述']) lines.push(`    描述: ${real['描述']}`);
+    const realDetail = real['地点细节'];
+    if (realDetail && typeof realDetail === 'object') {
+      const realInfo = realDetail['信息'];
+      if (Array.isArray(realInfo) && realInfo.length > 0) {
+        lines.push('    地点细节:');
+        lines.push('      信息:');
+        for (const info of realInfo) lines.push(`        - ${info}`);
+      }
+      const realAnom = realDetail['异常'];
+      if (realAnom && typeof realAnom === 'object' && Object.keys(realAnom).length > 0) {
+        if (!realDetail['信息'] || !realInfo?.length) lines.push('    地点细节:');
+        lines.push('      异常:');
+        for (const [aname, adata] of Object.entries(realAnom)) {
+          lines.push(`        ${aname}: ${(adata as any)?.['描述'] ?? ''}`);
+        }
+      }
+    }
+    lines.push('');
+  }
+
+  if (dream && typeof dream === 'object') {
+    lines.push('  梦境:');
+    if (dream['描述']) lines.push(`    描述: ${dream['描述']}`);
+    const dreamDetail = dream['地点细节'];
+    if (dreamDetail && typeof dreamDetail === 'object') {
+      const dreamInfo = dreamDetail['信息'];
+      if (Array.isArray(dreamInfo) && dreamInfo.length > 0) {
+        lines.push('    地点细节:');
+        lines.push('      信息:');
+        for (const info of dreamInfo) lines.push(`        - ${info}`);
+      }
+      const dreamAnom = dreamDetail['异常'];
+      if (dreamAnom && typeof dreamAnom === 'object' && Object.keys(dreamAnom).length > 0) {
+        if (!dreamDetail['信息'] || !dreamInfo?.length) lines.push('    地点细节:');
+        lines.push('      异常:');
+        for (const [aname, adata] of Object.entries(dreamAnom)) {
+          lines.push(`        ${aname}: ${(adata as any)?.['描述'] ?? ''}`);
+        }
+      }
+    }
+    lines.push('');
+  }
+
+  if (sub && typeof sub === 'object') {
+    const children = Object.keys(sub);
+    if (children.length > 0) {
+      lines.push(`  子地点:`);
+      lines.push(`    ${children.join(', ')}`);
+    }
+  }
+
+  return `<location_var>\n${lines.join('\n').trim()}\n</location_var>`;
+}
+
 // ── Tools ──
 
 export const lookupTools: Record<string, AgentToolDef> = {
@@ -478,6 +619,39 @@ export const lookupTools: Record<string, AgentToolDef> = {
       const brief = buildCharacterBrief(name, ctx.variables, ctx.userName);
       if (!brief) {
         return { content: [{ type: 'text', text: `未找到角色: ${name}` }] };
+      }
+      return { content: [{ type: 'text', text: brief }] };
+    },
+  },
+
+  lookup_location: {
+    name: 'lookup_location',
+    label: '查找地点',
+    category: 'lookup',
+    description:
+      '查找地点信息。不填 name 时列出全部已知地点的树状结构，填 name 时返回该地点的完整信息（现实/梦境描述、地点细节、异常、子地点）。\n\n' +
+      '【必须调用的场景】\n' +
+      '- 玩家进入新地点或切换场景 → 先调本工具获取地点描述再叙事\n' +
+      '- 需要知道某地点的现实/梦境差异时\n' +
+      '- 需要检查地点是否有异常时\n\n' +
+      '【严禁的行为】\n' +
+      '- 凭记忆编造地点描述——以本工具返回为准',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: '地点名称。不填则列出全部已知地点的树状结构。' },
+      },
+      required: [],
+    },
+    async execute(ctx, params) {
+      const mapTree = ctx.variables?.['地图'];
+      const name = (params?.name as string)?.trim();
+      if (!name) {
+        return { content: [{ type: 'text', text: buildLocationIndex(mapTree) }] };
+      }
+      const brief = buildLocationBrief(name, mapTree);
+      if (!brief) {
+        return { content: [{ type: 'text', text: `未找到地点: ${name}` }] };
       }
       return { content: [{ type: 'text', text: brief }] };
     },
