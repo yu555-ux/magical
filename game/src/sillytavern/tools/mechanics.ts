@@ -7,6 +7,9 @@ import type { AgentToolDef } from './registry';
 
 let currentPhase = 0;
 
+/** 重置流水线阶段到 0。每次玩家发起新消息时必须调用。 */
+export function resetPipelinePhase() { currentPhase = 0; }
+
 const PHASE_INSTRUCTIONS: Record<number, string> = {
   0: `[阶段 0/5：机械查询]
 

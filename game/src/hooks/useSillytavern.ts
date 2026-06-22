@@ -13,6 +13,7 @@ import { type FertilizationResult } from '../sillytavern/physiology';
 import { buildAgentContext } from '../sillytavern/agent-context';
 import { runAgentLoop } from '../sillytavern/agent-loop';
 import { getEnabledTools, type ToolExecutionContext } from '../sillytavern/tools/registry';
+import { resetPipelinePhase } from '../sillytavern/tools/mechanics';
 import { resolveLorebyMacro } from '../sillytavern/lorebook-resolver';
 import { buildSecondaryPrompt } from '../sillytavern/secondary-prompt-builder';
 import { useRegenerateVars } from './useRegenerateVars';
@@ -473,6 +474,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
       try {
         parser.start();  // agent 模式也开始流式状态，输入框显示停止按钮
         const params = effectiveSettings.presetParams ?? DEFAULT_PRESET_PARAMS;
+        resetPipelinePhase();  // 每次玩家发新消息时，流水线阶段归零
         const loop = runAgentLoop({
           router: freshRouter,
           systemPrompt: agentCtx.systemPrompt,
