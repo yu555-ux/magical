@@ -1,6 +1,6 @@
 # Skill 系统 + 正文优化流水线 + Subagent 远期设计
 
-> 2026-06-21 · 修订 3
+> 2026-06-21 制定 · 2026-06-22 修订 4
 > 基于 Fate sandbox + piagent + superpowers skill 参考架构，引入 pipeline_phase 工具实现阶段化渐进式正文优化。
 
 ---
@@ -205,16 +205,25 @@ description: 正文优化流水线——渐进式多阶段正文生成与优化�
 
 每回合开始时，先调 pipeline_phase() 确认当前阶段。**每个回合只做一个阶段。**
 
+### 修订 4（2026-06-22）流水线 0→6 阶段
+
 | 阶段 | 允许的工具 | 完成标志 |
 |------|-----------|---------|
-| 0 机械查询 | get_status, lookup_character, lookup_location, lookup_world | 状态/角色/地点已确认 |
-| 1 变量修改 | roll_dice, update_resource, change_location, advance_time 等全部变量工具 | 骰子已掷，变量已写入 |
-| 2 大纲规划 | plan_reply | 大纲已记录 |
-| 3 正文初稿 | draft_maintext | 初稿完成 |
-| 4 审查修改 | review_draft, revise_draft | 所有门禁通过 |
-| 5 提交回复 | submit_reply | 最终回复已提交 |
+| 0 机械查询 | lookup_character, lookup_location, lookup_world | 角色/地点已确认，产出 `<phase0_lookup>` |
+| 1 大纲草稿 | **outline_draft** | 玩家意图/剧情方向/骰子计划/变量计划已记录，产出 `<phase1_outline>` |
+| 2 变量修改 | roll_dice, update_resource, change_location, advance_time 等全部变量工具 | 骰子已掷，变量已写入 |
+| 3 叙事大纲 | plan_reply | 大纲已记录 |
+| 4 正文初稿 | draft_maintext | 初稿完成 |
+| 5 审查修改 | review_draft, revise_draft | 所有门禁通过 |
+| 6 提交回复 | finish_reply | 最终回复已提交 |
 
-**严禁跳步。** 未完成当前阶段就去下一阶段 = 违规。
+**修订 4 关键改动：**
+- 新增阶段 1「大纲草稿」— AI 被迫回顾聊天记录分析玩家意图，规划骰子和变量，避免盲目进入修改阶段
+- `outline_draft` 5 个 required 参数强制 AI 填写（playerIntent / recentContext / plotDirection / diceRollsNeeded / variablesToModify）
+- 删除 `get_status` 工具 — 主角状态通过 `<player_var>` 自动注入 prompt（与 Fate 沙盒对齐）
+- 自动注入机制：Phase 0 产 `<phase0_lookup>`，Phase 1 产 `<phase1_outline>`，确保信息不丢失
+- `resetPipelinePhase()` 每次玩家新消息强制归零，防止中断后从错误阶段开始
+- 5 个 prompt 文件同步更新消除矛盾（gm-turn-reminder / gm-tool-policy / gm-story-driver / gm-system / prose-optimization）
 
 ## 质量门禁（阶段 4 生效）
 
@@ -531,14 +540,15 @@ if (charCount > 1500) {
 
 | 工具 | 状态 | 说明 |
 |------|------|------|
-| `get_status` | 已有 | 不变 |
+| `get_status` | **已删除** | 主角状态通过 `<player_var>` 自动注入 prompt |
 | `roll_dice` | 已有 | 不变 |
 | `patch_state` 等 | 已有 | 不变 |
-| `plan_reply` | **新增** | 机械结算后的大纲规划 |
-| `draft_maintext` | **新增** | 正文初稿 |
-| `review_draft` | **新增** | 审查（字数/八股/格式） |
-| `revise_draft` | **新增** | 修改 |
-| `submit_reply` | **修改** | 增加 1000-1500 字硬验证 |
+| `outline_draft` | **新增** | 阶段 1：分析玩家意图 + 规划骰子/变量 |
+| `plan_reply` | 已有 | 阶段 3：叙事大纲（原阶段 2） |
+| `draft_maintext` | 已有 | 阶段 4：正文初稿 |
+| `review_draft` | 已有 | 阶段 5：审查（字数/八股/格式） |
+| `revise_draft` | 已有 | 阶段 5：修改 |
+| `finish_reply` | 已有 | 阶段 6：提交（1000-1500 字硬验证） |
 
 ---
 
