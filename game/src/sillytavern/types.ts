@@ -301,6 +301,8 @@ export interface AppSettings {
   useProcessedCharacters: boolean;
   /** Agent 模式开关（默认 false） */
   agentMode: boolean;
+  /** Agent 模式下启用的 Skill ID 列表 */
+  enabledSkills: string[];
 }
 
 export const DEFAULT_TAGS = ['maintext', 'option', 'history', 'vars', 'thinking', 'think', 'Analysis', 'JSONPatch'] as const;
@@ -349,6 +351,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   useProcessedMap: true,
   useProcessedCharacters: true,
   agentMode: false,
+  enabledSkills: ['skill-prose-optimization'],
 };
 
 // ========== Chat Types ==========

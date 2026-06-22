@@ -609,30 +609,37 @@ interface SubagentOutput {
 
 | 文件 | 说明 | 状态 |
 |------|------|:--:|
-| `sillytavern/skills/skill-registry.ts` | Vite `?raw` 导入，导出 `SKILL_CONTENT` | ✅ |
-| `sillytavern/skills/prose-optimization.md` | 正文优化流水线 skill（需按修订 3 重写内容） | ⚠️ 待更新 |
+| `sillytavern/skills/skill-registry.ts` | Vite `?raw` 导入，导出 `SKILL_CONTENT` + `SKILL_META` | ✅ |
+| `sillytavern/skills/prose-optimization.md` | 正文优化流水线 skill（已按修订 3 重写为阶段绑定格式） | ✅ |
 | `agent-prompt/module-content.ts` | spread `SKILL_CONTENT` 到 `MODULE_CONTENT` | ✅ |
 | `agent-prompt/preset.json` | 新增 skill 模块声明（pre-response slot, priority 5） | ✅ |
-| `agent-prompt/injection.ts` | `<skill>` XML 标签包装 + `References` 行 | ✅ |
+| `agent-prompt/injection.ts` | `<skill>` XML 标签包装 + `References` 行 + `enabledSkills` 过滤 | ✅ |
+| `tools/mechanics.ts` | `pipeline_phase` + `end_phase` + `roll_dice` + `finish_reply` | ✅ |
+| `tools/outline.ts` | `plan_reply` 工具 | ✅ |
+| `tools/draft.ts` | `draft_maintext` 工具 | ✅ |
+| `tools/review.ts` | `review_draft` + `revise_draft` 工具 | ✅ |
+| `tools/registry.ts` | 注册全部 22 个工具（含 9 个流水线工具） | ✅ |
+| `sillytavern/types.ts` | `AppSettings.enabledSkills` 类型 + 默认值 | ✅ |
+| `components/Settings/SkillTab.tsx` | Skill 独立设置页，玩家可启用/关闭 skill | ✅ |
+| `components/SystemSettingsModal.tsx` | 新增 Skill 标签页 + 脏检查 + 保存 | ✅ |
+| `hooks/useSillytavern.ts` | 传递 `enabledSkills` 到 `buildAgentContext` | ✅ |
+| `sillytavern/agent-context.ts` | `AgentContextConfig.enabledSkills` → `InjectionContext` | ✅ |
 
 ### 待实现
 
 | 文件 | 说明 |
 |------|------|
-| `tools/mechanics.ts` | 新增 `pipeline_phase` 工具（阶段追踪 + 专属指令） |
-| `tools/outline.ts` | `plan_reply` 工具 |
-| `tools/draft.ts` | `draft_maintext` 工具 |
-| `tools/review.ts` | `review_draft` + `revise_draft` 工具 |
-| `tools/registry.ts` | 注册 pipeline_phase + outline/draft/review |
-| `skills/prose-optimization.md` | 重写为阶段绑定格式 |
+| `sillytavern/skills/combat-resolution.md` | 战斗结算 skill |
+| `sillytavern/skills/social-exchange.md` | 社交交互 skill |
+| 阶段 3 打磨 | ToolCallBubble UI、流水线阶段进度展示 |
 
-### 后续扩展
+### 后续扩展（远期）
 
 | 文件 | 说明 |
 |------|------|
-| `sillytavern/subagents/` | Subagent 管理（远期） |
-| `sillytavern/skills/combat-resolution.md` | 战斗结算 skill |
-| `sillytavern/skills/social-exchange.md` | 社交交互 skill |
+| `sillytavern/subagents/` | Subagent 管理 |
+| `sillytavern/compaction/` | 上下文 compaction（长会话自动压缩） |
+| `sillytavern/cache-control.ts` | 主动 `cache_control` 标记（目前仅被动监控） |
 
 ---
 
@@ -645,23 +652,29 @@ interface SubagentOutput {
 3. ✅ 改造 `module-content.ts` + `preset.json` — 接入 skill
 4. ✅ 改造 `injection.ts` — `<skill>` 标签包装
 
-### 阶段 2：pipeline_phase + 流水线工具（下一步，3-5 天）
+### 阶段 2：pipeline_phase + 流水线工具 ✅ 已完成
 
-1. 新增 `tools/mechanics.ts` — `pipeline_phase` 工具
-2. 新增 `tools/outline.ts` — `plan_reply` 工具
-3. 新增 `tools/draft.ts` — `draft_maintext` 工具
-4. 新增 `tools/review.ts` — `review_draft` + `revise_draft` 工具
-5. 改造 `tools/mechanics.ts` — `submit_reply` 字数硬验证
-6. 改造 `tools/registry.ts` — 注册新工具
-7. 重写 `skills/prose-optimization.md` — 阶段绑定格式
-8. **检验**：完整流水线跑通 6 个阶段，字数 1000-1500，无八股
+1. ✅ 新增 `tools/mechanics.ts` — `pipeline_phase` + `end_phase` + `finish_reply` 字数硬验证
+2. ✅ 新增 `tools/outline.ts` — `plan_reply` 工具
+3. ✅ 新增 `tools/draft.ts` — `draft_maintext` 工具
+4. ✅ 新增 `tools/review.ts` — `review_draft` + `revise_draft` 工具
+5. ✅ 改造 `tools/registry.ts` — 注册全部 22 个工具
+6. ✅ 重写 `skills/prose-optimization.md` — 阶段绑定格式
+7. ✅ **超出方案的优化**：事务级状态回滚、白名单+类型守卫、阶段 1 三重强制执行、`end_phase`/`finish_reply` 语义分离、`maxTurns` 双重保险、强制 `tool_choice` 硬约束
 
-### 阶段 3：体验打磨（2-3 天）
+### 阶段 2.5：Skill 用户界面 ✅ 已完成（2026-06-22）
 
-1. UI：ToolCallBubble 展示流水线阶段进度
-2. 日志：记录每阶段耗时和通过率
-3. Prompt 微调
-4. **检验**：连续 20 轮，字数达标率 > 90%
+1. ✅ `AppSettings.enabledSkills` — 可持久化的 skill 开关状态
+2. ✅ `SkillTab.tsx` — 独立设置标签页，显示所有 skill 列表 + 开关
+3. ✅ `injection.ts` — 根据 `enabledSkills` 过滤 skill 模块
+4. ✅ 完整数据流：设置 → `useSillytavern` → `buildAgentContext` → `buildInjectionContext` → `loadPromptModules`
+
+### 阶段 3：体验打磨（当前）
+
+1. 🔲 ToolCallBubble 展示流水线阶段进度
+2. ✅ 日志：agent-loop 已有详细轮次/缓存/工具调用日志
+3. 🔲 连续多轮测试，字数达标率验证
+4. 🔲 Prompt 微调
 
 ### 阶段 4（远期）：Subagent 探索
 

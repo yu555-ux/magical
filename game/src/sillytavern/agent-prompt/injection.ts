@@ -45,6 +45,8 @@ export interface InjectionContext {
   userInput: string;
   /** 完整变量树（用于 buildGmBrief） */
   variables: Record<string, any>;
+  /** 启用的 Skill ID 列表（来自 AppSettings.enabledSkills） */
+  enabledSkills: string[];
 }
 
 export interface InjectionResult {
@@ -62,11 +64,16 @@ export interface InjectionResult {
 
 // ── Module loading ──
 
-function loadPromptModules(): PromptModule[] {
+function loadPromptModules(enabledSkills: string[]): PromptModule[] {
   const modules: PromptModule[] = [];
 
   for (const m of presetData.modules) {
     if (!m.enabled) continue;
+
+    // Skill 模块：由用户设置控制启用/关闭
+    if (m.id.startsWith('skill-') && !enabledSkills.includes(m.id)) {
+      continue;
+    }
 
     let body: string;
     if (m.source === 'runtime:state-brief') {
@@ -218,7 +225,7 @@ function buildSlotMessages(
 // ── Main entry ──
 
 export function buildInjectionContext(ctx: InjectionContext): InjectionResult {
-  const modules = loadPromptModules();
+  const modules = loadPromptModules(ctx.enabledSkills ?? []);
 
   const systemPromptContent = MODULE_CONTENT['agent-prompt/gm-system.md'] ?? '';
 

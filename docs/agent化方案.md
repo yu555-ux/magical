@@ -1,7 +1,19 @@
 # Agent 化改造方案
 
-> 2026-06-09
+> 2026-06-09 制定 · 2026-06-22 更新进度
 > 基于 piagent + tavern2agent 架构分析，对当前项目进行全面的 Agent 化改造设计。
+
+## 进度总览
+
+| 阶段 | 内容 | 状态 |
+|------|------|:--:|
+| **阶段 1** | Agent 基础设施（agent-loop / agent-context / tool-registry / api-router） | ✅ |
+| **阶段 2** | 工具迁移 + 流水线（22 工具 / pipeline_phase / plan_reply / draft+review） | ✅ |
+| **阶段 2.5** | Skill UI（SkillTab 独立设置页 + enabledSkills 持久化） | ✅ |
+| **阶段 3** | 体验优化（缓存标记 / compaction / ToolCallBubble / 多 agent） | 🔄 |
+| **阶段 4** | Subagent 后台世界进程 | ❌ |
+
+**超出方案的关键优化：** 事务级状态回滚、白名单+类型守卫、阶段 1 三重强制执行、end_phase/finish_reply 语义分离、maxTurns 双重保险、强制 tool_choice 硬约束、结构化简报引擎。
 
 ---
 

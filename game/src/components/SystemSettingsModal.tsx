@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Server, BookOpen, Sliders, User, Monitor } from 'lucide-react';
+import { X, Server, BookOpen, Sliders, User, Monitor, Sparkles } from 'lucide-react';
 import { showTopCenter } from './shared/TopCenterToast';
 import { useSS } from '../hooks/SillytavernContext';
 import type { AppSettings, ApiSettings } from '../sillytavern/types';
@@ -9,14 +9,16 @@ import { fetchModels, testConnection } from '../sillytavern/api-tools';
 import ApiTab from './Settings/ApiTab';
 import IdentityTab from './Settings/IdentityTab';
 import FrontendConfigTab from './Settings/FrontendConfigTab';
+import SkillTab from './Settings/SkillTab';
 import PromptManagerRoot from './Settings/PresetManager/PromptManagerRoot';
 import LorebookTab from './Settings/LorebookTab';
 
-type TabId = 'api' | 'lorebook' | 'preset' | 'identity' | 'frontend';
+type TabId = 'api' | 'lorebook' | 'preset' | 'skill' | 'identity' | 'frontend';
 const TABS: { id: TabId; label: string; icon: any }[] = [
   { id: 'api', label: 'API 配置', icon: Server },
   { id: 'lorebook', label: '世界书配置', icon: BookOpen },
   { id: 'preset', label: '预设配置', icon: Sliders },
+  { id: 'skill', label: 'Skill', icon: Sparkles },
   { id: 'identity', label: '玩家身份', icon: User },
   { id: 'frontend', label: '前端配置', icon: Monitor },
 ];
@@ -55,7 +57,8 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
       || JSON.stringify(draft.richTextConfig) !== JSON.stringify(ss.settings.richTextConfig)
       || draft.recentMessageCount !== (ss.settings.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount)
       || draft.useProcessedMap !== (ss.settings.useProcessedMap ?? true)
-      || draft.useProcessedCharacters !== (ss.settings.useProcessedCharacters ?? true);
+      || draft.useProcessedCharacters !== (ss.settings.useProcessedCharacters ?? true)
+      || JSON.stringify(draft.enabledSkills) !== JSON.stringify(ss.settings.enabledSkills);
   }, [draft, ss.settings]);
 
   const handleSave = async () => {
@@ -76,6 +79,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
         recentMessageCount: draft.recentMessageCount ?? DEFAULT_SETTINGS.recentMessageCount,
         useProcessedMap: draft.useProcessedMap ?? true,
         useProcessedCharacters: draft.useProcessedCharacters ?? true,
+        enabledSkills: draft.enabledSkills ?? [],
       });
       showTopCenter('配置已保存', 'success');
     } catch { showTopCenter('保存失败', 'error'); }
@@ -145,6 +149,7 @@ export default function SystemSettingsModal({ isOpen, onClose }: { isOpen: boole
                 )}
                 {tab === 'lorebook' && draft && <LorebookTab draft={draft} setDraft={setDraft} onPersist={(patch) => ss.updateSettings(patch)} />}
                 {tab === 'preset' && draft && <PromptManagerRoot draft={draft} setDraft={setDraft} onPersist={(patch) => ss.updateSettings(patch)} />}
+                {tab === 'skill' && draft && <SkillTab draft={draft} setDraft={setDraft} />}
                 {tab === 'identity' && draft && <IdentityTab draft={draft} setDraft={setDraft} />}
                 {tab === 'frontend' && draft && <FrontendConfigTab draft={draft} setDraft={setDraft} />}
               </motion.div>

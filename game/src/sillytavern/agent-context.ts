@@ -34,6 +34,8 @@ export interface AgentContextConfig {
   plotHistory?: HistoryTimeline;
   dreamAnchor?: DreamAnchor;
   tools: AgentToolDef[];
+  /** 启用的 Skill ID 列表（来自 AppSettings.enabledSkills） */
+  enabledSkills: string[];
   /** @deprecated 不再使用——system prompt 由 gm-system.md 提供 */
   systemPromptContent?: string;
   /** @deprecated 不再使用——铁则由 preset.json 的 pre-response 模块提供 */
@@ -104,6 +106,7 @@ export function buildAgentContext(config: AgentContextConfig): AgentContextResul
     characterName,
     userInput: userInputMsg?.content ?? '',
     variables,
+    enabledSkills: config.enabledSkills,
   });
 
   // ── 宏上下文 ──

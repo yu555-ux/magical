@@ -387,6 +387,7 @@ ${openingHistory.foreshadowing.map(f => `  - ${f}`).join('\n')}
         plotHistory: updatedChat.plotHistory,
         dreamAnchor: updatedChat.dreamAnchor,
         tools: agentTools,
+        enabledSkills: effectiveSettings.enabledSkills ?? [],
       });
 
       setLastPrompt({
