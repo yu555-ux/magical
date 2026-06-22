@@ -11,7 +11,7 @@ let currentPhase = 0;
 export function resetPipelinePhase() { currentPhase = 0; }
 
 const PHASE_INSTRUCTIONS: Record<number, string> = {
-  0: `[阶段 0/5：机械查询]
+  0: `[阶段 0/6：机械查询]
 
 主角完整状态已通过 <player_var> 自动注入提示词（含时间/地点/天气/属性/技能/物品/社交/在场NPC摘要）。
 本阶段只需补充查询 NPC 详情和地点详情，一个回合内批量完成：
@@ -23,11 +23,28 @@ const PHASE_INSTRUCTIONS: Record<number, string> = {
 ⚠️ 所有查询应在一个回合内并发完成。禁止分多轮逐条查询。
 全部查询完成后，调 end_phase 收口，然后调 pipeline_phase(phase=1) 进入下一阶段。`,
 
-  1: `[阶段 1/5：变量修改]
+  1: `[阶段 1/6：大纲草稿]
+
+⚠️ 在调用 outline_draft 之前，必须先从上下文消息中完成以下回顾：
+
+1. 找到玩家本轮输入（最后一条 role=user 的消息），提取玩家想做什么
+2. 回顾最近 2-3 轮聊天记录：玩家说了什么、GM 回复了什么、剧情推进到了哪里
+3. 结合 <player_var> 的当前状态和 <phase0_lookup> 的角色/地点详情
+
+然后调用 outline_draft 工具，认真填写以下字段：
+- playerIntent: 玩家本轮想做什么（必须来自玩家实际输入）
+- recentContext: 最近 2-3 轮发生了什么（从聊天记录中总结）
+- plotDirection: 本轮剧情大方向（基于意图 + 状态 + 剧情惯性）
+- diceRollsNeeded: 需要掷骰的检定。日常对话/走路/吃饭不需要骰子。战斗/技能判定/危险场景需要
+- variablesToModify: 计划修改的变量。至少包含时间推进和 NPC 想法更新
+
+完成后调 end_phase 收口，然后调 pipeline_phase(phase=2) 进入下一阶段。`,
+
+  2: `[阶段 2/6：变量修改]
 
 本阶段只能修改变量和掷骰子。禁止写大纲或正文。
 
-⚠️ 以下三项为强制执行，每项都必须完成，禁止以"不需要"跳过：
+请先回顾 <phase1_outline> 中 outline_draft 的计划，然后执行：
 
 【强制 1：时间推进】
 每次剧情都必须推进时间。对话、思考、移动、观察——全都消耗时间。
@@ -43,24 +60,15 @@ const PHASE_INSTRUCTIONS: Record<number, string> = {
 - NPC 对事件做出反应 → 更新该 NPC 的想法
 每个涉及的 NPC 都要更新。禁止声称"想法没变"——任何互动都会改变想法。
 
-【强制 3：全面变量分析】
-主角状态已通过 <player_var> 自动注入，无需查询。基于已有信息逐项检查以下是否需要更新：
-- 生命/体力/能量/SAN — 战斗、受伤、消耗
-- 金钱 — 交易、消费
-- 好感值/友善值 — 任何 NPC 互动
-- 堕落值/性欲值 — 亲密互动
-- 地点 — 玩家移动到新位置
-- 天气 — 剧情需要特定氛围
-- 物品 — 获得、消耗、转移
-- 状态异常 — 受伤、中毒、治疗
-- 技能熟练度 — 成功使用技能
+【强制 3：执行骰子检定】
+回顾 <phase1_outline> 中 diceRollsNeeded 列出的检定，逐个调用 roll_dice。
 
-禁止说"没有变量需要更新"。至少时间必须推进 + 相关 NPC 想法必须更新。
-如果确实没有其他变量变化（极其罕见），至少完成【强制 1】+【强制 2】。
+【强制 4：修改变量】
+回顾 <phase1_outline> 中 variablesToModify 列出的变量，逐个更新。
 
-全部更新完成后，调 end_phase 收口，然后调 pipeline_phase(phase=2) 进入下一阶段。`,
+全部更新完成后，调 end_phase 收口，然后调 pipeline_phase(phase=3) 进入下一阶段。`,
 
-  2: `[阶段 2/5：大纲规划]
+  3: `[阶段 3/6：叙事大纲]
 
 本阶段调用 plan_reply 写叙事大纲。禁止写正文。
 
@@ -69,9 +77,9 @@ const PHASE_INSTRUCTIONS: Record<number, string> = {
 - narrativeBeats: 叙事节拍序列（3-7 个 beat）
 - endingPosition: 结尾停在什么可行动的瞬间
 
-完成后调 end_phase 收口，然后调 pipeline_phase(phase=3) 进入下一阶段。`,
+完成后调 end_phase 收口，然后调 pipeline_phase(phase=4) 进入下一阶段。`,
 
-  3: `[阶段 3/5：正文初稿]
+  4: `[阶段 4/6：正文初稿]
 
 本阶段调用 draft_maintext 写正文初稿。
 
@@ -81,9 +89,9 @@ const PHASE_INSTRUCTIONS: Record<number, string> = {
 - 停在明确可行动的瞬间
 - 这是初稿，不需要追求完美
 
-完成后调 end_phase 收口，然后调 pipeline_phase(phase=4) 进入下一阶段。`,
+完成后调 end_phase 收口，然后调 pipeline_phase(phase=5) 进入下一阶段。`,
 
-  4: `[阶段 4/5：审查修改]
+  5: `[阶段 5/6：审查修改]
 
 本阶段只能调用 review_draft 和 revise_draft，可跨多轮反复修改。
 
@@ -96,15 +104,15 @@ const PHASE_INSTRUCTIONS: Record<number, string> = {
    - maintext 不含 GM 解说/推理/JSON/骰点/字段名
    - options 恰好 4 条
 
-全部门禁通过后，调 end_phase 收口，然后调 pipeline_phase(phase=5) 进入最终阶段。`,
+全部门禁通过后，调 end_phase 收口，然后调 pipeline_phase(phase=6) 进入最终阶段。`,
 
-  5: `[阶段 5/5：提交回复]
+  6: `[阶段 6/6：提交回复]
 
 本阶段调用 finish_reply 提交最终回复。
 
 maintext 填入审查通过的最终正文，options 填入 4 个选项，history 填入标题/人物/描述。
 
-⚠️ 如果 finish_reply 返回错误（如字数不足），不要放弃——调 pipeline_phase(phase=4) 回到阶段 4 修改正文，修改通过后再回到阶段 5 重新提交。
+⚠️ 如果 finish_reply 返回错误（如字数不足），不要放弃——调 pipeline_phase(phase=5) 回到阶段 5 修改正文，修改通过后再回到阶段 6 重新提交。
 
 调用成功（无 ❌ 错误）后，本次流水线结束，玩家将收到最终回复。`,
 };
@@ -119,17 +127,18 @@ export const mechanicTools: Record<string, AgentToolDef> = {
     category: 'gameplay',
     description:
       '查看或推进正文优化流水线的当前阶段。每回合开始时必须先调本工具确认当前阶段和允许使用的工具。\n\n' +
-      '阶段 0：机械查询 — 只调查询工具\n' +
-      '阶段 1：变量修改 — 修改变量 + 掷骰\n' +
-      '阶段 2：大纲规划 — 调 plan_reply\n' +
-      '阶段 3：正文初稿 — 调 draft_maintext\n' +
-      '阶段 4：审查修改 — 调 review_draft/revise_draft\n' +
-      '阶段 5：提交回复 — 调 finish_reply\n\n' +
+      '阶段 0：机械查询 — 只调查询工具（lookup_character/lookup_location/lookup_world）\n' +
+      '阶段 1：大纲草稿 — 调 outline_draft（回顾聊天记录 + 分析玩家意图 + 规划骰子/变量）\n' +
+      '阶段 2：变量修改 — 修改变量 + 掷骰（advance_time/update_resource/roll_dice 等）\n' +
+      '阶段 3：叙事大纲 — 调 plan_reply\n' +
+      '阶段 4：正文初稿 — 调 draft_maintext\n' +
+      '阶段 5：审查修改 — 调 review_draft/revise_draft\n' +
+      '阶段 6：提交回复 — 调 finish_reply\n\n' +
       '【必须调用的场景】\n' +
       '- 每回合开始时，必须先调本工具确认当前阶段\n' +
       '- 完成当前阶段后，调 pipeline_phase(phase=N+1) 推进到下一阶段\n\n' +
       '【严禁的行为】\n' +
-      '- 跳过阶段——必须按 0→1→2→3→4→5 顺序推进\n' +
+      '- 跳过阶段——必须按 0→1→2→3→4→5→6 顺序推进\n' +
       '- 在当前阶段调用其他阶段的专属工具',
     parameters: {
       type: 'object',
@@ -140,7 +149,7 @@ export const mechanicTools: Record<string, AgentToolDef> = {
     },
     async execute(_ctx, params) {
       if (typeof params?.phase === 'number') {
-        currentPhase = Math.max(0, Math.min(5, params.phase));
+        currentPhase = Math.max(0, Math.min(6, params.phase));
       }
       const instruction = PHASE_INSTRUCTIONS[currentPhase] ?? '未知阶段';
       return { content: [{ type: 'text', text: instruction }] };
@@ -238,12 +247,12 @@ export const mechanicTools: Record<string, AgentToolDef> = {
     label: '提交回复',
     category: 'gameplay',
     description:
-      '提交最终回复，退出 agent loop。仅在流水线阶段 5（提交回复）中使用。调用本工具后玩家将收到最终叙事。\n\n' +
+      '提交最终回复，退出 agent loop。仅在流水线阶段 6（提交回复）中使用。调用本工具后玩家将收到最终叙事。\n\n' +
       '【必须调用的场景】\n' +
-      '- pipeline_phase 返回阶段 5 时\n' +
+      '- pipeline_phase 返回阶段 6 时\n' +
       '- 所有质量门禁已通过，正文准备就绪\n\n' +
       '【严禁的行为】\n' +
-      '- 在阶段 0-4 调用本工具——阶段收口请用 end_phase\n' +
+      '- 在阶段 0-5 调用本工具——阶段收口请用 end_phase\n' +
       '- 在 maintext 中输出推理、字段名、JSON、schema 路径、骰点或 GM 元评论\n' +
       '- 替玩家做决定——叙事必须停在玩家可回应处\n\n' +
       '【格式要求】\n' +
@@ -273,7 +282,7 @@ export const mechanicTools: Record<string, AgentToolDef> = {
     },
     async execute(_ctx, params) {
       const maintext = (params?.maintext as string)?.trim() ?? '';
-      const isFinal = currentPhase === 5;
+      const isFinal = currentPhase === 6;
 
       // 阶段 5（最终提交）时强制字数验证
       if (isFinal) {

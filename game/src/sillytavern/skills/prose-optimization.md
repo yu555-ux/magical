@@ -15,14 +15,15 @@ description: 正文优化流水线——渐进式多阶段正文生成与优化�
 
 | 阶段 | 允许的工具 | 收口 |
 |------|-----------|------|
-| 0 机械查询 | get_status, lookup_character, lookup_location, lookup_world | end_phase |
-| 1 变量修改 | roll_dice, update_resource, change_location, advance_time 等全部变量工具 | end_phase |
-| 2 大纲规划 | plan_reply | end_phase |
-| 3 正文初稿 | draft_maintext | end_phase |
-| 4 审查修改 | review_draft, revise_draft（可跨多轮反复） | end_phase |
-| 5 提交回复 | finish_reply（唯一退出循环的方式） | — |
+| 0 机械查询 | lookup_character, lookup_location, lookup_world | end_phase |
+| 1 大纲草稿 | outline_draft（回顾聊天记录+分析意图+规划骰子/变量） | end_phase |
+| 2 变量修改 | roll_dice, update_resource, change_location, advance_time 等全部变量工具 | end_phase |
+| 3 叙事大纲 | plan_reply | end_phase |
+| 4 正文初稿 | draft_maintext | end_phase |
+| 5 审查修改 | review_draft, revise_draft（可跨多轮反复） | end_phase |
+| 6 提交回复 | finish_reply（唯一退出循环的方式） | — |
 
-**严禁跳步。** 收口用 end_phase 而非 finish_reply——finish_reply 只在阶段 5 使用，调用后整个流水线结束。
+**严禁跳步。** 收口用 end_phase 而非 finish_reply——finish_reply 只在阶段 6 使用，调用后整个流水线结束。阶段 5（审查修改）可以跨多轮反复修改直到通过。其他阶段应在一轮内完成。
 
 ## 质量门禁（阶段 4 生效）
 

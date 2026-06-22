@@ -330,18 +330,27 @@ export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<A
           console.log(`  ✅ ${toolName} (${duration}ms) →`, resultText);
         }
 
-        // ── Phase 0 lookup 结果自动注入 ──
-        // 收集本轮所有查询工具的返回，打包注入到 context，
-        // 确保 Phase 1 启动时角色/地点数据就在眼前，无需翻找历史。
+        // ── 阶段收口时自动注入本阶段产出 ──
+        // 收集本轮所有"产出类"工具的返回，打包注入到 context，
+        // 确保下一阶段启动时关键数据就在眼前，无需翻找历史。
         const endPhaseCalled = turnRecords.some(r => r.name === 'end_phase');
-        const lookupRecords = turnRecords.filter(r =>
-          ['lookup_character', 'lookup_location', 'lookup_world'].includes(r.name) && !r.isError
-        );
-        if (lookupRecords.length > 0 && endPhaseCalled) {
-          const blocks = lookupRecords.map(r => r.result).join('\n');
-          const injectMsg = `<phase0_lookup>\n${blocks}\n</phase0_lookup>`;
-          contextMessages.push({ role: 'user', content: injectMsg } as any);
-          console.log(`📦 注入 <phase0_lookup>：${lookupRecords.length} 条查询结果 (${lookupRecords.map(r => r.name).join(', ')})`);
+        if (endPhaseCalled) {
+          const lookupRecords = turnRecords.filter(r =>
+            ['lookup_character', 'lookup_location', 'lookup_world'].includes(r.name) && !r.isError
+          );
+          const outlineRecords = turnRecords.filter(r =>
+            r.name === 'outline_draft' && !r.isError
+          );
+          if (lookupRecords.length > 0) {
+            const blocks = lookupRecords.map(r => r.result).join('\n');
+            contextMessages.push({ role: 'user', content: `<phase0_lookup>\n${blocks}\n</phase0_lookup>` } as any);
+            console.log(`📦 注入 <phase0_lookup>：${lookupRecords.length} 条查询结果`);
+          }
+          if (outlineRecords.length > 0) {
+            const blocks = outlineRecords.map(r => r.result).join('\n');
+            contextMessages.push({ role: 'user', content: `<phase1_outline>\n${blocks}\n</phase1_outline>` } as any);
+            console.log(`📦 注入 <phase1_outline>：${outlineRecords.length} 条大纲草稿`);
+          }
         }
 
         // finish_reply → 成功时退出循环，失败时继续（如字数不足）
