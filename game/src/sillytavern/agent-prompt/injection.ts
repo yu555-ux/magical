@@ -100,80 +100,11 @@ function loadPromptModules(enabledSkills: string[]): PromptModule[] {
 }
 
 // ── GM Brief builder ──
+// 直接复用 get_status 的完整输出（buildStatusBrief），
+// 确保自动注入的 <player_var> 与工具返回值格式完全一致。
+// 见 sillytavern/tools/lookup.ts
 
-function buildGmBrief(variables: Record<string, any>): string {
-  const lines: string[] = ['当前机械状态简报由变量树派生，只读参考，工具返回值优先。', ''];
-
-  // 时间
-  const time = variables['世界']?.['现实']?.['时间'];
-  if (time) lines.push(`时间：${time}`);
-
-  // 地点
-  const place = variables['世界']?.['现实']?.['地点'];
-  if (place) lines.push(`地点：${place}`);
-
-  // 梦境/现实
-  const isDream = variables['世界']?.['位于梦境'];
-  if (isDream === true) lines.push(`⚠️ 当前处于梦境中`);
-
-  lines.push('');
-
-  // 玩家资源
-  const body = variables['主角']?.['身体属性'];
-  const money = variables['主角']?.['资源']?.['金钱']?.['数值'];
-  if (body || money !== undefined) {
-    const parts: string[] = [];
-    if (body?.['生命']?.['当前'] !== undefined) {
-      const max = body['生命']?.['上限'] ?? '?';
-      parts.push(`生命 ${body['生命']['当前']}/${max}`);
-    }
-    if (body?.['体力']?.['当前'] !== undefined) {
-      const max = body['体力']?.['上限'] ?? '?';
-      parts.push(`体力 ${body['体力']['当前']}/${max}`);
-    }
-    if (body?.['能量']?.['当前'] !== undefined) {
-      const max = body['能量']?.['上限'] ?? '?';
-      parts.push(`能量 ${body['能量']['当前']}/${max}`);
-    }
-    if (body?.['SAN']?.['当前'] !== undefined) {
-      const max = body['SAN']?.['上限'] ?? '?';
-      parts.push(`SAN ${body['SAN']['当前']}/${max}`);
-    }
-    if (money !== undefined) {
-      parts.push(`金钱 ${money}`);
-    }
-    if (parts.length > 0) lines.push(`资源：${parts.join('  |  ')}`);
-  }
-
-  // 评级
-  const rating = variables['主角']?.['评级'];
-  if (rating) lines.push(`评级：${rating}`);
-
-  // 状态异常
-  const conditions = variables['主角']?.['状态'];
-  if (conditions && typeof conditions === 'object' && Object.keys(conditions).length > 0) {
-    const condText = Object.entries(conditions as Record<string, any>)
-      .map(([name, detail]) => {
-        const desc = detail?.描述 ?? '';
-        return desc ? `${name}（${desc}）` : name;
-      })
-      .join('；');
-    if (condText) lines.push(`状态异常：${condText}`);
-  }
-
-  // 最近剧情节点
-  const plotReality = variables['_plotHistory']?.['reality'];
-  if (Array.isArray(plotReality) && plotReality.length > 0) {
-    const recent = plotReality.slice(-3);
-    const titles = recent.map((n: any) => n.title).filter(Boolean);
-    if (titles.length > 0) lines.push(`最近事件：${titles.join(' → ')}`);
-  }
-
-  lines.push('');
-  lines.push('这份简报只用于压住叙事倾向，不能替代工具调用；本轮任何工具返回值都覆盖简报。');
-
-  return lines.join('\n');
-}
+import { buildStatusBrief } from '../tools/lookup';
 
 // ── Slot message builder ──
 
@@ -199,9 +130,9 @@ function buildSlotMessages(
     .map(m => {
       let body = m.body;
 
-      // 运行时动态生成 GM Brief
+      // 运行时动态生成 <player_var>（与 get_status 工具同源，格式完全一致）
       if (m.id === 'mechanical-state') {
-        body = buildGmBrief(ctx.variables);
+        body = buildStatusBrief(ctx.variables, ctx.userName);
       }
 
       // skill 模块：开头加 References 行（对齐 piagent formatSkillInvocation）

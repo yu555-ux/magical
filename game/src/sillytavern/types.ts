@@ -317,7 +317,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     secondary: { enabled: true, baseUrl: 'https://api.deepseek.com', apiKey: '', model: 'deepseek-v4-flash', temperature: 0.7, maxTokens: 8000 },
     agentMode: false,
     enabledTools: [
-      'get_status', 'lookup_character', 'lookup_location', 'lookup_world',
+      'lookup_character', 'lookup_location', 'lookup_world',
       'pipeline_phase', 'end_phase', 'roll_dice', 'finish_reply',
       'plan_reply', 'draft_maintext', 'review_draft', 'revise_draft',
       'update_resource', 'advance_time', 'change_location', 'change_weather', 'toggle_dream',

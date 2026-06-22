@@ -10,14 +10,15 @@ let currentPhase = 0;
 const PHASE_INSTRUCTIONS: Record<number, string> = {
   0: `[阶段 0/5：机械查询]
 
-本阶段只能调用查询工具。禁止调用任何变量修改工具。
+主角完整状态已通过 <player_var> 自动注入提示词（含时间/地点/天气/属性/技能/物品/社交/在场NPC摘要）。
+本阶段只需补充查询 NPC 详情和地点详情，一个回合内批量完成：
 
-1. get_status — 获取当前状态快照
-2. lookup_character — 查在场 NPC 的完整属性
-3. lookup_location — 查当前地点的描述和异常
-4. lookup_world — 如有需要，查世界书
+1. lookup_character(name=在场NPC) — 逐人查询，可并发调用。获取完整属性和技能值
+2. lookup_location(name=当前地点) — 获取地点描述、异常、子地点
+3. lookup_world(keyword) — 仅在需要查世界书补充设定时调用
 
-本阶段可以跨多轮完成。查询工作全部完成后，调 end_phase 收口，然后调 pipeline_phase(phase=1) 进入下一阶段。`,
+⚠️ 所有查询应在一个回合内并发完成。禁止分多轮逐条查询。
+全部查询完成后，调 end_phase 收口，然后调 pipeline_phase(phase=1) 进入下一阶段。`,
 
   1: `[阶段 1/5：变量修改]
 
@@ -40,7 +41,7 @@ const PHASE_INSTRUCTIONS: Record<number, string> = {
 每个涉及的 NPC 都要更新。禁止声称"想法没变"——任何互动都会改变想法。
 
 【强制 3：全面变量分析】
-阶段 0 已获取完整状态，无需重复调 get_status。基于已有信息逐项检查以下是否需要更新：
+主角状态已通过 <player_var> 自动注入，无需查询。基于已有信息逐项检查以下是否需要更新：
 - 生命/体力/能量/SAN — 战斗、受伤、消耗
 - 金钱 — 交易、消费
 - 好感值/友善值 — 任何 NPC 互动

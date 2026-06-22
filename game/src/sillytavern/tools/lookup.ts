@@ -12,7 +12,7 @@ function replaceMacro(text: string, userName: string): string {
 
 // ── Status Brief Builder ──
 
-function buildStatusBrief(vars: Record<string, any>, userName: string): string {
+export function buildStatusBrief(vars: Record<string, any>, userName: string): string {
   const lines: string[] = [];
   const hero = vars['主角'] ?? {};
   const world = vars['世界'] ?? {};
@@ -570,25 +570,6 @@ function buildLocationBrief(target: string, mapTree: any): string | null {
 // ── Tools ──
 
 export const lookupTools: Record<string, AgentToolDef> = {
-
-  get_status: {
-    name: 'get_status',
-    label: '查看状态',
-    category: 'lookup',
-    description:
-      '查看玩家当前状态简报。包含时间/地点/天气/属性/资源/技能/状态/持有物品/社交关系/在场NPC。\n\n' +
-      '【必须调用的场景】\n' +
-      '- 每轮开始叙事前，获取当前完整状态快照\n' +
-      '- 玩家询问当前状态、资源、同行者\n' +
-      '- 不确定变量当前值时\n\n' +
-      '【严禁的行为】\n' +
-      '- 凭记忆推测数值——以本工具返回为准\n' +
-      '- 状态未变化时重复调用（每轮最多调用一次）',
-    parameters: { type: 'object', properties: {}, required: [] },
-    async execute(ctx, _params) {
-      return { content: [{ type: 'text', text: buildStatusBrief(ctx.variables, ctx.userName) }] };
-    },
-  },
 
   lookup_character: {
     name: 'lookup_character',

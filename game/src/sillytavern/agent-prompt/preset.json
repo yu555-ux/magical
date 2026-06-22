@@ -71,7 +71,7 @@
       "enabled": true,
       "slot": "final-contract",
       "priority": 5,
-      "header": "mechanical_state",
+      "header": "player_var",
       "source": "runtime:state-brief"
     },
     {
